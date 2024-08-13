@@ -244,7 +244,7 @@ A completed open position entry should look something like this:
 - _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
 ### Approving a new position
-When review is requested on a proposal to open a new position, the 🐈‍⬛ CEO will complete the following steps when reviewing the pull request:
+When review is requested on a proposal to open a new position, the Apprentice to the CEO will complete the following steps when reviewing the pull request:
 
 1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
@@ -254,7 +254,7 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
 4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
-   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Business Operations.
+   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the CEO, Head of Business Operations and the hiring manager.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
@@ -315,11 +315,12 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - Location of candidate
 3. **Schedule CEO interview:** [Book a quick chat](https://fleetdm.com/handbook/digital-experience#contact-us) so our CEO can get to know the future Fleetie.  (Please take care of all of the previous steps first.)
-4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the CEO and the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
-   - _Share_ this single document with the Head of Business Operations via email.
+   - _Share_ this single document with the CEO and the Head of Business Operations via email.
     - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line (e.g. "_Why hire Jane Doe ("Train Conductor") - 2023-03-21_").
-    - When the Head of Business Operations receives this doc shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
+    - When the CEO receives the shared single doc email prior to the interview, they will be able to review the feedback about the canidate.
+    - When the Head of Business Operations receives the shared single doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
 
 ### Making an offer
 After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
