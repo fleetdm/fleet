@@ -86,11 +86,11 @@ export type ISoftwareVulnFilters = {
 export const getSoftwareVulnFiltersForQueryKey = (
   vulnFilters: ISoftwareVulnFilters
 ) => {
-  if (!vulnFilters.vulnerable) {
+  const { vulnerable, exploit, min_cvss_score, max_cvss_score } = vulnFilters;
+
+  if (!vulnerable) {
     return {};
   }
-
-  const { exploit, min_cvss_score, max_cvss_score } = vulnFilters;
 
   const isValidNumber = (value: any): value is number =>
     value !== null && value !== undefined && !isNaN(value);

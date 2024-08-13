@@ -42,6 +42,7 @@ import {
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
   getSoftwareFilterForQueryKey,
+  getSoftwareVulnFiltersForQueryKey,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -217,7 +218,7 @@ const SoftwareTable = ({
       orderDirection,
       orderKey,
       page: 0, // resets page index
-      ...vulnFilters,
+      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
       ...getSoftwareFilterForQueryKey(value),
     };
 
@@ -316,11 +317,29 @@ const SoftwareTable = ({
     )
       return <></>;
 
+    const filterButtonText = () => {
+      let filterCount = 0;
+
+      if (vulnFilters.vulnerable) {
+        filterCount += 1;
+        if (vulnFilters.exploit) {
+          filterCount += 1;
+        }
+        if (vulnFilters.min_cvss_score || vulnFilters.max_cvss_score) {
+          filterCount += 1;
+        }
+      }
+
+      return filterCount > 0
+        ? `${filterCount} filter${filterCount > 1 ? "s" : ""}`
+        : "Add filter";
+    };
+
     return (
       <div className={`${baseClass}__filters`}>
         <Button variant="text-link" onClick={onAddFilterClick}>
           <Icon name="filter" color="core-fleet-blue" />
-          <span>Add filter</span>
+          <span>{filterButtonText()}</span>
         </Button>
       </div>
     );
