@@ -11,7 +11,7 @@ import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
 
 type IAddPackageFormValidatorKey = Exclude<
   keyof IAddPackageFormData,
-  "installScript" | "installType" | "selectedLabels"
+  "installScript" | "installType" | "selectedLabels" | "includeAnyLabels"
 >;
 
 type IMessageFunc = (formData: IAddPackageFormData) => string;

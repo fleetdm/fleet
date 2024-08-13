@@ -69,6 +69,7 @@ export interface IAddPackageFormData {
   postInstallScript?: string;
   selfService: boolean;
   installType: InstallType;
+  includeAnyLabels: boolean;
   selectedLabels: Record<string, boolean>; // label_name: isSelected
 }
 
@@ -83,7 +84,7 @@ export interface IFormValidation {
 interface IAddPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
-  onSubmit: (formData: IAddPackageFormData, includeAnyLabels: boolean) => void;
+  onSubmit: (formData: IAddPackageFormData) => void;
   customLabels?: ILabel[];
 }
 
@@ -98,8 +99,6 @@ const AddPackageForm = ({
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [useCustomTargets, setUseCustomTargets] = useState(false);
-  // else exclude
-  const [includeAnyLabels, setIncludeAnyLabels] = useState(true);
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
@@ -108,6 +107,7 @@ const AddPackageForm = ({
     selfService: false,
     installType: "manual",
     selectedLabels: {},
+    includeAnyLabels: true,
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
@@ -144,7 +144,7 @@ const AddPackageForm = ({
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    onSubmit(formData, includeAnyLabels);
+    onSubmit(formData);
   };
 
   const onUpdateSelectedLabels = useCallback(
@@ -248,9 +248,9 @@ const AddPackageForm = ({
 
   const onChangeLabelTargetMode = useCallback(
     (val: string) => {
-      setIncludeAnyLabels(val === "include");
+      setFormData({ ...formData, includeAnyLabels: val === "include" });
     },
-    [setIncludeAnyLabels]
+    [formData]
   );
 
   const noRequiredLabelTargets =
@@ -282,16 +282,16 @@ const AddPackageForm = ({
     return (
       <>
         <Dropdown
-          value={includeAnyLabels ? "include" : "exclude"}
+          value={formData.includeAnyLabels ? "include" : "exclude"}
           options={LABEL_TARGET_MODES}
           searchable={false}
           onChange={onChangeLabelTargetMode}
         />
         <div className={`${baseClass}__include-any-toggle-text`}>
           {
-            LABEL_HELP_TEXT_CONFIG[includeAnyLabels ? "include" : "exclude"][
-              formData.installType
-            ]
+            LABEL_HELP_TEXT_CONFIG[
+              formData.includeAnyLabels ? "include" : "exclude"
+            ][formData.installType]
           }
         </div>
         {renderLabels()}
