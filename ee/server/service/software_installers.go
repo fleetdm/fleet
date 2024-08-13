@@ -301,7 +301,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		}
 	}
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 	if err != nil {
 		// if we couldn't find an installer or a VPP app, return a bad
 		// request error
@@ -782,7 +782,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 	if err != nil {
 		// if we couldn't find an installer or a VPP app, return a bad
 		// request error

@@ -553,12 +553,12 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	fooTitleID := fooApp.TitleID
-	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID, true)
+	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID)
 	require.NoError(t, err)
 	require.Equal(t, "foo", gotVPPApp.AdamID)
 	require.Equal(t, fooTitleID, gotVPPApp.TitleID)
 	// title that doesn't exist
-	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999, true)
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999)
 	require.ErrorAs(t, err, &nfe)
 
 	// create an entry for the global team
@@ -567,10 +567,10 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	barTitleID := barApp.TitleID
 	// not found providing the team id
-	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID, true)
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID)
 	require.ErrorAs(t, err, &nfe)
 	// found for the global team
-	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID, true)
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID)
 	require.NoError(t, err)
 	require.Equal(t, "bar", gotVPPApp.AdamID)
 	require.Equal(t, barTitleID, gotVPPApp.TitleID)
