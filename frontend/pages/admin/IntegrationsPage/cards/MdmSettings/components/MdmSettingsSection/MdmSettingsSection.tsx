@@ -35,7 +35,10 @@ const MdmSettingsSection = ({
   };
 
   return (
-    <SettingsSection title="Mobile Device Management" className={baseClass}>
+    <SettingsSection
+      title="Mobile device management (MDM)"
+      className={baseClass}
+    >
       {isLoading ? (
         <Spinner />
       ) : (

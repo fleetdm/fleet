@@ -9,10 +9,10 @@ import {
 } from "test/handlers/apple_mdm";
 import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
 
-import Vpp from "./VppSection";
+import VppSection from "./VppSection";
 
 describe("Vpp Section", () => {
-  it("renders turn on apple mdm message when apple mdm is not turned on ", async () => {
+  it("renders mdm is off message when apple mdm is not turned on ", async () => {
     mockServer.use(defaultVppInfoHandler);
 
     const render = createCustomRenderer({
@@ -26,14 +26,16 @@ describe("Vpp Section", () => {
       withBackendMock: true,
     });
 
-    render(<Vpp router={createMockRouter()} />);
+    render(<VppSection router={createMockRouter()} />);
 
     expect(
-      await screen.findByRole("button", { name: "Turn on MDM" })
+      await screen.findByText(
+        "To enable Volume Purchasing Program (VPP), first turn on Apple (macOS, iOS, iPadOS) MDM."
+      )
     ).toBeInTheDocument();
   });
 
-  it("renders enable vpp when vpp is disabled", async () => {
+  it("renders add vpp when vpp is disabled", async () => {
     mockServer.use(errorNoVppInfoHandler);
 
     const render = createCustomRenderer({
@@ -47,10 +49,10 @@ describe("Vpp Section", () => {
       withBackendMock: true,
     });
 
-    render(<Vpp router={createMockRouter()} />);
+    render(<VppSection router={createMockRouter()} />);
 
     expect(
-      await screen.findByRole("button", { name: "Enable" })
+      await screen.findByRole("button", { name: "Add VPP" })
     ).toBeInTheDocument();
   });
 
@@ -67,7 +69,7 @@ describe("Vpp Section", () => {
       },
       withBackendMock: true,
     });
-    render(<Vpp router={createMockRouter()} />);
+    render(<VppSection router={createMockRouter()} />);
     expect(
       await screen.findByRole("button", { name: "Edit" })
     ).toBeInTheDocument();
