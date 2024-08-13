@@ -1403,6 +1403,7 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 		name           string
 		opts           fleet.SoftwareTitleListOptions
 		expectedTitles []string
+		err            error
 	}{
 		{
 			name: "vulnerable only",
@@ -1508,6 +1509,30 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			},
 			expectedTitles: []string{"chrome", "firefox"},
 		},
+		{
+			name: "err if vulnerableOnly is not set with MinimumCVSS",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{},
+				MinimumCVSS: 7.5,
+			},
+			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
+		{
+			name: "err if vulnerableOnly is not set with MaximumCVSS",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions: fleet.ListOptions{},
+				MaximumCVSS: 7.5,
+			},
+			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
+		{
+			name: "err if vulnerableOnly is not set with KnownExploit",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:  fleet.ListOptions{},
+				KnownExploit: true,
+			},
+			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
 	}
 
 	assertTitles := func(t *testing.T, titles []fleet.SoftwareTitleListResult, expectedTitles []string) {
@@ -1521,7 +1546,11 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			titles, _, _, err := ds.ListSoftwareTitles(ctx, tt.opts, fleet.TeamFilter{User: globalUser})
-			require.NoError(t, err)
+			if tt.err != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.err, err)
+				return
+			}
 			assertTitles(t, titles, tt.expectedTitles)
 		})
 	}
