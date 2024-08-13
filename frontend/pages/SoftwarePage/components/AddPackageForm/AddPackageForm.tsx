@@ -348,7 +348,6 @@ const AddPackageForm = ({
               id="all-hosts-target"
               checked={!useCustomTargets}
               value="all"
-              // name="allHosts"
               onChange={onChangeTargets}
             />
             <Radio
@@ -357,7 +356,6 @@ const AddPackageForm = ({
               id="custom-target"
               checked={useCustomTargets}
               value="custom"
-              // name="customHosts"
               onChange={onChangeTargets}
             />
           </div>

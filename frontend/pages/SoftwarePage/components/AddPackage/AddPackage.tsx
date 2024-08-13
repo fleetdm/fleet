@@ -110,7 +110,6 @@ const AddPackage = ({
       );
     } catch (e) {
       const reason = getErrorReason(e);
-      // TODO - confirm message matching
       if (
         reason.includes("Couldn't add. Fleet couldn't read the version from")
       ) {

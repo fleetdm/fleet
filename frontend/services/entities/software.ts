@@ -234,7 +234,6 @@ export default {
       const labelField = `labels_${
         data.includeAnyLabels ? "include" : "exclude"
       }_any`;
-      // TODO - confirm API expectation with Lucas
       formData.append(labelField, selectedLabelNames.join(","));
     }
     teamId && formData.append("team_id", teamId.toString());
