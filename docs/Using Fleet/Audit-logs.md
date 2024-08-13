@@ -1236,6 +1236,7 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "self_service": App installation can be initiated by dovice owner.
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
 
