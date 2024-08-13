@@ -1299,6 +1299,7 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 		{Name: "brave", Version: "0.0.3", Source: "apps"},
 		{Name: "opera", Version: "0.0.3", Source: "apps"},
 		{Name: "internet explorer", Version: "0.0.3", Source: "apps"},
+		{Name: "netscape", Version: "0.0.3", Source: "apps"},
 	}
 
 	sw, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -1310,6 +1311,7 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	var edge003 uint
 	var brave003 uint
 	var opera003 uint
+	var ie003 uint
 	for s := range sw.Inserted {
 		switch {
 		case sw.Inserted[s].Name == "chrome" && sw.Inserted[s].Version == "0.0.1":
@@ -1324,6 +1326,8 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			brave003 = sw.Inserted[s].ID
 		case sw.Inserted[s].Name == "opera" && sw.Inserted[s].Version == "0.0.3":
 			opera003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "internet explorer" && sw.Inserted[s].Version == "0.0.3":
+			ie003 = sw.Inserted[s].ID
 		}
 	}
 
@@ -1355,6 +1359,11 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 		SoftwareID: opera003,
 		CVE:        "CVE-2024-1239",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: ie003,
+		CVE:        "CVE-2024-1240",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
@@ -1390,6 +1399,12 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			CISAKnownExploit: ptr.Bool(true),
 		},
 		// CVE-2024-1239 for opera has no CVE Meta
+		{
+			// internet explorer
+			CVE:              "CVE-2024-1240",
+			CVSSScore:        nil,
+			CISAKnownExploit: nil,
+		},
 	})
 	require.NoError(t, err)
 
@@ -1411,7 +1426,7 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				ListOptions:    fleet.ListOptions{},
 				VulnerableOnly: true,
 			},
-			expectedTitles: []string{"chrome", "safari", "firefox", "edge", "brave", "opera"},
+			expectedTitles: []string{"chrome", "safari", "firefox", "edge", "brave", "opera", "internet explorer"},
 		},
 		{
 			name: "known exploit true",
