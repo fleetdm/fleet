@@ -3541,7 +3541,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	i0 := fleet.HostSoftwareWithInstaller{
 		Name:            "i0",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:          expectStatus(fleet.SoftwareInstallerVerifying),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid2"}},
 	}
 	expected[i0.Name+i0.Source] = i0
@@ -3714,25 +3714,35 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// add VPP apps, one for both no team and team, and two for no-team only.
 	va1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, &tm.ID)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}, Name: "vpp2",
-			BundleIdentifier: "com.app.vpp2"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}, Name: "vpp2",
+			BundleIdentifier: "com.app.vpp2",
+		}, nil)
 	require.NoError(t, err)
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, Name: "vpp3",
-			BundleIdentifier: "com.app.vpp3"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, Name: "vpp3",
+			BundleIdentifier: "com.app.vpp3",
+		}, nil)
 	require.NoError(t, err)
 	vpp2, vpp3 := va2.AdamID, va3.AdamID
 
@@ -3755,7 +3765,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:      expectStatus(fleet.SoftwareInstallerVerifying),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
@@ -3925,8 +3935,10 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
 	nanoEnroll(t, ds, host, false)
-	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name",
-		TestSecondaryOrderKey: "source"}}
+	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{
+		PerPage: 10, IncludeMetadata: true, OrderKey: "name",
+		TestSecondaryOrderKey: "source",
+	}}
 
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -4010,24 +4022,31 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected := map[string]fleet.HostSoftwareWithInstaller{
-		byNSV[a1].Name + byNSV[a1].Source: {Name: byNSV[a1].Name, Source: byNSV[a1].Source,
+		byNSV[a1].Name + byNSV[a1].Source: {
+			Name: byNSV[a1].Name, Source: byNSV[a1].Source,
 			InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 				{Version: byNSV[a1].Version, Vulnerabilities: []string{vulns[0].CVE, vulns[1].CVE, vulns[2].CVE}},
-			}},
-		byNSV[b].Name + byNSV[b].Source: {Name: byNSV[b].Name, Source: byNSV[b].Source,
+			},
+		},
+		byNSV[b].Name + byNSV[b].Source: {
+			Name: byNSV[b].Name, Source: byNSV[b].Source,
 			InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 				{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}},
-			}},
+			},
+		},
 		// c1 and c2 are the same software title because they have the same name and source
-		byNSV[c1].Name + byNSV[c1].Source: {Name: byNSV[c1].Name, Source: byNSV[c1].Source,
+		byNSV[c1].Name + byNSV[c1].Source: {
+			Name: byNSV[c1].Name, Source: byNSV[c1].Source,
 			InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 				{Version: byNSV[c1].Version},
 				{Version: byNSV[c2].Version},
-			}},
+			},
+		},
 	}
 
 	compareResults := func(expected map[string]fleet.HostSoftwareWithInstaller, got []*fleet.HostSoftwareWithInstaller, expectAsc bool,
-		expectOmitted ...string) {
+		expectOmitted ...string,
+	) {
 		require.Len(t, got, len(expected)-len(expectOmitted))
 		prev := ""
 		for _, g := range got {
@@ -4114,33 +4133,47 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 
 	// add VPP apps, one for both no team and team, and three for no-team only.
 	va1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, &tm.ID)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.IOSPlatform}, Name: "vpp2",
-			BundleIdentifier: "com.app.vpp2"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.IOSPlatform}, Name: "vpp2",
+			BundleIdentifier: "com.app.vpp2",
+		}, nil)
 	require.NoError(t, err)
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.IOSPlatform}, Name: "vpp3",
-			BundleIdentifier: "com.app.vpp3"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.IOSPlatform}, Name: "vpp3",
+			BundleIdentifier: "com.app.vpp3",
+		}, nil)
 	require.NoError(t, err)
 	va4, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_4", Platform: fleet.IOSPlatform}, Name: "vpp4",
-			BundleIdentifier: "com.app.vpp4"}, nil)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_4", Platform: fleet.IOSPlatform}, Name: "vpp4",
+			BundleIdentifier: "com.app.vpp4",
+		}, nil)
 	require.NoError(t, err)
 	vpp2, vpp3, vpp4 := va2.AdamID, va3.AdamID, va4.AdamID
 
@@ -4159,7 +4192,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:      expectStatus(fleet.SoftwareInstallerVerifying),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
@@ -4207,7 +4240,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly))}, meta)
 	compareResults(expectedAvailableOnly, sw, true)
 	opts.OnlyAvailableForInstall = false
-
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
@@ -4398,8 +4430,10 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 
 	// add a VPP app for team 1
 	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1"}, &team1.ID)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1",
+		}, &team1.ID)
 	require.NoError(t, err)
 
 	// fail to install it on the host
@@ -4503,8 +4537,10 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 
 	// add a VPP app for team 1
 	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
-			BundleIdentifier: "com.app.vpp1", LatestVersion: "1.0"}, &team1.ID)
+		&fleet.VPPApp{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1", LatestVersion: "1.0",
+		}, &team1.ID)
 	require.NoError(t, err)
 
 	// install it on the host

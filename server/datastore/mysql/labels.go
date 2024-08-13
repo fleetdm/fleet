@@ -244,6 +244,16 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
+			if isMySQLForeignKey(err) {
+				// Check if the label is referenced by a software installer.
+				var count int
+				if err := sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM software_installer_labels WHERE label_id = ?`, labelID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "getting reference from software_installer_labels")
+				}
+				if count > 0 {
+					return ctxerr.New(ctx, "Couldn't delete. Software uses this label as a custom target. Please delete the software and try again.")
+				}
+			}
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
 

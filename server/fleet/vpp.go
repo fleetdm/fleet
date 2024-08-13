@@ -47,10 +47,12 @@ type VPPAppStoreApp struct {
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
 type VPPAppStatusSummary struct {
-	// Installed is the number of hosts that have the VPP app installed.
-	Installed uint `json:"installed" db:"installed"`
 	// Pending is the number of hosts that have the VPP app pending installation.
 	Pending uint `json:"pending" db:"pending"`
+	// Verifying is the number of hosts that have acknowledge the command to install the application.
+	Verifying uint `json:"verifying" db:"verifying"`
 	// Failed is the number of hosts that have the VPP app installation failed.
 	Failed uint `json:"failed" db:"failed"`
+	// Verified is the number of hosts that Fleet verified have the VPP app installed.
+	Verified uint `json:"verified" db:"verified"`
 }

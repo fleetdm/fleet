@@ -26,6 +26,9 @@ type uploadSoftwareInstallerRequest struct {
 	PreInstallQuery   string
 	PostInstallScript string
 	SelfService       bool
+	InstallType       string
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -103,6 +106,26 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.PostInstallScript = val[0]
 	}
 
+	// Default value is "manual".
+	decoded.InstallType = string(fleet.SoftwareInstallerInstallTypeManual)
+	val, ok = r.MultipartForm.Value["install_type"]
+	if ok && len(val) > 0 {
+		if val[0] != string(fleet.SoftwareInstallerInstallTypeManual) && val[0] != string(fleet.SoftwareInstallerInstallTypeAutomatic) {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Invalid install_type: %s, only \"manual\" or \"automatic\" are supported.", val[0]),
+			}
+		}
+		decoded.InstallType = val[0]
+	}
+
+	var existsIncl, existsExcl bool
+	decoded.LabelsIncludeAny, existsIncl = r.MultipartForm.Value["labels_include_any"]
+	decoded.LabelsExcludeAny, existsExcl = r.MultipartForm.Value["labels_exclude_any"]
+	if existsIncl && existsExcl {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	}
+	// TODO(lucas): Check for duplicate names in the provided label list.
+
 	val, ok = r.MultipartForm.Value["self_service"]
 	if ok && len(val) > 0 && val[0] != "" {
 		parsed, err := strconv.ParseBool(val[0])
@@ -133,6 +156,9 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		InstallerFile:     ff,
 		Filename:          req.File.Filename,
 		SelfService:       req.SelfService,
+		InstallType:       req.InstallType,
+		LabelsIncludeAny:  req.LabelsIncludeAny,
+		LabelsExcludeAny:  req.LabelsExcludeAny,
 	}
 
 	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {

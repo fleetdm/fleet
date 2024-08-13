@@ -2051,14 +2051,31 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// tblAlias is the table alias to use as prefix for the host_software_installs
-// column names, no prefix used if empty.
-// colAlias is the name to be assigned to the computed status column, pass
-// empty to have the value only, no column alias set.
-func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
-	if tblAlias != "" {
-		tblAlias += "."
+// softwareInstallerHostStatusNamedQuery is used to compute the status of an installer from
+// the value in multiple tables.
+//
+//   - hostSoftwareInstallsAlias is the table alias to use as prefix for the host_software_installs column names, no prefix used if empty.
+//   - installedSoftwareTitlesInTheHostAlias is the table alias to software that are installed on hosts (column expected in this alias
+//     is "installed_version"). If this is set, then softwareInstallersAlias must be set too.
+//   - softwareInstallersAlias is the alias to the `software_installers` table. If this is set, then installedSoftwareTitlesInTheHostAlias must
+//     be set too.
+//   - colAlias is the name to be assigned to the computed status column, pass empty to have the value only, no column alias set.
+func softwareInstallerHostStatusNamedQuery(hostSoftwareInstallsAlias, installedSoftwareTitlesInTheHostAlias, softwareInstallersAlias, colAlias string) string {
+	if hostSoftwareInstallsAlias != "" {
+		hostSoftwareInstallsAlias += "."
 	}
+
+	verifiedCheckCase := ""
+	if installedSoftwareTitlesInTheHostAlias != "" && softwareInstallersAlias != "" {
+		installedSoftwareTitlesInTheHostAlias += "."
+		softwareInstallersAlias += "."
+		verifiedCheckCase = `
+			WHEN %[3]sinstalled_version IS NOT NULL AND
+		 	%[3]sinstalled_version >= %[4]sversion THEN :software_status_verified`
+	} else if installedSoftwareTitlesInTheHostAlias != installedSoftwareTitlesInTheHostAlias {
+		panic("both installedSoftwareTitlesInTheHostAlias and installedSoftwareTitlesInTheHostAlias have to be set")
+	}
+
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
@@ -2067,31 +2084,38 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 	// and none for the post-install, it is because there is no post-install.
 	return fmt.Sprintf(`
 			CASE
-				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
-					%[1]spost_install_script_exit_code = 0 THEN :software_status_installed
+				`+verifiedCheckCase+`
+
+				WHEN %[1]spre_install_query_output IS NOT NULL AND
+					%[1]spre_install_query_output = '' THEN :software_status_blocked
 
 				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
 					%[1]spost_install_script_exit_code != 0 THEN :software_status_failed
 
+				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
+					%[1]spost_install_script_exit_code = 0 THEN :software_status_verifying
+
 				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
-					%[1]sinstall_script_exit_code = 0 THEN :software_status_installed
+					%[1]sinstall_script_exit_code = 0 THEN :software_status_verifying
 
 				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
 					%[1]sinstall_script_exit_code != 0 THEN :software_status_failed
 
-				WHEN %[1]spre_install_query_output IS NOT NULL AND
-					%[1]spre_install_query_output = '' THEN :software_status_failed
-
 				WHEN %[1]shost_id IS NOT NULL THEN :software_status_pending
 
 				ELSE NULL -- not installed from Fleet installer
-			END %[2]s `, tblAlias, colAlias)
+			END %[2]s `, hostSoftwareInstallsAlias, colAlias, installedSoftwareTitlesInTheHostAlias, softwareInstallersAlias)
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
 		onlySelfServiceClause = ` AND si.self_service = 1 `
+	}
+
+	var installTypeClause string
+	if opts.InstallType != "" {
+		installTypeClause = ` AND si.install_type = :install_type `
 	}
 
 	var onlyVulnerableClause string
@@ -2103,17 +2127,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	var softwareIsInstalledOnHostClause string
 	if !opts.OnlyAvailableForInstall {
-		softwareIsInstalledOnHostClause = `
-			EXISTS (
-				SELECT 1
-				FROM
-					host_software hs
-				INNER JOIN
-					software s ON hs.software_id = s.id
-				WHERE
-					hs.host_id = :host_id AND
-					s.title_id = st.id
-			) OR `
+		softwareIsInstalledOnHostClause = `(isth.installed_version IS NOT NULL) OR `
 	}
 
 	// this statement lists only the software that is reported as installed on
@@ -2122,7 +2136,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		SELECT
 			st.id,
 			st.name,
+			st.bundle_identifier,
 			st.source,
+			si.id as package_software_installer_id,
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
@@ -2137,8 +2153,44 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			COALESCE(%s, %s) as status
 		FROM
 			software_titles st
-		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
+		-- join software installers filtered by labels
+		LEFT OUTER JOIN (
+			SELECT * FROM software_installers WHERE id IN (
+				-- team installers without labels
+				SELECT inner_si.id 
+				FROM software_installers inner_si
+				LEFT JOIN software_installer_labels sil ON inner_si.id = sil.software_installer_id
+				WHERE inner_si.global_or_team_id = :global_or_team_id AND sil.software_installer_id IS NULL
+
+				UNION
+
+				-- team installers with labels_include_any
+				SELECT inner_si.id
+				FROM software_installers inner_si
+				JOIN software_installer_labels sil ON inner_si.id = sil.software_installer_id AND inner_si.global_or_team_id = :global_or_team_id AND NOT exclude
+				LEFT JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+				WHERE 
+					lm.host_id IS NOT NULL
+				GROUP BY
+					inner_si.id
+
+				UNION
+
+				-- team installers with labels_exclude_any
+				SELECT id FROM software_installers WHERE id IN (
+					SELECT id FROM (
+						SELECT inner_si.id, SUM(IF(lm.host_id IS NOT NULL, 1, 0)) AS host_members_count
+						FROM software_installers inner_si
+						JOIN software_installer_labels sil ON inner_si.id = sil.software_installer_id AND sil.exclude AND inner_si.global_or_team_id = :global_or_team_id
+						LEFT JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						GROUP BY
+							inner_si.id
+						HAVING
+							host_members_count = 0
+					) labels_exclude_any
+				)
+			)
+		) si ON st.id = si.title_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
 		LEFT OUTER JOIN
@@ -2149,6 +2201,13 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+		-- installed software titles in the host (isth)
+		LEFT OUTER JOIN (
+			SELECT s.title_id, s.version AS installed_version
+			FROM host_software hs
+			INNER JOIN software s ON hs.software_id = s.id
+			WHERE hs.host_id = :host_id
+		) isth ON isth.title_id = st.id
 		WHERE
 			-- use the latest install attempt only
 			( hsi.id IS NULL OR hsi.id = (
@@ -2170,8 +2229,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
-		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
+			%s
+`, softwareInstallerHostStatusNamedQuery("hsi", "isth", "si", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
+		softwareIsInstalledOnHostClause, onlySelfServiceClause, installTypeClause, onlyVulnerableClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2180,7 +2240,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		SELECT
 			st.id,
 			st.name,
+			st.bundle_identifier,
 			st.source,
+			si.id as package_software_installer_id,
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
@@ -2243,6 +2305,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		id,
 		name,
 		source,
+		package_software_installer_id,
 		package_self_service,
 		package_name,
 		package_version,
@@ -2262,13 +2325,19 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	namedArgs := map[string]any{
 		"host_id":                   host.ID,
 		"host_platform":             host.FleetPlatform(),
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_blocked":   fleet.SoftwareInstallerBlocked,
+		"software_status_verifying": fleet.SoftwareInstallerVerifying,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_verified":  fleet.SoftwareInstallerVerified,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"global_or_team_id":         globalOrTeamID,
+	}
+
+	if opts.InstallType != "" {
+		namedArgs["install_type"] = opts.InstallType
 	}
 
 	stmt := stmtInstalled
@@ -2312,15 +2381,16 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
-		PackageSelfService     *bool      `db:"package_self_service"`
-		PackageName            *string    `db:"package_name"`
-		PackageVersion         *string    `db:"package_version"`
-		VPPAppSelfService      *bool      `db:"vpp_app_self_service"`
-		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
-		VPPAppVersion          *string    `db:"vpp_app_version"`
-		VPPAppIconURL          *string    `db:"vpp_app_icon_url"`
+		LastInstallInstalledAt     *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID     *string    `db:"last_install_install_uuid"`
+		PackageSoftwareInstallerID *uint      `db:"package_software_installer_id"`
+		PackageSelfService         *bool      `db:"package_self_service"`
+		PackageName                *string    `db:"package_name"`
+		PackageVersion             *string    `db:"package_version"`
+		VPPAppSelfService          *bool      `db:"vpp_app_self_service"`
+		VPPAppAdamID               *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion              *string    `db:"vpp_app_version"`
+		VPPAppIconURL              *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2340,9 +2410,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				version = *hs.PackageVersion
 			}
 			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:        *hs.PackageName,
-				Version:     version,
-				SelfService: hs.PackageSelfService,
+				// if hs.PackageName is not nil, then hs.PackageSoftwareInstallerID is also not nil.
+				SoftwareInstallerID: *hs.PackageSoftwareInstallerID,
+				Name:                *hs.PackageName,
+				Version:             version,
+				SelfService:         hs.PackageSelfService,
 			}
 
 			// promote the last install info to the proper destination fields

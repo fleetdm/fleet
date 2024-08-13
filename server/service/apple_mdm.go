@@ -2806,9 +2806,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		if err != nil {
 			return nil, err
 		}
-		_, err = svc.ds.UpdateHostSoftware(ctx, host.ID, software)
+		result, err := svc.ds.UpdateHostSoftware(ctx, host.ID, software)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update host software")
+		}
+
+		// With software now up-to-date, check what software for this host
+		// needs its status updated, e.g. a user uninstalled an installed by Fleet VPP app.
+		// (Currently it won't trigger software installs because automatic is not yet supported for VPP apps.)
+		if err := svc.ds.TriggerHostSoftwareInstallations(ctx, host.ID, host.TeamID, host.Platform, result.CurrInstalled()); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check and trigger software installations")
 		}
 
 		return nil, nil
@@ -2864,7 +2871,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,
-	error) {
+	error,
+) {
 	var appsResponse struct {
 		InstalledApplicationList []map[string]interface{} `plist:"InstalledApplicationList"`
 	}

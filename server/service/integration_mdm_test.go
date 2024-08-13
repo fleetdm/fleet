@@ -1004,7 +1004,6 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	require.NoError(t, err)
 
 	return fleetHost, mdmDevice
-
 }
 
 func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
@@ -9703,7 +9702,6 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	var listCmdResp listMDMAppleCommandsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
 	require.Empty(t, listCmdResp.Results)
-
 }
 
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
@@ -9897,7 +9895,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	var listCmdResp listMDMAppleCommandsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
 	require.Len(t, listCmdResp.Results, commandsSent)
-
 }
 
 func (s *integrationMDMTestSuite) TestVPPApps() {
@@ -10263,7 +10260,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			addedApp.Name,
 			addedApp.AdamID,
 			cmdUUID,
-			fleet.SoftwareInstallerInstalled,
+			fleet.SoftwareInstallerVerifying,
 		),
 		0,
 	)
@@ -10282,7 +10279,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, *got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstallerVerifying)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
@@ -10309,7 +10306,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Empty(t, got1.AppStoreApp.Name)
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, *got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstallerVerifying)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 
@@ -10322,13 +10319,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		extraAvailable int
 	}{
 		"iOS app install": {installHost: iOSHost, titleID: iOSTitleID, mdmClient: iOSMdmClient, app: iOSApp},
-		"iPadOS app install": {installHost: iPadOSHost, titleID: iPadOSTitleID, mdmClient: iPadOSMdmClient, app: iPadOSApp,
-			extraAvailable: 1},
+		"iPadOS app install": {
+			installHost: iPadOSHost, titleID: iPadOSTitleID, mdmClient: iPadOSMdmClient, app: iPadOSApp,
+			extraAvailable: 1,
+		},
 	}
 
 	for name, install := range installs {
 		t.Run(name, func(t *testing.T) {
-
 			installHost := install.installHost
 			titleID := install.titleID
 			mdmClient := install.mdmClient
@@ -10389,7 +10387,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					app.Name,
 					app.AdamID,
 					cmdUUID,
-					fleet.SoftwareInstallerInstalled,
+					fleet.SoftwareInstallerVerifying,
 				),
 				0,
 			)
@@ -10408,7 +10406,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(app.IconURL))
 					require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 					require.Equal(t, got1.AppStoreApp.Version, app.LatestVersion)
-					require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+					require.Equal(t, *got1.Status, fleet.SoftwareInstallerVerifying)
 					require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 					require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 					foundInstalledApp = true

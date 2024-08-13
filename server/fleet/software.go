@@ -224,6 +224,10 @@ type SoftwareTitleListOptions struct {
 	VulnerableOnly      bool  `query:"vulnerable,optional"`
 	AvailableForInstall bool  `query:"available_for_install,optional"`
 	SelfServiceOnly     bool  `query:"self_service,optional"`
+
+	// We don't need to export these, they are used internally.
+	InstallType string
+	Platform    string
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -246,6 +250,8 @@ type HostSoftwareTitleListOptions struct {
 	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
 	VulnerableOnly bool `query:"vulnerable,optional"`
+
+	InstallType string
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

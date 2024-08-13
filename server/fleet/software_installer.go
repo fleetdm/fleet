@@ -102,6 +102,19 @@ type SoftwareInstaller struct {
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
 	SelfService bool `json:"self_service" db:"self_service"`
+	// InstallType is the method of installation for this package.
+	InstallType string `json:"install_type" db:"install_type"`
+	// LabelsIncludeAny holds the "OR" labels associated to this installer.
+	// This installer will be installed on hosts member of any of these labels.
+	LabelsIncludeAny []SoftwareInstallerLabel `json:"labels_include_any" db:"-"`
+	// LabelsExcludeAny holds the "NOR" labels associated to this installer.
+	// This installer will NOT be installed on hosts member of any of these labels.
+	LabelsExcludeAny []SoftwareInstallerLabel `json:"labels_exclude_any" db:"-"`
+}
+
+type SoftwareInstallerLabel struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -111,12 +124,16 @@ func (s *SoftwareInstaller) AuthzType() string {
 
 // SoftwareInstallerStatusSummary represents aggregated status metrics for a software installer package.
 type SoftwareInstallerStatusSummary struct {
-	// Installed is the number of hosts that have the software package installed.
-	Installed uint `json:"installed" db:"installed"`
 	// Pending is the number of hosts that have the software package pending installation.
 	Pending uint `json:"pending" db:"pending"`
+	// Blocked is the number of hosts that have failed the pre-install query check.
+	Blocked uint `json:"blocked" db:"blocked"`
+	// Verifying is the number of hosts that have acknowledged the install command.
+	Verifying uint `json:"verifying" db:"verifying"`
 	// Failed is the number of hosts that have the software package installation failed.
 	Failed uint `json:"failed" db:"failed"`
+	// Verified is the number of hosts that Fleet verified have the software package installed.
+	Verified uint `json:"verified" db:"verified"`
 }
 
 // SoftwareInstallerStatus represents the status of a software installer package on a host.
@@ -124,16 +141,20 @@ type SoftwareInstallerStatus string
 
 const (
 	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
+	SoftwareInstallerBlocked   SoftwareInstallerStatus = "blocked"
+	SoftwareInstallerVerifying SoftwareInstallerStatus = "verifying"
 	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
-	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
+	SoftwareInstallerVerified  SoftwareInstallerStatus = "verified"
 )
 
 func (s SoftwareInstallerStatus) IsValid() bool {
 	switch s {
 	case
+		SoftwareInstallerPending,
+		SoftwareInstallerBlocked,
+		SoftwareInstallerVerifying,
 		SoftwareInstallerFailed,
-		SoftwareInstallerInstalled,
-		SoftwareInstallerPending:
+		SoftwareInstallerVerified:
 		return true
 	default:
 		return false
@@ -262,6 +283,9 @@ type UploadSoftwareInstallerPayload struct {
 	Platform          string
 	BundleIdentifier  string
 	SelfService       bool
+	InstallType       string
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -308,6 +332,7 @@ func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	BundleIdentifier  *string                         `json:"bundle_identifier" db:"bundle_identifier"`
 	Source            string                          `json:"source" db:"source"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
@@ -326,6 +351,9 @@ type HostSoftwareWithInstaller struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
+
+	// SoftwareInstallerID is only present for software installer packages.
+	SoftwareInstallerID uint `json:"id"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 
@@ -396,11 +424,11 @@ type HostSoftwareInstallResultPayload struct {
 func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	switch {
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstallerVerifying
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
 		return SoftwareInstallerFailed
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstallerVerifying
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
 		return SoftwareInstallerFailed
 	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
@@ -409,3 +437,15 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallerPending
 	}
 }
+
+// SoftwareInstallerInstallType indicates the software installer install method.
+type SoftwareInstallerInstallType string
+
+const (
+	// SoftwareInstallerInstallTypeManual is the value for software installers that
+	// are to be installed manually by administrators (one host at a time).
+	SoftwareInstallerInstallTypeManual SoftwareInstallerInstallType = "manual"
+	// SoftwareInstallerInstallTypeAutomatic is the value for software installers that
+	// are to be installed automatically on all target hosts by Fleet.
+	SoftwareInstallerInstallTypeAutomatic SoftwareInstallerInstallType = "automatic"
+)

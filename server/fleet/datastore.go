@@ -825,6 +825,8 @@ type Datastore interface {
 	// it is used as DB optimization.
 	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
 
+	TriggerHostSoftwareInstallations(ctx context.Context, hostID uint, hostTeamID *uint, hostPlatform string, hostInstalledSoftware []Software) error
+
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
 

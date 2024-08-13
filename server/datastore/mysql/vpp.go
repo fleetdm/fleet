@@ -46,14 +46,15 @@ WHERE
 }
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
-	error) {
+	error,
+) {
 	var dest fleet.VPPAppStatusSummary
 
 	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
-	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
+	COALESCE(SUM( IF(status = :software_status_verifying, 1, 0)), 0) AS verifying
 FROM (
 SELECT
 	%s
@@ -92,7 +93,7 @@ WHERE
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_verifying": fleet.SoftwareInstallerVerifying,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: named query")
@@ -121,10 +122,11 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
+	// TODO(lucas): Add verified here too.
 	return fmt.Sprintf(`
 			CASE
 				WHEN %[1]sstatus = :mdm_status_acknowledged THEN
-					:software_status_installed
+					:software_status_verifying
 				WHEN %[1]sstatus = :mdm_status_error OR %[1]sstatus = :mdm_status_format_error THEN
 					:software_status_failed
 				WHEN %[2]sid IS NOT NULL THEN
@@ -433,7 +435,8 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 }
 
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string) error {
+	commandUUID, associatedEventID string,
+) error {
 	stmt := `
 INSERT INTO host_vpp_software_installs
   (host_id, adam_id, platform, command_uuid, user_id, associated_event_id)
@@ -488,7 +491,7 @@ WHERE
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
 		"command_uuid":              commandResults.CommandUUID,
 		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
-		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
+		"software_status_verifying": string(fleet.SoftwareInstallerVerifying),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
@@ -512,7 +515,7 @@ WHERE
 	var status string
 	switch commandResults.Status {
 	case fleet.MDMAppleStatusAcknowledged:
-		status = string(fleet.SoftwareInstallerInstalled)
+		status = string(fleet.SoftwareInstallerVerifying)
 	case fleet.MDMAppleStatusCommandFormatError:
 	case fleet.MDMAppleStatusError:
 		status = string(fleet.SoftwareInstallerFailed)

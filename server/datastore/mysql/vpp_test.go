@@ -55,8 +55,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Nil(t, meta)
 
 	// create no-team app
-	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+	}, nil)
 	require.NoError(t, err)
 	vpp1, titleID1 := va1.VPPAppID, va1.TitleID
 
@@ -67,14 +69,18 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 
 	// try to add the same app again, fails
 	var existsErr *existsError
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+	}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
 	// create team1 app
-	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, &team1.ID)
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform},
+	}, &team1.ID)
 	require.NoError(t, err)
 	vpp2, titleID2 := va2.VPPAppID, va2.TitleID
 
@@ -84,8 +90,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// try to add the same app again, fails
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform},
+	}, &team1.ID)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
@@ -96,8 +104,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Nil(t, meta)
 
 	// create the same app for team2
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, &team2.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform},
+	}, &team2.ID)
 	require.NoError(t, err)
 
 	// get it for team 1 and team 2, both work
@@ -109,8 +119,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// create another no-team app
-	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}, nil)
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform},
+	}, nil)
 	require.NoError(t, err)
 	vpp3, titleID3 := va3.VPPAppID, va3.TitleID
 
@@ -185,32 +197,40 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, team1)
 
 	// create some apps, one for no-team, one for team1, and one in both
-	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+	}, nil)
 	require.NoError(t, err)
 	vpp1 := va1.VPPAppID
-	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, &team1.ID)
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform},
+	}, &team1.ID)
 	require.NoError(t, err)
 	vpp2 := va2.VPPAppID
-	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}, nil)
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform},
+	}, nil)
 	require.NoError(t, err)
 	vpp3 := va3.VPPAppID
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform},
+	}, &team1.ID)
 	require.NoError(t, err)
 
 	// for now they all return zeroes
 	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 0}, summary)
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 0}, summary)
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 0}, summary)
 
 	// create a few enrolled hosts
 	h1, err := ds.NewHost(ctx, &fleet.Host{
@@ -255,14 +275,14 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Verifying: 0}, summary)
 
 	// record a failed result
 	createVPPAppInstallResult(t, ds, h1, cmd1, fleet.MDMAppleStatusError)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Verifying: 0}, summary)
 
 	// create a new request for h1 that supercedes the failed on, and a request
 	// for h2 with a successful result.
@@ -278,19 +298,19 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Verifying: 1}, summary)
 
 	// mark the pending request as successful too
 	createVPPAppInstallResult(t, ds, h1, cmd2, fleet.MDMAppleStatusAcknowledged)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 2}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 2}, summary)
 
 	// requesting for a team (the VPP app is not on any team) returns all zeroes
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp1)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 0}, summary)
 
 	// simulate a successful request for team app vpp2 on h3
 	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2.AdamID, user.ID)
@@ -298,7 +318,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 1}, summary)
 
 	// simulate a successful, failed and pending request for app vpp3 on team
 	// (h3) and no team (h1, h2)
@@ -311,12 +331,12 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	// for no team, it sees the failed and pending counts
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Verifying: 0}, summary)
 
 	// for the team, it sees the successful count
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp3)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Verifying: 1}, summary)
 }
 
 // simulates creating the VPP app install request on the host, returns the command UUID.
@@ -385,10 +405,14 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Insert some VPP apps for no team
-	appNoTeam1 := &fleet.VPPApp{Name: "vpp_no_team_app_1", VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform},
-		BundleIdentifier: "b3"}
-	appNoTeam2 := &fleet.VPPApp{Name: "vpp_no_team_app_2", VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.MacOSPlatform},
-		BundleIdentifier: "b4"}
+	appNoTeam1 := &fleet.VPPApp{
+		Name: "vpp_no_team_app_1", VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform},
+		BundleIdentifier: "b3",
+	}
+	appNoTeam2 := &fleet.VPPApp{
+		Name: "vpp_no_team_app_2", VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.MacOSPlatform},
+		BundleIdentifier: "b4",
+	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam1, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)

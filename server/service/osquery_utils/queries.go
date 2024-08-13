@@ -1503,6 +1503,11 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		return ctxerr.Wrap(ctx, err, "update software installed path")
 	}
 
+	// With software now up-to-date, check what software needs to be installed on the hosts.
+	if err := ds.TriggerHostSoftwareInstallations(ctx, host.ID, host.TeamID, host.Platform, result.CurrInstalled()); err != nil {
+		return ctxerr.Wrap(ctx, err, "check software installations")
+	}
+
 	return nil
 }
 

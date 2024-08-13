@@ -234,7 +234,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
 			require.NoError(t, err)
 			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-				Installed: 0,
+				Verifying: 0,
 				Pending:   1,
 				Failed:    0,
 			}, *summary)

@@ -71,6 +71,10 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 }
 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	//
+	// TODO(lucas): Check if labels exist first.
+	//
+
 	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
@@ -116,8 +120,9 @@ INSERT INTO software_installers (
 	pre_install_query,
 	post_install_script_content_id,
 	platform,
-    self_service
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    self_service,
+	install_type
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	args := []interface{}{
 		tid,
@@ -131,6 +136,7 @@ INSERT INTO software_installers (
 		postInstallScriptID,
 		payload.Platform,
 		payload.SelfService,
+		payload.InstallType,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
@@ -144,7 +150,46 @@ INSERT INTO software_installers (
 
 	id, _ := res.LastInsertId()
 
+	// TODO(lucas): Make this a transaction, otherwise we may end up with automatic software being applied to all hosts
+	// if the above succeeds and the below fails.
+
+	// Insert associated labels for the created installer.
+	if len(payload.LabelsExcludeAny) > 0 || len(payload.LabelsIncludeAny) > 0 {
+		if err := ds.insertSoftwareInstallerLabels(ctx, uint(id), payload.LabelsIncludeAny, payload.LabelsExcludeAny); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "insert software installer labels")
+		}
+	}
+
 	return uint(id), nil
+}
+
+func (ds *Datastore) insertSoftwareInstallerLabels(ctx context.Context, softwareInstallerID uint, labelsIncludeAny []string, labelsExcludeAny []string) error {
+	exclude := len(labelsExcludeAny) > 0 // only one of labelsIncludeAny/labelsExcludeAny can be set at this point.
+	labelNames := labelsExcludeAny
+	if len(labelsIncludeAny) > 0 {
+		labelNames = labelsIncludeAny
+	}
+
+	values := strings.TrimSuffix(
+		strings.Repeat("(?, (SELECT id FROM labels WHERE name = ?), ?),", len(labelNames)),
+		",",
+	)
+	stmt := fmt.Sprintf(`
+INSERT INTO software_installer_labels (
+	software_installer_id,
+	label_id,
+	exclude
+) VALUES %s`, values)
+
+	args := make([]interface{}, 0, 3*len(labelNames))
+	for _, labelName := range labelNames {
+		args = append(args, softwareInstallerID, labelName, exclude)
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert software installer")
+	}
+	return nil
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -249,7 +294,8 @@ SELECT
   si.post_install_script_content_id,
   si.uploaded_at,
   si.self_service,
-  COALESCE(st.name, '') AS software_title
+  COALESCE(st.name, '') AS software_title,
+  si.install_type
   %s
 FROM
   software_installers si
@@ -272,6 +318,38 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
+
+	type softwareInstallerLabel struct {
+		LabelID   uint   `db:"label_id"`
+		LabelName string `db:"label_name"`
+		Exclude   bool   `db:"exclude"`
+	}
+	var softwareInstallerLabels []softwareInstallerLabel
+	query = `SELECT 
+		sil.label_id, l.name AS label_name, sil.exclude 
+		FROM software_installer_labels sil 
+		JOIN labels l ON sil.label_id=l.id
+		WHERE software_installer_id = ?`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstallerLabels, query, dest.InstallerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+	}
+	var (
+		labelsExcludeAny []fleet.SoftwareInstallerLabel
+		labelsIncludeAny []fleet.SoftwareInstallerLabel
+	)
+	for _, softwareInstallerLabel := range softwareInstallerLabels {
+		item := fleet.SoftwareInstallerLabel{
+			ID:   softwareInstallerLabel.LabelID,
+			Name: softwareInstallerLabel.LabelName,
+		}
+		if softwareInstallerLabel.Exclude {
+			labelsExcludeAny = append(labelsExcludeAny, item)
+		} else {
+			labelsIncludeAny = append(labelsIncludeAny, item)
+		}
+	}
+	dest.LabelsExcludeAny = labelsExcludeAny
+	dest.LabelsIncludeAny = labelsIncludeAny
 
 	return &dest, nil
 }
@@ -350,15 +428,22 @@ FROM
 	host_software_installs hsi
 	JOIN software_installers si ON si.id = hsi.software_installer_id
 	JOIN software_titles st ON si.title_id = st.id
+LEFT JOIN (
+	SELECT hs.host_id, s.title_id, s.version AS installed_version
+	FROM host_software hs
+	INNER JOIN software s ON hs.software_id = s.id
+) isth ON isth.title_id = st.id AND isth.host_id = hsi.host_id
 WHERE
 	hsi.execution_id = :execution_id
-	`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+	`, softwareInstallerHostStatusNamedQuery("hsi", "isth", "si", ""))
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
 		"execution_id":              resultsUUID,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_blocked":   fleet.SoftwareInstallerBlocked,
+		"software_status_verifying": fleet.SoftwareInstallerVerifying,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_verified":  fleet.SoftwareInstallerVerified,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query for get software install results")
@@ -382,17 +467,26 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_blocked, 1, 0)), 0) AS blocked,
+	COALESCE(SUM( IF(status = :software_status_verifying, 1, 0)), 0) AS verifying,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
-	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
+	COALESCE(SUM( IF(status = :software_status_verified, 1, 0)), 0) AS verified
 FROM (
 SELECT
 	software_installer_id,
 	%s
 FROM
 	host_software_installs hsi
+JOIN
+	software_installers si ON hsi.software_installer_id = si.id
+LEFT JOIN (
+	SELECT s.title_id, s.version AS installed_version
+	FROM host_software hs
+	INNER JOIN software s ON hs.software_id = s.id
+) isth ON isth.title_id = si.title_id
 WHERE
 	software_installer_id = :installer_id
-	AND id IN(
+	AND hsi.id IN(
 		SELECT
 			max(id) -- ensure we use only the most recently created install attempt for each host
 			FROM host_software_installs
@@ -400,13 +494,15 @@ WHERE
 			software_installer_id = :installer_id
 			AND host_deleted_at IS NULL
 		GROUP BY
-			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "isth", "si", "status"))
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":              installerID,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_blocked":   fleet.SoftwareInstallerBlocked,
+		"software_status_verifying": fleet.SoftwareInstallerVerifying,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_verified":  fleet.SoftwareInstallerVerified,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -445,7 +541,7 @@ WHERE
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_verifying": fleet.SoftwareInstallerVerifying,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
@@ -460,6 +556,12 @@ SELECT
 	host_id
 FROM
 	host_software_installs hsi
+JOIN software_installers si ON hsi.installer_id = si.id
+LEFT JOIN (
+	SELECT s.title_id, s.version AS installed_version
+	FROM host_software hs
+	INNER JOIN software s ON hs.software_id = s.id
+) isth ON isth.title_id = si.title_id
 WHERE
 	software_installer_id = :installer_id
 	AND hsi.id IN(
@@ -471,12 +573,12 @@ WHERE
 		GROUP BY
 			host_id, software_installer_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
-`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+`, softwareInstallerHostStatusNamedQuery("hsi", "isth", "si", ""))
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
 		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_verifying": fleet.SoftwareInstallerVerifying,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 	})
@@ -657,4 +759,66 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 		return false, ctxerr.Wrap(ctx, err, "check for self-service software installers")
 	}
 	return hasInstallers, nil
+}
+
+func (ds *Datastore) TriggerHostSoftwareInstallations(ctx context.Context, hostID uint, hostTeamID *uint, hostPlatform string, hostInstalledSoftware []fleet.Software) error {
+	//
+	// Get the available for install automatic software for this host.
+	//
+	// TODO(lucas): Check if we can probably used a more optimized version than re-using this.
+	automaticSoftware, _, err := ds.ListHostSoftware(ctx, &fleet.Host{
+		ID:       hostID,
+		TeamID:   hostTeamID,
+		Platform: hostPlatform,
+	}, fleet.HostSoftwareTitleListOptions{
+		OnlyAvailableForInstall: true,
+		InstallType:             string(fleet.SoftwareInstallerInstallTypeAutomatic),
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host automatic software installers")
+	}
+
+	//
+	// Filter out automatic software that has a status (Status == nil
+	// means the software is available but wasn't actioned yet).
+	//
+	// TODO(lucas): What do we do with pending/failed/blocked statuses here? Probably ignore them.
+	var availableAutomaticSoftware []*fleet.HostSoftwareWithInstaller
+	for i := range automaticSoftware {
+		if automaticSoftware[i].Status == nil {
+			availableAutomaticSoftware = append(availableAutomaticSoftware, automaticSoftware[i])
+		}
+	}
+
+	//
+	// Prepare a map of installed software.
+	//
+	installedSoftwareMap := make(map[string]fleet.Software, len(hostInstalledSoftware))
+	for _, hostInstalledSoftwareItem := range hostInstalledSoftware {
+		key := hostInstalledSoftwareItem.Name + hostInstalledSoftwareItem.BundleIdentifier + hostInstalledSoftwareItem.Version
+		installedSoftwareMap[key] = hostInstalledSoftwareItem
+	}
+
+	//
+	// For each automatic software that is un-actioned and is not installed, trigger an install request.
+	//
+	for _, automaticSoftwareItem := range availableAutomaticSoftware {
+		bundleIdentifier := ""
+		if automaticSoftwareItem.BundleIdentifier != nil {
+			bundleIdentifier = *automaticSoftwareItem.BundleIdentifier
+		}
+		// Name and bundle identifier come from software_titles
+		// Version comes from the software_installers.
+		key := automaticSoftwareItem.Name + bundleIdentifier + *&automaticSoftwareItem.SoftwarePackage.Version
+		if _, ok := installedSoftwareMap[key]; !ok {
+			// An automatic software installer is not present on this host, thus we trigger an installation (if there isn't one).
+			if _, err := ds.InsertSoftwareInstallRequest(
+				ctx, hostID, automaticSoftwareItem.SoftwarePackage.SoftwareInstallerID, *automaticSoftwareItem.SoftwarePackage.SelfService,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert software install request for automatic software")
+			}
+		}
+	}
+
+	return nil
 }

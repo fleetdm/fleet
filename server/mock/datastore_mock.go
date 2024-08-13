@@ -582,6 +582,8 @@ type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fl
 
 type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
+type TriggerHostSoftwareInstallationsFunc func(ctx context.Context, hostID uint, hostTeamID *uint, hostPlatform string, hostInstalledSoftware []fleet.Software) error
+
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error)
@@ -1855,6 +1857,9 @@ type DataStore struct {
 
 	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
 	UpdateHostSoftwareInstalledPathsFuncInvoked bool
+
+	TriggerHostSoftwareInstallationsFunc        TriggerHostSoftwareInstallationsFunc
+	TriggerHostSoftwareInstallationsFuncInvoked bool
 
 	UpdateHostFunc        UpdateHostFunc
 	UpdateHostFuncInvoked bool
@@ -4469,6 +4474,13 @@ func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID
 	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostSoftwareInstalledPathsFunc(ctx, hostID, reported, mutationResults)
+}
+
+func (s *DataStore) TriggerHostSoftwareInstallations(ctx context.Context, hostID uint, hostTeamID *uint, hostPlatform string, hostInstalledSoftware []fleet.Software) error {
+	s.mu.Lock()
+	s.TriggerHostSoftwareInstallationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.TriggerHostSoftwareInstallationsFunc(ctx, hostID, hostTeamID, hostPlatform, hostInstalledSoftware)
 }
 
 func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {

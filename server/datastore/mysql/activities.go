@@ -340,7 +340,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.host_id = :host_id AND
 			hsi.pre_install_query_output IS NULL AND
 			hsi.install_script_exit_code IS NULL
-		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
+		`, softwareInstallerHostStatusNamedQuery("hsi", "", "", "")),
 		`
 SELECT
 	hvsi.command_uuid AS uuid,
@@ -394,9 +394,10 @@ WHERE
 		"installed_software_type":      fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
 		"installed_app_store_app_type": fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		"max_wait_time":                seconds,
-		"software_status_failed":       string(fleet.SoftwareInstallerFailed),
-		"software_status_installed":    string(fleet.SoftwareInstallerInstalled),
 		"software_status_pending":      string(fleet.SoftwareInstallerPending),
+		"software_status_blocked":      string(fleet.SoftwareInstallerBlocked),
+		"software_status_verifying":    string(fleet.SoftwareInstallerVerifying),
+		"software_status_failed":       string(fleet.SoftwareInstallerFailed),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")

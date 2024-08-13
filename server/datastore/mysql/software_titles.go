@@ -78,6 +78,17 @@ GROUP BY
 	return &title, nil
 }
 
+type softwareTitle struct {
+	fleet.SoftwareTitleListResult
+	PackageSelfService *bool   `db:"package_self_service"`
+	PackageName        *string `db:"package_name"`
+	PackageVersion     *string `db:"package_version"`
+	VPPAppSelfService  *bool   `db:"vpp_app_self_service"`
+	VPPAppAdamID       *string `db:"vpp_app_adam_id"`
+	VPPAppVersion      *string `db:"vpp_app_version"`
+	VPPAppIconURL      *string `db:"vpp_app_icon_url"`
+}
+
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
@@ -106,16 +117,6 @@ func (ds *Datastore) ListSoftwareTitles(
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
 	// grab titles that match the list options
-	type softwareTitle struct {
-		fleet.SoftwareTitleListResult
-		PackageSelfService *bool   `db:"package_self_service"`
-		PackageName        *string `db:"package_name"`
-		PackageVersion     *string `db:"package_version"`
-		VPPAppSelfService  *bool   `db:"vpp_app_self_service"`
-		VPPAppAdamID       *string `db:"vpp_app_adam_id"`
-		VPPAppVersion      *string `db:"vpp_app_version"`
-		VPPAppIconURL      *string `db:"vpp_app_icon_url"`
-	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
 	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
@@ -341,6 +342,10 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	}
 	if opt.SelfServiceOnly {
 		defaultFilter += ` AND si.self_service = 1 `
+	}
+	if opt.InstallType != "" {
+		defaultFilter = `AND si.install_type = ?`
+		args = append(args, opt.InstallType)
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
