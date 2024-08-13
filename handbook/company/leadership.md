@@ -273,14 +273,10 @@ This means that outbound recruiting, 3rd party recruiters, and references from t
 
 
 #### Receiving job applications
-Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
-
-> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
-
-When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
+Every job description page ends with a "call to action", including a link to the hiring manager's LinkedIn to apply for the job directly with the hiring manager.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise. Hiring managers are encouraged to use [email/message templates](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates) for consistency and efficiency.
 
 #### Candidate correspondence email templates
-Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
+Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8o7_vH7lV9nM1wQCM4Vc3GxBRBDPK-mKO9HNk/edit?usp=sharing) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
 
 ### Hiring restrictions
 
@@ -376,13 +372,15 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
      
      -Joanne
      ```
-2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
+2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Remove open position:** The hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
-4. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** Ensure the hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
+4. **Create 30-60-90 day plan:** 🧑‍🚀 Hiring manager creates a 30-60-90 day plan outlining key role objectives. The plan is reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. To create the 30-60-90 day plan, hiring manager will:
+    - Create a copy of the [30-60-90 day plan template](https://docs.google.com/document/d/1EztmPBuMFXbVoy4ZToXcxasNO38ooOh8Gh5hPXFvJhI/copy) and rename the copied file using the naming convention `[start date] - 30-60-90 day plan - [teammate full name]` and move it to the [30-60-90 day plan folder](https://drive.google.com/drive/u/0/folders/1QWiAbgBFuuofT_3M8oIoBsbEBmubQAj7) in Google Drive.
+    - Follow the prompts in the template to fill out the 30-60-90 day plan for the new teammate before they start.
+5. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
-
 
 
 ## Tracking hours

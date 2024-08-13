@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/docker/go-units"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -79,10 +80,10 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	// default is no team
 	val, ok := r.MultipartForm.Value["team_id"]
-	if ok && len(val) > 0 {
-		teamID, err := strconv.Atoi(val[0])
+	if ok {
+		teamID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid team_id: %s", val[0])}
 		}
 		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
@@ -317,7 +318,7 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                           `json:"-" query:"team_name"`
+	TeamName string                           `json:"-" query:"team_name,optional"`
 	DryRun   bool                             `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Software []fleet.SoftwareInstallerPayload `json:"software"`
 }
@@ -382,6 +383,51 @@ func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
+	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	if !alreadyAuthenticated {
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return false, err
+		}
+	}
+
+	return svc.ds.HasSelfServiceSoftwareInstallers(ctx, host.Platform, host.TeamID)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// VPP App Store Apps Batch Install
+//////////////////////////////////////////////////////////////////////////////
+
+type batchAssociateAppStoreAppsRequest struct {
+	TeamName string                  `json:"-" query:"team_name"`
+	DryRun   bool                    `json:"-" query:"dry_run,optional"`
+	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
+}
+
+type batchAssociateAppStoreAppsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
+
+func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
+
+func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*batchAssociateAppStoreAppsRequest)
+	if err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun); err != nil {
+		return batchAssociateAppStoreAppsResponse{Err: err}, nil
+	}
+	return batchAssociateAppStoreAppsResponse{}, nil
+}
+
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

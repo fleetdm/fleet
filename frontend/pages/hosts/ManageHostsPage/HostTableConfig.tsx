@@ -7,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
@@ -148,9 +148,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
               <span className={`tooltip__tooltip-text`}>
                 This host was ordered using <br />
                 Apple Business Manager <br />
-                (ABM). You can&apos;t see host <br />
-                vitals until it&apos;s unboxed and <br />
-                automatically enrolls to Fleet.
+                (ABM). You will see host <br />
+                vitals when it is enrolled in Fleet <br />
               </span>
             </ReactTooltip>
           </>
@@ -251,10 +250,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     title: "Issues",
-    Header: "Issues",
-    disableSortBy: true,
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
     accessor: "issues",
     id: "issues",
+    sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
       if (
         cellProps.row.original.platform === "ios" ||
@@ -290,7 +291,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         return NotSupported;
       }
       return (
-        <DiskSpaceGraph
+        <DiskSpaceIndicator
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
@@ -343,34 +344,23 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IDeviceUserCellProps) => {
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
-      if (users.length) {
-        const tooltipText = tooltipTextWithLineBreaks(users);
+      if (users.length > 1) {
         return (
-          <>
-            <span
-              className={`text-cell ${
-                users.length > 1 ? "text-muted tooltip" : ""
-              }`}
-              data-tip
-              data-for={`device_mapping__${cellProps.row.original.id}`}
-              data-tip-disable={users.length <= 1}
-            >
-              {numUsers === 1 ? users[0] : `${numUsers} users`}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`device_mapping__${cellProps.row.original.id}`}
-              data-html
-              clickable
-              delayHide={300}
-            >
-              <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
-            </ReactTooltip>
-          </>
+          <TooltipWrapper
+            tipContent={tooltipTextWithLineBreaks(users)}
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            <TextCell italic value={`${numUsers} users`} />
+          </TooltipWrapper>
         );
       }
-      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+      if (users.length === 1) {
+        return <TextCell value={users[0]} />;
+      }
+      return <TextCell />;
     },
   },
   {

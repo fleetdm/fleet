@@ -195,6 +195,8 @@ type Datastore interface {
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
+	GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
+
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -261,8 +263,8 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
-	// HostIDsByName Retrieve the IDs associated with the given hostnames
-	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, or hardware serials.
+	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
@@ -290,6 +292,12 @@ type Datastore interface {
 	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
 	// as understood by HostByIdentifier.
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
+	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
+	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
+	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
+	UpdateHostIssuesVulnerabilities(ctx context.Context) error
+	// CleanupHostIssues deletes host issues that no longer belong to a host.
+	CleanupHostIssues(ctx context.Context) error
 
 	TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
@@ -307,6 +315,7 @@ type Datastore interface {
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
+	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
 	// If the token is invalid or expired it returns a NotFoundError.
@@ -483,10 +492,14 @@ type Datastore interface {
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(ctx context.Context, tid uint) (*Team, error)
-	// Team deletes the Team by ID.
+	// TeamWithoutExtras retrieves the Team by ID without extra fields.
+	TeamWithoutExtras(ctx context.Context, tid uint) (*Team, error)
+	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.
 	TeamByName(ctx context.Context, name string) (*Team, error)
+	// TeamByFilename retrieves the Team by GitOps filename.
+	TeamByFilename(ctx context.Context, filename string) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
 	// TeamsSummary lists id, name and description for all teams.
@@ -517,7 +530,7 @@ type Datastore interface {
 
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
-	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
+	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
@@ -571,6 +584,10 @@ type Datastore interface {
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
+
+	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
+	// the given team.
+	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -647,12 +664,13 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
-	// GetTeamHostsPolicyMembmerships returns the hosts that belong to the given team and their pass/fail statuses
+	// GetTeamHostsPolicyMemberships returns the hosts that belong to the given team and their pass/fail statuses
 	// around the provided policyIDs.
 	// 	- Returns hosts of the team that are failing one or more of the provided policies.
 	//	- Returns hosts of the team that are passing all the policies (or are not running any of the provided policies)
 	//	  and have a calendar event scheduled.
-	GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]HostPolicyMembershipData, error)
+	GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		hostID *uint) ([]HostPolicyMembershipData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 
 	// Methods used for async processing of host policy query results.
@@ -677,10 +695,13 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Calendar events
 
-	CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
+	CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte,
+		timeZone *string, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
 	GetCalendarEvent(ctx context.Context, email string) (*CalendarEvent, error)
+	GetCalendarEventDetailsByUUID(ctx context.Context, uuid string) (*CalendarEventDetails, error)
 	DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error
-	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
+	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte,
+		timeZone *string) error
 	GetHostCalendarEvent(ctx context.Context, hostID uint) (*HostCalendarEvent, *CalendarEvent, error)
 	GetHostCalendarEventByEmail(ctx context.Context, email string) (*HostCalendarEvent, *CalendarEvent, error)
 	UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status CalendarWebhookStatus) error
@@ -862,8 +883,6 @@ type Datastore interface {
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 
-	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
-
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
@@ -970,6 +989,8 @@ type Datastore interface {
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.
 	UpdateVulnerabilityHostCounts(ctx context.Context) error
+	// IsCVEKnownToFleet checks if the provided CVE is known to Fleet.
+	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
@@ -1164,24 +1185,31 @@ type Datastore interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
-	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
-	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
+	// database (or S3 if configured).
+	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
 	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
 	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
 	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
-	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
+	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id.
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
-	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
+	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap
+	// package for a team.
 	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
-	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
-	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
-	// GetMDMAppleBootstrapPackageSummary returns an aggregated summary of
-	// the status of the bootstrap package for hosts in a team.
+	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package
+	// with the given token.
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string, pkgStore MDMBootstrapPackageStore) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageSummary returns an aggregated summary of the
+	// status of the bootstrap package for hosts in a team.
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackageSummary, error)
 
 	// RecordHostBootstrapPackage records a command used to install a
 	// bootstrap package in a host.
 	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+
+	// CleanupUnusedBootstrapPackages will remove bootstrap packages that have no
+	// references to them from the mdm_apple_bootstrap_packages table.
+	CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore MDMBootstrapPackageStore, removeCreatedBefore time.Time) error
 
 	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
@@ -1284,6 +1312,11 @@ type Datastore interface {
 
 	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+
+	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
+	// single transaction. Useful for "renew" flows where users are updating the assets with newly
+	// generated ones.
+	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -1524,27 +1557,51 @@ type Datastore interface {
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
 
-	// GetSoftwareInstallerMetadataByTitleID returns the software installer
-	// corresponding to the specified team and title ids. If withScriptContents
-	// is true, also returns the contents of the install and (if set)
-	// post-install scripts, otherwise those fields are left empty.
+	// GetSoftwareInstallerMetadataByTeamAndTitleID returns the software
+	// installer corresponding to the specified team and title ids. If
+	// withScriptContents is true, also returns the contents of the install and
+	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*VPPApp, error)
+	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
+	// specified team and title ids.
+	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
-	// GetSoftwareInstallerContents returns the software install summary for the given
-	// software installer id.
+	// DeleteVPPAppFromTeam deletes the VPP app corresponding to the adamID from
+	// the provided team.
+	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID) error
+
+	// GetSummaryHostSoftwareInstalls returns the software install summary for
+	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
+
+	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
+	// given team and VPP app adam_id.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID VPPAppID) (*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
-	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
+	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
 	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+
+	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
+	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
+
+	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
+	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]struct{}, error)
+	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppID) error
+	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
+
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string) error
+	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

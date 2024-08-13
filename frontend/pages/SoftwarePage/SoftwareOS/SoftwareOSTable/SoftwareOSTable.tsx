@@ -1,12 +1,11 @@
 /** software/os OS tab > Table */
 
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
 
-import { AppContext } from "context/app";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
@@ -55,8 +54,6 @@ const SoftwareOSTable = ({
   isLoading,
   resetPageIndex,
 }: ISoftwareOSTableProps) => {
-  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
-
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -140,7 +137,13 @@ const SoftwareOSTable = ({
         {data?.os_versions && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
-            whatToRetrieve="vulnerabilities"
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
           />
         )}
       </>
@@ -168,7 +171,11 @@ const SoftwareOSTable = ({
         isLoading={isLoading}
         resultsTitle="items"
         emptyComponent={() => (
-          <EmptySoftwareTable isSoftwareDisabled={!isSoftwareEnabled} />
+          <EmptySoftwareTable
+            tableName="operating systems"
+            isSoftwareDisabled={!isSoftwareEnabled}
+            noSearchQuery // non-searchable table renders not detecting by default
+          />
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}

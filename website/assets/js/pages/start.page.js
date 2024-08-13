@@ -85,7 +85,34 @@ parasails.registerPage('start', {
     }
     // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
-      this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      if(this.primaryBuyingSituation !== 'vm') {
+        this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      }
+    }
+    if(window.location.hash) {
+      if(typeof analytics !== 'undefined') {
+        if(window.location.hash === '#signup') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+          analytics.track('fleet_website__sign_up');
+        } else if(window.location.hash === '#login') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+        }
+      }
+      window.location.hash = '';
     }
   },
   mounted: async function() {
@@ -309,8 +336,14 @@ parasails.registerPage('start', {
           this.formData[step] = this.previouslyAnsweredQuestions[step];
         }
         this.currentStep = this.getNextStep();
+        // If the last step was a redirect, take the user to the step they submitted previously.
         if(_.startsWith(this.currentStep, '/')){
           this.currentStep = this.me.lastSubmittedGetStartedQuestionnaireStep;
+          // If this user is coming back to the form after submitting the 'thanks-for-checking-out-fleet' step,
+          // take them back to the step they submitted before they reached that step. (Either what-did-you-think or how-was-your-deployment)
+          if(this.currentStep === 'thanks-for-checking-out-fleet'){
+            this.clickGoToPreviousStep();
+          }
         }
       }
     },

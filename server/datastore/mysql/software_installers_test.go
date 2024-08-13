@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,6 +30,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
+		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 	}
 
 	for _, c := range cases {
@@ -158,7 +160,6 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID3, exec2.InstallerID)
 	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
 	require.True(t, exec2.SelfService)
-
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
@@ -327,7 +328,6 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.expectedStatus, res.Status)
 			require.Equal(t, swFilename, res.SoftwarePackage)
 			require.Equal(t, host.ID, res.HostID)
-			require.Equal(t, host.DisplayName(), res.HostDisplayName)
 			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
 			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)
 			require.Equal(t, tc.installScriptOutput, res.Output)
@@ -355,7 +355,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	// cleanup an empty store
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting(nil)
 
@@ -377,7 +377,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	assertExisting([]string{ins0})
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting([]string{ins0})
 
@@ -385,7 +385,13 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, swi)
 	require.NoError(t, err)
 
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	// would clean up, but not created before 1m ago
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	// do actual cleanup
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	assertExisting(nil)
 }
@@ -541,4 +547,82 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 	require.Equal(t, "", metaByTeamAndTitle.PostInstallScript)
 	require.EqualValues(t, installerID, metaByTeamAndTitle.InstallerID)
 	require.Equal(t, "", metaByTeamAndTitle.PreInstallQuery)
+}
+
+func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	const platform = "linux"
+	// No installers
+	hasSelfService, err := ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+
+	// Create a non-self service installer
+	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:         "foo",
+		Source:        "bar",
+		InstallScript: "echo install",
+		TeamID:        &team.ID,
+		Filename:      "foo.pkg",
+		Platform:      platform,
+		SelfService:   false,
+	})
+	require.NoError(t, err)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+
+	// Create a self-service installer for team
+	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:         "foo2",
+		Source:        "bar2",
+		InstallScript: "echo install",
+		TeamID:        &team.ID,
+		Filename:      "foo2.pkg",
+		Platform:      platform,
+		SelfService:   true,
+	})
+	require.NoError(t, err)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService)
+
+	// Create a global self-service installer
+	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:         "foo global",
+		Source:        "bar",
+		InstallScript: "echo install",
+		TeamID:        nil,
+		Filename:      "foo global.pkg",
+		Platform:      platform,
+		SelfService:   true,
+	})
+	require.NoError(t, err)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "ubuntu", nil)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "ubuntu", &team.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService)
+
+	// Check another platform
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", nil)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &team.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
 }

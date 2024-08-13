@@ -336,7 +336,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			host.HardwareSerial = rows[0]["hardware_serial"]
+			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+				host.HardwareSerial = rows[0]["hardware_serial"]
+			}
 			host.ComputerName = rows[0]["computer_name"]
 			return nil
 		},
@@ -942,7 +944,7 @@ SELECT
   '' AS arch,
   '' AS installed_path
 FROM deb_packages
-WHERE status = 'install ok installed'
+WHERE status LIKE '%% ok installed'
 UNION
 SELECT
   package AS name,
@@ -1711,7 +1713,15 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				if !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				}
+
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
 			}
 		}
 	}

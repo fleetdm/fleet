@@ -37,6 +37,10 @@ const (
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
+
+	// HostIdentiferNotFound is the error message returned when a search for a host by its
+	// identifier (hostname, UUID, or serial number) does not return any results.
+	HostIdentiferNotFound = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 )
 
 func (s HostStatus) IsValid() bool {
@@ -155,7 +159,7 @@ type HostListOptions struct {
 	OSVersionFilter   *string
 	OSVersionIDFilter *uint
 
-	DisableFailingPolicies bool
+	DisableIssues bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
@@ -221,7 +225,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableFailingPolicies == false &&
+		h.DisableIssues == false &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
@@ -317,10 +321,6 @@ type Host struct {
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
-	// DiskEncryptionResetRequested is only fetched when loading a host by
-	// orbit_node_key, and so it's not used in the UI.
-	DiskEncryptionResetRequested *bool `json:"disk_encryption_reset_requested,omitempty" db:"disk_encryption_reset_requested" csv:"-"`
-
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly
@@ -329,11 +329,6 @@ type Host struct {
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 
 	MDM MDMHostData `json:"mdm" db:"mdm_host_data" csv:"-"`
-
-	// MDMInfo stores the MDM information about the host. Note that as for many
-	// other host fields, it is not filled in by all host-returning datastore
-	// methods.
-	MDMInfo *HostMDM `json:"-" csv:"-"`
 
 	// RefetchCriticalQueriesUntil can be set to a timestamp up to which the
 	// "critical" queries will be constantly reported to the host that checks in
@@ -575,11 +570,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					// but either we didn't get an encryption key or we're not able to
 					// decrypt the key we've got
 					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
-					if *d.rawDecryptable == 0 {
-						settings.ActionRequired = ActionRequiredRotateKey.addrOf()
-					} else {
-						settings.ActionRequired = ActionRequiredLogOut.addrOf()
-					}
+					settings.ActionRequired = ActionRequiredRotateKey.addrOf()
 				} else {
 					// if [a FileVault profile is pending to be installed or] the
 					// matching row in host_disk_encryption_keys has a field decryptable
@@ -685,62 +676,12 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
-// IsEligibleForDEPMigration returns true if the host fulfills all requirements
-// for DEP migration from a third-party provider into Fleet.
-func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
-	return h.IsOsqueryEnrolled() &&
-		h.IsDEPAssignedToFleet() &&
-		h.MDMInfo.HasJSONProfileAssigned() &&
-		h.MDMInfo.Enrolled &&
-		!isConnectedToFleetMDM
-}
-
-// NeedsDEPEnrollment returns true if the host should be DEP enrolled into
-// fleet but it's currently unenrolled.
-func (h *Host) NeedsDEPEnrollment(isConnectedToFleetMDM bool) bool {
-	return h.MDMInfo != nil &&
-		!h.MDMInfo.Enrolled &&
-		!isConnectedToFleetMDM &&
-		h.IsDEPAssignedToFleet()
-}
-
-// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
-// in Fleet's Windows MDM (if it was enabled).
-func (h *Host) IsEligibleForWindowsMDMEnrollment() bool {
-	return h.FleetPlatform() == "windows" &&
-		h.IsOsqueryEnrolled() &&
-		// NOTE(roberto): during a refactor I found this `h.MDMInfo ==
-		// nil` check, but seems wrong to me, we're assuming that if
-		// there's no data in `host_mdm` it's fine to enroll a host.
-		// I'm leaving it as-is just in case I'm missing something.
-		(h.MDMInfo == nil || (!h.MDMInfo.IsServer && !h.MDMInfo.Enrolled))
-}
-
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
 func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
 		isConnectedToFleetMDM
-}
-
-// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
-// encryption using Fleet MDM features.
-//
-// Note: the *Host structs needs disk encryption data and MDM data filled in to
-// perform the check.
-func (h *Host) IsEligibleForBitLockerEncryption(isConnectedToFleetMDM bool) bool {
-	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
-	isWindows := h.FleetPlatform() == "windows"
-	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
-	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
-
-	return isWindows &&
-		h.IsOsqueryEnrolled() &&
-		isConnectedToFleetMDM &&
-		!isServer &&
-		h.MDMInfo != nil &&
-		(needsEncryption || encryptedWithoutKey)
 }
 
 // HostDisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -765,8 +706,9 @@ func (h *Host) DisplayName() string {
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
-	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
+	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
 
 func (h Host) AuthzType() string {
@@ -774,7 +716,7 @@ func (h Host) AuthzType() string {
 }
 
 // HostDetail provides the full host metadata along with associated labels and
-// packs. It also includes policies, batteries, and MDM profiles, as applicable.
+// packs. It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
@@ -786,6 +728,17 @@ type HostDetail struct {
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
 	// information for the List Hosts endpoint).
 	Batteries *[]*HostBattery `json:"batteries,omitempty"`
+
+	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
+	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
+}
+
+type HostMaintenanceWindow struct {
+	//  StartsAt is the start time of the future maintenance window, retrieved from calendar_events,
+	//  represented as a time.Time in the host's associated google calendar user's timezone, which is represented as a time.Location
+	StartsAt time.Time `json:"starts_at" db:"start_time"`
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from calendar_events
+	TimeZone *string `json:"timezone" db:"timezone"`
 }
 
 const (
@@ -1182,9 +1135,10 @@ type OSVersion struct {
 }
 
 type HostDetailOptions struct {
-	IncludeCVEScores bool
-	IncludePolicies  bool
-	ExcludeSoftware  bool
+	IncludeCVEScores                    bool
+	IncludeCriticalVulnerabilitiesCount bool
+	IncludePolicies                     bool
+	ExcludeSoftware                     bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled
@@ -1249,4 +1203,22 @@ type HostLite struct {
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`
 	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
+}
+
+// IsEligibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
+	return mdmInfo != nil &&
+		host.IsOsqueryEnrolled() &&
+		host.IsDEPAssignedToFleet() &&
+		mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }

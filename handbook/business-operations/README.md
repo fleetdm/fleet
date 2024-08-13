@@ -40,6 +40,17 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
 
+### Register Fleet as an employer with a new state 
+Fleet must register as an employer in any state where we hire new teammates. To do this, complete the following steps in Gusto:
+1. After a new teammate completes their Gusto profile, the Business Operations department will be prompted to approve it for payroll. Sign in to your Gusto admin account and begin the approval process.
+2. Select "yes" when prompted to file a new hire report and complete the approval process.
+3. Once the profile is approved, navigate to Tax setup and select the state you’d like to register Fleet in.
+4. Select “Have us register for you” and then “Start registration.”
+5. Verify, add, and amend any company information to ensure accuracy.
+6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
+7. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/business-operations#review-state-employment-tax-filings-for-the-previous-quarter).
+    
+
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
 
@@ -52,19 +63,48 @@ In Gusto, you can click **How to review your notice** to help you understand wha
 
 > **Note:** Many agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes, in case you have to do something.  If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
 
-<!-- 2023-08-19: I commented this out because I wasn't sure if we were still doing it this way and I didn't want to leave infomration that was potentially incorrect or contradictory.  -mikermcneil
-#### Process an email from a state agency with help from CorpNet
-In CorpNet, select "place an order for an existing business":
-- Email the CorpNet account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
-- Select "Foreign Qualification," place the order and email the confirmation to the CorpNet rep for "Payroll registration" (this is a shorter turnaround).
-  - You can also do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
--->
-
-<!-- 2023-08-19: This linked sheet is out of date so I'm commenting it out.  -mikermcneil
-For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc). -->
-
-<!-- 2023-08-19: I commented this out because I wasn't sure how to map it to an imperative mood verb phrase (responsibility) that bizops is doing either ad hoc or as part of a ritual (recurring task). -mikermcneil
 Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review.  You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. -->
+
+
+### Review state employment tax filings for the previous quarter
+
+Every quarter, payroll and tax filings are due for each state. Gusto automates this process, however there are often delays or quirks between Gusto's submission and the state receiving the filings.
+To mitigate the risk of penalties and to ensure filings occur as expected, follow these steps in the first month of the new quarter, verifying past quarter submission:
+1. Create an issue to "Review state filings for the previous quarter".
+2. Copy this text block into the issue to track progress by state:
+
+
+```
+States checked:
+- [ ] California
+- [ ] Colorado
+- [ ] Connecticut
+- [ ] Florida
+- [ ] Georgia
+- [ ] Hawaii
+- [ ] Illinois
+- [ ] Kansas
+- [ ] Maryland
+- [ ] Massachusetts
+- [ ] New York
+- [ ] Ohio
+- [ ] Oregon
+- [ ] Pennsylvania
+- [ ] Rhode Island
+- [ ] Tennessee
+- [ ] Texas
+- [ ] Utah
+- [ ] Virginia
+- [ ] Washington
+- [ ] Washington, DC
+- [ ] West Virginia
+- [ ] Wisconsin
+```
+ 
+
+3. Login to Gusto and navigate to "Taxes and compliance", then "Tax documents".
+4. Login to each State portal (using the details saved in 1Password) and verify that the portal has received the automated submission from Gusto.
+5. Check off states that are correct, and use comments to explain any quirks or remediation that's needed.
 
 
 ### Inform managers about hours worked
@@ -121,8 +161,8 @@ Thanks,
 [name]
 ```
 
-6. Update the opportunity in Salesforce to include the "Invoice date" as the day the invoice was sent.
-7. Notify the AE/CSM that the invoice has been sent.
+6. Update the opportunity and the opportunity billing cycle in Salesforce to include the "Invoice date" as the day the invoice was sent.
+8. Notify the AE/CSM that the invoice has been sent.
 
 > Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
@@ -151,6 +191,7 @@ Thanks,
 [name]
 ```
 4. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
+5. Review the [billing cycles](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000000yGjR2AU/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Business Operations board.
 
 
 ### Run US commission payroll
@@ -243,7 +284,7 @@ When BizOps receives notification of a Fleetie's job title changing, follow thes
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
-    - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
+    - Search for the Fleetie whose manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
     - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
     - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
     - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
@@ -306,6 +347,15 @@ To [change a team member's compensation](https://fleetdm.com/handbook/company/co
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
+### Review Fleet's US company benefits
+
+Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
+1. Log in to your [Gusto admin account](https://gusto.com/).
+2. Navigate to "Benefits" and select "Renewal survey".
+3. Complete the survey questions, aiming for minimal changes.
+4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+   
 
 ### Process monthly accounting
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
@@ -334,7 +384,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 ### Check finances for quirks
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
 3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
 
@@ -383,7 +433,12 @@ Within 60 days of the end of the year, follow these steps:
 
 
 ### Process a new vendor invoice
-- After making sure that an invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Business Operations department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+- After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+- If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
+  - **US-based vendors** are required to complete a [W-9 form](https://www.irs.gov/pub/irs-pdf/fw9.pdf).
+  - **Non-US based vendors and individuals** are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
+
 
 
 ### Process a request to cancel a vendor

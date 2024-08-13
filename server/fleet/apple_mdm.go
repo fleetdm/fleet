@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
+	InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -195,11 +197,11 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum []byte `db:"checksum" json:"checksum,omitempty"`
-	// Labels are the associated labels for this profile
-	Labels     []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
-	CreatedAt  time.Time                   `db:"created_at" json:"created_at"`
-	UploadedAt time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	Checksum         []byte                      `db:"checksum" json:"checksum,omitempty"`
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
+	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ConfigurationProfileLabel represents the many-to-many relationship between
@@ -212,6 +214,7 @@ type ConfigurationProfileLabel struct {
 	LabelName   string `db:"label_name" json:"name"`
 	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
 	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
+	Exclude     bool   `db:"exclude" json:"-"`               // not rendered in JSON, used to store the profile in LabelsIncludeAll or LabelsExcludeAny on the parent profile
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
@@ -530,6 +533,9 @@ type SCEPIdentityAssociation struct {
 	SHA256           string `db:"sha256"`
 	EnrollReference  string `db:"enroll_reference"`
 	RenewCommandUUID string `db:"renew_command_uuid"`
+	// EnrolledFromMigration is used for devices migrated via datababse
+	// dumps (ie: "touchless")
+	EnrolledFromMigration bool `db:"enrolled_from_migration"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -558,8 +564,9 @@ type MDMAppleDeclaration struct {
 	// Checksum is a checksum of the JSON contents
 	Checksum string `db:"checksum" json:"-"`
 
-	// Labels are the labels associated with this Declaration
-	Labels []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	// labels associated with this Declaration
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
@@ -834,4 +841,13 @@ type MDMAppleDDMActivation struct {
 	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
 	ServerToken string                       `json:"ServerToken"`
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
+}
+
+// MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
+// package files. Fleet supports storing to the database and to an S3 bucket.
+type MDMBootstrapPackageStore interface {
+	Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
+	Exists(ctx context.Context, packageID string) (bool, error)
+	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
 }

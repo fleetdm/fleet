@@ -10,36 +10,57 @@ import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/So
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
+  /** tableName is displayed in the search empty state */
+  tableName?: string;
   isSoftwareDisabled?: boolean;
+  /** noSearchQuery is true when there is no search string filtering the results */
+  noSearchQuery?: boolean;
+  /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
-  isSearching?: boolean;
+  /** true if the team has any software installers or VPP apps available to install on hosts */
+  installableSoftwareExists?: boolean;
 }
 
-const generateTypeText = (softwareFilter?: ISoftwareDropdownFilterVal) => {
+const generateTypeText = (
+  tableName: string,
+  softwareFilter?: ISoftwareDropdownFilterVal
+) => {
   if (softwareFilter === "installableSoftware") {
-    return "installable";
+    return "installable software";
   }
-  return softwareFilter === "vulnerableSoftware" ? "vulnerable" : "";
+  if (softwareFilter === "vulnerableSoftware") {
+    return "vulnerable software";
+  }
+  return tableName;
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter,
+  softwareFilter = "allSoftware",
+  tableName = "software",
   isSoftwareDisabled,
+  noSearchQuery,
   isCollectingSoftware,
-  isSearching,
+  installableSoftwareExists,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(softwareFilter);
+  const softwareTypeText = generateTypeText(tableName, softwareFilter);
 
   const emptySoftware: IEmptyTableProps = {
-    header: `No ${softwareTypeText} software match the current search criteria`,
-    info:
-      "This report is updated every hour to protect the performance of your devices.",
+    header: "No items match the current search criteria",
+    info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
+
+  if (noSearchQuery && softwareFilter === "allSoftware") {
+    emptySoftware.header = "No software detected";
+  }
+
+  if (softwareFilter === "allSoftware" && installableSoftwareExists) {
+    emptySoftware.header = "No software detected";
+    emptySoftware.info = "Install software on your hosts to see versions.";
+  }
 
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
+    emptySoftware.info = `Expecting to see ${softwareTypeText}? Check back later.`;
   }
 
   if (isSoftwareDisabled) {
@@ -55,11 +76,6 @@ const EmptySoftwareTable = ({
         .
       </>
     );
-  }
-  if (softwareFilter === "vulnerableSoftware" && !isSearching) {
-    emptySoftware.header = "No vulnerable software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
   }
 
   return (

@@ -36,6 +36,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------- | ---------- | ----- | ------- |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                 |               |                |                 | ✅         | ✅          |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅         | ✅    |         |
@@ -73,16 +74,16 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Read Single Sign-On settings\**                                                                                                            |          |            |            | ✅    |         |
 | Read SMTP settings\**                                                                                                                      |          |            |            | ✅    |         |
 | Read osquery agent options\**                                                                                                              |          |            |            | ✅    |         |
-| Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                               |          |            |            | ✅    | ✅      |
-| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                               |          |            |            | ✅    | ✅      |
-| Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*            |          |            |            | ✅    | ✅      |
+| Edit organization settings                            |          |            |            | ✅    | ✅      |
+| Edit agent options                                              |          |            |            | ✅    | ✅      |
+| Edit agent options for hosts assigned to teams\*            |          |            |            | ✅    | ✅      |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                        |          |            | ✅         | ✅    |         |
 | Retrieve contents from file carving                                                                                                        |          |            |            | ✅    |         |
 | View Apple mobile device management (MDM) certificate information                                                                          |          |            |            | ✅    |         |
 | View Apple business manager (BM) information                                                                                               |          |            |            | ✅    |         |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Edit OS updates for macOS and Windows hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
+| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    |         |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
@@ -91,10 +92,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
 | Edit setup experience (end user authentication, bootstrap package, Setup Assistant)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Edit end user license agreement (EULA)\*                                                                                         |          |            |              | ✅    |         |
-| Run arbitrary scripts on hosts                                                                                                             |          |            | ✅         | ✅    |         |
-| View saved scripts                                                                                                                         | ✅       | ✅         | ✅         | ✅    |         |
-| Edit/upload saved scripts                                                                                                                  |          |            | ✅         | ✅    | ✅      |
-| Run saved scripts on hosts                                                                                                                 | ✅       | ✅         | ✅         | ✅    |         |
+| Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅    |         |
+| View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
+| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
@@ -151,10 +151,10 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
 | Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         |             |
 | Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
-| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅         | ✅          |
+| Edit agent options                                    |               |                |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
-| Edit OS updates for macOS and Windows hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
+| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                        |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
@@ -164,10 +164,9 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View metadata of MDM macOS bootstrap packages                                                                                    |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
 | Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
-| Run arbitrary scripts on hosts                                                                                                   |               |                | ✅              | ✅         |             |
+| Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
-| Run saved scripts on hosts                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
 

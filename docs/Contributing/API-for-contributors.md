@@ -11,9 +11,9 @@
 - [Scripts](#scripts)
 - [Software](#software)
 
-This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
+> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
-These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
@@ -528,63 +528,161 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
+- [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
+- [Upload APNS certificate](#upload-apns-certificate)
+- [Upload ABM Token](#upload-abm-token)
+- [Turn off Apple MDM](#turn-off-apple-mdm)
+- [Disable automatic enrollment (ADE)](#disable-automatic-enrollment-ade)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
+- [Upload VPP content token](#upload-vpp-content-token)
+- [Disable VPP](#disable-vpp)
 
-### Generate Apple DEP Key Pair
 
-#### Parameters
+### Generate Apple Business Manager public key (ADE)
 
-None.
+`GET /api/v1/fleet/mdm/apple/abm_public_key`
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/dep/key_pair`
+`GET /api/v1/fleet/mdm/apple/abm_public_key`
 
 ##### Default response
 
+`Status: 200`
+
 ```json
 {
-  "public_key": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNzVENDQVptZ0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFTTVJBd0RnWURWUVFERXdkR2JHVmwKZEVSTk1CNFhEVEl5TVRJeE16RTFNREl6TmxvWERUSXpNREV4TWpFMU1USXpObG93RWpFUU1BNEdBMVVFQXhNSApSbXhsWlhSRVRUQ0NBU0l3RFFZSktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU1jbXIxOVNiQUhaCnVZNnJBa254dVBCV0tkSFlrSXpJY2JGMHErZ0ZKZVU3cUlwU0FQWFhmeUpFTXpyQXhpZStPSi9QSXhkTHZTZVoKdXA2Qzg5VHM1VEwrWjhKZmR3T2ZLQVFIUWpyQVpGZkxkdUh0SjNRZnk3di9rbmZ3VzNNSU9XZ00zcDQ3a0xzOAowZnJzNmVuTlpXZElsNUMyV1NpOXVGVVVQcFJTbm1Ha1AvK2QydmNCaWdIOHQ0K3RuV3NYdjhpekxqcHhhanV6CjN0Vlp3SFA0cjBQZTdIM0I0eDZINmlKZmxRZzI4Z3owbDZWa0c2NjVKT2NMLzlDSmNtOWpWRmpxb0RmZTVjUFAKMVFNbFpyb1FCaFhOUHN3bEhRWTkzekJFK3VSRUVNL1N1d0dZcGZLYjQwSDM0S1B1U3Y5SXZHTjIzTXdNM01FMwppNEFBWGJQOGZNTUNBd0VBQWFNU01CQXdEZ1lEVlIwUEFRSC9CQVFEQWdXZ01BMEdDU3FHU0liM0RRRUJDd1VBCkE0SUJBUUM5ZFcyRXBxemp1VWhhbk1CSXJpK09VWVhrekR2eVB6bGxTMXd0UVdQQ0s4cFJ5Rk5TM3RkakVXT2kKSTcyOVh2UmtpNjhNZStqRlpxSkxFWHpWUlkwb29aSWhhcG5lNUZoNzlCbkIrWGl6TFQ0TStDNHJ5RVQwOXg4SQpaWHJuY1BKME9ueUdVemlFK0szWEI2dVNLeWN1a3pZci9sRVBBMGlQRTZpM0dNYjljenJFL2NOQURrRXZwcjU2CjN1SFdMU3hwK1U5QmJyaTNDSXBoR1NvSWxnTVBEaUE1RkpiOXc0SnlMK0crZ3Q4c1BlcUZkZDYyRDRpV3U5a0wKMVZBUjRSU2xPcWt1cTVXREZVcUxsVGJFMS9oY1lqcVVUczRrSWhENmN6MkcxQlBnMUU2WVpRZWp6U0ZpeGR1MApYUy9UTTByUFBKNithUC82V1BNRWpJcGVRcmNvCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K",
-  "private_key": "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBeHlhdlgxSnNBZG01anFzQ1NmRzQ4RllwMGRpUWpNaHhzWFNyNkFVbDVUdW9pbElBCjlkZC9Ja1F6T3NER0o3NDRuODhqRjB1OUo1bTZub0x6MU96bE12NW53bDkzQTU4b0JBZENPc0JrVjh0MjRlMG4KZEIvTHUvK1NkL0JiY3dnNWFBemVuanVRdXp6Uit1enA2YzFsWjBpWGtMWlpLTDI0VlJRK2xGS2VZYVEvLzUzYQo5d0dLQWZ5M2o2MmRheGUveUxNdU9uRnFPN1BlMVZuQWMvaXZROTdzZmNIakhvZnFJbCtWQ0RieURQU1hwV1FiCnJya2s1d3YvMElseWIyTlVXT3FnTjk3bHc4L1ZBeVZtdWhBR0ZjMCt6Q1VkQmozZk1FVDY1RVFRejlLN0FaaWwKOHB2alFmZmdvKzVLLzBpOFkzYmN6QXpjd1RlTGdBQmRzL3g4d3dJREFRQUJBb0lCQUZRMUFFeGU3bnB0MUc4RgowZ2J3SlpIQjdSYms2bUlNMHo0RXBqZUtEYmI2M2MzMjFKOGV5b3Z6cUhHOFYwMHd1b0tnTkNkQ2lDMjVhOVpnCmFyZHFuNU5MVFJZOEJYZkxrVUQ2ekw5STRHVGJERjZGUjN4cmdWcnh1cjNxTE5EYjltSVBwd1hqQzlTUDUvMmcKdFZ0OTFOV3lOUndrYmxpeXQ4R0p1TmhBZ3VXbnJLQmw5b3o1QkpCU3JLZTJPUE5ERm5mbUs1NFM1VzRKakZZMApFTUV3Z2ZiL2xQZjluWFZwRG9QeEl3QnJmRU5oU3oxcVI0bzJPbVFyRGNOQUNZU05razRjbXVIMHpxc3J5aFg4CkNhajhCcllOemxaeGNPTmpmK1NxUkdvVndjdzZKbzNKazBEREZHeEVaOHBEUThJTXgzRUQ1SE4rbW1SaGRMQmoKT0pRZVhVRUNnWUVBeWZDaFArSVNzMGNtcEM3WUFrK1UrVHNTTElnY3BTTHdReFF2RGFmRWFtMHJoWDJQdDk1ZgpJN1NCTlM3TmlNR0xCVk4rWHg0RHlsT3RYaGNzTm5YUU5qU3J3ZFNHTGxFbU5wWDJXR0x4Znp4REVVbFFSS3FEClY2RHBDaHdmY2tCTFRUNkVaRDlnV21DOGZIYUNPc0JDUHR1VStLQUpFa1FRaVk1VlRLSjYrMkVDZ1lFQS9IYnQKKzIvWFJzSW84VkE4QmhjMitDYyt4YUNrK3dvTVByZ0d4OWxrMTR2R0hDcCtDY2ZGZThqU2NHMDhzU3RKTnJCVgp0cHgvbm1yYklyMzUxVkxlMFNLQ2R2aHF5ajBXQWlWVDhDL0VjcUxGV0VwNG5mY1ZnVHIxRjBGMUptR0Y4WVNYCk41VEh4Tnc4VjZLUDVmWEM2dVVFMkNpZnR1bkxqSGFSNXZCakxxTUNnWUVBdlNjTE0zYUVRNjlTejVrZE5sVHEKMnVUczZnOTRuV256bVRGdnZaKzJ5R1dIelp0R0lsbEZ6b0VHUWhXYjZndzROdjMxTWcxQVNhVkZrQXV1bXppUgpsaVNSK1pZak5ZRkhoUHZFNnhlSzA3NVRwLzUvRkVLUGttWWp3eGVDa1JjT01jVnNaeVpDRDRYcko3NHR6L0JFClhQSjdRTU5PbS9CcmVSMThZck1TOVNFQ2dZQjhqZnhaV1ZNL1FKbE1mTVl3UnhIQ21qSVk5R21ReE9OSHFpa0cKUGhYSFZkazJtaXcyalEyOFJWYTFTdDl2bFNoNHg4Ung1SUg5MlVBbHdzNVlWWnRDV0tFL0tzNGMyc2haNUtxbAp6QnRDWjFXdmVvWkpnTlptUEgwZ3JSV3NDdDgzU2JBRkp1enNEYS9qbUhzZi9BRGZQSUFJV1BwN0ZwdHF3REM1ClhBM0N1d0tCZ0c0QVVmMUZralNYRFBlL2JoVjhtZG4rZCtzN2g2RjZkRWttNnEya1dyS1B4V2lFdlN3QlZEQWoKQjhIRlNtNW1pcHNTTXhQbFVEZDRPSXRSUzVUM1AwcStRZENZNkwzemhmSFBCUzdhTlZaRUJXdVNlY2lDRk0wSQo3MjFSK081TitMTlFwN1N6VWUxRll1WWdhandFSE9KMW82d1ArZWloMmQyVVQyQ09Ed1NrCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg=="
+    "public_key": "23K9LCBGG26gc2AjcmV9Kz="
 }
 ```
-
-Note that the `public_key` and `private_key` are base64 encoded and should be decoded before writing them to files.
 
 ### Request Certificate Signing Request (CSR)
 
-`POST /api/v1/fleet/mdm/apple/request_csr`
-
-#### Parameters
-
-| Name          | Type   | In   | Description                                                                            |
-| ------------- | ------ | ---- | -------------------------------------------------------------------------------------- |
-| email_address | string | body | **Required.** The email that will be associated with the Apple APNs certificate.       |
-| organization  | string | body | **Required.** The name of the organization associated with the Apple APNs certificate. |
+`GET /api/v1/fleet/mdm/apple/request_csr`
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/request_csr`
+`GET /api/v1/fleet/mdm/apple/request_csr`
 
 ##### Default response
 
+```
+Status: 200
+```
+
 ```json
 {
-  "apns_key": "aGV5LCBJJ20gc2VjcmV0Cg==",
-  "scep_cert": "bHR5LCBJJ20gc2VjcmV0Cg=",
-  "scep_key": "lKT5LCBJJ20gc2VjcmV0Cg="
+    "csr": "lKT5LCBJJ20gc2VjcmV0Cg="
 }
 ```
 
-Note that the response fields are base64 encoded and should be decoded before writing them to files.
-Once base64-decoded, they are PEM-encoded certificate and keys.
+
+### Upload APNS certificate
+
+`POST /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| certificate | file | form | *Required* The file conataining the APNS certificate (.pem) |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/apns_certificate`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="certificate"; filename="apns_cert.pem"
+Content-Type: application/octet-stream
+
+<CERTIFICATE_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+### Upload ABM Token
+
+`POST /api/v1/fleet/mdm/apple/abm_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the token (.p7m) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/abm_token`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+
+##### Default response
+
+`Status: 200`
+
+
+### Turn off Apple MDM
+
+`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+
+##### Default response
+
+`Status: 204`
+
+
+### Disable automatic enrollment (ADE)
+
+`DELETE /api/v1/fleet/mdm/apple/abm_token`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/abm_token`
+
+##### Default response
+
+`Status: 204`
 
 
 ### Batch-apply MDM custom settings
@@ -598,7 +696,7 @@ Once base64-decoded, they are PEM-encoded certificate and keys.
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles).                                        |
+| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all` or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles).                                        |
 
 
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
@@ -772,6 +870,55 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
 ##### Default response
 
 `Status: 204`
+
+### Upload VPP content token
+
+`POST /api/v1/fleet/mdm/apple/vpp_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/vpp_token`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Disable VPP
+
+`DELETE /api/v1/fleet/mdm/apple/vpp_token`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/vpp_token`
+
+##### Default response
+
+`Status: 204`
+
 
 ## Get or apply configuration files
 
@@ -1282,11 +1429,13 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels` list of label names.                                                                                                                                                         |
+| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
+| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
-| software                                   | list   | body  | An array of software objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
+| software                                   | object   | body  | The team's software that will be available for install.  |
+| software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
+| software.app_store_apps                   | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app formatted as a string (in quotes) rather than a number. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1345,31 +1494,43 @@ If the `name` is not already associated with an existing team, this API route cr
           "deadline": "2023-12-01"
         },
         "macos_settings": {
-          "custom_settings": {
-            "path": "path/to/profile1.mobileconfig"
-            "labels": ["Label 1", "Label 2"]
-          },
-          {
-            "path": "path/to/profile2.json"
-            "labels": ["Label 3", "Label 4"]
-          },
+          "custom_settings": [
+            {
+              "path": "path/to/profile1.mobileconfig"
+              "labels_include_all": ["Label 1", "Label 2"]
+            },
+            {
+              "path": "path/to/profile2.json"
+              "labels_exclude_any": ["Label 3", "Label 4"]
+            },
+          ],
           "enable_disk_encryption": true
         },
         "windows_settings": {
-          "custom_settings": {
-            "path": "path/to/profile3.xml"
-            "labels": ["Label 1", "Label 2"]
-          },
+          "custom_settings": [
+            {
+              "path": "path/to/profile3.xml"
+              "labels_include_all": ["Label 1", "Label 2"]
+            }
+          ]
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": [
-        {
-          "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
-          "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-          "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-        }
-      ]
+      "software": { 
+        "packages": [
+          {
+            "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
+            "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+            "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+            "self_service": true,
+          }
+        ],
+        "app_store_apps": [
+          {
+            "app_store_id": "12464567",
+          }
+        ]
+      }  
     }
   ]
 }
@@ -2381,6 +2542,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
     "renew_enrollment_profile": false,
@@ -2420,6 +2582,7 @@ Lists the software installed on the current device.
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+| self_service | bool | query | Filter `self_service` software. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
@@ -2439,13 +2602,18 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "source": "apps",
-      "bundle_identifier": "com.google.Chrome",
-      "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
+      "software_package": {
+        "name": "GoogleChrome.pkg"
+        "version": "125.12.2"
+        "self_service": true,
+     	"last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+      	  "installed_at": "2024-05-15T15:23:57Z"
+        },
       },
+      "app_store_app": null,
+      "source": "apps",
+      "status": "failed",
       "installed_versions": [
         { 
           "version": "121.0",
@@ -2458,10 +2626,10 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
+      "software_package": null,
+      "app_store_app": null,
       "source": "apps",
-      "bundle_identifier": "com.google.Chrome",
       "status": null,
-      "last_install": null,
       "installed_versions": [
         { 
           "version": "125.6",
@@ -2479,6 +2647,26 @@ Lists the software installed on the current device.
 }
 ```
 
+#### Install self-service software
+
+Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
+
+`POST /api/v1/fleet/device/{token}/software/install/:software_title_id`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | **Required**. The device's authentication token. |
+| software_title_id | string | path | **Required**. The software title's ID. |
+
+##### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+
+##### Default response
+
+`Status: 202`
 
 #### Get device's policies
 
@@ -2635,27 +2823,6 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 `Status: 204`
 
 ---
-
-#### Trigger FileVault key escrow
-
-Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is useful for setting the escrow key initially as well as in scenarios where a token rotation is required. **Requires Fleet Premium license**
-
-`POST /api/v1/fleet/device/{token}/rotate_encryption_key`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`POST /api/v1/fleet/device/abcdef012456789/rotate_encryption_key`
-
-##### Default response
-
-`Status: 204`
-
 
 ### Report an agent error
 
@@ -2858,10 +3025,12 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. |
+| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. Ommitting these parameters will add software to 'No Team'. |
+| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
-| software  | list   | body  | An array of software objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
+| software  | object   | body  | The team's software that will be available for install.  |
+| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
+| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
 
 If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
 
@@ -2872,3 +3041,43 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 ##### Default response
 
 `Status: 204`
+
+ ### Run live script
+
+Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host ID to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```

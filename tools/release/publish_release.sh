@@ -70,13 +70,13 @@ usage() {
     echo "Usage: $0 [options] (optional|start_version)"
     echo ""
     echo "Options:"
-    echo "  -a, --main_release     This is a release based off of main and not a tagged patch."
+    echo "  -a, --and_cherry_pick  This is a minor release and cherry pick. Used for unscheduled minor releases that are patches + a specific feature"
     echo "  -c, --cherry_pick_resolved The script has been run, had merge conflicts, and those have been resolved and all cherry picks completed manually."
     echo "  -d, --dry_run          Perform a trial run with no changes made"
     echo "  -f, --force            Skip all confirmations"
     echo "  -h, --help             Display this help message and exit"
     echo "  -g, --tag              Run the tag step"
-    echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs)"
+    echo "  -m, --minor            Increment to a minor version instead of patch (required if including non-bugs)"
     echo "  -n, --announce_only    Announce the release only, do not publish the release."
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
     echo "  -p, --print            If the release is already drafted then print out the helpful info"
@@ -133,7 +133,7 @@ check_grep() {
         if command -v ggrep >/dev/null 2>&1; then
             return
         else
-            echo "Please install latest grep with `brew install grep`"
+            echo "Please install latest grep with $(brew install grep)"
             exit 1
         fi
     fi
@@ -195,7 +195,7 @@ build_changelog() {
 
         git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
         prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
-        if [[ "$main_release" == "true" ]]; then
+        if [[ "$minor" == "true" ]]; then
             # Place to make a main targeted prompt
             prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules: Organize updates into three categories: Endpoint Operations, Device Management (MDM), and Vulnerability Management, with all bug fixes and misc. improvements listed under "Bug fixes and improvements". Start each entry with a past tense verb, using hyphens for bullet points. Include specific details for new features, bug fixes, API changes, and any necessary user actions. Note changes in user interfaces, system feedback, and significant architectural updates. Highlight mandatory actions and major impacts, especially for system administrators. Order seemingly important features at the top of their respective lists.'
         fi
@@ -218,13 +218,13 @@ build_changelog() {
                -H "Authorization: Bearer $open_api_key" \
                --data "$data_payload")
 
-            output=`echo $response | jq -r .choices[0].message.content`
+            output=$(echo $response | jq -r .choices[0].message.content)
             echo "${output}"
         done
 
         git checkout CHANGELOG.md
         if [[ "$target_date" == "" ]]; then
-            tartget_date=`date +"%b %d, %Y"`
+            tartget_date=$(date +"%b %d, %Y")
         fi
         echo "## Fleet $target_milestone ($tartget_date)" > temp_changelog
         echo "" >> temp_changelog
@@ -260,7 +260,7 @@ changelog_and_versions() {
     branch_for_changelog=$1
     source_branch=$2
 
-    local_exists=`git branch | $GREP_CMD $branch_for_changelog`
+    local_exists=$(git branch | $GREP_CMD $branch_for_changelog)
     if [ "$dry_run" = "false" ]; then
         if [[ $local_exists != "" ]]; then
             # Clear previous
@@ -270,7 +270,7 @@ changelog_and_versions() {
         cp /tmp/CHANGELOG.md .
         git add CHANGELOG.md
         escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
-        version_files=`ack -l --ignore-dir=tools/release --ignore-dir=articles --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
+        version_files=$(ack -l --ignore-dir=tools/release --ignore-dir=articles --ignore-file=is:CHANGELOG.md "$escaped_start_version")
         unameOut="$(uname -s)"
         case "${unameOut}" in
             Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
@@ -294,7 +294,7 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "georgekarrv" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
+                --assignee "pezhub" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
             rm -f temp_qa_issue_file
         fi
     else
@@ -304,8 +304,8 @@ create_qa_issue() {
 
 print_announce_info() {
     if [ "$dry_run" = "false" ]; then
-        qa_ticket=`gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
-        docker_deploy=`gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
+        qa_ticket=$(gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url)
+        docker_deploy=$(gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_branch\")][0].url")
         echo
         echo "For announcing in #help-engineering"
         echo "===================================================="
@@ -328,9 +328,9 @@ print_announce_info() {
 }
 
 general_announce_info() {
-    if [[ "$main_release" == "true" ]]; then
+    if [[ "$minor" == "true" ]]; then
         article_url="https://fleetdm.com/releases/fleet-$target_milestone"
-        article_published=`curl -is "$article_url" | head -n 1 | awk '{print $2}'`
+        article_published=$(curl -is "$article_url" | head -n 1 | awk '{print $2}')
         if [[ "$article_published" != "200" ]]; then
             echo "Could't find article at '$article_url'"
             exit 1
@@ -346,7 +346,7 @@ general_announce_info() {
     slack_hook_url=https://hooks.slack.com/services
     app_id=T019PP37ALW
     announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag"
-    if [[ "$main_release" == "true" ]]; then
+    if [[ "$minor" == "true" ]]; then
         announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nRelease article: $article_url\nLinkedIn post: $linkedin_post_url"
     fi
 
@@ -403,24 +403,15 @@ update_release_notes() {
 
 tag() {
     if [ "$dry_run" = "false" ]; then
-        current_branch=`git rev-parse --abbrev-ref HEAD`
-        if [[ "$main_release" == "true" && "$current_branch" != "main" ]]; then
-            echo "Can't tag main release if you aren't on 'main'"
+        current_branch=$(git rev-parse --abbrev-ref HEAD)
+        found_version=$(cat CHANGELOG.md | $GREP_CMD $target_milestone)
+        if [[ "$found_version" == "" ]]; then
+            echo "Can't tag if CHANGELOG pr has not been merged yet"
             exit 1
         fi
-        if [[ "$main_release" == "true" ]]; then
-            # in main
-            found_version=`cat CHANGELOG.md | $GREP_CMD $target_milestone`
-            if [[ "$found_version" == "" ]]; then
-                echo "Can't tag main if CHANGELOG pr has not been merged yet"
-                exit 1
-            fi
-        else
-            # patch release
-            if [[ "$current_branch" != "$target_patch_branch" ]]; then
-                echo "Can't tag patch release if you aren't on '$target_patch_branch'"
-                exit 1
-            fi
+        if [[ "$current_branch" != "$target_branch" ]]; then
+            echo "Can't tag release if you aren't on '$target_branch'"
+            exit 1
         fi
 
         # Officially tag and push
@@ -437,10 +428,10 @@ tag() {
     fi
 
     if [ "$dry_run" = "false" ]; then
-        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseId,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")][0]"`
-        echo "Releaser running " `echo $releaser_out | jq -r ".url"`
+        releaser_out=$(gh run list --workflow goreleaser-fleet.yaml --json databaseId,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")][0]")
+        echo "Releaser running " $(echo $releaser_out | jq -r ".url")
 
-        gh run watch `echo $releaser_out | jq -r ".databaseId"`
+        gh run watch $(echo $releaser_out | jq -r ".databaseId")
     else
         echo "DRYRUN: Would found goreleaser action and waited for it to complete"
     fi
@@ -457,12 +448,12 @@ publish() {
             gh release edit --draft=false --latest $next_tag
             gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
             show_spinner 200
-            dogfood_deploy=`gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'`
+            dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
             cd tools/fleetctl-npm && npm publish
 
-            issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
+            issues=$(gh issue list -m $target_milestone --json number | jq -r '.[] | .number')
             for iss in $issues; do
-                is_story=`gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story`
+                is_story=$(gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story)
                 # close all non-stories
                 if [[ "$is_story" == "" ]]; then
                     echo "Closing #$iss"
@@ -486,6 +477,7 @@ publish() {
 check_required_binaries
 
 # Initialize variables for the options
+minor_cherry_pick=false
 cherry_pick_resolved=false
 dry_run=false
 force=false
@@ -499,14 +491,13 @@ print_info=false
 publish_release=false
 release_notes=false
 do_tag=false
-main_release=false
 quiet=false
 
 # Parse long options manually
 for arg in "$@"; do
   shift
   case "$arg" in
-    "--main_release") set -- "$@" "-a" ;;
+    "--and_cherry_pick") set -- "$@" "-a" ;;
     "--cherry_pick_resolved") set -- "$@" "-c" ;;
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
@@ -529,7 +520,7 @@ done
 # Extract options and their arguments using getopts
 while getopts "acdfhgmno:pqrs:t:uv:" opt; do
     case "$opt" in
-        a) main_release=true ;;
+        a) minor_cherry_pick=true ;;
         c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
         f) force=true ;;
@@ -604,30 +595,25 @@ fi
 if [ -z "$start_version" ]; then
     if [[ "$1" == "" ]]; then
         # grab latest draft excluding test version 9.99.9
-        draft=`gh release list | $GREP_CMD Draft | $GREP_CMD -v 9.99.9`
+        draft=$(gh release list | $GREP_CMD Draft | $GREP_CMD -v 9.99.9)
         if [[ "$draft" != "" ]]; then
-            target_version=`echo $draft | awk '{print $1}' | cut -d '-' -f2`
-            start_version=`gh release list | $GREP_CMD Draft -A1 | tail -n1 | awk '{print $1}' | cut -d '-' -f2`
+            target_version=$(echo $draft | awk '{print $1}' | cut -d '-' -f2)
+            start_version=$(gh release list | $GREP_CMD Draft -A1 | tail -n1 | awk '{print $1}' | cut -d '-' -f2)
         else
-            start_version=`gh release list | $GREP_CMD Latest | awk '{print $1}' | cut -d '-' -f2`
+            start_version=$(gh release list | $GREP_CMD Latest | awk '{print $1}' | cut -d '-' -f2)
         fi
     else
         start_version="$1"
     fi
 fi
 
-if [[ "$main_release" == "true" ]]; then
-    # Main releases are always minor releases
-    minor=true
-fi
-
 if [[ $start_version != v* ]]; then
-    start_version=`echo "v$start_version"`
+    start_version=$(echo "v$start_version")
 fi
 
 if [[ "$target_version" != "" ]]; then
     if [[ $target_version != v* ]]; then
-        target_version=`echo "v$target_version"`
+        target_version=$(echo "v$target_version")
     fi
     next_ver=$target_version
 else
@@ -640,9 +626,10 @@ fi
 
 start_ver_tag=fleet-$start_version
 
-if [[ "$main_release" == "true" ]]; then
-    echo "Main release from $start_version to $next_ver"
-    start_ver_tag=main
+if [[ "$minor" == "true" ]]; then
+    echo "Minor release from $start_version to $next_ver"
+    # For scheduled minor releases, we want to branch off of main
+    start_ver_tag="main"
 else
     echo "Patch release from $start_version to $next_ver"
 fi
@@ -663,22 +650,21 @@ start_milestone="${start_version:1}"
 # 4.48.0
 target_milestone="${next_ver:1}"
 # 79
-target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
+target_milestone_number=$(gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number")
 # patch-fleet-v4.48.0
-target_patch_branch="patch-fleet-$next_ver"
-if [[ "$main_release" == "true" ]]; then
-    target_patch_branch="prepare-fleet-$next_ver"
+target_branch="patch-fleet-$next_ver"
+if [[ "$minor" == "true" ]]; then
+    target_branch="minor-fleet-$next_ver"
 fi
 
 # fleet-v4.48.0
 next_tag="fleet-$next_ver"
 
-if [[ "$target_milestone_number" == "" ]]; then
-    if [ "$announce_only" = "false" ]; then
-        echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
-        exit 1
-    fi
+if [[ "$target_milestone_number" == "" && "$announce_only" == "false" && $dry_run == false ]]; then
+    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
+    exit 1
 fi
+
 echo "Found milestone $target_milestone with number $target_milestone_number"
 
 if [ "$print_info" = "true" ]; then
@@ -715,35 +701,38 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         git checkout $start_ver_tag
         git pull origin $start_ver_tag
     else
-        echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
+        echo "DRYRUN: Would have checked out starting at $start_ver_tag"
     fi
 
-    local_exists=`git branch | $GREP_CMD $target_patch_branch`
+    local_exists=$(git branch | $GREP_CMD $target_branch)
 
     if [ "$dry_run" = "false" ]; then
         if [[ $local_exists != "" ]]; then
             # Clear previous
-            git branch -D $target_patch_branch
+            git branch -D $target_branch
         fi
-        git checkout -b $target_patch_branch
+        git checkout -b $target_branch
     else
-        echo "DRYRUN: Would have cleared / checked out new branch $target_patch_branch"
+        echo "DRYRUN: Would have cleared / checked out new branch $target_branch"
     fi
 
     total_prs=()
 
-    issue_list=`gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number'`
-    if [[ "$issue_list" == "" ]]; then
+    issue_list=$(gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
+
+    if [[ "$issue_list" == "" && "$dry_run" == "false" ]]; then
         echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
         exit 1
     fi
+
     echo "Issue list for new patch $next_ver"
     echo $issue_list
+
     for issue in $issue_list; do
-        prs_for_issue=`gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)"`
+        prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n " NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
+            echo -n " - No PRs found, please verify they are not missing in the issue."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"
@@ -751,7 +740,6 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         done
         echo
     done
-
 
     if [ "$force" = "false" ]; then
         read -r -p "Check any issues that have no pull requests, no to cancel and yes to continue? [y/N] " response
@@ -767,14 +755,14 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     commits=""
 
-    if [[ "$main_release" == "false" ]]; then
+    if [[ "$minor" == "false" || "$minor_cherry_pick" == "true" ]]; then
         echo "Continuing to cherry-pick"
         for pr in ${total_prs[*]};
         do
-            output=`gh pr view $pr --json state,mergeCommit,baseRefName`
-            state=`echo $output | jq -r .state`
-            commit=`echo $output | jq -r .mergeCommit.oid`
-            target_branch=`echo $output | jq -r .baseRefName`
+            output=$(gh pr view $pr --json state,mergeCommit,baseRefName)
+            state=$(echo $output | jq -r .state)
+            commit=$(echo $output | jq -r .mergeCommit.oid)
+            target_branch=$(echo $output | jq -r .baseRefName)
             echo -n "$pr $state $commit $target_branch:"
             if [[ "$state" != "MERGED" || "$target_branch" != "main" ]]; then
                 echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
@@ -792,7 +780,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         for commit in $commits;
         do
             # echo $commit
-            timestamp=`git log -n 1 --pretty=format:%at $commit`
+            timestamp=$(git log -n 1 --pretty=format:%at $commit)
             if [ $? -ne 0 ]; then
                 echo "Failed to identify $commit, exiting"
                 exit 1
@@ -805,7 +793,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         for key in "${!time_map[@]}"; do
             timestamps+="$key\n"
         done
-        for ts in `echo -e $timestamps | sort`; do
+        for ts in $(echo -e $timestamps | sort); do
             commit_hash="${time_map[$ts]}"
             # echo "# $ts $commit_hash"
             if git branch --contains "$commit_hash" | $GREP_CMD -q "$(git rev-parse --abbrev-ref HEAD)"; then
@@ -836,16 +824,14 @@ fi
 if [[ "$failed" == "false" ]]; then
     if [ "$dry_run" = "false" ]; then
         # have to push so we can make the PR's back
-        git push origin $target_patch_branch -f
+        git push origin $target_branch -f
     fi
 
     build_changelog
 
-    if [[ "$main_release" == "false" ]]; then
-        # Create PR for changelog and version to patch
-        update_changelog_patch_branch="update-changelog-pb-$target_milestone"
-        changelog_and_versions $update_changelog_patch_branch $target_patch_branch
-    fi
+    # Create PR for changelog and version to release
+    update_changelog_prepare_branch="update-changelog-prepare-$target_milestone"
+    changelog_and_versions $update_changelog_prepare_branch $target_branch
 
     if [ "$dry_run" = "false" ]; then
         # Create PR for changelog and version to main
@@ -854,21 +840,22 @@ if [[ "$failed" == "false" ]]; then
     else
         echo "DRYRUN: Would have switched to main and pulled latest"
     fi
+    
     update_changelog_branch="update-changelog-$target_milestone"
     changelog_and_versions $update_changelog_branch main
 
     if [ "$dry_run" = "false" ]; then
         # Back on patch / prepare
-        git checkout $target_patch_branch
+        git checkout $target_branch
     else
-        echo "DRYRUN: Would have switched back to branch $target_patch_branch"
+        echo "DRYRUN: Would have switched back to branch $target_branch"
     fi
 
-    if [[ "$main_release" == "false" ]]; then
+    if [[ "$dry_run" = "false" && "$minor" == "false" ]]; then
         # Cherry-pick from update-changelog-branch
-        ch_commit=`git log -n 1 --pretty=format:"%H" $update_changelog_branch`
+        ch_commit=$(git log -n 1 --pretty=format:"%H" $update_changelog_branch)
         git cherry-pick $ch_commit
-        git push origin $target_patch_branch -f
+        git push origin $target_branch -f
     fi
 
     # Check for QA issue

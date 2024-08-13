@@ -27,26 +27,26 @@
       <h2>What will you use Fleet for?</h2>
       <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['what-are-you-using-fleet-for']" :form-rules="primaryBuyingSituationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
-          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
-            <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
-            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-            Endpoint ops for security engineering
-          </label>
-          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
-            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
-            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-            Endpoint ops for identity engineers and IT admins
-          </label>
           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm' ? 'selected' : '']">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Device management (MDM)
           </label>
-          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm' ? 'selected' : '']">
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
+            <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Security engineering
+          </label>
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
+            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            IT engineering
+          </label>
+<!--           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm' ? 'selected' : '']">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="vm" @input="clickClearOneFormError('primaryBuyingSituation')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Vulnerability management
-          </label>
+          </label> -->
           <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
         </div>
         <cloud-error v-if="cloudError"></cloud-error>
@@ -390,8 +390,7 @@
         </div>
         <h2>Is it any good?</h2>
         <div purpose="form-header" class="mx-auto">
-          <p class="mb-3 pb-3">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
-          <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
+          <p class="">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
         </div>
         <div purpose="start-cards">
           <a purpose="card" href="/try-fleet?start">
@@ -399,12 +398,13 @@
             <h2>Try Fleet yourself</h2>
             <p>Try Fleet locally on your device</p>
           </a>
-          <a purpose="card" href="/docs/get-started">
-            <img alt="Purchase a Fleet Premium license" src="/images/homepage-icon-documentation-64x64@2x.png">
-            <h2>Read the docs</h2>
+          <a purpose="card" href="https://youtu.be/QpdRADHWP_o?feature=shared&t=1333" target="_blank">
+            <img alt="Watch a demo" src="/images/play-button-64x64@2x.png">
+            <h2>Watch a demo</h2>
             <p>See what Fleet can do</p>
           </a>
         </div>
+        <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
         <p>You can come back here any time to continue with your deployment.</p>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
@@ -442,22 +442,7 @@
           <div class="invalid-feedback" v-if="formErrors.whatDidYouThink">Please select an option</div>
         </div>
         <cloud-error v-if="cloudError"></cloud-error>
-        <div purpose="quote" v-if="!formData['what-are-you-using-fleet-for'].primaryBuyingSituation">
-          <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
-          <p purpose="quote-text">
-            Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
-          </p>
-          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-            <div purpose="profile-picture">
-              <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
-            </div>
-            <div class="d-flex flex-column align-self-top">
-              <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
-              <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
-            </div>
-          </div>
-        </div>
-        <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm'">
+        <div purpose="quote" v-else-if="!formData['what-are-you-using-fleet-for'].primaryBuyingSituation || formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm'">
           <div purpose="logo" class="mb-4"><img height="32" alt="Uber logo" src="/images/social-proof-logo-uber-71x32@2x.png"></div>
           <p purpose="quote-text">
             Exciting. This is a team that listens to feedback.
@@ -503,17 +488,17 @@
           </div>
         </div>
         <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security'">
-          <div purpose="logo" class="mb-4"><img height="32" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-192x32@2x.png"></div>
+          <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
           <p purpose="quote-text">
-            I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work.
+            Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
           </p>
           <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
             <div purpose="profile-picture">
-              <img alt="Dan Grzelak" src="/images/testimonial-author-daniel-grzelak-48x48@2x.png">
+              <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
             </div>
             <div class="d-flex flex-column align-self-top">
-              <p purpose="name" class="font-weight-bold m-0">Dan Grzelak</p>
-              <p purpose="job-title" class="m-0">Security Chief of Staff</p>
+              <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
+              <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
             </div>
           </div>
         </div>

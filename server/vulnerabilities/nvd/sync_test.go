@@ -82,7 +82,6 @@ func TestLoadCVEMeta(t *testing.T) {
 }
 
 func TestDownloadCPETranslations(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	nettest.Run(t)
 
 	tempDir := t.TempDir()

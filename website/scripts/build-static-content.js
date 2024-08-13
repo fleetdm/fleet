@@ -16,7 +16,7 @@ module.exports = {
   fn: async function ({ dry, githubAccessToken }) {
     let path = require('path');
     let YAML = require('yaml');
-
+    let util = require('util');
     // FUTURE: If we ever need to gather source files from other places or branches, etc, see git history of this file circa 2021-05-19 for an example of a different strategy we might use to do that.
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
@@ -253,6 +253,10 @@ module.exports = {
               if(mdString.match(/[A-Z0-9._%+-]+@fleetdm\.com/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a @fleetdm.com email address. To resolve this error, remove the email address in that file or change it to be an @example.com email address and try running this script again.`);
               }
+              // Look for multi-line HTML comments starting after lists without a blank newline. (The opening comment block is parsed as part of the list item preceeding it, and the closing block will be parsed as a paragraph)
+              if(mdString.match(/(-|\d\.)\s.*\n<!-+\n/g)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
+              }
               // Look for anything in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
               if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
@@ -281,8 +285,10 @@ module.exports = {
                   throw new Error(`Could not build HTML partials from Markdown. A page (${pageRelSourcePath}) contains an invalid relative Markdown link (${hrefString.replace(/^href=/, '')}). To resolve, make sure all relative links on this page that link to a specific section include the Markdown page extension (.md) and try running this script again.`);
                 }
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
-                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/'))
-                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
+                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//)
+                  .map((fileOrFolderNameWithPossibleUrlEncodedSpaces) => fileOrFolderNameWithPossibleUrlEncodedSpaces.toLowerCase().replace(/%20/g, '-'))// « Replaces url-encoded spaces with dashes to support relative links to folders with spaces on Github.com and the Fleet website.
+                  .map((fileOrFolderNameWithPossibleSpaces) => fileOrFolderNameWithPossibleSpaces.toLowerCase().replace(/\s/g, '-')).join('/'))// « Replaces spaces in folder names with dashes to support relative links to folders with spaces on Fleet website.
+                  .split(/\//).map((fileOrFolderNameWithNoSpaces) => encodeURIComponent(fileOrFolderNameWithNoSpaces.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
                 if(possibleReferencedUrlHash) {
                   referencedPageNewUrl = referencedPageNewUrl + '#' + encodeURIComponent(possibleReferencedUrlHash);
@@ -296,8 +302,8 @@ module.exports = {
                 // Check if this is an external link (like https://google.com) but that is ALSO not a link
                 // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
                 // If external, add target="_blank" so the link will open in a new tab.
-                // Note: links to blog.fleetdm.com will be treated as an external link.
-                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+                // Note: links to trust.fleetdm.com and blog.fleetdm.com will be treated as an external link.
+                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|trust|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
                 // Check if this link is to fleetdm.com or www.fleetdm.com.
                 let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
                 if (isExternal) {
@@ -384,11 +390,29 @@ module.exports = {
               }//ﬁ
 
               // Get last modified timestamp using git, and represent it as a JS timestamp.
-              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
-                dir: topLvlRepoPath,
-              })).stdout)).getTime();
+              let lastModifiedAt;
+              if(!githubAccessToken) {
+                lastModifiedAt = Date.now();
+              } else if(process.env.GITHUB_REF_NAME && process.env.GITHUB_REF_NAME === 'main') {// Only add lastModifiedAt timestamps if this test is running on the main branch
+                let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+                  url: 'https://api.github.com/repos/fleetdm/fleet/commits',
+                  data: {
+                    path: path.join(sectionRepoPath, pageRelSourcePath),
+                    page: 1,
+                    per_page: 1,//eslint-disable-line camelcase
+                  },
+                  headers: baseHeadersForGithubRequests,
+                }).intercept((err)=>{
+                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured.`, err);
+                });
+                // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
+                let mostRecentCommitToThisFile = responseData[0];
+                if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
+                  // Throw an error if the the response from GitHub is missing a commit or commiter.
+                  throw new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
+                }
+                lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
+              }
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
@@ -554,11 +578,30 @@ module.exports = {
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
         // Get last modified timestamp using git, and represent it as a JS timestamp.
-        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
-          dir: topLvlRepoPath,
-        })).stdout)).getTime();
+        let lastModifiedAt;
+        if(!githubAccessToken) {
+          lastModifiedAt = Date.now();
+        } else {
+          // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
+          let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+            url: 'https://api.github.com/repos/fleetdm/fleet/commits',
+            data: {
+              path: RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO,
+              page: 1,
+              per_page: 1,//eslint-disable-line camelcase
+            },
+            headers: baseHeadersForGithubRequests,
+          }).intercept((err)=>{
+            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured.`, err);
+          });
+          // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
+          let mostRecentCommitToThisFile = responseData[0];
+          if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
+            // Throw an error if the the response from GitHub is missing a commit or commiter.
+            throw new Error(`When trying to get a lastModifiedAt timestamp for the open positions YAML, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
+          }
+          lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
+        }
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
@@ -596,7 +639,7 @@ module.exports = {
 
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}). \n\n\n >The salary range for this role is $48,000 - $480,000. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -667,7 +710,12 @@ module.exports = {
 
         }
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
-        let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true});
+        let expandedTables;
+        if(githubAccessToken){
+          expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true, githubAccessToken,});
+        } else {
+          expandedTables = await sails.helpers.getExtendedOsquerySchema();
+        }
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
@@ -798,7 +846,14 @@ module.exports = {
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
         let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Device management', 'Vulnerability management'];
+        let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc', 'isExperimental'];
         for(let feature of pricingTableFeatures){
+          // Throw an error if a feature contains an unrecognized key.
+          for(let key of _.keys(feature)){
+            if(!VALID_PRICING_TABLE_KEYS.includes(key)){
+              throw new Error(`Unrecognized key. Could not build pricing table config from pricing-features-table.yml. The "${feature.industryName}" feature contains an unrecognized key (${key}). To resolve, fix any typos or remove this key and try running this script again.`);
+            }
+          }
           if(feature.name) {// Compatibility check
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${feature}`);
           }
@@ -1085,7 +1140,6 @@ module.exports = {
         }
       });
     }
-
   }
 
 

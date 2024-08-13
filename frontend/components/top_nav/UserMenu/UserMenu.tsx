@@ -17,7 +17,6 @@ interface IUserMenuProps {
   isAnyTeamAdmin: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
   currentUser: IUser;
-  isSandboxMode?: boolean;
 }
 
 const UserMenu = ({
@@ -26,7 +25,6 @@ const UserMenu = ({
   isAnyTeamAdmin,
   isGlobalAdmin,
   currentUser,
-  isSandboxMode = false,
 }: IUserMenuProps): JSX.Element => {
   const accountNavigate = onNavItemClick(PATHS.ACCOUNT);
   const dropdownItems = [
@@ -44,7 +42,7 @@ const UserMenu = ({
     },
   ];
 
-  if (isGlobalAdmin && !isSandboxMode) {
+  if (isGlobalAdmin) {
     const manageUsersNavigate = onNavItemClick(PATHS.ADMIN_USERS);
 
     const manageUserNavItem = {

@@ -23,6 +23,11 @@ module.exports = {
     redirectToExternalPageAfterAuthorization: {
       type: 'string',
       description: 'If provided, the user will be sent to this URL after they complete the setup of this integration'
+    },
+    sharedSecret: {
+      type: 'string',
+      description: 'A shared secret used to verify external requests to this endpoint.',
+      extendedDescription: 'This input is used only when this action runs at the "/api/v1/create-external-vanta-authorization-request" endpoint'
     }
   },
 
@@ -59,10 +64,18 @@ module.exports = {
       description: 'The api-only user associated with the provided token does not have the propper permissions to query the users endpoint.',
       statusCode: 403,
     },
-
+    missingOrInvalidSharedSecret: {
+      description: 'The request to set up a Vanta integration has an invalid shared secret',
+      statusCode: 401
+    }
   },
 
   fn: async function (inputs) {
+    require('assert')(sails.config.custom.sharedSecretForExternalVantaRequests);
+    if(this.req.url === '/api/v1/create-external-vanta-authorization-request' && inputs.sharedSecret !== sails.config.custom.sharedSecretForExternalVantaRequests) {
+      throw 'missingOrInvalidSharedSecret';
+    }
+
     let url = require('url');
 
     // Look for any existing VantaConnection records that use this fleet instance URL.
@@ -142,12 +155,8 @@ module.exports = {
         fleetApiKey: inputs.fleetApiKey,
       });
     }
-    let callbackUrl = `/vanta-authorization`;
-    if(inputs.redirectToExternalPageAfterAuthorization){
-      callbackUrl += `?redirectAfterSetup=${inputs.redirectToExternalPageAfterAuthorization}`;
-    }
     // Build the authorization URL for this request.
-    let vantaAuthorizationRequestURL = `https://app.vanta.com/oauth/authorize?client_id=${encodeURIComponent(sails.config.custom.vantaAuthorizationClientId)}&scope=connectors.self:write-resource connectors.self:read-resource&state=${encodeURIComponent(generatedStateForThisRequest)}&source_id=${encodeURIComponent(sourceIDForThisRequest)}&redirect_uri=${encodeURIComponent(url.resolve(sails.config.custom.baseUrl, callbackUrl))}&response_type=code`;
+    let vantaAuthorizationRequestURL = `https://app.vanta.com/oauth/authorize?client_id=${encodeURIComponent(sails.config.custom.vantaAuthorizationClientId)}&scope=connectors.self:write-resource connectors.self:read-resource&state=${encodeURIComponent(generatedStateForThisRequest)}&source_id=${encodeURIComponent(sourceIDForThisRequest)}&redirect_uri=${encodeURIComponent(url.resolve(sails.config.custom.baseUrl, '/vanta-authorization'))}&response_type=code`;
 
     if(inputs.redirectToExternalPageAfterAuthorization){
       let internalRedirectUrl =  `${sails.config.custom.baseUrl}/redirect-vanta-authorization-request?vantaSourceId=${encodeURIComponent(sourceIDForThisRequest)}&state=${encodeURIComponent(generatedStateForThisRequest)}&vantaAuthorizationRequestURL=${encodeURIComponent(vantaAuthorizationRequestURL)}&redirectAfterSetup=${encodeURIComponent(inputs.redirectToExternalPageAfterAuthorization)}`;

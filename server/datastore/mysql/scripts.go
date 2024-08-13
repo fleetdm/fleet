@@ -24,7 +24,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 		var err error
 		if request.ScriptContentID == 0 {
 			// then we are doing a sync execution, so create the contents first
-			scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+			scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 			if err != nil {
 				return err
 			}
@@ -32,12 +32,12 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id)
 		}
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		return err
 	})
 }
 
-func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
+func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
@@ -96,7 +96,8 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
   UPDATE host_script_results SET
     output = ?,
     runtime = ?,
-    exit_code = ?
+    exit_code = ?,
+    timeout = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
@@ -138,6 +139,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// it to a 32-bit signed integer.
 			// See /orbit/pkg/scripts/exec_windows.go
 			int32(result.ExitCode),
+			result.Timeout,
 			result.HostID,
 			result.ExecutionID,
 		)
@@ -236,6 +238,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.output,
     hsr.runtime,
     hsr.exit_code,
+    hsr.timeout,
     hsr.created_at,
     hsr.user_id,
     hsr.sync_request,
@@ -266,14 +269,14 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 		var err error
 
 		// first insert script contents
-		scRes, err := insertScriptContents(ctx, script.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, script.ScriptContents)
 		if err != nil {
 			return err
 		}
 		id, _ := scRes.LastInsertId()
 
 		// then create the script entity
-		res, err = insertScript(ctx, script, uint(id), tx)
+		res, err = insertScript(ctx, tx, script, uint(id))
 		return err
 	})
 	if err != nil {
@@ -283,7 +286,7 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
 }
 
-func insertScript(ctx context.Context, script *fleet.Script, scriptContentsID uint, tx sqlx.ExtContext) (sql.Result, error) {
+func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
 	const insertStmt = `
 INSERT INTO
   scripts (
@@ -311,7 +314,7 @@ VALUES
 	return res, nil
 }
 
-func insertScriptContents(ctx context.Context, contents string, tx sqlx.ExtContext) (sql.Result, error) {
+func insertScriptContents(ctx context.Context, tx sqlx.ExtContext, contents string) (sql.Result, error) {
 	const insertStmt = `
 INSERT INTO
   script_contents (
@@ -654,7 +657,7 @@ ON DUPLICATE KEY UPDATE
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
-			scRes, err := insertScriptContents(ctx, s.ScriptContents, tx)
+			scRes, err := insertScriptContents(ctx, tx, s.ScriptContents)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
@@ -854,7 +857,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 		if err != nil {
 			return err
 		}
@@ -862,7 +865,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id)
 
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
@@ -904,7 +907,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 		if err != nil {
 			return err
 		}
@@ -912,7 +915,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id)
 
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
@@ -955,7 +958,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 		if err != nil {
 			return err
 		}
@@ -963,7 +966,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id)
 
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
 		}

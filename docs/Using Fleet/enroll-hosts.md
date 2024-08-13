@@ -12,11 +12,11 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 ## CLI
 
-> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
+> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/docs/using-fleet/fleetctl-cli#installing-fleetctl).
 
-The `fleetctl package` command is used to generate Fleet's agent (fleetd).
+The `fleetctl package` command is used to generate Fleet's agent (fleetd) install package..
 
-The `--type` flag is used to specify the fleetd installer type:
+The `--type` flag is used to specify the fleetd installer type. Note that Windows can only generate an MSI package:
 - macOS: .pkg
 - Windows: .msi
 - Linux: .deb or .rpm
@@ -39,7 +39,7 @@ To generate Fleet's agent (fleetd) in Fleet UI:
 
 1. Go to the **Hosts** page, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. macOS).
-3. A CLI command with all necessary flags will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
+3. A CLI command with all necessary flags to generate an install package will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
 ### Enroll host to a specific team
 
@@ -57,6 +57,20 @@ You can use your software management tool of choice to distribute Fleet's agent 
 [Fleet Desktop](./Fleet-desktop.md) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
 
 You can include Fleet Desktop in Fleet's agent (fleetd) by including `--fleet-desktop` in the `fleetctl package` command.
+
+### Debug TLS certificates and connection to Fleet
+
+You can use `fleetctl debug connection` to troubleshoot issues with server/client TLS certificates, e.g.:
+```sh
+# Test TLS connection using the CA root file that will be embedded on fleetd packages:
+fleetctl debug connection \
+  https://fleet.example.com
+
+# Test TLS connection using a custom CA root file:
+fleetctl debug connection \
+  --fleet-certificate ./your-ca-root.pem \
+  https://fleet.example.com
+```
 
 ## Enroll Chromebooks
 

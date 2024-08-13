@@ -22,6 +22,8 @@ type BaseItem struct {
 type Controls struct {
 	BaseItem
 	MacOSUpdates   interface{} `json:"macos_updates"`
+	IOSUpdates     interface{} `json:"ios_updates"`
+	IPadOSUpdates  interface{} `json:"ipados_updates"`
 	MacOSSettings  interface{} `json:"macos_settings"`
 	MacOSSetup     interface{} `json:"macos_setup"`
 	MacOSMigration interface{} `json:"macos_migration"`
@@ -55,11 +57,16 @@ type GitOps struct {
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
-	Software []*fleet.TeamSpecSoftware
+	Software GitOpsSoftware
+}
+
+type GitOpsSoftware struct {
+	Packages     []*fleet.SoftwarePackageSpec
+	AppStoreApps []*fleet.TeamSpecAppStoreApp
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
-func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
+func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig) (*GitOps, error) {
 	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %s: %w", filePath, err)
@@ -89,18 +96,16 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	// Figure out if this is an org or team settings file
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
-	teamSoftware, teamSoftwareOk := top["software"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
-		if teamOk || teamSettingsOk || teamSoftwareOk {
-			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings' or 'software'"))
+		if teamOk || teamSettingsOk {
+			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
 	} else if teamOk && teamSettingsOk {
 		multiError = parseName(teamRaw, result, multiError)
 		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
-		multiError = parseSoftware(teamSoftware, result, baseDir, multiError)
 	} else {
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
@@ -110,6 +115,10 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	multiError = parseAgentOptions(top, result, baseDir, multiError)
 	multiError = parsePolicies(top, result, baseDir, multiError)
 	multiError = parseQueries(top, result, baseDir, multiError)
+
+	if appConfig != nil && appConfig.License.IsPremium() {
+		multiError = parseSoftware(top, result, baseDir, multiError)
+	}
 
 	return result, multiError.ErrorOrNil()
 }
@@ -516,21 +525,38 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	return multiError
 }
 
-func parseSoftware(softwareRaw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
-	var softwareInstallers []fleet.TeamSpecSoftware
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+	softwareRaw, ok := top["software"]
+	if !ok {
+		return multierror.Append(multiError, errors.New("'software' is required"))
+	}
+	var software fleet.SoftwareSpec
 	if len(softwareRaw) > 0 {
-		if err := json.Unmarshal(softwareRaw, &softwareInstallers); err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to unmarshal software: %v", err))
+		if err := json.Unmarshal(softwareRaw, &software); err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
 	}
-	for _, item := range softwareInstallers {
-		item := item
-		if item.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("software URL is required"))
-			continue
+	if software.AppStoreApps.Set {
+		for _, item := range software.AppStoreApps.Value {
+			item := item
+			if item.AppStoreID == "" {
+				multiError = multierror.Append(multiError, errors.New("software app store id required"))
+				continue
+			}
+			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 		}
-		result.Software = append(result.Software, &item)
 	}
+	if software.Packages.Set {
+		for _, item := range software.Packages.Value {
+			item := item
+			if item.URL == "" {
+				multiError = multierror.Append(multiError, errors.New("software URL is required"))
+				continue
+			}
+			result.Software.Packages = append(result.Software.Packages, &item)
+		}
+	}
+
 	return multiError
 }
 

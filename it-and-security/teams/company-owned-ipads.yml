@@ -1,0 +1,19 @@
+name: 🔳🏢 Company-owned iPads
+team_settings:
+  features:
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: false
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+  scripts:
+policies:
+queries:
+software:

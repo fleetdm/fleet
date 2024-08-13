@@ -61,9 +61,7 @@ const SoftwareVulnerabilitiesTable = ({
   isLoading,
   resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const { isPremiumTier, isSandboxMode, noSandboxHosts } = useContext(
-    AppContext
-  );
+  const { isPremiumTier } = useContext(AppContext);
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -140,7 +138,6 @@ const SoftwareVulnerabilitiesTable = ({
     if (!data) return [];
     return generateTableConfig(
       isPremiumTier,
-      isSandboxMode,
       router,
       {
         includeName: true,
@@ -192,7 +189,13 @@ const SoftwareVulnerabilitiesTable = ({
         {data?.vulnerabilities && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
-            whatToRetrieve="vulnerabilities"
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
           />
         )}
       </>
@@ -255,7 +258,11 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
-          <EmptySoftwareTable isSoftwareDisabled={!isSoftwareEnabled} />
+          <EmptySoftwareTable
+            tableName="vulnerabilities"
+            isSoftwareDisabled={!isSoftwareEnabled}
+            noSearchQuery={query === ""}
+          />
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}

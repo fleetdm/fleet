@@ -367,7 +367,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		Sha256: hash.Sum(nil),
 		Bytes:  pkgBuf.Bytes(),
 	}
-	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp); err != nil {
+	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
 	}
 
@@ -385,7 +385,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	// skipauth: bootstrap packages are gated by token
 	svc.authz.SkipAuthorization(ctx)
 
-	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token)
+	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token, svc.bootstrapPackageStore)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -769,7 +769,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
-
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
@@ -1081,28 +1080,53 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}, nil
 }
 
-func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
+func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice, updates fleet.AppleOSUpdateSettings) error {
+	const (
+		softwareUpdateType        = `com.apple.configuration.softwareupdate.enforcement.specific`
+		softwareUpdateIdentSuffix = `-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
+	)
+	var (
+		softwareUpdateIdentifier string
+		osUpdatesProfileName     string
+		labelName                string
+	)
+	switch appleDevice {
+	case fleet.MacOS:
+		softwareUpdateIdentifier = "macos" + softwareUpdateIdentSuffix
+		osUpdatesProfileName = mdm.FleetMacOSUpdatesProfileName
+		labelName = fleet.BuiltinLabelMacOS14Plus // OS update DDMs are supported on macOS 14+ devices.
+	case fleet.IOS:
+		softwareUpdateIdentifier = "ios" + softwareUpdateIdentSuffix
+		osUpdatesProfileName = mdm.FleetIOSUpdatesProfileName
+		labelName = fleet.BuiltinLabelIOS
+	case fleet.IPadOS:
+		softwareUpdateIdentifier = "ipados" + softwareUpdateIdentSuffix
+		osUpdatesProfileName = mdm.FleetIPadOSUpdatesProfileName
+		labelName = fleet.BuiltinLabelIPadOS
+	default:
+		panic(fmt.Sprintf("invalid AppleDevice: %d", appleDevice))
+	}
+
 	if updates.MinimumVersion.Value == "" {
 		// OS updates disabled, remove the profile
-		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, mdm.FleetMacOSUpdatesProfileName); err != nil {
+		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, osUpdatesProfileName); err != nil {
 			return err
 		}
 		var globalOrTeamID uint
 		if teamID != nil {
 			globalOrTeamID = *teamID
 		}
+		// This only sets profiles that haven't been queued by the cron to 'pending' (both removes and installs, which includes
+		// the OS updates we just deleted). It doesn't have a functional difference because if you don't call this function
+		// the cron will catch up, but it's important for the UX to mark them as pending immediately so it's reflected in the UI.
 		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 		return nil
 	}
 
-	// OS updates enabled, create or update the profile with the current settings
+	// OS updates enabled, create or update the profile with the current settings.
 
-	const (
-		macOSSoftwareUpdateType  = `com.apple.configuration.softwareupdate.enforcement.specific`
-		macOSSoftwareUpdateIdent = `macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
-	)
 	rawDecl := []byte(fmt.Sprintf(`{
 	"Identifier": %q,
 	"Type": %q,
@@ -1110,17 +1134,17 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 		"TargetOSVersion": %q,
 		"TargetLocalDateTime": "%sT12:00:00"
 	}
-}`, macOSSoftwareUpdateIdent, macOSSoftwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
-	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, macOSSoftwareUpdateIdent)
+}`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
 
-	// associate the profile with the built-in label that ensures the host is on
-	// macOS 14+ to receive that profile
-	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelMacOS14Plus})
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, softwareUpdateType, softwareUpdateIdentifier)
+
+	// Associate the profile with the built-in label to ensure that the profile is applied to the targeted devices.
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName})
 	if err != nil {
 		return err
 	}
-	d.Labels = []fleet.ConfigurationProfileLabel{
-		{LabelName: fleet.BuiltinLabelMacOS14Plus, LabelID: lblIDs[fleet.BuiltinLabelMacOS14Plus]},
+	d.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
+		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
 	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)
@@ -1128,7 +1152,6 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 		return err
 	}
 
-	// mark all hosts affected by that profile as pending
 	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}

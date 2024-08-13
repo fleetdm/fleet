@@ -34,7 +34,7 @@ type EnterpriseOverrides struct {
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
-	MDMAppleEditedMacOSUpdates        func(ctx context.Context, teamID *uint, updates MacOSUpdates) error
+	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 }
 
 type OsqueryService interface {
@@ -84,8 +84,8 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
-	// ReceiveFleetdError handles an erorr report from a `fleetd` component
-	ReceiveFleetdError(ctx context.Context, errData FleetdError) error
+	// LogFleetdError logs an error report from a `fleetd` component
+	LogFleetdError(ctx context.Context, errData FleetdError) error
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -294,9 +294,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// CampaignService defines the distributed query campaign related service methods
 
-	// NewDistributedQueryCampaignByNames creates a new distributed query campaign with the provided query (or the query
-	// referenced by ID) and host/label targets (specified by name).
-	NewDistributedQueryCampaignByNames(
+	// NewDistributedQueryCampaignByIdentifiers creates a new distributed query campaign with the provided query (or the query
+	// referenced by ID) and host/label targets (specified by hostname, UUID, or hardware serial).
+	NewDistributedQueryCampaignByIdentifiers(
 		ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string,
 	) (*DistributedQueryCampaign, error)
 
@@ -648,6 +648,13 @@ type Service interface {
 	// initiated by the user
 	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
+	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
+	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
+
+	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
+
+	AddAppStoreApp(ctx context.Context, teamID *uint, appID VPPAppID) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -661,6 +668,8 @@ type Service interface {
 	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
 	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
 	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
+	// IsCVEKnownToFleet returns whether the provided CVE is known to Fleet.
+	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -703,13 +712,18 @@ type Service interface {
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
+	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
+	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
+	DeleteMDMAppleVPPToken(ctx context.Context) error
+	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
+
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -916,8 +930,6 @@ type Service interface {
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 
-	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
-
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM
 
@@ -971,7 +983,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1042,7 +1054,7 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
-	LockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
 
@@ -1055,4 +1067,10 @@ type Service interface {
 	GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*SoftwareInstaller, error)
 	DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Maintenance windows
+
+	// CalendarWebhook handles incoming calendar callback requests.
+	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
 }

@@ -54,7 +54,7 @@ import {
   isValidSoftwareInstallStatus,
   SoftwareInstallStatus,
 } from "interfaces/software";
-import { API_NO_TEAM_ID, ITeam } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -169,9 +169,8 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
-      // remove the software status filter when selecting all teams or no team
-      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-        !newTeamId || newTeamId < 1,
+      // remove the software status filter when selecting all teams
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) => !newTeamId,
     },
   });
 
@@ -406,8 +405,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
+        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -1197,7 +1196,6 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
-      isSandboxMode={isSandboxMode}
     />
   );
 
@@ -1258,21 +1256,15 @@ const ManageHostsPage = ({
   );
 
   const renderAddHostsModal = () => {
-    const enrollSecret =
-      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
-      // additional precaution/reminder to revisit this in connection with future changes.
-      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      isAnyTeamSelected && !isSandboxMode
-        ? teamSecrets?.[0].secret
-        : globalSecrets?.[0].secret;
+    const enrollSecret = isAnyTeamSelected
+      ? teamSecrets?.[0].secret
+      : globalSecrets?.[0].secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
         openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
@@ -1586,7 +1578,7 @@ const ManageHostsPage = ({
         }
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
-        pageSize={50}
+        pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{
@@ -1734,7 +1726,6 @@ const ManageHostsPage = ({
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
-            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -91,6 +91,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	globalProfile := mobileconfigForTest("N1", "I1")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
+	// enable FileVault
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
+
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1")
@@ -156,6 +159,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	// add a team profile
 	teamProfile := mobileconfigForTest("N2", "I2")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+	// enable FileVault
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage([]byte(fmt.Sprintf(`{"enable_disk_encryption":true,"team_id":%d}`, tm.ID))), http.StatusNoContent)
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
@@ -252,32 +258,35 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
-		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//}
+
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		// Can be useful for debugging
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// }
+
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
 	// expected commands: install fleetd, install bootstrap, install CA, install profiles
-	// (custom one and fleetd configuration) (not expected: account
+	// (custom one, fleetd configuration, FileVault) (not expected: account
 	// configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 5)
+	require.Len(t, cmds, 6)
 	var installProfileCount, installEnterpriseCount, otherCount int
-	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen bool
+	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
@@ -288,6 +297,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				profileFleetdSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
 				profileFleetCASeen = true
+			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+				profileFileVaultSeen = true
 			}
 
 		case "InstallEnterpriseApplication":
@@ -296,12 +308,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			otherCount++
 		}
 	}
-	require.Equal(t, 3, installProfileCount)
+	require.Equal(t, 4, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetdSeen)
 	require.True(t, profileFleetCASeen)
+	require.True(t, profileFileVaultSeen)
 
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
@@ -400,7 +413,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
 				fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
+				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL()) {
 				fleetdCmd = &fullCmd
 			} else if cmd.Command.RequestType == "InstallProfile" {
 				installProfileCmd = &fullCmd

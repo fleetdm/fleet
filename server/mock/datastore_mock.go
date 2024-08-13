@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -145,6 +146,8 @@ type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
 
+type GetHostUUIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
+
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
@@ -191,7 +194,7 @@ type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, 
 
 type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error)
 
-type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
+type HostIDsByIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
 type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
@@ -209,6 +212,12 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
 
+type UpdateHostIssuesFailingPoliciesFunc func(ctx context.Context, hostIDs []uint) error
+
+type UpdateHostIssuesVulnerabilitiesFunc func(ctx context.Context) error
+
+type CleanupHostIssuesFunc func(ctx context.Context) error
+
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
@@ -222,6 +231,8 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
+
+type ListUpcomingHostMaintenanceWindowsFunc func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error)
 
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error)
 
@@ -353,9 +364,13 @@ type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, erro
 
 type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
+type TeamWithoutExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
+
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
+
+type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team, error)
 
 type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
@@ -375,7 +390,7 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error)
 
-type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
+type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
 
@@ -412,6 +427,8 @@ type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMe
 type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
+
+type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -467,7 +484,7 @@ type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error)
+type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
@@ -489,13 +506,15 @@ type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities
 
 type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
 
-type CreateOrUpdateCalendarEventFunc func(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
+type CreateOrUpdateCalendarEventFunc func(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
 
 type GetCalendarEventFunc func(ctx context.Context, email string) (*fleet.CalendarEvent, error)
 
+type GetCalendarEventDetailsByUUIDFunc func(ctx context.Context, uuid string) (*fleet.CalendarEventDetails, error)
+
 type DeleteCalendarEventFunc func(ctx context.Context, calendarEventID uint) error
 
-type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
+type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte, timeZone *string) error
 
 type GetHostCalendarEventFunc func(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
 
@@ -599,8 +618,6 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
-type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
-
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
 
 type SetCommandForPendingSCEPRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error
@@ -666,6 +683,8 @@ type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, inclu
 type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
 
 type UpdateVulnerabilityHostCountsFunc func(ctx context.Context) error
+
+type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
 
@@ -767,7 +786,7 @@ type GetMDMIdPAccountByEmailFunc func(ctx context.Context, email string) (*fleet
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
-type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error
+type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
 
@@ -775,11 +794,13 @@ type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint) e
 
 type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error)
 
-type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
+type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string, pkgStore fleet.MDMBootstrapPackageStore) (*fleet.MDMAppleBootstrapPackage, error)
 
 type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error)
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
+
+type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
 
@@ -836,6 +857,8 @@ type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []flee
 type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
 
 type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
+
+type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -959,15 +982,37 @@ type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*f
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
+type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error)
+
+type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
+
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
+
+type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
+type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary, error)
+
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
-type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error
+type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
+
+type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
+
+type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
+
+type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error)
+
+type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppID) error
+
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
+
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string) error
+
+type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1159,6 +1204,9 @@ type DataStore struct {
 	LabelsSummaryFunc        LabelsSummaryFunc
 	LabelsSummaryFuncInvoked bool
 
+	GetHostUUIDsWithPendingMDMAppleCommandsFunc        GetHostUUIDsWithPendingMDMAppleCommandsFunc
+	GetHostUUIDsWithPendingMDMAppleCommandsFuncInvoked bool
+
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
 
@@ -1228,8 +1276,8 @@ type DataStore struct {
 	GenerateHostStatusStatisticsFunc        GenerateHostStatusStatisticsFunc
 	GenerateHostStatusStatisticsFuncInvoked bool
 
-	HostIDsByNameFunc        HostIDsByNameFunc
-	HostIDsByNameFuncInvoked bool
+	HostIDsByIdentifierFunc        HostIDsByIdentifierFunc
+	HostIDsByIdentifierFuncInvoked bool
 
 	HostIDsByOSIDFunc        HostIDsByOSIDFunc
 	HostIDsByOSIDFuncInvoked bool
@@ -1255,6 +1303,15 @@ type DataStore struct {
 	HostnamesByIdentifiersFunc        HostnamesByIdentifiersFunc
 	HostnamesByIdentifiersFuncInvoked bool
 
+	UpdateHostIssuesFailingPoliciesFunc        UpdateHostIssuesFailingPoliciesFunc
+	UpdateHostIssuesFailingPoliciesFuncInvoked bool
+
+	UpdateHostIssuesVulnerabilitiesFunc        UpdateHostIssuesVulnerabilitiesFunc
+	UpdateHostIssuesVulnerabilitiesFuncInvoked bool
+
+	CleanupHostIssuesFunc        CleanupHostIssuesFunc
+	CleanupHostIssuesFuncInvoked bool
+
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
 
@@ -1275,6 +1332,9 @@ type DataStore struct {
 
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
+
+	ListUpcomingHostMaintenanceWindowsFunc        ListUpcomingHostMaintenanceWindowsFunc
+	ListUpcomingHostMaintenanceWindowsFuncInvoked bool
 
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
 	LoadHostByDeviceAuthTokenFuncInvoked bool
@@ -1471,11 +1531,17 @@ type DataStore struct {
 	TeamFunc        TeamFunc
 	TeamFuncInvoked bool
 
+	TeamWithoutExtrasFunc        TeamWithoutExtrasFunc
+	TeamWithoutExtrasFuncInvoked bool
+
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
 
 	TeamByNameFunc        TeamByNameFunc
 	TeamByNameFuncInvoked bool
+
+	TeamByFilenameFunc        TeamByFilenameFunc
+	TeamByFilenameFuncInvoked bool
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
@@ -1560,6 +1626,9 @@ type DataStore struct {
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
+
+	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
+	UploadedSoftwareExistsFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -1680,6 +1749,9 @@ type DataStore struct {
 
 	GetCalendarEventFunc        GetCalendarEventFunc
 	GetCalendarEventFuncInvoked bool
+
+	GetCalendarEventDetailsByUUIDFunc        GetCalendarEventDetailsByUUIDFunc
+	GetCalendarEventDetailsByUUIDFuncInvoked bool
 
 	DeleteCalendarEventFunc        DeleteCalendarEventFunc
 	DeleteCalendarEventFuncInvoked bool
@@ -1840,9 +1912,6 @@ type DataStore struct {
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
 
-	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
-	SetDiskEncryptionResetStatusFuncInvoked bool
-
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
 
@@ -1941,6 +2010,9 @@ type DataStore struct {
 
 	UpdateVulnerabilityHostCountsFunc        UpdateVulnerabilityHostCountsFunc
 	UpdateVulnerabilityHostCountsFuncInvoked bool
+
+	IsCVEKnownToFleetFunc        IsCVEKnownToFleetFunc
+	IsCVEKnownToFleetFuncInvoked bool
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
@@ -2113,6 +2185,9 @@ type DataStore struct {
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
 
+	CleanupUnusedBootstrapPackagesFunc        CleanupUnusedBootstrapPackagesFunc
+	CleanupUnusedBootstrapPackagesFuncInvoked bool
+
 	GetHostMDMMacOSSetupFunc        GetHostMDMMacOSSetupFunc
 	GetHostMDMMacOSSetupFuncInvoked bool
 
@@ -2196,6 +2271,9 @@ type DataStore struct {
 
 	DeleteMDMConfigAssetsByNameFunc        DeleteMDMConfigAssetsByNameFunc
 	DeleteMDMConfigAssetsByNameFuncInvoked bool
+
+	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
+	ReplaceMDMConfigAssetsFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -2380,11 +2458,23 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
 
+	GetVPPAppByTeamAndTitleIDFunc        GetVPPAppByTeamAndTitleIDFunc
+	GetVPPAppByTeamAndTitleIDFuncInvoked bool
+
+	GetVPPAppMetadataByTeamAndTitleIDFunc        GetVPPAppMetadataByTeamAndTitleIDFunc
+	GetVPPAppMetadataByTeamAndTitleIDFuncInvoked bool
+
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
 
+	DeleteVPPAppFromTeamFunc        DeleteVPPAppFromTeamFunc
+	DeleteVPPAppFromTeamFuncInvoked bool
+
 	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
 	GetSummaryHostSoftwareInstallsFuncInvoked bool
+
+	GetSummaryHostVPPAppInstallsFunc        GetSummaryHostVPPAppInstallsFunc
+	GetSummaryHostVPPAppInstallsFuncInvoked bool
 
 	GetSoftwareInstallResultsFunc        GetSoftwareInstallResultsFunc
 	GetSoftwareInstallResultsFuncInvoked bool
@@ -2394,6 +2484,27 @@ type DataStore struct {
 
 	BatchSetSoftwareInstallersFunc        BatchSetSoftwareInstallersFunc
 	BatchSetSoftwareInstallersFuncInvoked bool
+
+	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
+	HasSelfServiceSoftwareInstallersFuncInvoked bool
+
+	BatchInsertVPPAppsFunc        BatchInsertVPPAppsFunc
+	BatchInsertVPPAppsFuncInvoked bool
+
+	GetAssignedVPPAppsFunc        GetAssignedVPPAppsFunc
+	GetAssignedVPPAppsFuncInvoked bool
+
+	SetTeamVPPAppsFunc        SetTeamVPPAppsFunc
+	SetTeamVPPAppsFuncInvoked bool
+
+	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
+	InsertVPPAppWithTeamFuncInvoked bool
+
+	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
+	InsertHostVPPSoftwareInstallFuncInvoked bool
+
+	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
+	GetPastActivityDataForVPPAppInstallFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -2839,6 +2950,13 @@ func (s *DataStore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, e
 	return s.LabelsSummaryFunc(ctx)
 }
 
+func (s *DataStore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error) {
+	s.mu.Lock()
+	s.GetHostUUIDsWithPendingMDMAppleCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostUUIDsWithPendingMDMAppleCommandsFunc(ctx)
+}
+
 func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.mu.Lock()
 	s.LabelQueriesForHostFuncInvoked = true
@@ -3000,11 +3118,11 @@ func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now, platform, lowDiskSpace)
 }
 
-func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+func (s *DataStore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.mu.Lock()
-	s.HostIDsByNameFuncInvoked = true
+	s.HostIDsByIdentifierFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostIDsByNameFunc(ctx, filter, hostnames)
+	return s.HostIDsByIdentifierFunc(ctx, filter, hostnames)
 }
 
 func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error) {
@@ -3063,6 +3181,27 @@ func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []st
 	return s.HostnamesByIdentifiersFunc(ctx, identifiers)
 }
 
+func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.UpdateHostIssuesFailingPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
+	s.mu.Lock()
+	s.UpdateHostIssuesVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIssuesVulnerabilitiesFunc(ctx)
+}
+
+func (s *DataStore) CleanupHostIssues(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostIssuesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostIssuesFunc(ctx)
+}
+
 func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
 	s.mu.Lock()
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
@@ -3110,6 +3249,13 @@ func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.Ho
 	s.ListHostBatteriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostBatteriesFunc(ctx, id)
+}
+
+func (s *DataStore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+	s.mu.Lock()
+	s.ListUpcomingHostMaintenanceWindowsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListUpcomingHostMaintenanceWindowsFunc(ctx, hid)
 }
 
 func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
@@ -3567,6 +3713,13 @@ func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return s.TeamFunc(ctx, tid)
 }
 
+func (s *DataStore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+	s.mu.Lock()
+	s.TeamWithoutExtrasFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamWithoutExtrasFunc(ctx, tid)
+}
+
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.mu.Lock()
 	s.DeleteTeamFuncInvoked = true
@@ -3579,6 +3732,13 @@ func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, e
 	s.TeamByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamByNameFunc(ctx, name)
+}
+
+func (s *DataStore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
+	s.mu.Lock()
+	s.TeamByFilenameFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamByFilenameFunc(ctx, filename)
 }
 
 func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -3644,11 +3804,11 @@ func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uin
 	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID, selfService)
 }
 
-func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
 	s.mu.Lock()
 	s.ListSoftwareForVulnDetectionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
+	return s.ListSoftwareForVulnDetectionFunc(ctx, filter)
 }
 
 func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
@@ -3775,6 +3935,13 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostSoftwareInstallResultFunc(ctx, result)
+}
+
+func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.UploadedSoftwareExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UploadedSoftwareExistsFunc(ctx, bundleIdentifier, teamID)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -3966,11 +4133,11 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
+func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error) {
 	s.mu.Lock()
 	s.GetTeamHostsPolicyMembershipsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetTeamHostsPolicyMembershipsFunc(ctx, domain, teamID, policyIDs)
+	return s.GetTeamHostsPolicyMembershipsFunc(ctx, domain, teamID, policyIDs, hostID)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
@@ -4043,11 +4210,11 @@ func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source f
 	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
 }
 
-func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
+func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
 	s.mu.Lock()
 	s.CreateOrUpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateOrUpdateCalendarEventFunc(ctx, email, startTime, endTime, data, hostID, webhookStatus)
+	return s.CreateOrUpdateCalendarEventFunc(ctx, uuid, email, startTime, endTime, data, timeZone, hostID, webhookStatus)
 }
 
 func (s *DataStore) GetCalendarEvent(ctx context.Context, email string) (*fleet.CalendarEvent, error) {
@@ -4057,6 +4224,13 @@ func (s *DataStore) GetCalendarEvent(ctx context.Context, email string) (*fleet.
 	return s.GetCalendarEventFunc(ctx, email)
 }
 
+func (s *DataStore) GetCalendarEventDetailsByUUID(ctx context.Context, uuid string) (*fleet.CalendarEventDetails, error) {
+	s.mu.Lock()
+	s.GetCalendarEventDetailsByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCalendarEventDetailsByUUIDFunc(ctx, uuid)
+}
+
 func (s *DataStore) DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error {
 	s.mu.Lock()
 	s.DeleteCalendarEventFuncInvoked = true
@@ -4064,11 +4238,11 @@ func (s *DataStore) DeleteCalendarEvent(ctx context.Context, calendarEventID uin
 	return s.DeleteCalendarEventFunc(ctx, calendarEventID)
 }
 
-func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error {
+func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte, timeZone *string) error {
 	s.mu.Lock()
 	s.UpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCalendarEventFunc(ctx, calendarEventID, startTime, endTime, data)
+	return s.UpdateCalendarEventFunc(ctx, calendarEventID, uuid, startTime, endTime, data, timeZone)
 }
 
 func (s *DataStore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
@@ -4428,13 +4602,6 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
-func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
-	s.mu.Lock()
-	s.SetDiskEncryptionResetStatusFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
-}
-
 func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 	s.mu.Lock()
 	s.GetHostCertAssociationsToExpireFuncInvoked = true
@@ -4664,6 +4831,13 @@ func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	s.UpdateVulnerabilityHostCountsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVulnerabilityHostCountsFunc(ctx)
+}
+
+func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
+	s.mu.Lock()
+	s.IsCVEKnownToFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsCVEKnownToFleetFunc(ctx, cve)
 }
 
 func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
@@ -5016,11 +5190,11 @@ func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertMDMAppleBootstrapPackageFunc(ctx, bp)
+	return s.InsertMDMAppleBootstrapPackageFunc(ctx, bp, pkgStore)
 }
 
 func (s *DataStore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
@@ -5044,11 +5218,11 @@ func (s *DataStore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID 
 	return s.GetMDMAppleBootstrapPackageMetaFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string, pkgStore fleet.MDMBootstrapPackageStore) (*fleet.MDMAppleBootstrapPackage, error) {
 	s.mu.Lock()
 	s.GetMDMAppleBootstrapPackageBytesFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token)
+	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token, pkgStore)
 }
 
 func (s *DataStore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
@@ -5063,6 +5237,13 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	s.RecordHostBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error {
+	s.mu.Lock()
+	s.CleanupUnusedBootstrapPackagesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupUnusedBootstrapPackagesFunc(ctx, pkgStore, removeCreatedBefore)
 }
 
 func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
@@ -5259,6 +5440,13 @@ func (s *DataStore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames 
 	s.DeleteMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMConfigAssetsByNameFunc(ctx, assetNames)
+}
+
+func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	s.mu.Lock()
+	s.ReplaceMDMConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceMDMConfigAssetsFunc(ctx, assets)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
@@ -5688,11 +5876,32 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
+func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppByTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
+}
+
+func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppMetadataByTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
+}
+
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareInstallerFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error {
+	s.mu.Lock()
+	s.DeleteVPPAppFromTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPAppFromTeamFunc(ctx, teamID, appID)
 }
 
 func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
@@ -5702,6 +5911,13 @@ func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installe
 	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
 }
 
+func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary, error) {
+	s.mu.Lock()
+	s.GetSummaryHostVPPAppInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSummaryHostVPPAppInstallsFunc(ctx, teamID, appID)
+}
+
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallResultsFuncInvoked = true
@@ -5709,11 +5925,11 @@ func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID s
 	return s.GetSoftwareInstallResultsFunc(ctx, resultsUUID)
 }
 
-func (s *DataStore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error {
+func (s *DataStore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
 	s.mu.Lock()
 	s.CleanupUnusedSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupUnusedSoftwareInstallersFunc(ctx, softwareInstallStore)
+	return s.CleanupUnusedSoftwareInstallersFunc(ctx, softwareInstallStore, removeCreatedBefore)
 }
 
 func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
@@ -5721,4 +5937,53 @@ func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, 
 	s.BatchSetSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmID, installers)
+}
+
+func (s *DataStore) HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.HasSelfServiceSoftwareInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasSelfServiceSoftwareInstallersFunc(ctx, platform, teamID)
+}
+
+func (s *DataStore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	s.mu.Lock()
+	s.BatchInsertVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchInsertVPPAppsFunc(ctx, apps)
+}
+
+func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
+	s.mu.Lock()
+	s.GetAssignedVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAssignedVPPAppsFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppID) error {
+	s.mu.Lock()
+	s.SetTeamVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetTeamVPPAppsFunc(ctx, teamID, appIDs)
+}
+
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.InsertVPPAppWithTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
+}
+
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string) error {
+	s.mu.Lock()
+	s.InsertHostVPPSoftwareInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, appID, commandUUID, associatedEventID)
+}
+
+func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
 }

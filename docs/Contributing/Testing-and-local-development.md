@@ -31,6 +31,7 @@
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
   - [Fleetd Chrome extension](#fleetd-chrome-extension)
+  - [fleetd-base installers](#fleetd-base-installers)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
       - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
@@ -79,6 +80,14 @@ REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
 The integration tests in the `server/service` package can generate a lot of logs mixed with the test results output. To make it easier to identify a failing test in this package, you can set the `FLEET_INTEGRATION_TESTS_DISABLE_LOG=1` environment variable so that logging is disabled.
+
+The MDM integration tests are run with a random selection of software installer storage backends (local filesystem or S3/minio), and similar for the bootstrap packages storage (DB or S3/minio). You can force usage of the S3 backend by setting `FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE=s3`. Note that `MINIO_STORAGE_TEST=1` must also be set for the S3 backend to be used.
+
+When the S3 backend is used, this line will be printed in the tests' output (as this could be relevant to understand and debug the test failure):
+
+```
+    integration_mdm_test.go:196: >>> using S3/minio software installer store
+```
 
 Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
@@ -493,6 +502,44 @@ Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/too
 ### Debugging the service Worker
 
 View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
+## fleetd-base installers
+
+"fleetd-base" installers are pre-built `pkg` and `msi` installers that do not contain hardcoded `--fleet-url` and `--enroll-secret` values.
+
+Anyone can build a base installer, but Fleet provides a public repository of signed base installers at:
+
+- [Production Usage](https://download.fleetdm.com)
+- [Development Usage](https://download-testing.fleetdm.com)
+
+The workflow that builds and releases the installers is defined in `.github/workflows/release-fleetd-base.yml`.
+
+The base installers are used:
+
+- By Fleet MDM to automatically install `fleetd` when a host enables MDM features.
+- By customers deploying `fleetd` using third-party tools (e.g., Puppet or Chef).
+
+The Fleet server uses the production server by default, but you can change this during development using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
+
+### Building your own fleetd-base installer
+
+Due to historical reasons, each type of installer has its own peculiarities:
+
+- `pkg` installers require an extra `--use-system-configuration` flag.
+- `pkg` installers read configuration values from a configuration profile.
+- `msi` installers need dummy configuration values.
+- `msi` installers read configuration values at installation time.
+
+```sh
+# Build a fleetd-base.pkg installer
+$ fleetctl package --type=pkg --use-system-configuration
+
+# Build a fleetd-base.msi installer, using dummy values to avoid errors
+$ fleetctl package --type=msi --fleet-url=dummy --enroll-secret=dummy
+
+# Install a fleetd-base.msi installer
+$ msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
+```
 
 ## MDM setup and testing
 

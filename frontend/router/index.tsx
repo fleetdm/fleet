@@ -1,4 +1,9 @@
-import React from "react";
+import React, { FC } from "react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryClientProviderProps,
+} from "react-query";
 import {
   browserHistory,
   IndexRedirect,
@@ -57,10 +62,11 @@ import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
-import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/AppleAutomaticEnrollmentPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import VppSetupPage from "pages/admin/IntegrationsPage/cards/Vpp/VppSetupPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
@@ -87,19 +93,35 @@ import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMainta
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
+// We create a CustomQueryClientProvider that takes the same props as the original
+// QueryClientProvider but adds the children prop as a ReactNode. This children
+// prop is now required explicitly in React 18. We do it this way to avoid
+// having to update the react-query package version and typings for now.
+// When we upgrade React Query we should be able to remove this.
+type ICustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
+const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClientProvider;
+
 interface IAppWrapperProps {
   children: JSX.Element;
   location?: any;
 }
 
-// App.tsx needs the context for user and config
-const AppWrapper = ({ children, location }: IAppWrapperProps) => (
-  <AppProvider>
-    <RoutingProvider>
-      <App location={location}>{children}</App>
-    </RoutingProvider>
-  </AppProvider>
-);
+// App.tsx needs the context for user and config. We also wrap the application
+// component in the required query client priovider for react-query. This
+// will allow us to use react-query hooks in the application component.
+const AppWrapper = ({ children, location }: IAppWrapperProps) => {
+  const queryClient = new QueryClient();
+  return (
+    <AppProvider>
+      <RoutingProvider>
+        <CustomQueryClientProvider client={queryClient}>
+          <App location={location}>{children}</App>
+        </CustomQueryClientProvider>
+      </RoutingProvider>
+    </AppProvider>
+  );
+};
+
 const routes = (
   <Router history={browserHistory}>
     <Route path={PATHS.ROOT} component={AppWrapper}>
@@ -133,6 +155,8 @@ const routes = (
             <Route path="mac" component={DashboardPage} />
             <Route path="windows" component={DashboardPage} />
             <Route path="chrome" component={DashboardPage} />
+            <Route path="ios" component={DashboardPage} />
+            <Route path="ipados" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
@@ -157,7 +181,7 @@ const routes = (
               </Route>
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
-            <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
+            <Route path="integrations/mdm/apple" component={AppleMdmPage} />
             <Route
               path="integrations/automatic-enrollment/apple"
               component={AppleAutomaticEnrollmentPage}
@@ -166,6 +190,7 @@ const routes = (
               path="integrations/automatic-enrollment/windows"
               component={WindowsAutomaticEnrollmentPage}
             />
+            <Route path="integrations/vpp/setup" component={VppSetupPage} />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={UsersPage} />

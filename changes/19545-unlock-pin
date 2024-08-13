@@ -1,2 +1,0 @@
-* /api/latest/fleet/hosts/:id/lock returns `unlock_pin` for Apple hosts
-* UI no longer uses unlock pending state for Apple hosts

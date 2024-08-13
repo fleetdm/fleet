@@ -135,6 +135,28 @@ func TestCPETranslations(t *testing.T) {
 			},
 			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		},
+		{
+			Name: "translate part",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+						Part:    "o",
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:o:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
 	}
 
 	reCache := newRegexpCache()
@@ -149,7 +171,6 @@ func TestCPETranslations(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	nettest.Run(t)
 
 	tempDir := t.TempDir()
@@ -467,7 +488,6 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
@@ -656,7 +676,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "1Password - Password Manager",
+				Name:             "1Password – Password Manager",
 				Source:           "chrome_extensions",
 				Version:          "2.3.8",
 				Vendor:           "",
@@ -742,7 +762,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "18.9.0",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:*:*:*",
+			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1316,6 +1336,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:             "intellij-idea-ce",
+				Source:           "homebrew_packages",
+				Version:          "2023.3.2,233.13135.103",
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
 				Source:           "apps",
 				Version:          "2019.2",
@@ -1613,7 +1643,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "linux-image-5.4.0-105-custom",
+				Source:  "deb_packages",
+				Version: "5.4.0-105.118",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
 		},
 	}
 
@@ -1654,7 +1693,7 @@ func TestContainsNonASCII(t *testing.T) {
 	}{
 		{"hello", false},
 		{"hello world", false},
-		{"hello world!", false},
+		{"hello – world!", false},
 		{"😊👍", true},
 		{"hello world! 😊👍", true},
 		{"Девушка Фонарём", true},

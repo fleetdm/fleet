@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -74,7 +75,7 @@ import (
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
-const softwareInstallerUploadTimeout = 2 * time.Minute
+const softwareInstallerUploadTimeout = 4 * time.Minute
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -691,6 +692,8 @@ the way that the Fleet server works.
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
+			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
+			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
@@ -703,6 +706,13 @@ the way that the Fleet server works.
 					}
 					softwareInstallStore = store
 					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
+
+					bstore, err := s3.NewBootstrapPackageStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 bootstrap package store")
+					}
+					bootstrapPackageStore = bstore
+					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -718,6 +728,7 @@ the way that the Fleet server works.
 					}
 				}
 
+				distributedLock = redis_lock.NewLock(redisPool)
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
@@ -730,6 +741,8 @@ the way that the Fleet server works.
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
+					bootstrapPackageStore,
+					distributedLock,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -783,7 +796,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore,
 					)
 				},
 			); err != nil {
@@ -845,6 +858,18 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register mdm_apple_profile_manager schedule")
 			}
 
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAPNsPusher(
+					ctx,
+					instanceID,
+					ds,
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register APNs pusher schedule")
+			}
+
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
@@ -870,7 +895,7 @@ the way that the Fleet server works.
 						} else {
 							config.Calendar.Periodicity = 5 * time.Minute
 						}
-						return cron.NewCalendarSchedule(ctx, instanceID, ds, config.Calendar, logger)
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
 					},
 				); err != nil {
 					initFatal(err, "failed to register calendar schedule")
@@ -1055,16 +1080,19 @@ the way that the Fleet server works.
 					// when uploading a software installer, the file might be large so
 					// the read timeout (to read the full request body) must be extended.
 					rc := http.NewResponseController(rw)
-					// the frontend times out waiting for the upload after 2 minutes, so
+					// the frontend times out waiting for the upload after 4 minutes,
 					// use that same timeout:
 					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
 					if err := rc.SetReadDeadline(time.Now().Add(softwareInstallerUploadTimeout)); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
 					}
-					// the write timeout should be extended as well to give the server time to
-					// write a response body with the right error, otherwise the connection is
-					// terminated abruptly.
-					if err := rc.SetWriteDeadline(time.Now().Add(softwareInstallerUploadTimeout + 30*time.Second)); err != nil {
+					// the write timeout should be extended to give the server time to
+					// store the installer to S3 (or the configured storage location) and
+					// write a response body, otherwise the connection is terminated
+					// abruptly. Give it twice the read timeout, so that if it takes
+					// 3m59s to upload an installer, we don't fail because of a lack of
+					// time to store to S3.
+					if err := rc.SetWriteDeadline(time.Now().Add(2 * softwareInstallerUploadTimeout)); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)

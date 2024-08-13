@@ -1,1 +1,0 @@
-- Fixes an issue with backwards compatibility with the deprecated `FLEET_S3_*` environment variables.

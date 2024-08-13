@@ -93,6 +93,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      "foo",
 		Runtime:     2,
 		ExitCode:    0,
+		Timeout:     300,
 	})
 	require.NoError(t, err)
 
@@ -103,6 +104,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      "foobarbaz",
 		Runtime:     22,
 		ExitCode:    1,
+		Timeout:     360,
 	})
 	require.NoError(t, err)
 	require.Nil(t, hsr)
@@ -119,6 +121,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
 	expectScript.ExitCode = ptr.Int64(0)
+	expectScript.Timeout = ptr.Int(300)
 	require.Equal(t, &expectScript, script)
 
 	// create another script execution request (null user id this time)
@@ -166,6 +169,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      largeOutput,
 		Runtime:     10,
 		ExitCode:    1,
+		Timeout:     300,
 	})
 	require.NoError(t, err)
 
@@ -240,6 +244,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      "foo",
 		Runtime:     1,
 		ExitCode:    math.MaxUint32,
+		Timeout:     300,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
@@ -1097,14 +1102,14 @@ type scriptContents struct {
 func testInsertScriptContents(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	contents := `echo foobar;`
-	res, err := insertScriptContents(ctx, contents, ds.writer(ctx))
+	res, err := insertScriptContents(ctx, ds.writer(ctx), contents)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	require.Equal(t, int64(1), id)
 	expectedCS := md5ChecksumScriptContent(contents)
 
 	// insert same contents again, verify that the checksum and ID stayed the same
-	res, err = insertScriptContents(ctx, contents, ds.writer(ctx))
+	res, err = insertScriptContents(ctx, ds.writer(ctx), contents)
 	require.NoError(t, err)
 	id, _ = res.LastInsertId()
 	require.Equal(t, int64(1), id)

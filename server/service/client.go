@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/text/unicode/norm"
+	"gopkg.in/yaml.v2"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -375,9 +376,11 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			extByName[name] = ext
 
 			result = append(result, fleet.MDMProfileBatchPayload{
-				Name:     name,
-				Contents: fileContents,
-				Labels:   profile.Labels,
+				Name:             name,
+				Contents:         fileContents,
+				Labels:           profile.Labels,
+				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsExcludeAny: profile.LabelsExcludeAny,
 			})
 
 		}
@@ -391,6 +394,7 @@ func (c *Client) ApplyGroup(
 	specs *spec.Group,
 	baseDir string,
 	logf func(format string, args ...interface{}),
+	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
 ) (map[string]uint, error) {
 	logfn := func(format string, args ...interface{}) {
@@ -604,64 +608,24 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
-		tmSoftware := extractTmSpecsSoftware(specs.Teams)
-		tmSoftwarePayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
-		for tmName, software := range tmSoftware {
-			softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(software))
-			for i, si := range software {
-				var qc string
-				var err error
-				if si.PreInstallQuery.Path != "" {
-					queryFile := resolveApplyRelativePath(baseDir, si.PreInstallQuery.Path)
-					rawSpec, err := os.ReadFile(queryFile)
-					if err != nil {
-						return nil, fmt.Errorf("reading pre-install query: %w", err)
-					}
-
-					group, err := spec.GroupFromBytes(rawSpec)
-					if err != nil {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
-					}
-
-					if len(group.Queries) > 1 {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
-					}
-
-					if len(group.Queries) == 0 {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
-					}
-
-					qc = group.Queries[0].Query
-				}
-
-				var ic []byte
-				if si.InstallScript.Path != "" {
-					installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript.Path)
-					ic, err = os.ReadFile(installScriptFile)
-					if err != nil {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read install script file %s: %w", si.URL, si.InstallScript.Path, err)
-					}
-				}
-
-				var pc []byte
-				if si.PostInstallScript.Path != "" {
-					postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript.Path)
-					pc, err = os.ReadFile(postInstallScriptFile)
-					if err != nil {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read post-install script file %s: %w", si.URL, si.PostInstallScript.Path, err)
-					}
-				}
-
-				softwarePayloads[i] = fleet.SoftwareInstallerPayload{
-					URL:               si.URL,
-					SelfService:       si.SelfService,
-					PreInstallQuery:   qc,
-					InstallScript:     string(ic),
-					PostInstallScript: string(pc),
-				}
+		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
+		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
+		for tmName, software := range tmSoftwarePackages {
+			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software)
+			if err != nil {
+				return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 			}
+			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+		}
 
-			tmSoftwarePayloads[tmName] = softwarePayloads
+		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
+		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
+		for tmName, apps := range tmSoftwareApps {
+			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
+			for _, app := range apps {
+				appPayloads = append(appPayloads, fleet.VPPBatchPayload{AppStoreID: app.AppStoreID})
+			}
+			tmSoftwareAppsPayloads[tmName] = appPayloads
 		}
 
 		// Next, apply the teams specs before saving the profiles, so that any
@@ -671,19 +635,36 @@ func (c *Client) ApplyGroup(
 			ApplySpecOptions:  opts.ApplySpecOptions,
 			DryRunAssumptions: specs.TeamsDryRunAssumptions,
 		}
+		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
 			return nil, fmt.Errorf("applying teams: %w", err)
 		}
 
+		// When using GitOps, the team name could change, so we need to check for that
+		getTeamName := func(teamName string) string {
+			return teamName
+		}
+		if len(specs.Teams) == 1 && len(teamIDsByName) == 1 {
+			for key := range teamIDsByName {
+				if key != extractTeamName(specs.Teams[0]) {
+					getTeamName = func(teamName string) string {
+						return key
+					}
+				}
+			}
+		}
+
 		if len(tmFileContents) > 0 {
 			for tmName, profs := range tmFileContents {
-				teamID, ok := teamIDsByName[tmName]
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				teamID, ok := teamIDsByName[currentTeamName]
 				if opts.DryRun && (teamID == 0 || !ok) {
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
 					logfn("[+] applying MDM profiles for team %s\n", tmName)
-					if err := c.ApplyTeamProfiles(tmName, profs, teamOpts); err != nil {
+					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
 						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
 				}
@@ -705,15 +686,28 @@ func (c *Client) ApplyGroup(
 		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
-				if err := c.ApplyTeamScripts(tmName, scripts, opts.ApplySpecOptions); err != nil {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamScripts(currentTeamName, scripts, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
 			}
 		}
-		if len(tmSoftwarePayloads) > 0 {
-			for tmName, software := range tmSoftwarePayloads {
-				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts.ApplySpecOptions); err != nil {
+		if len(tmSoftwarePackagesPayloads) > 0 {
+			for tmName, software := range tmSoftwarePackagesPayloads {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+				}
+			}
+		}
+		if len(tmSoftwareAppsPayloads) > 0 {
+			for tmName, apps := range tmSoftwareAppsPayloads {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions); err != nil {
+					return nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
 				}
 			}
 		}
@@ -735,6 +729,95 @@ func (c *Client) ApplyGroup(
 		}
 	}
 	return teamIDsByName, nil
+}
+
+func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec) ([]fleet.SoftwareInstallerPayload, error) {
+	softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(specs))
+	for i, si := range specs {
+		var qc string
+		var err error
+		if si.PreInstallQuery.Path != "" {
+			queryFile := resolveApplyRelativePath(baseDir, si.PreInstallQuery.Path)
+			rawSpec, err := os.ReadFile(queryFile)
+			if err != nil {
+				return nil, fmt.Errorf("reading pre-install query: %w", err)
+			}
+
+			rawSpecExpanded, err := spec.ExpandEnvBytes(rawSpec)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
+			}
+
+			var top any
+
+			if err := yaml.Unmarshal(rawSpecExpanded, &top); err != nil {
+				return nil, fmt.Errorf("Couldn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
+			}
+
+			if _, ok := top.(map[any]any); ok {
+				// Old apply format
+				group, err := spec.GroupFromBytes(rawSpecExpanded)
+				if err != nil {
+					return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install apply format query YAML file %s: %w", si.URL, queryFile, err)
+				}
+
+				if len(group.Queries) > 1 {
+					return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
+				}
+
+				if len(group.Queries) == 0 {
+					return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
+				}
+
+				qc = group.Queries[0].Query
+			} else {
+				// Gitops format
+				var querySpecs []fleet.QuerySpec
+				if err := yaml.Unmarshal(rawSpecExpanded, &querySpecs); err != nil {
+					return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+				}
+
+				if len(querySpecs) > 1 {
+					return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
+				}
+
+				if len(querySpecs) == 0 {
+					return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
+				}
+
+				qc = querySpecs[0].Query
+			}
+		}
+
+		var ic []byte
+		if si.InstallScript.Path != "" {
+			installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript.Path)
+			ic, err = os.ReadFile(installScriptFile)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read install script file %s: %w", si.URL, si.InstallScript.Path, err)
+			}
+		}
+
+		var pc []byte
+		if si.PostInstallScript.Path != "" {
+			postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript.Path)
+			pc, err = os.ReadFile(postInstallScriptFile)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read post-install script file %s: %w", si.URL, si.PostInstallScript.Path, err)
+			}
+		}
+
+		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
+			URL:               si.URL,
+			SelfService:       si.SelfService,
+			PreInstallQuery:   qc,
+			InstallScript:     string(ic),
+			PostInstallScript: string(pc),
+		}
+
+	}
+
+	return softwarePayloads, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -807,6 +890,18 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 		return []fleet.MDMProfileSpec{}
 	}
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
 		if m, ok := v.(map[string]interface{}); ok {
@@ -817,14 +912,11 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				profSpec.Path = path
 			}
 
-			// extract the Labels field, labels are cleared if not provided
-			if labels, ok := m["labels"].([]interface{}); ok {
-				for _, label := range labels {
-					if strLabel, ok := label.(string); ok {
-						profSpec.Labels = append(profSpec.Labels, strLabel)
-					}
-				}
-			}
+			// at this stage we extract and return all supported label fields, the
+			// validations are done later on in the Fleet API endpoint.
+			profSpec.Labels = extractLabelField(m, "labels")
+			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 			if profSpec.Path != "" {
 				csSpecs = append(csSpecs, profSpec)
@@ -878,6 +970,16 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 type profileSpecsByPlatform struct {
 	macos   []fleet.MDMProfileSpec
 	windows []fleet.MDMProfileSpec
+}
+
+func extractTeamName(tmSpec json.RawMessage) string {
+	var s struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(tmSpec, &s); err != nil {
+		return ""
+	}
+	return norm.NFC.String(s.Name)
 }
 
 // returns the custom macOS and Windows settings keyed by team name.
@@ -953,8 +1055,8 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 	return m
 }
 
-func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftware {
-	var m map[string][]fleet.TeamSpecSoftware
+func extractTmSpecsSoftwarePackages(tmSpecs []json.RawMessage) map[string][]fleet.SoftwarePackageSpec {
+	var m map[string][]fleet.SoftwarePackageSpec
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name     string          `json:"name"`
@@ -967,19 +1069,57 @@ func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSp
 		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Software) > 0 {
 			if m == nil {
-				m = make(map[string][]fleet.TeamSpecSoftware)
+				m = make(map[string][]fleet.SoftwarePackageSpec)
 			}
-			var software []fleet.TeamSpecSoftware
+			var software fleet.SoftwareSpec
+			var packages []fleet.SoftwarePackageSpec
 			if err := json.Unmarshal(spec.Software, &software); err != nil {
 				// ignore, will fail in apply team specs call
 				continue
 			}
-			if software == nil {
+			if !software.Packages.Valid {
 				// to be consistent with the AppConfig custom settings, set it to an
 				// empty slice if the provided custom settings are present but empty.
-				software = []fleet.TeamSpecSoftware{}
+				packages = []fleet.SoftwarePackageSpec{}
+			} else {
+				packages = software.Packages.Value
 			}
-			m[spec.Name] = software
+			m[spec.Name] = packages
+		}
+	}
+	return m
+}
+
+func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecAppStoreApp {
+	var m map[string][]fleet.TeamSpecAppStoreApp
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name     string          `json:"name"`
+			Software json.RawMessage `json:"software"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name != "" && len(spec.Software) > 0 {
+			if m == nil {
+				m = make(map[string][]fleet.TeamSpecAppStoreApp)
+			}
+			var software fleet.SoftwareSpec
+			var apps []fleet.TeamSpecAppStoreApp
+			if err := json.Unmarshal(spec.Software, &software); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if !software.AppStoreApps.Valid {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				apps = []fleet.TeamSpecAppStoreApp{}
+			} else {
+				apps = software.AppStoreApps.Value
+			}
+			m[spec.Name] = apps
 		}
 	}
 	return m
@@ -1046,12 +1186,14 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 func (c *Client) DoGitOps(
 	ctx context.Context,
 	config *spec.GitOps,
-	baseDir string,
+	fullFilename string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
 ) (*fleet.TeamSpecsDryRunAssumptions, error) {
+	baseDir := filepath.Dir(fullFilename)
+	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
 	var err error
 	logFn := func(format string, args ...interface{}) {
@@ -1123,6 +1265,8 @@ func (c *Client) DoGitOps(
 			}
 		}
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
+
+		group.Software = config.Software.Packages
 	} else {
 		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
@@ -1134,7 +1278,9 @@ func (c *Client) DoGitOps(
 			team["features"] = features
 		}
 		team["scripts"] = scripts
-		team["software"] = config.Software
+		team["software"] = map[string]any{}
+		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
+		team["software"].(map[string]any)["packages"] = config.Software.Packages
 		team["secrets"] = config.TeamSettings["secrets"]
 		team["webhook_settings"] = map[string]interface{}{}
 		clearHostStatusWebhook := true
@@ -1195,6 +1341,32 @@ func (c *Client) DoGitOps(
 	if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
 		macOSUpdates["deadline"] = ""
 	}
+	// Put in default values for ios_updates
+	if config.Controls.IOSUpdates != nil {
+		mdmAppConfig["ios_updates"] = config.Controls.IOSUpdates
+	} else {
+		mdmAppConfig["ios_updates"] = map[string]interface{}{}
+	}
+	iOSUpdates := mdmAppConfig["ios_updates"].(map[string]interface{})
+	if minimumVersion, ok := iOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		iOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
+		iOSUpdates["deadline"] = ""
+	}
+	// Put in default values for ipados_updates
+	if config.Controls.IPadOSUpdates != nil {
+		mdmAppConfig["ipados_updates"] = config.Controls.IPadOSUpdates
+	} else {
+		mdmAppConfig["ipados_updates"] = map[string]interface{}{}
+	}
+	iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]interface{})
+	if minimumVersion, ok := iPadOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		iPadOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
+		iPadOSUpdates["deadline"] = ""
+	}
 	// Put in default values for macos_setup
 	if config.Controls.MacOSSetup != nil {
 		mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
@@ -1243,6 +1415,7 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["enable_disk_encryption"] = false
 	}
 	if config.TeamName != nil {
+		team["gitops_filename"] = filename
 		rawTeam, err := json.Marshal(team)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling team spec: %w", err)
@@ -1252,7 +1425,7 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, and controls
-	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplyClientSpecOptions{
+	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
 			DryRun: dryRun,
 		},
@@ -1262,15 +1435,20 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 	if config.TeamName != nil {
+		if len(teamIDsByName) != 1 {
+			return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+		}
 		teamID, ok := teamIDsByName[*config.TeamName]
-		if !ok || teamID == 0 {
+		if ok && teamID == 0 {
 			if dryRun {
 				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
 				return nil, nil
 			}
 			return nil, fmt.Errorf("team %s not created", *config.TeamName)
 		}
-		config.TeamID = &teamID
+		for _, teamID = range teamIDsByName {
+			config.TeamID = &teamID
+		}
 	}
 
 	err = c.doGitOpsPolicies(config, logFn, dryRun)
@@ -1283,7 +1461,37 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 
+	err = c.doGitOpsNoTeamSoftware(group, baseDir, appConfig, logFn, dryRun)
+	if err != nil {
+		return nil, err
+	}
+
 	return teamAssumptions, nil
+}
+
+func (c *Client) doGitOpsNoTeamSoftware(specs spec.Group, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) error {
+	if len(specs.Teams) == 0 && appconfig != nil && appconfig.License.IsPremium() {
+		packages := make([]fleet.SoftwarePackageSpec, 0, len(specs.Software))
+		for _, software := range specs.Software {
+			if software != nil {
+				packages = append(packages, *software)
+			}
+		}
+		payload, err := buildSoftwarePackagesPayload(baseDir, packages)
+		if err != nil {
+			return fmt.Errorf("applying software installers: %w", err)
+		}
+		if err := c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun}); err != nil {
+			return fmt.Errorf("applying software installers: %w", err)
+		}
+
+		if dryRun {
+			logFn("[+] would've applied 'No Team' software installers\n")
+		} else {
+			logFn("[+] applied 'No Team' software installers\n")
+		}
+	}
+	return nil
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {

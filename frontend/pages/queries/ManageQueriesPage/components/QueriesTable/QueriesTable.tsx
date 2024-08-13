@@ -10,7 +10,7 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { SupportedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
@@ -38,7 +38,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    platform?: SupportedPlatform;
+    platform?: SelectedPlatform;
     page?: string;
     query?: string;
     order_key?: string;
@@ -118,20 +118,20 @@ const QueriesTable = ({
                 .toLowerCase()
                 .includes(queryParams?.query.toLowerCase())
             : true;
-
           const compatiblePlatforms =
             checkPlatformCompatibility(query.query).platforms || [];
 
-          const filterCompatiblePlatform = queryParams?.platform
-            ? compatiblePlatforms.includes(queryParams?.platform)
-            : true;
+          const filterCompatiblePlatform =
+            queryParams?.platform && queryParams?.platform !== "all"
+              ? compatiblePlatforms.includes(queryParams?.platform)
+              : true;
 
           return filterSearchQuery && filterCompatiblePlatform;
         }) || []
       );
     }
     setIsQueriesStateLoading(false);
-  }, [queriesList, queryParams?.query]);
+  }, [queriesList, queryParams]);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();

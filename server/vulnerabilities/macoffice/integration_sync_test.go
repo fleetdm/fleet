@@ -11,8 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIntegrationSync(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
+func TestIntegrationsSync(t *testing.T) {
 	nettest.Run(t)
 
 	vulnPath := t.TempDir()

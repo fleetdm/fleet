@@ -224,7 +224,13 @@ parasails.registerPage('basic-documentation', {
 
     clickSwagRequestCTA: function () {
       if(typeof gtag !== 'undefined') {
-        gtag('event','website_swag_request');
+        gtag('event','fleet_website__swag_request');
+      }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
+      }
+      if(typeof analytics !== 'undefined'){
+        analytics.track('fleet_website__swag_request');
       }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
     },

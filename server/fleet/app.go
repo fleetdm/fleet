@@ -148,7 +148,13 @@ type MDM struct {
 	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	// MacOSUpdates defines the OS update settings for macOS devices.
+	MacOSUpdates AppleOSUpdateSettings `json:"macos_updates"`
+	// IOSUpdates defines the OS update settings for iOS devices.
+	IOSUpdates AppleOSUpdateSettings `json:"ios_updates"`
+	// IPadOSUpdates defines the OS update settings for iPadOS devices.
+	IPadOSUpdates AppleOSUpdateSettings `json:"ipados_updates"`
+	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
@@ -182,8 +188,9 @@ func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 
-// MacOSUpdates is part of AppConfig and defines the macOS update settings.
-type MacOSUpdates struct {
+// AppleOSUpdateSettings is the common type that contains the settings
+// for OS updates on Apple devices.
+type AppleOSUpdateSettings struct {
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required
@@ -192,12 +199,12 @@ type MacOSUpdates struct {
 }
 
 // Configured returns a boolean indicating if updates are configured
-func (m MacOSUpdates) Configured() bool {
+func (m AppleOSUpdateSettings) Configured() bool {
 	return m.Deadline.Value != "" &&
 		m.MinimumVersion.Value != ""
 }
 
-func (m MacOSUpdates) Validate() error {
+func (m AppleOSUpdateSettings) Validate() error {
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
 		// if one is set and empty, the other must be set and empty too, otherwise
@@ -308,6 +315,18 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
@@ -322,15 +341,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						spec.Path = path
 					}
 
-					// extract the Labels field (if they are not provided, labels are
-					// cleared for that profile)
-					if labels, ok := m["labels"].([]interface{}); ok {
-						for _, label := range labels {
-							if strLabel, ok := label.(string); ok {
-								spec.Labels = append(spec.Labels, strLabel)
-							}
-						}
-					}
+					spec.Labels = extractLabelField(m, "labels")
+					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -989,7 +1002,7 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint `query:"per_page,optional"`
-	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
+	// Key to use for ordering. Can be a comma-separated set of items, eg: host_count,id
 	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
 	OrderDirection OrderDirection `query:"order_direction,optional"`

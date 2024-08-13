@@ -90,7 +90,7 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	}
 
 	var restartQueued bool
-	queueOrbitRestart := func() { restartQueued = true }
+	queueOrbitRestart := func(string) { restartQueued = true }
 
 	fr := NewFlagReceiver(queueOrbitRestart, FlagUpdateOptions{
 		RootDir: rootDir,

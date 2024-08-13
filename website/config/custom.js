@@ -91,7 +91,9 @@ module.exports.custom = {
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
   // salesforceIntegrationPasskey: undefined,
-  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.)*/,// For cleaning up LinkedIn URLs before creating CRM records.
+
+  // For cleaning up LinkedIn URLs before creating CRM records.
+  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
 
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
@@ -126,6 +128,7 @@ module.exports.custom = {
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
+    '/docs/get-started/faq': 'zayhanlon',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
@@ -201,8 +204,10 @@ module.exports.custom = {
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['rachaelshaw'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
+    'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
+    '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
+    'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
@@ -368,6 +373,7 @@ module.exports.custom = {
     'live.com',
     'yandex.ru',
     'ymail.com',
+    'qq.com',
   ],
 
   // Contact form:
@@ -385,6 +391,14 @@ module.exports.custom = {
   // customerWorkspaceOneOauthId: '…',
   // customerWorkspaceOneOauthSecret: '…',
   // customerMigrationWebhookSecret: '…',
+
+  // For nurture emails:
+  // contactEmailForNutureEmails: '…',
+  // activityCaptureEmailForNutureEmails: '…',
+  // contactNameForNurtureEmails: '…',
+
+  // Deal registration form
+  // dealRegistrationContactEmailAddress: '…',
 
   //…
 

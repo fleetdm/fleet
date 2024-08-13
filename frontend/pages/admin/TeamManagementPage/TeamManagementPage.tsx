@@ -14,6 +14,7 @@ import teamsAPI, {
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import TableCount from "components/TableContainer/TableCount";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxMessage from "components/Sandbox/SandboxMessage";
 
@@ -221,6 +222,14 @@ const TeamManagementPage = (): JSX.Element => {
     teams,
   ]);
 
+  const renderTeamCount = useCallback(() => {
+    if (teams?.length === 0) {
+      return <></>;
+    }
+
+    return <TableCount name="teams" count={teams?.length} />;
+  }, [teams]);
+
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
@@ -262,6 +271,7 @@ const TeamManagementPage = (): JSX.Element => {
             showMarkAllPages={false}
             isAllPagesSelected={false}
             isClientSidePagination
+            renderCount={renderTeamCount}
           />
         )}
         {showCreateTeamModal && (

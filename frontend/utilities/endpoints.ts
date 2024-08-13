@@ -31,9 +31,6 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
-  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
-  },
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -82,8 +79,13 @@ export default {
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
+  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
+
+  // Apple VPP endpoints
+  MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
@@ -144,11 +146,13 @@ export default {
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
   SOFTWARE_PACKAGE: (id: number) =>
-    `/${API_VERSION}/fleet/software/${id}/package`,
+    `/${API_VERSION}/fleet/software/titles/${id}/package`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
     `/${API_VERSION}/fleet/software/install/results/${uuid}`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
@@ -199,4 +203,6 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
+
+  COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 };
