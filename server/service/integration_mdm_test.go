@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -185,18 +186,32 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		serverLogger = kitlog.NewNopLogger()
 	}
+
+	var softwareInstallerStore fleet.SoftwareInstallerStore
+	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
+	_, minioEnabled := os.LookupEnv("MINIO_STORAGE_TEST")
+	if wantStore := os.Getenv("FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE"); minioEnabled &&
+		(wantStore == "s3" || (wantStore == "" && time.Now().UnixNano()%2 == 0)) {
+
+		s.T().Log(">>> using S3/minio software installer store")
+		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
+		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
+	}
+
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Logger:      serverLogger,
-		FleetConfig: &fleetCfg,
-		MDMStorage:  mdmStorage,
-		DEPStorage:  depStorage,
-		SCEPStorage: scepStorage,
-		MDMPusher:   mdmPushService,
-		Pool:        redisPool,
-		Lq:          s.lq,
+		Logger:                serverLogger,
+		FleetConfig:           &fleetCfg,
+		MDMStorage:            mdmStorage,
+		DEPStorage:            depStorage,
+		SCEPStorage:           scepStorage,
+		MDMPusher:             mdmPushService,
+		Pool:                  redisPool,
+		Lq:                    s.lq,
+		SoftwareInstallStore:  softwareInstallerStore,
+		BootstrapPackageStore: bootstrapPackageStore,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -7119,7 +7134,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			Token:  uuid.New().String(),
 			Bytes:  []byte("foo"),
 			Sha256: []byte("foo-sha256"),
-		}))
+		}, nil))
 
 		// add new setup assistant
 		_, err := s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
