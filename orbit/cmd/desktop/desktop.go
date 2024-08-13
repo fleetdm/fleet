@@ -64,10 +64,6 @@ func main() {
 	// FIXME: we need to do a better job of graceful shutdown, releasing resources, stopping
 	// tickers, etc. (https://github.com/fleetdm/fleet/issues/21256)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		log.Info().Msg("canceling context")
-		cancel() // TODO: move this to onExit?
-	}()
 
 	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
@@ -115,6 +111,9 @@ func main() {
 	go setupRunners()
 
 	var mdmMigrator useraction.MDMMigrator
+	// swiftDialogCh is a channel shared by the migrator and the offline watcher to
+	// coordinate the display of the dialog and ensure only one dialog is shown at a time.
+	var swiftDialogCh chan struct{}
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -201,10 +200,8 @@ func main() {
 
 			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
 
-			// swiftDialogCh is a channel shared by the migrator and the offline watcher to
-			// coordinate the display of the dialog and ensure only one dialog is shown at a time.
 			// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
-			swiftDialogCh := make(chan struct{}, 1) // TODO: when should we close this channel?
+			swiftDialogCh = make(chan struct{}, 1)
 
 			_, swiftDialogPath, _ := update.LocalTargetPaths(
 				tufUpdateRoot,
@@ -467,13 +464,18 @@ func main() {
 			}
 		}()
 	}
+
+	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
+	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {
-		// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
-		// killed (https://github.com/fleetdm/fleet/issues/21256)
+		log.Info().Msg("exit")
 		if mdmMigrator != nil {
 			mdmMigrator.Exit()
 		}
-		log.Info().Msg("exit")
+		if swiftDialogCh != nil {
+			close(swiftDialogCh)
+		}
+		cancel()
 	}
 
 	systray.Run(onReady, onExit)
