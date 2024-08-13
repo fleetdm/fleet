@@ -1,4 +1,4 @@
-package filesystem
+package s3
 
 import (
 	"bytes"
@@ -8,35 +8,32 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
+	"path"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSoftwareInstaller(t *testing.T) {
+func TestBootstrapPackage(t *testing.T) {
 	ctx := context.Background()
+	store := SetupTestBootstrapPackageStore(t, "bootstrap-packages-unit-test", "prefix")
 
-	dir := t.TempDir()
-	store, err := NewSoftwareInstallerStore(dir)
-	require.NoError(t, err)
-
-	// get a non-existing installer
-	blob, length, err := store.Get(ctx, "no-such-installer")
+	// get a non-existing package
+	blob, length, err := store.Get(ctx, "no-such-package")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 	require.Nil(t, blob)
 	require.Zero(t, length)
 
-	exists, err := store.Exists(ctx, "no-such-installer")
+	exists, err := store.Exists(ctx, "no-such-package")
 	require.NoError(t, err)
 	require.False(t, exists)
 
-	createInstallerAndHash := func() ([]byte, string) {
+	createPackageAndHash := func() ([]byte, string) {
 		b := make([]byte, 1024)
 		_, err = rand.Read(b)
 		require.NoError(t, err)
@@ -44,13 +41,13 @@ func TestSoftwareInstaller(t *testing.T) {
 		h := sha256.New()
 		_, err = h.Write(b)
 		require.NoError(t, err)
-		installerID := hex.EncodeToString(h.Sum(nil))
+		fileID := hex.EncodeToString(h.Sum(nil))
 
-		return b, installerID
+		return b, fileID
 	}
 
-	getAndCheck := func(installerID string, expected []byte) {
-		rc, sz, err := store.Get(ctx, installerID)
+	getAndCheck := func(fileID string, expected []byte) {
+		rc, sz, err := store.Get(ctx, fileID)
 		require.NoError(t, err)
 		require.EqualValues(t, len(expected), sz)
 		defer rc.Close()
@@ -59,13 +56,13 @@ func TestSoftwareInstaller(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expected, got)
 
-		exists, err := store.Exists(ctx, installerID)
+		exists, err := store.Exists(ctx, fileID)
 		require.NoError(t, err)
 		require.True(t, exists)
 	}
 
-	// store an installer
-	b0, id0 := createInstallerAndHash()
+	// store a package
+	b0, id0 := createPackageAndHash()
 	err = store.Put(ctx, id0, bytes.NewReader(b0))
 	require.NoError(t, err)
 
@@ -73,7 +70,7 @@ func TestSoftwareInstaller(t *testing.T) {
 	getAndCheck(id0, b0)
 
 	// store another one
-	b1, id1 := createInstallerAndHash()
+	b1, id1 := createPackageAndHash()
 	err = store.Put(ctx, id1, bytes.NewReader(b1))
 	require.NoError(t, err)
 
@@ -88,21 +85,21 @@ func TestSoftwareInstaller(t *testing.T) {
 	getAndCheck(id0, b0)
 }
 
-func TestSoftwareInstallerCleanup(t *testing.T) {
+func TestBootstrapPackageCleanup(t *testing.T) {
 	ctx := context.Background()
-
-	dir := t.TempDir()
-	store, err := NewSoftwareInstallerStore(dir)
-	require.NoError(t, err)
+	store := SetupTestBootstrapPackageStore(t, "bootstrap-packages-unit-test", "prefix")
 
 	assertExisting := func(want []string) {
-		dirEnts, err := os.ReadDir(filepath.Join(dir, softwareInstallersPrefix))
+		prefix := path.Join(store.prefix, bootstrapPackagePrefix)
+		page, err := store.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+			Bucket: &store.bucket,
+			Prefix: &prefix,
+		})
 		require.NoError(t, err)
-		got := make([]string, 0, len(dirEnts))
-		for _, de := range dirEnts {
-			if de.Type().IsRegular() {
-				got = append(got, de.Name())
-			}
+
+		got := make([]string, 0, len(page.Contents))
+		for _, item := range page.Contents {
+			got = append(got, path.Base(*item.Key))
 		}
 		require.ElementsMatch(t, want, got)
 	}
@@ -112,9 +109,9 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
-	// put an installer
+	// put a package
 	ins0 := uuid.NewString()
-	err = store.Put(ctx, ins0, bytes.NewReader([]byte("installer0")))
+	err = store.Put(ctx, ins0, bytes.NewReader([]byte("package0")))
 	require.NoError(t, err)
 
 	// cleanup but mark it as used
@@ -131,10 +128,10 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 
 	assertExisting(nil)
 
-	// put a few installers
-	installers := []string{uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()}
-	for i, ins := range installers {
-		err = store.Put(ctx, ins, bytes.NewReader([]byte("installer"+fmt.Sprint(i))))
+	// put a few packages
+	packages := []string{uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()}
+	for i, ins := range packages {
+		err = store.Put(ctx, ins, bytes.NewReader([]byte("package"+fmt.Sprint(i))))
 		require.NoError(t, err)
 	}
 
@@ -142,11 +139,11 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	n, err = store.Cleanup(ctx, []string{}, time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
-	assertExisting([]string{installers[0], installers[1], installers[2], installers[3]})
+	assertExisting([]string{packages[0], packages[1], packages[2], packages[3]})
 
 	// cleanup in the future, all unused get removed
-	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]}, time.Now().Add(time.Minute))
+	n, err = store.Cleanup(ctx, []string{packages[0], packages[2]}, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
-	assertExisting([]string{installers[0], installers[2]})
+	assertExisting([]string{packages[0], packages[2]})
 }

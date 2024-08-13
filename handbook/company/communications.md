@@ -465,6 +465,8 @@ We use the following story points to estimate tasks:
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
 
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
+
 
 ### Making a pull request
 
@@ -1042,7 +1044,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 ### What would Mister Rogers say?
 
-[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
 Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
 
