@@ -6,7 +6,8 @@
 - Constraints/bussines logic:
     - VPP tokens can be assigned to: "All teams", "No team" or a team. Default is "All teams"
     - ABM tokens can be assigned to: "No team" or a team. Default is "No team"
-    - Multiple ABM/VPP tokens per team.
+    - Multiple ABM tokens per team.
+    - Single VPP token per team.
     - Same private key can be used for multiple tokens.
 
 ### ABM: gameplan overview
@@ -32,11 +33,10 @@ The VPP token is used to:
 
 To support multiple tokens, we need to:
 
-- Add a form to retrieve all tokens available for a team or "no team" this is `(team OR no team) ∪ all teams`.
-- To get a list of available apps: loop over each token, get and dedupe the available apps.
-- To assign an app to a host: loop over each token until we find the first one with available licenses, use it to assign the app to the host.
+- Add logic to retrieve the right token to use for that team/host (`(team token OR no team token) OR all teams token`.)
+- Use that same token to list/assign apps.
+- Add validation (TBD by product) constraints to prevent multiple tokens per team.
 - Track the token used to assign the app to the host.
-
 
 ### Database migrations
 
@@ -44,21 +44,37 @@ To support multiple tokens, we need to:
 
 #### Migrations
 
-**Tracking team associations for ABM/VPP tokens**
-
-Many-to-many relationship to be tracked in a join table:
+**Adding new tables to track ABM/VPP tokens**
 
 ```sql
-CREATE TABLE mdm_asset_assignments (
-    id INT PRIMARY KEY,
-    asset_id INT NOT NULL,
-    team_id INT NULL, -- NULL if the asset is assigned to "no team" or "all teams"
-    target_platform varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL, -- if NULL, asset is not platform specific
-    scope ENUM('all_teams', 'team', 'no_team') NOT NULL,
-    FOREIGN KEY (asset_id) REFERENCES mdm_config_assets(id),
-    FOREIGN KEY (team_id) REFERENCES teams(id),
-);
+CREATE TABLE abm_tokens (
+    id int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_name varchar,
+    expires_at timestamp,
+    apple_id varchar,
+    PRIMARY KEY (id),
+    UNIQUE KEY (organization_name)
+)
 ```
+
+```sql
+CREATE TABLE vpp_tokens (
+    id int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_name varchar,
+    location varchar,
+    expires_at timestamp,
+    PRIMARY KEY (id),
+    UNIQUE KEY (location)
+)
+```
+
+**Tracking team associations for ABM/VPP tokens**
+
+TODO: define if join table or a FK reference in teams. Challenges:
+
+- Support for "no team", "all teams" and a team
+- ABM/VPP Token can have multiple teams
+- Team can only have one VPP token (either "all teams" or a token assigned to it?), but multiple ABM tokens
 
 **Adding new tokens to mdm_config_assets**
 
