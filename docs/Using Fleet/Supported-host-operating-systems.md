@@ -19,10 +19,6 @@ Not all osquery tables are available for every OS. Please check out the [osquery
 
 If a table is not available for your host, Fleet will generally handle things behind the scenes for you. 
 
-### Macs with Apple silicon
-
-Fleet's agent (fleetd) generated for macOS by `fleetctl package` does not include native support for Macs with Apple silicon. Some values returned may reflect the information returned by Rosetta rather than the system. For example, a CPU will show up as `i486`. 
-
 ### Linux
 
 Fleet Desktop is supported on Ubuntu and Fedora. 
