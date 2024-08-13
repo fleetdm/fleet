@@ -52,7 +52,7 @@ const EulaSection = () => {
   };
 
   // we are relying on the API to tell us this resource does not exist to
-  // determine if the user has uploaded a bootstrap package.
+  // determine if the user has uploaded a eula.
   const noEulaUploaded = (error && error.status === 404) || !eulaMetadata;
 
   return (

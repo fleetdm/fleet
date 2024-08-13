@@ -28,20 +28,12 @@ const AutomaticEnrollmentSection = ({
     router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_APPLE);
   };
 
-  const navigateToApplePushCertSetup = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  };
-
   return (
     <SettingsSection title="Automatic Enrollment" className={baseClass}>
       <div className={`${baseClass}__content`}>
         <AppleAutomaticEnrollmentCard
           viewDetails={navigateToAppleAutomaticEnrollment}
-          turnOn={
-            !config?.mdm.enabled_and_configured
-              ? navigateToApplePushCertSetup
-              : undefined
-          }
+          isAppleMdmOn={!!config?.mdm.enabled_and_configured}
           configured={!!config?.mdm.apple_bm_enabled_and_configured}
         />
         <WindowsAutomaticEnrollmentCard
