@@ -8596,7 +8596,7 @@ Content-Disposition: form-data; name="team_id"
 Content-Disposition: form-data; name="install_type"
 automatic
 --------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="labels_exclude_all"
+Content-Disposition: form-data; name="labels_exclude_any"
 Label name
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="self_service"
