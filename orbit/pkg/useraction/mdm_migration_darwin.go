@@ -4,6 +4,7 @@ package useraction
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -16,9 +17,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
 )
 
@@ -83,7 +86,14 @@ var errorTemplate = template.Must(template.New("").Parse(`
 Please contact your IT admin [here]({{ .ContactURL }}).
 `))
 
-var unenrollPreSonoma = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/pre-sonoma.png)"
+var (
+	unenrollPreSonoma           = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/pre-sonoma.png)"
+	mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
+## Migrate to Fleet
+
+🛜🚫 No internet connection. Please connect to internet to continue.`,
+	))
+)
 
 // baseDialog implements the basic building blocks to render dialogs using
 // swiftDialog.
@@ -122,11 +132,9 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	exitCodeCh := make(chan swiftDialogExitCode, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		// all dialogs should always be blurred and on top
+		// all dialogs should always be centered
 		flags = append(
 			flags,
-			"--blurscreen",
-			"--ontop",
 			"--messageposition", "center",
 		)
 		cmd := exec.Command(b.path, flags...) //nolint:gosec
@@ -178,16 +186,18 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 }
 
 // NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter, fleetURL string) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter, fleetURL string, showCh chan struct{}) MDMMigrator {
+	if cap(showCh) != 1 {
+		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
+	}
 	return &swiftDialogMDMMigrator{
 		handler:                   handler,
 		baseDialog:                newBaseDialog(path),
 		frequency:                 frequency,
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
-		// set a buffer size of 1 to allow one Show without blocking
-		showCh:   make(chan struct{}, 1),
-		mrw:      mrw,
-		fleetURL: fleetURL,
+		mrw:                       mrw,
+		fleetURL:                  fleetURL,
+		showCh:                    showCh,
 	}
 }
 
@@ -203,7 +213,8 @@ type swiftDialogMDMMigrator struct {
 	// lastShown
 	lastShown   time.Time
 	lastShownMu sync.RWMutex
-	showCh      chan struct{}
+	// showCh is shared with the offline watcher and used to ensure only one dialog is open at a time
+	showCh chan struct{}
 
 	// testEnrollmentCheckFileFn is used in tests to mock the call to verify
 	// the enrollment status of the host
@@ -550,6 +561,13 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 		"--height", height,
 	}
 
+	if !m.props.DisableTakeover {
+		flags = append(flags,
+			"--blurscreen",
+			"--ontop",
+		)
+	}
+
 	if m.props.OrgInfo.ContactURL != "" {
 		flags = append(flags,
 			// info button
@@ -594,4 +612,223 @@ func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
 
 func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 	return m.mrw.RemoveFile()
+}
+
+// StartMDMMigrationOfflineWatcher starts a watcher running on a 3-minute loop that checks if the
+// device goes offline in the process of migrating to Fleet's MDM and offline. If so, it shows a
+// dialog to prompt the user to connect to the internet.
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) {
+	if cap(swiftDialogCh) != 1 {
+		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
+	}
+
+	watcher := &offlineWatcher{
+		client:          client,
+		swiftDialogPath: swiftDialogPath,
+		swiftDialogCh:   swiftDialogCh,
+		fileWatcher:     fileWatcher,
+	}
+
+	// start loop with 3-minute interval to ping server and show dialog if offline
+	go func() {
+		ticker := time.NewTicker(constant.MDMMigrationOfflineWatcherInterval)
+		defer ticker.Stop()
+
+		log.Info().Msg("starting watcher loop")
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug().Msg("stopping offline dialog loop")
+				return
+			case <-ticker.C:
+				log.Debug().Msg("offline dialog, got tick")
+				go watcher.processTick(ctx)
+			}
+		}
+	}()
+}
+
+type offlineWatcher struct {
+	client          *service.DeviceClient
+	swiftDialogPath string
+	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
+	swiftDialogCh chan struct{}
+	fileWatcher   migration.FileWatcher
+}
+
+func (o *offlineWatcher) processTick(ctx context.Context) {
+	// try the dialog channel
+	select {
+	case o.swiftDialogCh <- struct{}{}:
+		log.Debug().Msg("occupying dialog channel")
+	default:
+		log.Debug().Msg("dialog channel already occupied")
+		return
+	}
+
+	defer func() {
+		// non-blocking release of dialog channel
+		select {
+		case <-o.swiftDialogCh:
+			log.Debug().Msg("releasing dialog channel")
+		default:
+			// this shouldn't happen so log for debugging
+			log.Debug().Msg("dialog channel already released")
+		}
+	}()
+
+	if !o.isUnmanaged() || !o.isOffline() {
+		return
+	}
+
+	log.Info().Msg("showing offline dialog")
+	if err := o.showSwiftDialogMDMMigrationOffline(ctx); err != nil {
+		log.Error().Err(err).Msg("error showing offline dialog")
+	} else {
+		log.Info().Msg("done showing offline dialog")
+	}
+}
+
+func (o *offlineWatcher) isUnmanaged() bool {
+	mt, err := o.fileWatcher.GetMigrationType()
+	if err != nil {
+		log.Error().Err(err).Msg("getting migration type")
+	}
+
+	if mt == "" {
+		log.Debug().Msg("offline dialog, no migration type found, do nothing")
+		return false
+	}
+
+	log.Debug().Msgf("offline dialog, device is unmanaged, migration type %s", mt)
+
+	// TODO: Maybe check show profiles and skip showing the dialog if the device is managed?
+
+	return true
+}
+
+func (o *offlineWatcher) isOffline() bool {
+	err := o.client.Ping()
+	if err == nil {
+		log.Debug().Msg("offline dialog, ping ok, device is online")
+		return false
+	}
+	if !isOfflineError(err) {
+		log.Error().Err(err).Msg("offline dialog, error pinging server does not contain dial tcp or no such host, assuming device is online")
+		return false
+	}
+	log.Error().Err(err).Msg("offline dialog, error pinging server, assuming device is offline")
+
+	return true
+}
+
+func isOfflineError(err error) bool {
+	if err == nil {
+		return false
+	}
+	offlineMsgs := []string{"no such host", "dial tcp", "no route to host"}
+	for _, msg := range offlineMsgs {
+		if strings.Contains(err.Error(), msg) {
+			return true
+		}
+	}
+
+	//  //  TODO: We're starting with basic string matching and planning to improve error matching
+	//  // in future iterations. Here's some ideas for stuff to add in addition to strings.Contains:
+	// 	if urlErr, ok := err.(*url.Error); ok {
+	// 		log.Info().Msg("is url error")
+	// 		if urlErr.Timeout() {
+	// 			log.Info().Msg("is timeout")
+	// 			return true
+	// 		}
+	// 		// Check for no such host error
+	// 		if opErr, ok := urlErr.Err.(*net.OpError); ok {
+	// 			log.Info().Msg("is net op error")
+	// 			if dnsErr, ok := opErr.Err.(*net.DNSError); ok {
+	// 				log.Info().Msg("is dns error")
+	// 				if dnsErr.Err == "no such host" {
+	// 					log.Info().Msg("is dns no such host")
+	// 					return true
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+
+	return false
+}
+
+// ShowDialogMDMMigrationOffline displays the dialog every time is called
+func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context) error {
+	props := MDMMigratorProps{
+		DisableTakeover: true,
+	}
+	m := swiftDialogMDMMigrationOffline{
+		baseDialog: newBaseDialog(o.swiftDialogPath),
+		props:      props,
+	}
+
+	flags, err := m.getFlags()
+	if err != nil {
+		return fmt.Errorf("getting flags for offline dialog: %w", err)
+	}
+
+	exitCodeCh, errCh := m.render(flags...)
+
+	select {
+	case <-ctx.Done():
+		log.Debug().Msg("dialog context canceled")
+		// TODO: do we care about this? anything we need to clean up?
+		return nil
+	case err := <-errCh:
+		return fmt.Errorf("showing offline dialog: %w", err)
+	case <-exitCodeCh:
+		// there's only one button, so we don't need to check the exit code
+		log.Info().Msg("closing offline dialog")
+		return nil
+	}
+}
+
+type swiftDialogMDMMigrationOffline struct {
+	*baseDialog
+	props MDMMigratorProps
+}
+
+func (m *swiftDialogMDMMigrationOffline) render(flags ...string) (chan swiftDialogExitCode, chan error) {
+	return m.baseDialog.render(flags...)
+}
+
+func (m *swiftDialogMDMMigrationOffline) getFlags() ([]string, error) {
+	tmpl := mdmMigrationTemplateOffline
+	var message bytes.Buffer
+	if err := tmpl.Execute(
+		&message,
+		nil,
+	); err != nil {
+		return nil, fmt.Errorf("executing migration template: %w", err)
+	}
+
+	// disable the built-in title and icon so we have full control over content
+	title := "none"
+	icon := "none"
+
+	flags := []string{
+		"--height", "124",
+		"--alignment", "center",
+		"--title", title,
+		"--icon", icon,
+		// modal content
+		"--message", message.String(),
+		"--messagefont", "size=16",
+		// main button
+		"--button1text", "Close",
+	}
+
+	if !m.props.DisableTakeover {
+		flags = append(flags,
+			"--blurscreen",
+			"--ontop",
+		)
+	}
+
+	return flags, nil
 }
