@@ -118,7 +118,7 @@ func main() {
 
 	// This ticker is used for fetching the desktop summary. It is initialized here because it is
 	// stopped in `OnExit.`
-	const checkInterval = 10 * time.Second // TODO(JVE): put this back to 5 minutes
+	const checkInterval = 5 * time.Minute
 	summaryTicker := time.NewTicker(checkInterval)
 
 	onReady := func() {
