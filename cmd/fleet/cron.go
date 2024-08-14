@@ -1084,7 +1084,12 @@ func newAppleMDMDEPProfileAssigner(
 				return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
 			}
 			if incompleteToken != nil {
-				// TODO(mna): make the API call, decrypt the token to get renewal date, update token
+				if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger); err != nil {
+					return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
+				}
+				if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
+					return ctxerr.Wrap(ctx, err, "saving updated migrated ABM token")
+				}
 			}
 
 			if fleetSyncer == nil {
