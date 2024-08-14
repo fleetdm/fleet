@@ -158,6 +158,7 @@ type NanoDEPStorage struct {
 
 // RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+	// TODO(mna): pass the name to ABMToken
 	token, err := assets.ABMToken(ctx, s.ds)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving token in nano dep storage: %w", err)

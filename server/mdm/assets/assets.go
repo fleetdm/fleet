@@ -73,6 +73,7 @@ func APNSTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, error) 
 }
 
 func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.OAuth1Tokens, error) {
+	// TODO(mna): add name argument, passed by RetrieveToken
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,

@@ -1318,6 +1318,13 @@ type Datastore interface {
 	// generated ones.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
+	// GetABMTokenByOrgName retrieves the Apple Business Manager token identified by
+	// its unique name (the organization name).
+	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
+
+	// SaveABMToken updates the ABM token using the provided struct.
+	SaveABMToken(ctx context.Context, tok *ABMToken) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
@@ -1615,6 +1622,7 @@ type MDMAppleStore interface {
 
 type MDMAssetRetriever interface {
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
+	// TODO(mna): add GetABMTokenByName here
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

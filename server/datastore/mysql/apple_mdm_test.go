@@ -84,6 +84,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
+		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 	}
 
 	for _, c := range cases {
@@ -6332,4 +6333,99 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bpContent)
+}
+
+func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// get a non-existing token
+	tok, err := ds.GetABMTokenByOrgName(ctx, "no-such-token")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, tok)
+
+	// create some teams
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	// create a token with an empty name and no team set, and another that will be unused
+	encTok := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token)
+			VALUES ('', '', ?, ?), ('unused', '', ?, ?)
+			`, time.Now(), encTok, time.Now(), uuid.NewString())
+		return err
+	})
+
+	// get that token
+	tok, err = ds.GetABMTokenByOrgName(ctx, "")
+	require.NoError(t, err)
+	require.NotZero(t, tok.ID)
+	require.Equal(t, encTok, string(tok.EncryptedToken))
+	require.Empty(t, tok.OrganizationName)
+	require.Empty(t, tok.AppleID)
+	require.Empty(t, tok.MacOSTeam)
+	require.Empty(t, tok.IOSTeam)
+	require.Empty(t, tok.IPadOSTeam)
+
+	// update the token with a name and teams
+	tok.OrganizationName = "org-name"
+	tok.AppleID = "name@example.com"
+	tok.MacOSDefaultTeamID = &tm1.ID
+	tok.IOSDefaultTeamID = &tm2.ID
+	err = ds.SaveABMToken(ctx, tok)
+	require.NoError(t, err)
+
+	// reload that token
+	tokReload, err := ds.GetABMTokenByOrgName(ctx, "org-name")
+	require.NoError(t, err)
+	require.Equal(t, tok.ID, tokReload.ID)
+	require.Equal(t, encTok, string(tokReload.EncryptedToken))
+	require.Equal(t, "org-name", tokReload.OrganizationName)
+	require.Equal(t, "name@example.com", tokReload.AppleID)
+	require.Equal(t, tm1.Name, tokReload.MacOSTeam)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam)
+	require.Empty(t, tokReload.IPadOSTeam)
+
+	// empty name token now doesn't exist
+	_, err = ds.GetABMTokenByOrgName(ctx, "")
+	require.ErrorAs(t, err, &nfe)
+
+	// update some teams
+	tok.MacOSDefaultTeamID = nil
+	tok.IPadOSDefaultTeamID = &tm3.ID
+	err = ds.SaveABMToken(ctx, tok)
+	require.NoError(t, err)
+
+	// reload that token
+	tokReload, err = ds.GetABMTokenByOrgName(ctx, "org-name")
+	require.NoError(t, err)
+	require.Equal(t, tok.ID, tokReload.ID)
+	require.Equal(t, encTok, string(tokReload.EncryptedToken))
+	require.Equal(t, "org-name", tokReload.OrganizationName)
+	require.Equal(t, "name@example.com", tokReload.AppleID)
+	require.Empty(t, tokReload.MacOSTeam)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+
+	// change just the encrypted token
+	encTok2 := uuid.NewString()
+	tok.EncryptedToken = []byte(encTok2)
+	err = ds.SaveABMToken(ctx, tok)
+	require.NoError(t, err)
+
+	tokReload, err = ds.GetABMTokenByOrgName(ctx, "org-name")
+	require.NoError(t, err)
+	require.Equal(t, tok.ID, tokReload.ID)
+	require.Equal(t, encTok2, string(tokReload.EncryptedToken))
+	require.Equal(t, "org-name", tokReload.OrganizationName)
+	require.Equal(t, "name@example.com", tokReload.AppleID)
+	require.Empty(t, tokReload.MacOSTeam)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
 }
