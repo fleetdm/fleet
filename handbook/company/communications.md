@@ -1354,17 +1354,15 @@ Related content...
 
 #### Nested headings
 
-Wherever possible, avoid creating nested headings that don't necessitate any related content. For example:
+Wherever possible, avoid creating nested headings. For example:
 
 ```
 ## Things
 
 ### Thing 1
 
-Hi my name is 
+Hi my name is Thing 1
 ```
-
-If you find yourself nesting headings like this, try eliminating one of the headings in favor of a different [heading type](https://fleetdm.com/handbook/company/communications#headings-and-titles) or adding context to the parent heading.  
 
 
 #### Heading levels
