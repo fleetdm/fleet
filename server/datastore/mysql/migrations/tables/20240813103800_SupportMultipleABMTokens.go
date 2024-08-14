@@ -129,12 +129,16 @@ LIMIT 1
 
 	// NOTE: we don't know the organization_name, apple_id and renew_at of the
 	// existing token - the only way to know is to make an Apple API call and to
-	// decrypt the token, two operations that are probably not safe to do in a DB
-	// migration. Instead, insert with empty values and add a job at Fleet
-	// startup to ensure the token's information is filled.
-	// TODO(mna): e.g. insert a one-off worker job message?
+	// decrypt the token, two operations that are not safe to do in a DB
+	// migration. Instead, insert with empty values and we have a check in the
+	// cron job ("apple_mdm_dep_profile_assigner") that runs regularly (and
+	// ~immediately at Fleet startup) to ensure the token's information is
+	// filled.
+	// https://github.com/fleetdm/fleet/pull/21287#discussion_r1715891448
 
-	// insert the token in the new table
+	// insert the token in the new table - note that as per [1], only the macos
+	// default team is set by migrating the AppConfig's apple_bm_default_team.
+	// [1]: https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
 	const insABM = `
 INSERT INTO abm_tokens
 	(
@@ -148,9 +152,9 @@ INSERT INTO abm_tokens
 		ipados_default_team_id
 	)
 VALUES
-	('', '', ?, DATE('2000-01-01'), ?, ?, ?, ?)
+	('', '', ?, DATE('2000-01-01'), ?, ?, NULL, NULL)
 `
-	res, err := tx.Exec(insABM, abmTermsExpired, token, defaultTeamID, defaultTeamID, defaultTeamID)
+	res, err := tx.Exec(insABM, abmTermsExpired, token, defaultTeamID)
 	if err != nil {
 		return fmt.Errorf("insert existing ABM token into abm_tokens: %w", err)
 	}

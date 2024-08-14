@@ -54,10 +54,10 @@ func TestUp_20240813103800(t *testing.T) {
 	}
 	var storedToken abmToken
 	err = db.Get(&storedToken, `
-SELECT 
-	id, organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id 
-FROM 
-	abm_tokens 
+SELECT
+	id, organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id
+FROM
+	abm_tokens
 LIMIT 1`)
 	require.NoError(t, err)
 
@@ -72,10 +72,8 @@ LIMIT 1`)
 	// all platform default teams are set to the configured team
 	require.NotNil(t, storedToken.MacOSDefaultTeamID)
 	require.EqualValues(t, tmID, *storedToken.MacOSDefaultTeamID)
-	require.NotNil(t, storedToken.IOSDefaultTeamID)
-	require.EqualValues(t, tmID, *storedToken.IOSDefaultTeamID)
-	require.NotNil(t, storedToken.IPadOSDefaultTeamID)
-	require.EqualValues(t, tmID, *storedToken.IPadOSDefaultTeamID)
+	require.Nil(t, storedToken.IOSDefaultTeamID)
+	require.Nil(t, storedToken.IPadOSDefaultTeamID)
 
 	// the existing host DEP assignment is linked to the token
 	var hostTokenID *uint

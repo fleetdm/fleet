@@ -72,7 +72,7 @@ func APNSTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, error) 
 	return mdmPushCertTopic, nil
 }
 
-func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.OAuth1Tokens, error) {
+func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string) (*nanodep_client.OAuth1Tokens, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
@@ -81,6 +81,15 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.
 	if err != nil {
 		return nil, fmt.Errorf("loading ABM assets from the database: %w", err)
 	}
+
+	// TODO(mna): this is what it should now use, but if I change it immediately,
+	// everything else breaks. This should be changed only after the ABM API work
+	// (and then fleet.MDMAssetABMTokenDeprecated will have to be removed from
+	// the call to GetAllMDMConfigAssetsByName above).
+	//abmTok, err := ds.GetABMTokenByOrgName(ctx, abmOrgName)
+	//if err != nil {
+	//	return nil, fmt.Errorf("get ABM token by name: %w", err)
+	//}
 
 	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)
 	if err != nil {
@@ -93,7 +102,7 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.
 	}
 
 	return DecryptRawABMToken(
-		assets[fleet.MDMAssetABMTokenDeprecated].Value,
+		assets[fleet.MDMAssetABMTokenDeprecated].Value, //abmTok.EncryptedToken,
 		leaf,
 		assets[fleet.MDMAssetABMKey].Value,
 	)

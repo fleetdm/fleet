@@ -4706,3 +4706,70 @@ LIMIT 500
 
 	return deviceUUIDs, nil
 }
+
+func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	const stmt = `
+SELECT 
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.token,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN 
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN 
+	teams t2 ON t2.id = abt.ios_default_team_id 
+LEFT OUTER JOIN 
+	teams t3 ON t3.id = abt.ipados_default_team_id 
+WHERE 
+	abt.organization_name = ?`
+
+	var abmTok fleet.ABMToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &abmTok, stmt, orgName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("ABMToken").WithName(orgName))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get abm token by org name")
+	}
+	return &abmTok, nil
+}
+
+func (ds *Datastore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
+	const stmt = `
+UPDATE 
+	abm_tokens 
+SET 
+	organization_name = ?,
+	apple_id = ?,
+	terms_expired = ?,
+	renew_at = ?,
+	token = ?,
+	macos_default_team_id = ?,
+	ios_default_team_id = ?,
+	ipados_default_team_id = ?
+WHERE
+	id = ?`
+
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrganizationName,
+		tok.AppleID,
+		tok.TermsExpired,
+		tok.RenewAt,
+		tok.EncryptedToken,
+		tok.MacOSDefaultTeamID,
+		tok.IOSDefaultTeamID,
+		tok.IPadOSDefaultTeamID,
+		tok.ID)
+	return ctxerr.Wrap(ctx, err, "updating abm_token")
+}

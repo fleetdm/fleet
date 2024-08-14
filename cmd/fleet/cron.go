@@ -1074,6 +1074,24 @@ func newAppleMDMDEPProfileAssigner(
 				return nil
 			}
 
+			// As part of the DB migration of the single ABM token to the multi-ABM
+			// token world (where the token was migrated from mdm_config_assets to
+			// abm_tokens), we need to complete migration of the existing token as
+			// during the DB migration we didn't have the organization name, apple id
+			// and renewal date.
+			incompleteToken, err := ds.GetABMTokenByOrgName(ctx, "")
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
+			}
+			if incompleteToken != nil {
+				if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger); err != nil {
+					return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
+				}
+				if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
+					return ctxerr.Wrap(ctx, err, "saving updated migrated ABM token")
+				}
+			}
+
 			if fleetSyncer == nil {
 				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
 			}

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -26,11 +25,8 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
-	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
@@ -48,6 +44,11 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: to be addressed in the ABM API implementation, this endpoint is now only
+	// supported if a single ABM token exists:
+	// https://github.com/fleetdm/fleet/pull/21043/files#r1706095564
+	// It has NOT been updated to the new abm tokens storage yet.
 
 	abmAssets, err := svc.ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
@@ -69,55 +70,24 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
-	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage, svc.ds, svc.logger)
-	if err != nil {
+	// this is temporary just to fit the refactored call, this whole endpoint
+	// will have to be adapted to the new ABM storage.
+	abmToken := &fleet.ABMToken{
+		OrganizationName: apple_mdm.DEPName,
+	}
+	if err := apple_mdm.SetABMTokenMetadata(ctx, abmToken, svc.depStorage, svc.ds, svc.logger); err != nil {
 		return nil, err
 	}
 
-	token, err := assets.ABMToken(ctx, svc.ds)
-	if err != nil {
-		return nil, err
-	}
-
-	// fill the rest of the AppleBM fields
-	appleBM.RenewDate = token.AccessTokenExpiry
+	var appleBM fleet.AppleBM
+	// transfer the abmToken metadata info to the appleBM struct
+	appleBM.AppleID = abmToken.AppleID
+	appleBM.OrgName = abmToken.OrganizationName
+	appleBM.RenewDate = abmToken.RenewAt
 	appleBM.DefaultTeam = appCfg.MDM.AppleBMDefaultTeam
 	appleBM.MDMServerURL = mdmServerURL
 
-	return appleBM, nil
-}
-
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
-	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
-	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
-	if err != nil {
-		var authErr *depclient.AuthError
-		if errors.As(err, &authErr) {
-			// authentication failure with 401 unauthorized means that the configured
-			// Apple BM certificate and/or token are invalid. Fail with a 400 Bad
-			// Request.
-			msg := err.Error()
-			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
-			}
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     msg,
-				InternalErr: err,
-			}, "apple GET /account request failed with authentication error")
-		}
-		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
-	}
-
-	if res.AdminID == "" {
-		// fallback to facilitator ID, as this is the same information but for
-		// older versions of the Apple API.
-		// https://github.com/fleetdm/fleet/issues/7515#issuecomment-1346579398
-		res.AdminID = res.FacilitatorID
-	}
-	return &fleet.AppleBM{
-		AppleID: res.AdminID,
-		OrgName: res.OrgName,
-	}, nil
+	return &appleBM, nil
 }
 
 func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {

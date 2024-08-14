@@ -135,6 +135,10 @@ func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 	return s.ds.GetAllMDMConfigAssetsByName(ctx, assetNames)
 }
 
+func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	return s.ds.GetABMTokenByOrgName(ctx, orgName)
+}
+
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleDEPStorage() (*NanoDEPStorage, error) {
@@ -158,7 +162,7 @@ type NanoDEPStorage struct {
 
 // RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	token, err := assets.ABMToken(ctx, s.ds)
+	token, err := assets.ABMToken(ctx, s.ds, name)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving token in nano dep storage: %w", err)
 	}

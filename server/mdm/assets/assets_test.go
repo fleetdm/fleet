@@ -197,10 +197,21 @@ func TestABMToken(t *testing.T) {
 		}, assetNames)
 		return assets, nil
 	}
+	const testOrgName = "test-org"
+	// TODO: use this once we read from abm_tokens (and remove MDMAssetABMTokenDeprecated from the other call)
+	//ds.GetABMTokenByOrgNameFunc = func(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	//	require.Equal(t, testOrgName, orgName)
+	//	return &fleet.ABMToken{
+	//		ID:               1,
+	//		OrganizationName: testOrgName,
+	//		EncryptedToken:   []byte(tokenBytes),
+	//	}, nil
+	//}
 
-	tokens, err := ABMToken(ctx, ds)
+	tokens, err := ABMToken(ctx, ds, testOrgName)
 	require.NoError(t, err)
 	require.NotNil(t, tokens)
 	require.Equal(t, "test_access_secret", tokens.AccessSecret)
 	require.True(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
+	//require.True(t, ds.GetABMTokenByOrgNameFuncInvoked)
 }
