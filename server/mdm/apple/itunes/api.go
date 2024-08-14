@@ -16,11 +16,12 @@ import (
 )
 
 type AssetMetadata struct {
-	BundleID   string `json:"bundleId"`
-	ArtworkURL string `json:"artworkUrl512"`
-	Version    string `json:"version"`
-	TrackName  string `json:"trackName"`
-	TrackID    uint   `json:"trackId"`
+	BundleID         string   `json:"bundleId"`
+	ArtworkURL       string   `json:"artworkUrl512"`
+	Version          string   `json:"version"`
+	TrackName        string   `json:"trackName"`
+	TrackID          uint     `json:"trackId"`
+	SupportedDevices []string `json:"supportedDevices"`
 }
 
 type AssetMetadataFilter struct {

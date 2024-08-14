@@ -22,7 +22,7 @@ import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { buildQueryStringFromParams } from "utilities/url";
 import SoftwareIcon from "../icons/SoftwareIcon";
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, getUniqueAppId } from "./helpers";
 
 const baseClass = "app-store-vpp";
 
@@ -46,13 +46,34 @@ const EnableVppCard = () => {
   );
 };
 
+const NoVppAppsCard = () => (
+  <Card borderRadiusSize="medium">
+    <div className={`${baseClass}__no-software`}>
+      <p className={`${baseClass}__no-software-title`}>
+        You don&apos;t have any App Store apps
+      </p>
+      <p className={`${baseClass}__no-software-description`}>
+        Add apps in{" "}
+        <CustomLink url="https://business.apple.com" text="ABM" newTab /> Apps
+        that are already added to this team are not listed.
+      </p>
+    </div>
+  </Card>
+);
+
 interface IVppAppListItemProps {
   app: IVppApp;
   selected: boolean;
+  uniqueAppId: string;
   onSelect: (software: IVppApp) => void;
 }
 
-const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
+const VppAppListItem = ({
+  app,
+  selected,
+  uniqueAppId,
+  onSelect,
+}: IVppAppListItemProps) => {
   return (
     <li className={`${baseClass}__list-item`}>
       <Radio
@@ -62,9 +83,9 @@ const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
             <span>{app.name}</span>
           </div>
         }
-        id={`vppApp-${app.app_store_id}`}
+        id={`vppApp-${uniqueAppId}`}
         checked={selected}
-        value={app.app_store_id.toString()}
+        value={uniqueAppId}
         name="vppApp"
         onChange={() => onSelect(app)}
       />
@@ -83,28 +104,41 @@ interface IVppAppListProps {
   onSelect: (app: IVppApp) => void;
 }
 
-const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => (
-  <div className={`${baseClass}__list-container`}>
-    <ul className={`${baseClass}__list`}>
-      {apps.map((app) => (
-        <VppAppListItem
-          key={app.app_store_id}
-          app={app}
-          selected={selectedApp?.app_store_id === app.app_store_id}
-          onSelect={onSelect}
-        />
-      ))}
-    </ul>
-  </div>
-);
+const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
+  const uniqueSelectedAppId = selectedApp ? getUniqueAppId(selectedApp) : null;
+  return (
+    <div className={`${baseClass}__list-container`}>
+      <ul className={`${baseClass}__list`}>
+        {apps.map((app) => {
+          const uniqueAppId = getUniqueAppId(app);
+          return (
+            <VppAppListItem
+              key={uniqueAppId}
+              app={app}
+              selected={uniqueSelectedAppId === uniqueAppId}
+              uniqueAppId={uniqueAppId}
+              onSelect={onSelect}
+            />
+          );
+        })}
+      </ul>
+    </div>
+  );
+};
 
 interface IAppStoreVppProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
+  setAddedSoftwareToken: (token: string) => void;
 }
 
-const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
+const AppStoreVpp = ({
+  teamId,
+  router,
+  onExit,
+  setAddedSoftwareToken,
+}: IAppStoreVppProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
@@ -145,7 +179,11 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     }
 
     try {
-      await mdmAppleAPI.addVppApp(teamId, selectedApp.app_store_id);
+      await mdmAppleAPI.addVppApp(
+        teamId,
+        selectedApp.app_store_id,
+        selectedApp.platform
+      );
       renderFlash(
         "success",
         <>
@@ -157,6 +195,8 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
         team_id: teamId,
         available_for_install: true,
       });
+      // any unique string - triggers SW refetch
+      setAddedSoftwareToken(`${Date.now()}`);
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -182,18 +222,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
 
     if (vppApps) {
       if (vppApps.length === 0) {
-        return (
-          <div className={`${baseClass}__no-software`}>
-            <p className={`${baseClass}__no-software-title`}>
-              You don&apos;t have any App Store apps
-            </p>
-            <p className={`${baseClass}__no-software-description`}>
-              Add apps in{" "}
-              <CustomLink url="https://business.apple.com" text="ABM" newTab />{" "}
-              Apps that are already added to this team are not listed.
-            </p>
-          </div>
-        );
+        return <NoVppAppsCard />;
       }
       return (
         <>

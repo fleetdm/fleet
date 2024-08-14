@@ -176,21 +176,19 @@ Then, scroll down to the **Mobile device management (MDM)** section.
 
 _Available in Fleet Premium_
 
-When migrating from a previous MDM, end users need to take action to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions to reset their key. 
+When migrating from a previous MDM, end users need to restart or logout of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions to reset their key. 
 
 To start, enforce FileVault (disk encryption) and escrow in Fleet. Learn how [here](./MDM-disk-encryption.md). 
 
 After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
-If your old MDM solution did not enforce disk encryption, the end user will need to restart or log out of the host.
-
-If your old MDM solution did enforce disk encryption, the end user will need to reset their disk encryption key by following the prompt on the My device page and inputting their password. 
-
-## Activation Lock Bypass codes
+## Activation Lock
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (DEP) hosts.
 
-If a host under the old MDM solution has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating this host to Fleet: https://support.apple.com/en-us/HT208987.
+In 2024, Apple added the ability to manage activation lock in Apple Business Manager (ABM). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
+
+If a device is not available in ABM and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
 
 This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac.
 

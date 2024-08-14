@@ -43,9 +43,9 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /server/service/handler.go @lucasmrod @getvictor @roperzh @gillespi314
 /server/mdm/ @roperzh @gillespi314 @lucasmrod @georgekarrv
-/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314
-/server/vulnerabilities/ @lucasmrod @mostlikelee @getvictor
-/server/cron/ @getvictor @lucasmrod @roperzh @mostlikelee
+/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314 @lukeheath
+/server/vulnerabilities/ @lucasmrod @mostlikelee @getvictor @lukeheath
+/server/cron/ @getvictor @lucasmrod @roperzh @mostlikelee @lukeheath
 /ee/fleetd-chrome @lucasmrod @getvictor @RachelElysia
 /ee/vulnerability-dashboard @eashaw
 /ee/cis @sharon-fdm @lucasmrod @RachelElysia @jacobshandling
@@ -66,9 +66,9 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @pacamaster @georgekarrv
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb @pacamaster @georgekarrv
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @pacamaster @georgekarrv
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
 /it-and-security/ @noahtalerman @lukeheath @spokanemac @getvictor
 
 ##############################################################################################
@@ -77,8 +77,8 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                           @eashaw
-/docs/REST\ API/rest-api.md                     @lukeheath # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
+/docs/REST\ API/rest-api.md                     @georgekarrv # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @georgekarrv # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################

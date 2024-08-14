@@ -328,7 +328,6 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.expectedStatus, res.Status)
 			require.Equal(t, swFilename, res.SoftwarePackage)
 			require.Equal(t, host.ID, res.HostID)
-			require.Equal(t, host.DisplayName(), res.HostDisplayName)
 			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
 			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)
 			require.Equal(t, tc.installScriptOutput, res.Output)
@@ -356,7 +355,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	// cleanup an empty store
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting(nil)
 
@@ -378,7 +377,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	assertExisting([]string{ins0})
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting([]string{ins0})
 
@@ -386,7 +385,13 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, swi)
 	require.NoError(t, err)
 
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	// would clean up, but not created before 1m ago
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	// do actual cleanup
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	assertExisting(nil)
 }

@@ -653,7 +653,7 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -668,6 +668,8 @@ type Service interface {
 	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
 	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
 	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
+	// IsCVEKnownToFleet returns whether the provided CVE is known to Fleet.
+	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -918,9 +920,6 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
 
-	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
-	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
@@ -930,8 +929,6 @@ type Service interface {
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
-
-	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM

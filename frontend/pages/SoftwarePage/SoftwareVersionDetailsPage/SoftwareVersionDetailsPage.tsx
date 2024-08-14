@@ -18,7 +18,11 @@ import hostsCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
-import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareVersion,
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -114,10 +118,9 @@ const SoftwareVersionDetailsPage = ({
   );
 
   const renderVulnTable = (swVersion: ISoftwareVersion) => {
-    if (["ios_apps", "ipados_apps"].includes(swVersion.source)) {
-      const supportInterestText =
-        swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
-      return <VulnsNotSupported supportInterestText={supportInterestText} />;
+    if (isIpadOrIphoneSoftwareSource(swVersion.source)) {
+      const platformText = swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
+      return <VulnsNotSupported platformText={platformText} />;
     }
     return (
       <SoftwareVulnerabilitiesTable

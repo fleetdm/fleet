@@ -235,7 +235,9 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return ctxerr.Wrap(ctx, err, "set recent update flag")
 		}
 		// Event was updated, so we need to save it
-		err = event.SaveBodyTag(generatedTag)
+		if generatedTag != "" {
+			err = event.SaveDataItems("body_tag", generatedTag)
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "save calendar event body tag")
 		}

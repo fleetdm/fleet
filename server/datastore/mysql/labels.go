@@ -227,6 +227,14 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilt
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
+
+	// Update the label name in mdm_configuration_profile_labels
+	query = `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`
+	_, err = ds.writer(ctx).ExecContext(ctx, query, label.Name, label.ID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
+	}
+
 	return ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
 }
 

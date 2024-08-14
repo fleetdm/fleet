@@ -323,3 +323,6 @@ export const hasHostSoftwareAppLastInstall = (
 } => {
   return !!software.app_store_app?.last_install;
 };
+
+export const isIpadOrIphoneSoftwareSource = (source: string) =>
+  ["ios_apps", "ipados_apps"].includes(source);
