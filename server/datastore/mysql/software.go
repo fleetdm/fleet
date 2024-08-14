@@ -5,7 +5,6 @@ import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -1325,7 +1324,7 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	if !opt.VulnerableOnly && (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) {
 		return nil, nil, fleet.NewInvalidArgumentError(
 			"query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true",
-		).WithStatus(http.StatusUnprocessableEntity)
+		)
 	}
 
 	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
