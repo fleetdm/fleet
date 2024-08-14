@@ -1445,31 +1445,6 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
-	// // NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
-	// // look up DEP hosts by serial number. It grabs the team id and platform from the
-	// // hosts table. Then it uses the team id to get either the global config or team config.
-	// // Finally, it uses the platform to get os updates settings from the config for
-	// // one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
-	// // least of which is that the platform is correct in the hosts table. If the platform is wrong,
-	// // we'll end up with a meaningless comparison of unrelated versions. We could potentially add
-	// // some cross-check against the machine info to ensure that the platform of the host aligns with
-	// // what we expect from the machine info. But that would involve work to derive the platform from
-	// // the machine info (presumably from the product name, but that's not a 1:1 mapping).
-	// settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
-	// if err != nil {
-	// 	if fleet.IsNotFound(err) {
-	// 		level.Info(svc.logger).Log("msg", "settings not found, skipping os version check", "machine_info", *m)
-	// 		return nil, nil
-	// 	}
-	// 	return nil, ctxerr.Wrap(ctx, err, "get os updates settings")
-	// }
-
-	// // TODO: confirm what this check should do
-	// if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
-	// 	level.Info(svc.logger).Log("msg", "settings not set, skipping os version check", "machine_info", *m, "settings", settings)
-	// 	return nil, nil
-	// }
-
 	level.Debug(svc.logger).Log("msg", "checking os version", "machine_info", fmt.Sprintf("%+v", *m))
 
 	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(*m))
