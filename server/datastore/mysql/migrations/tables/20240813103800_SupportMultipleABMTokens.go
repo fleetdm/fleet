@@ -79,7 +79,7 @@ WHERE
 			// nothing to migrate, exit early
 			return nil
 		}
-		return fmt.Errorf("selecting team configs: %w", err)
+		return fmt.Errorf("selecting existing ABM token: %w", err)
 	}
 
 	// get the current ABM configuration from the app config
