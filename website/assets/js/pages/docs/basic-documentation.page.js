@@ -258,22 +258,23 @@ parasails.registerPage('basic-documentation', {
       return this.pagesBySectionSlug[slug];
     },
 
-    findAndSortNavSectionsByUrl: function (url='') {
-      let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
-        'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
-      };
-      let slug = _.last(url.split(/\//));
-      //
-      if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
-        let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
-        let sortedSection = {};
-        orderForThisSection.map((section)=>{
-          sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
-        });
-        this.navSectionsByDocsSectionSlug[slug] = sortedSection;
-      }
-      return this.navSectionsByDocsSectionSlug[slug];
-    },
+    // FUTURE: remove this function if we do not add subsections to docs sections.
+    // findAndSortNavSectionsByUrl: function (url='') {
+    //   let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
+    //     'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
+    //   };
+    //   let slug = _.last(url.split(/\//));
+    //   //
+    //   if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
+    //     let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
+    //     let sortedSection = {};
+    //     orderForThisSection.map((section)=>{
+    //       sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
+    //     });
+    //     this.navSectionsByDocsSectionSlug[slug] = sortedSection;
+    //   }
+    //   return this.navSectionsByDocsSectionSlug[slug];
+    // },
 
     getActiveSubtopicClass: function (currentLocation, url) {
       return _.last(currentLocation.split(/#/)) === _.last(url.split(/#/)) ? 'active' : '';
