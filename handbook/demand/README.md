@@ -86,7 +86,7 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
 
 1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention "[Retired]Events - {Event name}". 
 2. Add the new lead source name to the .csv of leads before uploading to Salesforce.
-3. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
+    a. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
 
 
 2. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
