@@ -1783,7 +1783,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			end = len(uuids)
 		}
 
-		stmt, args, err := sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 		}
