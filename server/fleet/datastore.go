@@ -1622,7 +1622,7 @@ type MDMAppleStore interface {
 
 type MDMAssetRetriever interface {
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
-	// TODO(mna): add GetABMTokenByName here
+	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

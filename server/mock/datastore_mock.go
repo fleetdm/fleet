@@ -860,6 +860,10 @@ type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []flee
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
+type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
+
+type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2274,6 +2278,12 @@ type DataStore struct {
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
+
+	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
+	GetABMTokenByOrgNameFuncInvoked bool
+
+	SaveABMTokenFunc        SaveABMTokenFunc
+	SaveABMTokenFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5447,6 +5457,20 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets)
+}
+
+func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByOrgNameFunc(ctx, orgName)
+}
+
+func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
+	s.mu.Lock()
+	s.SaveABMTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveABMTokenFunc(ctx, tok)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

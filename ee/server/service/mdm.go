@@ -49,6 +49,11 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
+	// TODO: to be addressed in the ABM API implementation, this endpoint is now only
+	// supported if a single ABM token exists:
+	// https://github.com/fleetdm/fleet/pull/21043/files#r1706095564
+	// It has NOT been updated to the new abm tokens storage yet.
+
 	abmAssets, err := svc.ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
@@ -74,7 +79,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
-	token, err := assets.ABMToken(ctx, svc.ds)
+	token, err := assets.ABMToken(ctx, svc.ds, appleBM.OrgName)
 	if err != nil {
 		return nil, err
 	}
