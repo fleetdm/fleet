@@ -77,9 +77,9 @@ export interface ISoftwarePackage {
   self_service: boolean;
   icon_url: string | null;
   status: ISoftwarePackageStatus;
-  install_type: InstallType;
-  labels_include_any: ILabelIdentifier[];
-  labels_exclude_any: ILabelIdentifier[];
+  install_type?: InstallType;
+  labels_include_any?: ILabelIdentifier[];
+  labels_exclude_any?: ILabelIdentifier[];
 }
 
 export const isSoftwarePackage = (
