@@ -68,11 +68,11 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 ## Installing apps on macOS using self-service
 
-1. **Open Fleet from the host**: On the host that will be installing an application through self-service, click on the Fleet Desktop tray icon, then click "My Device". This will open the browser to the device's page on Fleet.
+1. **Open Fleet from the host**: On the host that will be installing an application through self-service, click on the Fleet Desktop tray icon, then click **My Device**. This will open the browser to the device's page on Fleet.
 
-2. **Navigate to the self-service tab**: Click on the "Self-Service" tab under the device's details.
+2. **Navigate to the self-service tab**: Click on the **Self-Service** tab under the device's details.
 
-3. **Locate the app and click install**: Scroll through the list of software to find the app you would like to install, then click the "Install" button underneath it.
+3. **Locate the app and click install**: Scroll through the list of software to find the app you would like to install, then click the **Install** button underneath it.
 
 ## Renewing an expired or expiring VPP token
 
