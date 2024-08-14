@@ -74,7 +74,7 @@ const EmptyVulnerabilitiesTable = ({
   }
 
   if (isSoftwareDisabled) {
-    emptyVulns.graphicName = "empty-software";
+    emptyVulns.graphicName = "empty-search-question";
     emptyVulns.header = "Software inventory disabled";
     emptyVulns.info = (
       <>
