@@ -13,7 +13,7 @@
 * Added index to query_results DB table to speed up finding the last query timestamp for a given query and host.
 * Displayed the label names in case-insensitive alphabetical order in the fleet UI.
 
-## Fleet 4.55.0 (Aug 8, 2024)
+## Fleet 4.55.0 (Aug 9, 2024)
 
 **NOTE:** Beginning with v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.36.
 
