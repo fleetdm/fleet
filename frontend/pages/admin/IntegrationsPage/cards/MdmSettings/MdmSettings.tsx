@@ -1,12 +1,13 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
+import { AxiosError, AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { AppContext } from "context/app";
-
-import mdmAppleAPI from "services/entities/mdm_apple";
 import { IMdmApple } from "interfaces/mdm";
+import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
+import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import MdmSettingsSection from "./components/MdmSettingsSection";
 import AutomaticEnrollmentSection from "./components/AutomaticEnrollmentSection";
@@ -28,13 +29,15 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
   // this page. Because of this we will not render any of this components UI until this API
   // call has completed.
   const {
-    data: appleAPNInfo,
-    isLoading: isLoadingMdmApple,
-    error: errorMdmApple,
+    data: APNSInfo,
+    isLoading: isLoadingAPNSInfo,
+    isError: isAPNSInfoError,
+    error: errorAPNSInfo,
   } = useQuery<IMdmApple, AxiosError, IMdmApple>(
     ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
       // TODO: There is a potential race condition here immediately after MDM is turned off. This
@@ -47,27 +50,91 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     }
   );
 
-  const hasAllData = !isLoadingMdmApple && !errorMdmApple;
+  // get the vpp info
+  const {
+    data: vppData,
+    error: vppError,
+    isLoading: isLoadingVpp,
+    isError: isVppError,
+  } = useQuery<IGetVppInfoResponse, AxiosError>(
+    "vppInfo",
+    () => mdmAppleAPI.getVppInfo(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
+      enabled: !!config?.mdm.enabled_and_configured,
+    }
+  );
+
+  // get the eula metadata
+  const {
+    data: eulaMetadata,
+    isLoading: isLoadingEula,
+    isError: isEulaError,
+    error: eulaError,
+    refetch: refetchEulaMetadata,
+  } = useQuery<IEulaMetadataResponse, AxiosError>(
+    ["eula-metadata"],
+    () => mdmAPI.getEULAMetadata(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
+      enabled: !!config?.mdm.enabled_and_configured,
+    }
+  );
+
+  // we use this to determine if we any of the request are still in progress
+  // and should show a spinner.
+  const isLoading = isLoadingAPNSInfo || isLoadingVpp || isLoadingEula;
+
+  // vpp request had an error only if the status is not 404.
+  // 404 means that the VPP is not enabled and we dont want to show an error in that case.
+  const noVppUploaded = vppError && vppError.status === 404 && !vppData;
+  const hasVppError = isVppError && !noVppUploaded;
+
+  // we are relying on the API to tell us this resource does not exist to
+  // determine if the user has uploaded a eula.
+  const noEulaUploaded = eulaError && eulaError.status === 404;
+  const hasEulaError = isEulaError && !noEulaUploaded;
+
+  // we use this to determine if there was any error to get any of the data we
+  // depend on to render the UI on this page.
+  const hasError = isAPNSInfoError || hasVppError || hasEulaError;
+
+  // we use this to determine if we have all the data we need to render the UI.
+  // Notice that we do not need VPP or EULA data to render this page.
+  const hasAllData = !!APNSInfo;
 
   return (
     <div className={baseClass}>
+      {/* this section component handles showing the pages overall loading and error states */}
       <MdmSettingsSection
-        isLoading={isLoadingMdmApple}
-        appleAPNInfo={appleAPNInfo}
-        appleAPNError={errorMdmApple}
+        isLoading={isLoading}
+        isError={hasError}
+        appleAPNSInfo={APNSInfo}
+        appleAPNSError={errorAPNSInfo}
         router={router}
       />
-      {hasAllData && (
+      {!isLoading && !hasError && hasAllData && (
         <>
           <AutomaticEnrollmentSection
             router={router}
             isPremiumTier={!!isPremiumTier}
           />
-          <VppSection router={router} isPremiumTier={!!isPremiumTier} />
+          <VppSection
+            router={router}
+            isVppOn={!noVppUploaded}
+            isPremiumTier={!!isPremiumTier}
+          />
           {isPremiumTier && (
             <>
               <IdpSection />
-              <EulaSection />
+              <EulaSection
+                eulaMetadata={eulaMetadata}
+                isEulaUploaded={!noEulaUploaded}
+                onUpload={refetchEulaMetadata}
+                onDelete={refetchEulaMetadata}
+              />
               <EndUserMigrationSection router={router} />
             </>
           )}

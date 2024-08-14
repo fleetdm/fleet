@@ -47,7 +47,7 @@ const SeeDetailsAppleMdm = ({ onClickDetails }: ITurnOffAppleMdmProps) => {
 };
 
 interface IAppleMdmCardProps {
-  appleAPNInfo: IMdmApple | undefined;
+  appleAPNSInfo: IMdmApple | undefined;
   errorData: AxiosError | null;
   turnOnAppleMdm: () => void;
   viewDetails: () => void;
@@ -60,7 +60,7 @@ interface IAppleMdmCardProps {
  * loading states on the page.
  */
 const AppleMdmCard = ({
-  appleAPNInfo,
+  appleAPNSInfo,
   errorData,
   turnOnAppleMdm,
   viewDetails,
@@ -76,7 +76,7 @@ const AppleMdmCard = ({
 
   return (
     <Card className={baseClass} color="gray">
-      {appleAPNInfo !== undefined ? (
+      {appleAPNSInfo !== undefined ? (
         <SeeDetailsAppleMdm onClickDetails={viewDetails} />
       ) : (
         <TurnOnAppleMdm onClickTurnOn={turnOnAppleMdm} />

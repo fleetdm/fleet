@@ -15,29 +15,23 @@ import DeleteEulaModal from "./components/DeleteEulaModal/DeleteEulaModal";
 
 const baseClass = "eula-section";
 
-const EulaSection = () => {
+interface IEulaSectionProps {
+  eulaMetadata?: IEulaMetadataResponse;
+  isEulaUploaded: boolean;
+  onUpload: () => void;
+  onDelete: () => void;
+}
+
+const EulaSection = ({
+  eulaMetadata,
+  isEulaUploaded,
+  onUpload,
+  onDelete,
+}: IEulaSectionProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [showDeleteEulaModal, setShowDeleteEulaModal] = useState(false);
 
-  const {
-    data: eulaMetadata,
-    isLoading,
-    error,
-    refetch: refetchEulaMetadata,
-  } = useQuery<IEulaMetadataResponse, AxiosResponse<IApiError>>(
-    ["eula-metadata"],
-    () => mdmAPI.getEULAMetadata(),
-    {
-      retry: false,
-      refetchOnWindowFocus: false,
-    }
-  );
-
-  const onUpload = () => {
-    refetchEulaMetadata();
-  };
-
-  const onDelete = async () => {
+  const onDeleteEula = async () => {
     if (!eulaMetadata) return;
 
     try {
@@ -47,36 +41,28 @@ const EulaSection = () => {
       renderFlash("error", "Couldn’t delete. Please try again.");
     } finally {
       setShowDeleteEulaModal(false);
-      refetchEulaMetadata();
+      onDelete();
     }
   };
-
-  // we are relying on the API to tell us this resource does not exist to
-  // determine if the user has uploaded a eula.
-  const noEulaUploaded = (error && error.status === 404) || !eulaMetadata;
 
   return (
     <SettingsSection
       className={baseClass}
       title="End user license agreement (EULA)"
     >
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <div className={`${baseClass}__content`}>
-          {noEulaUploaded ? (
-            <EulaUploader onUpload={onUpload} />
-          ) : (
-            <UploadedEulaView
-              eulaMetadata={eulaMetadata}
-              onDelete={() => setShowDeleteEulaModal(true)}
-            />
-          )}
-        </div>
-      )}
+      <div className={`${baseClass}__content`}>
+        {!isEulaUploaded || !eulaMetadata ? (
+          <EulaUploader onUpload={onUpload} />
+        ) : (
+          <UploadedEulaView
+            eulaMetadata={eulaMetadata}
+            onDelete={() => setShowDeleteEulaModal(true)}
+          />
+        )}
+      </div>
       {showDeleteEulaModal && (
         <DeleteEulaModal
-          onDelete={onDelete}
+          onDelete={onDeleteEula}
           onCancel={() => setShowDeleteEulaModal(false)}
         />
       )}

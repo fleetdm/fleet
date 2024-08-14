@@ -92,37 +92,22 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
 
 interface IVppSectionProps {
   router: InjectedRouter;
+  isVppOn: boolean;
   isPremiumTier: boolean;
 }
 
-const VppSection = ({ router, isPremiumTier }: IVppSectionProps) => {
+const VppSection = ({ router, isVppOn, isPremiumTier }: IVppSectionProps) => {
   const { config } = useContext(AppContext);
-
-  const { data: vppData, error: vppError, isLoading, isError } = useQuery<
-    IGetVppInfoResponse,
-    AxiosError
-  >("vppInfo", () => mdmAppleAPI.getVppInfo(), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    retry: false,
-  });
 
   const renderContent = () => {
     if (!isPremiumTier) {
       return <PremiumFeatureMessage alignment="left" />;
     }
 
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError && vppError?.status !== 404) {
-      return <DataError />;
-    }
-
     return (
       <VppCard
         isAppleMdmOn={!!config?.mdm.enabled_and_configured}
-        isVppOn={!!vppData && vppError?.status !== 404}
+        isVppOn={isVppOn}
         router={router}
       />
     );

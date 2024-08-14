@@ -6,6 +6,7 @@ import PATHS from "router/paths";
 import { IMdmApple } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
 import AppleMdmCard from "./AppleMdmCard";
@@ -14,17 +15,19 @@ import WindowsMdmCard from "./WindowsMdmCard";
 const baseClass = "mdm-settings-section";
 
 interface IMdmSectionProps {
-  appleAPNInfo?: IMdmApple;
-  appleAPNError: AxiosError | null;
   isLoading: boolean;
+  isError: boolean;
+  appleAPNSError: AxiosError | null;
   router: InjectedRouter;
+  appleAPNSInfo?: IMdmApple;
 }
 
 const MdmSettingsSection = ({
-  router,
-  appleAPNInfo,
-  appleAPNError,
   isLoading,
+  isError,
+  appleAPNSError,
+  router,
+  appleAPNSInfo,
 }: IMdmSectionProps) => {
   const navigateToAppleMdm = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE);
@@ -34,27 +37,37 @@ const MdmSettingsSection = ({
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
   };
 
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError />;
+    }
+
+    return (
+      <div className={`${baseClass}__content`}>
+        <AppleMdmCard
+          appleAPNSInfo={appleAPNSInfo}
+          errorData={appleAPNSError}
+          turnOnAppleMdm={navigateToAppleMdm}
+          viewDetails={navigateToAppleMdm}
+        />
+        <WindowsMdmCard
+          turnOnWindowsMdm={navigateToWindowsMdm}
+          editWindowsMdm={navigateToWindowsMdm}
+        />
+      </div>
+    );
+  };
+
   return (
     <SettingsSection
       title="Mobile device management (MDM)"
       className={baseClass}
     >
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <div className={`${baseClass}__content`}>
-          <AppleMdmCard
-            appleAPNInfo={appleAPNInfo}
-            errorData={appleAPNError}
-            turnOnAppleMdm={navigateToAppleMdm}
-            viewDetails={navigateToAppleMdm}
-          />
-          <WindowsMdmCard
-            turnOnWindowsMdm={navigateToWindowsMdm}
-            editWindowsMdm={navigateToWindowsMdm}
-          />
-        </div>
-      )}
+      {renderContent()}
     </SettingsSection>
   );
 };

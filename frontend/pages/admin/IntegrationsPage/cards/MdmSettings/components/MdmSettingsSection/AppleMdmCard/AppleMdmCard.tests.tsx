@@ -11,7 +11,7 @@ describe("AppleMdmCard", () => {
   it("renders the turn on Apple mdm state when there is no appleAPNInfo", () => {
     render(
       <AppleMdmCard
-        appleAPNInfo={undefined}
+        appleAPNSInfo={undefined}
         errorData={null}
         turnOnAppleMdm={noop}
         viewDetails={noop}
@@ -26,7 +26,7 @@ describe("AppleMdmCard", () => {
   it("renders the show details state when there is appleAPNInfo", () => {
     render(
       <AppleMdmCard
-        appleAPNInfo={createMockMdmApple()}
+        appleAPNSInfo={createMockMdmApple()}
         errorData={null}
         turnOnAppleMdm={noop}
         viewDetails={noop}
@@ -41,7 +41,7 @@ describe("AppleMdmCard", () => {
   it("renders the error state when there is a non 404 error", () => {
     render(
       <AppleMdmCard
-        appleAPNInfo={createMockMdmApple()}
+        appleAPNSInfo={createMockMdmApple()}
         errorData={createMockAxiosError({ status: 500 })}
         turnOnAppleMdm={noop}
         viewDetails={noop}
@@ -52,7 +52,7 @@ describe("AppleMdmCard", () => {
 
     render(
       <AppleMdmCard
-        appleAPNInfo={createMockMdmApple()}
+        appleAPNSInfo={createMockMdmApple()}
         errorData={createMockAxiosError({ status: 404 })}
         turnOnAppleMdm={noop}
         viewDetails={noop}
