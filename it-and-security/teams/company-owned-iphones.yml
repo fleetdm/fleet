@@ -12,7 +12,7 @@ team_settings:
 agent_options:
 controls:
   ios_updates:
-    deadline: "2024-08-12"
+    deadline: "2024-08-23"
     minimum_version: "17.6"
   macos_settings:
     custom_settings:
