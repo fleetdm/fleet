@@ -387,6 +387,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
 	}
 
+	isPreSonoma := vers < constant.SonomaMajorVersion
+
 	message, flags, err := m.getMessageAndFlags(vers, isManualMigration)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
@@ -420,7 +422,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner(vers < 14, isCurrentlyManuallyEnrolled)
+			m.renderLoadingSpinner(isPreSonoma, isCurrentlyManuallyEnrolled)
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -451,7 +453,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 
 			switch true {
-			case vers < 14:
+			case isPreSonoma:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
 				}
@@ -541,7 +543,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 	}
 
 	height := "669"
-	if version != 0 && version < 14 {
+	if version != 0 && version < constant.SonomaMajorVersion {
 		height = "440"
 		tmpl = mdmMigrationTemplatePreSonoma
 	}
