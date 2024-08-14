@@ -5,6 +5,7 @@ import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -979,19 +980,46 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	}
 
 	if opts.IncludeCVEScores {
-		ds = ds.
-			LeftJoin(
+
+		baseJoinConditions := goqu.Ex{
+			"c.cve": goqu.I("scv.cve"),
+		}
+
+		if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+
+			if opts.KnownExploit {
+				baseJoinConditions["c.cisa_known_exploit"] = true
+			}
+
+			if opts.MinimumCVSS > 0 {
+				baseJoinConditions["c.cvss_score"] = goqu.Op{"gte": opts.MinimumCVSS}
+			}
+
+			if opts.MaximumCVSS > 0 {
+				baseJoinConditions["c.cvss_score"] = goqu.Op{"lte": opts.MaximumCVSS}
+			}
+
+			ds = ds.InnerJoin(
 				goqu.I("cve_meta").As("c"),
-				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-			).
-			SelectAppend(
-				goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
-				goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
-				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
-				goqu.MAX("c.published").As("cve_published"),                   // for ordering
-				goqu.MAX("c.description").As("description"),                   // for ordering
-				goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+				goqu.On(baseJoinConditions),
 			)
+
+		} else {
+			ds = ds.
+				LeftJoin(
+					goqu.I("cve_meta").As("c"),
+					goqu.On(baseJoinConditions),
+				)
+		}
+
+		ds = ds.SelectAppend(
+			goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
+			goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
+			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
+			goqu.MAX("c.published").As("cve_published"),                   // for ordering
+			goqu.MAX("c.description").As("description"),                   // for ordering
+			goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+		)
 	}
 
 	if match := opts.ListOptions.MatchQuery; match != "" {
@@ -1294,6 +1322,12 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+	if !opt.VulnerableOnly && (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true",
+		).WithStatus(http.StatusUnprocessableEntity)
+	}
+
 	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
 	if err != nil {
 		return nil, nil, err
@@ -1428,8 +1462,6 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(sql, args)
 
 	var results []softwareCVE
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...)
