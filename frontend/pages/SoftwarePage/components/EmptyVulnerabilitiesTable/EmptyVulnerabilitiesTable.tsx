@@ -51,7 +51,7 @@ const EmptyVulnerabilitiesTable = ({
         &quot;CVE-YYYY-&lt;4 or more digits&gt;&quot;
       </>
     );
-  } else if ((!searchQuery || searchQuery === "") && !exploitedFilter) {
+  } else if (!searchQuery && !exploitedFilter) {
     emptyVulns.header = "No vulnerabilities detected";
   }
 
