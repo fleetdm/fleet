@@ -3,28 +3,24 @@
 ### Bug fixes
 
 * Added a disabled overlay to the Other Workflows modal on the policy page.
-
 * Updated text for "Turn on MDM" banners in UI.
-
 * Fixed a bug when a cached prepared statement got deleted in the MySQL server itself without Fleet knowing.
-
 * Continued with an empty CVE description when the NVD CVE feed didn't include description entries (instead of panicking).
-
 * Scheduled maintenance events are now scheduled over calendar events marked "Free" (not busy) in Google Calendar.
-
 * Fixed a bug where the wrong API path was used to download a software installer.
-
 * Improved fleetctl gitops error message when trying to change team name to a team that already exists.
-
 * Updated ABM (Apple Business Manager) host tooltip copy on the manage host page to clarify when host vitals will be available to view.
-
 * Added index to query_results DB table to speed up finding the last query timestamp for a given query and host.
-
 * Displayed the label names in case-insensitive alphabetical order in the fleet UI.
 
 ## Fleet 4.55.0 (Aug 8, 2024)
 
 **NOTE:** Beginning with v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.36.
+
+**NOTE:** Changes to software field in [GitOps](https://fleetdm.com/docs/using-fleet/gitops):
+- `software` field is optional for TEAMs in 4.54.1 and lower
+- `software` field should NOT be added to NO-TEAM before 4.55.0
+- `software` field is mandatory for NO-TEAM and TEAMs in 4.55.0 and up
 
 ### Endpoint Operations
 
@@ -36,7 +32,7 @@
   - Fleet server watches for potential changes for up to 1 week after original event time. If event is moved forward more than 1 week, then after 1 week Fleet server will check for event changes once every 30 minutes.
   - **NOTE:** These near real-time updates may add additional load to the Google Calendar API, so it is recommended to use API usage alerts or other monitoring methods.
 
-### Device Management
+### Device management
 
 - Integrated [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to add enforcement of FileVault during the MacOS Setup Assistant process for hosts that are 
 enrolled into teams (or no team) with disk encryption turned on. Thank you [homebysix](https://github.com/homebysix) and team!
@@ -67,7 +63,7 @@ enrolled into teams (or no team) with disk encryption turned on. Thank you [home
 - Added a special-case to properly name the Notion .exe Windows installer the same as how it will be reported by osquery post-install.
 - Increased threshold to renew Apple SCEP certificates for MDM enrollments to 180 days.
 
-### Vulnerability Management
+### Vulnerability management
 
 - Fixed CVEs identified as 'Rejected' in NVD not matching against software.
 - Fixed false negative vulnerabilities with IntelliJ IDEA CE and PyCharm CE installed via Homebrew.
@@ -190,19 +186,19 @@ enrolled into teams (or no team) with disk encryption turned on. Thank you [home
 
 ### Bug fixes
 
-- Updated fleetctl get queries/labels/hosts descriptions.
-- Fixed exporting CSVs with fields that contain commas to render properly.
-- Fixed link to fleetd uninstall instructions in "Delete device" modal.
-- Rendered only one banner on the my device page based on priority order.
-- Hidden query delete checkboxes from team observers.
-- Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
-- Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall broke the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
-- Fixed counts for hosts with low disk space in summary page.
-- Fleet UI fixes: Hide CTA on inherited queries/policies from team level users.
-- Updated software updated timestamp tooltip.
-- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
-- Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
-- Fixed UI capitalizations.
+* Updated fleetctl get queries/labels/hosts descriptions.
+* Fixed exporting CSVs with fields that contain commas to render properly.
+* Fixed link to fleetd uninstall instructions in "Delete device" modal.
+* Rendered only one banner on the my device page based on priority order.
+* Hidden query delete checkboxes from team observers.
+* Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
+* Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall broke the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+* Fixed counts for hosts with low disk space in summary page.
+* Fleet UI fixes: Hide CTA on inherited queries/policies from team level users.
+* Updated software updated timestamp tooltip.
+* Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
+* Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
+* Fixed UI capitalizations.
 
 ## Fleet 4.53.0 (Jun 25, 2024)
 
