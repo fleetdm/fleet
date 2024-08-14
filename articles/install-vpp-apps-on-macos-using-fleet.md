@@ -3,13 +3,14 @@
 ![Install VPP apps on macOS using Fleet](../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png)
 
 
-Fleet supports the ability to add Apple App Store applications to your software library using the Volume Purchasing Program (VPP) and then install those apps on macOS, iOS, or iPadOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your hosts.
+Fleet Premium supports the ability to add Apple App Store applications to your software library using the Volume Purchasing Program (VPP) and then install those apps on macOS, iOS, or iPadOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your hosts.
 
 The Volume Purchasing Program is an Apple initiative that allows organizations to purchase and distribute apps and books in bulk. This program is particularly beneficial for organizations that need to deploy multiple apps to many devices. Key benefits of VPP include:
 * **Bulk purchasing**: Purchase multiple licenses for an app in one transaction, often with volume discounts.
 * **Centralized management**: Manage and distribute purchased apps from a central location.
 * **Licensing flexibility**: Reassign app licenses as needed, ensuring efficient use of resources.
 * **Streamlined deployment**: Use Fleet to automate the installation and configuration of purchased apps on enrolled devices.
+* **Self-Service (macOS only)**: Allow users to assign licenses to their own devices as needed.
 
 By integrating VPP with Fleet, organizations can seamlessly add apps to their software library and deploy them across macOS, iOS, and iPadOS hosts, ensuring that all devices have the necessary applications installed efficiently and effectively.
 
@@ -39,7 +40,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 4. **View your available apps**: Click on the "App Store (VPP)" tab in the "Add software" modal. The modal will list the apps that you have purchased through VPP but still need to add to Fleet.
 
-5. **Add an app**: Select an app from the list and click the "Add software" button in the bottom right of the modal. The app should appear in the software list for the selected team.
+5. **Add an app**: Select an app from the list. You may optionally check the "Self-Service" box at the bottom left of the modal if you wish for the software to be available for user-initiated installs. Finally, click the "Add software" button in the bottom right of the modal. The app should appear in the software list for the selected team.
 
 ## Remove an app from Fleet
 
@@ -64,6 +65,14 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
    instructing it to install the app. If the host is offline, the upcoming install will show up in
    the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and
    the host details are refetched, the app will show up as **Installed** in the **Software** tab.
+
+## Installing apps on macOS using self-service
+
+1. **Open Fleet from the host**: On the host that will be installing an application through self-service, click on the Fleet Desktop tray icon, then click "My Device". This will open the browser to the device's page on Fleet.
+
+2. **Navigate to the self-service tab**: Click on the "Self-Service" tab under the device's details.
+
+3. **Locate the app and click install**: Scroll through the list of software to find the app you would like to install, then click the "Install" button underneath it.
 
 ## Renewing an expired or expiring VPP token
 
