@@ -1042,7 +1042,7 @@ func (ds *Datastore) applyHostFilters(
 			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
 			switch {
 			case fleet.IsNotFound(err):
-				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
