@@ -6189,6 +6189,16 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 This endpoint returns the results for a specific custom MDM command.
 
+In the reponse, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
+
+* Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
+* NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
+* Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
+* Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
+* CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
+
+The possible `status` values for Windows hosts are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+
 `GET /api/v1/fleet/commands/results`
 
 #### Parameters
@@ -6223,7 +6233,6 @@ This endpoint returns the results for a specific custom MDM command.
 ```
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
-
 
 ### List custom MDM commands
 

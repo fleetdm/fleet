@@ -83,17 +83,7 @@ You can view a list of the 1,000 latest commands:
 1. Run `fleetctl get mdm-commands`
 2. View the list of latest commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
 
-The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). 
-
-The possible statuses for macOS, iOS, and iPadOS hosts are the following:
-
-* Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
-* NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
-* Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
-* Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
-* CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
-
-The possible statuses for Windows hosts are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results).
 
 <meta name="pageOrderInSection" value="1507">
 <meta name="title" value="Commands">
