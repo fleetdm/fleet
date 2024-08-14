@@ -35,14 +35,16 @@ const EmptyVulnerabilitiesTable = ({
   searchQuery = "",
   knownVulnerability,
 }: IEmptyVulnerabilitiesTableProps): JSX.Element => {
-  const emptySoftware: IEmptyTableProps = {
+  const emptyVulns: IEmptyTableProps = {
+    graphicName: "empty-search-question",
     header: "No items match the current search criteria",
     info: "Expecting to see vulnerabilities? Check back later.",
   };
 
   if (searchQuery && !isValidCVEFormat(searchQuery)) {
-    emptySoftware.header = "That vulnerability (CVE) is not valid";
-    emptySoftware.info = (
+    emptyVulns.graphicName = "empty-search-exclamation";
+    emptyVulns.header = "That vulnerability (CVE) is not valid";
+    emptyVulns.info = (
       <>
         Try updating your search to use CVE format:
         <br />
@@ -50,28 +52,31 @@ const EmptyVulnerabilitiesTable = ({
       </>
     );
   } else if ((!searchQuery || searchQuery === "") && !exploitedFilter) {
-    emptySoftware.header = "No vulnerabilities detected";
+    emptyVulns.header = "No vulnerabilities detected";
   }
 
   if (knownVulnerability) {
-    emptySoftware.header = `This is a known vulnerability (CVE), but it wasn't detected on any hosts${
+    emptyVulns.graphicName = "empty-search-check";
+    emptyVulns.header = `This is a known vulnerability (CVE), but it wasn't detected on any hosts${
       teamId !== undefined ? " in this team" : ""
     }.`;
     if (isPremiumTier && exploitedFilter) {
-      emptySoftware.info =
+      emptyVulns.info =
         "If you're filtering by exploited CVEs, try removing the filter to expand your search.";
     }
-    emptySoftware.additionalInfo = renderLearnMoreLink();
+    emptyVulns.additionalInfo = renderLearnMoreLink();
   } else if (knownVulnerability === false) {
-    emptySoftware.header = "This is not a known CVE";
-    emptySoftware.info =
+    emptyVulns.graphicName = "empty-search-question";
+    emptyVulns.header = "This is not a known CVE";
+    emptyVulns.info =
       "None of Fleet's vulnerability sources are aware of this CVE.";
-    emptySoftware.additionalInfo = renderLearnMoreLink();
+    emptyVulns.additionalInfo = renderLearnMoreLink();
   }
 
   if (isSoftwareDisabled) {
-    emptySoftware.header = "Software inventory disabled";
-    emptySoftware.info = (
+    emptyVulns.graphicName = "empty-software";
+    emptyVulns.header = "Software inventory disabled";
+    emptyVulns.info = (
       <>
         Users with the admin role can{" "}
         <CustomLink
@@ -86,10 +91,10 @@ const EmptyVulnerabilitiesTable = ({
 
   return (
     <EmptyTable
-      graphicName="empty-software"
-      header={emptySoftware.header}
-      info={emptySoftware.info}
-      additionalInfo={emptySoftware.additionalInfo}
+      graphicName={emptyVulns.graphicName}
+      header={emptyVulns.header}
+      info={emptyVulns.info}
+      additionalInfo={emptyVulns.additionalInfo}
     />
   );
 };

@@ -80,7 +80,7 @@ const EmptySoftwareTable = ({
 
   return (
     <EmptyTable
-      graphicName="empty-software"
+      graphicName="empty-search-question"
       header={emptySoftware.header}
       info={emptySoftware.info}
     />
