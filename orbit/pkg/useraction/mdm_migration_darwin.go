@@ -275,7 +275,7 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 }
 
 func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) (chan swiftDialogExitCode, chan error) {
-	body := unenrollBody
+	var body string
 	switch true {
 	case preSonoma:
 		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-migration-pre-sonoma-unenroll-1024x500.png)")
