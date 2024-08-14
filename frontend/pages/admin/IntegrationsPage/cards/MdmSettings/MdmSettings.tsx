@@ -109,7 +109,8 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   return (
     <div className={baseClass}>
-      {/* this section component handles showing the pages overall loading and error states */}
+      {/* The MDM settings section component handles showing the pages overall
+       * loading and error states */}
       <MdmSettingsSection
         isLoading={isLoading}
         isError={hasError}
