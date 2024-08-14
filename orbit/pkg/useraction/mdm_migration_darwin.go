@@ -61,7 +61,7 @@ var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemp
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
-	"After you start, this window will popup every 15 minutes until you finish.",
+	"After you start, this window will popup every 3 minutes until you finish.",
 ))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
@@ -69,7 +69,7 @@ var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
 
 Select **Start** and My device page will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-manual-migration-1024x500.png)\n\n" +
-	"After you start, this window will popup every 15 minutes until you finish.",
+	"After you start, this window will popup every 3 minutes until you finish.",
 ))
 
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
@@ -410,7 +410,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		if previousMigrationType == constant.MDMMigrationTypeManual {
+		if previousMigrationType == constant.MDMMigrationTypeManual || previousMigrationType == constant.MDMMigrationTypePreSonoma {
 			// Launch the "My device" page.
 			log.Info().Msg("showing instructions")
 
@@ -472,6 +472,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				if err := m.handler.ShowInstructions(); err != nil {
 					return err
 				}
+
+				m.frequency = 3 * time.Minute
 
 			default:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeADE); err != nil {
