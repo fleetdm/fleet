@@ -146,9 +146,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     <MainContent className={baseClass}>
       <>
         <BackLink
-          text="Back to automatic enrollment"
-          path={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT}
-          className={`${baseClass}__back-to-automatic-enrollment`}
+          text="Back to MDM"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          className={`${baseClass}__back-to-mdm`}
         />
         <h1>Apple Business Manager (ABM)</h1>
         {showDataError && (
