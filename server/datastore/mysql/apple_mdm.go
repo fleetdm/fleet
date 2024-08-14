@@ -1666,13 +1666,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		return nil
 	}
 
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-
 	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
+	batchSize := 10_000
 
 	// TODO(mna): the conditions here (and in toRemoveStmt) are subtly different
 	// than the ones in ListMDMAppleProfilesToInstall/Remove, so I'm keeping
@@ -1726,6 +1721,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		}
 
 		batchUUIDs := uuids[start:end]
+		level.Info(ds.logger).Log("msg", "processing batch to install", "i", i, "totalBatches", totalBatches, "start", start, "end", end)
 
 		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		if err != nil {
@@ -1784,6 +1780,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		}
 
 		batchUUIDs := uuids[start:end]
+		level.Info(ds.logger).Log("msg", "processing batch to remove", "i", i, "totalBatches", totalBatches, "start", start, "end", end)
 
 		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		if err != nil {
@@ -1867,6 +1864,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		batchCount = 0
 		pargs = pargs[:0]
 		psb.Reset()
+	}
+
+	const defaultBatchSize = 1000
+	batchSize = defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	for _, p := range wantedProfiles {
