@@ -533,11 +533,11 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Upload APNS certificate](#upload-apns-certificate)
 - [Add ABM token](#add-abm-token)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
-- [Update ABM token's teams](#update-abm-tokens-teams) 
+- [Update ABM token's teams](#update-abm-tokens-teams)
 - [Renew ABM token](#renew-abm-token)
 - [Delete ABM token](#delete-abm-token)
 - [Add VPP token](#add-VPP-token)
-- [Update VPP token's teams](#udpate-vpp-tokens-teams) 
+- [Update VPP token's teams](#udpate-vpp-tokens-teams)
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
@@ -659,6 +659,20 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 200`
+
+```json
+{
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-11-29T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": "",
+  "ios_team": "",
+  "ipados_team": ""
+}
+```
 
 ### Turn off Apple MDM
 
@@ -2745,7 +2759,7 @@ Lists the software installed on the current device.
         "installed_at": "2024-05-15T15:23:57Z"
       },
       "installed_versions": [
-        { 
+        {
           "version": "121.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
@@ -2760,7 +2774,7 @@ Lists the software installed on the current device.
       "status": null,
       "last_install": null,
       "installed_versions": [
-        { 
+        {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
@@ -3115,7 +3129,7 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
-### Batch-apply scripts 
+### Batch-apply scripts
 
 _Available in Fleet Premium_
 
@@ -3144,7 +3158,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ## Software
 
-### Batch-apply software 
+### Batch-apply software
 
 _Available in Fleet Premium._
 
