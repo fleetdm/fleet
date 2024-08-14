@@ -87,18 +87,20 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
   // and should show a spinner.
   const isLoading = isLoadingAPNSInfo || isLoadingVpp || isLoadingEula;
 
-  // vpp request had an error only if the status is not 404.
+  // vpp request have an error only if the status is not 404.
   // 404 means that the VPP is not enabled and we dont want to show an error in that case.
-  const noVppUploaded = vppError && vppError.status === 404 && !vppData;
-  const hasVppError = isVppError && !noVppUploaded;
+  const noVppTokenUploaded = vppError && vppError.status === 404 && !vppData;
+  const hasVppError = isVppError && !noVppTokenUploaded;
 
-  // we are relying on the API to tell us this resource does not exist to
-  // determine if the user has uploaded a eula.
+  // Similar to the vpp request, we are relying on the API to give us a 404 to
+  // tell use the user has not uploaded a eula.
   const noEulaUploaded = eulaError && eulaError.status === 404;
   const hasEulaError = isEulaError && !noEulaUploaded;
 
-  // we use this to determine if there was any error to get any of the data we
-  // depend on to render the UI on this page.
+  // we use this to determine if there was any errors when getting any of the
+  // data we depend on to render the page. We will not include the VPP or EULA
+  // 404 errors. We only want to show an error if there was a "real" error
+  // (e.g.non 404 error).
   const hasError = isAPNSInfoError || hasVppError || hasEulaError;
 
   // we use this to determine if we have all the data we need to render the UI.
@@ -123,7 +125,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           />
           <VppSection
             router={router}
-            isVppOn={!noVppUploaded}
+            isVppOn={!noVppTokenUploaded}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && (
