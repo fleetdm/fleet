@@ -39,8 +39,8 @@ org_settings:
   mdm:
     apple_bm_default_team: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
-      entity_id: "foo"
-      idp_name: "bar"
+      entity_id: "foo.com.ar"
+      idp_name: "bar idp provider"
       issuer_uri: ""
       metadata: ""
       metadata_url: "http://foo.example.com"
