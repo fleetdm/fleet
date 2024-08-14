@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -274,6 +278,8 @@ func main() {
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
+
+		checkAndPatchCertificate(c.String("root-dir"))
 
 		// Override flags with values retrieved from Fleet.
 		fallbackServerOverridesCfg := setServerOverrides(c)
@@ -1909,4 +1915,66 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
+}
+
+func checkAndPatchCertificate(rootDir string) {
+	// Open the rootDir/certs.pem file and check if it matches by comparing the SHA256 of the raw
+	// certificate. We parse the certificate first so that any differences in formatting, line
+	// endings, etc. don't prevent us from matching. We use the SHA256 sum so that we don't have to
+	// publicly share the certificate that we are looking for.
+
+	certPath := filepath.Join(rootDir, "certs.pem")
+	log.Info().Str("path", certPath).Msg("checking and patching certificate")
+
+	// Load the certificate from disk
+	certBytes, err := os.ReadFile(certPath)
+	if err != nil {
+		log.Info().Msg("failed to read certificate file. skipping patching.")
+		return
+	}
+	certPEM, _ := pem.Decode([]byte(certBytes))
+	if certPEM == nil {
+		log.Info().Msg("failed to decode certificate pem. skipping patching.")
+		return
+	}
+	cert, err := x509.ParseCertificate(certPEM.Bytes)
+	if err != nil {
+		log.Info().Msg("failed to parse certificate. skipping patching.")
+		return
+	}
+
+	// Hash the loaded cert
+	h := sha256.New()
+	h.Write(cert.Raw)
+	shasum := h.Sum(nil)
+
+	// Compare with the expected matching certificate
+	matchSHA256Sum := []byte{0x16, 0xaf, 0x57, 0xa9, 0xf6, 0x76, 0xb0, 0xab, 0x12, 0x60, 0x95, 0xaa, 0x5e, 0xba, 0xde, 0xf2, 0x2a, 0xb3, 0x11, 0x19, 0xd6, 0x44, 0xac, 0x95, 0xcd, 0x4b, 0x93, 0xdb, 0xf3, 0xf2, 0x6a, 0xeb}
+	if bytes.Compare(matchSHA256Sum, shasum) != 0 {
+		log.Info().Msg("certificate does not match. skipping patching.")
+		return
+	}
+
+	// Overwrite with the default certificate bundle that Fleet ships. We use os.OpenFile with Write
+	// explicitly here so that we preserve the existing file permissions (rather than using
+	// os.WriteFile which would replace permissions).
+	f, err := os.OpenFile(certPath, os.O_WRONLY, 0)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to open for write")
+		return
+	}
+	// packaging.OsqueryCerts is the embedded bytes from the default certs.pem file
+	_, err = f.Write(packaging.OsqueryCerts)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to write file. patch certificate definitely failed")
+		f.Close()
+		return
+	}
+	err = f.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to close file. patch certificate may have failed")
+		return
+	}
+
+	log.Info().Msg("successfully patched certificate")
 }
