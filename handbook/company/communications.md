@@ -136,7 +136,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 Eventgoers expect a timely follow-up from Fleet based on the conversations that they had at the event.
 
 1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
+2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans.
 3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
 
 
