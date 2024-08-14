@@ -8709,7 +8709,7 @@ Get the results of a software installation.
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed",
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
-   "detail": "The install script finished with exit code 0 but Fleet couldn't extract the version from the FalconSensor-6.44.pkg package.",
+   "detail": "Failed to verify: The install script finished with exit code 0 but the software is now missing. Fleet already tried to reinstall once.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
