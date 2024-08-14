@@ -1,3 +1,18 @@
+## Fleet 4.55.1 (Aug 14, 2024)
+
+### Bug fixes
+
+* Added a disabled overlay to the Other Workflows modal on the policy page.
+* Updated text for "Turn on MDM" banners in UI.
+* Fixed a bug when a cached prepared statement got deleted in the MySQL server itself without Fleet knowing.
+* Continued with an empty CVE description when the NVD CVE feed didn't include description entries (instead of panicking).
+* Scheduled maintenance events are now scheduled over calendar events marked "Free" (not busy) in Google Calendar.
+* Fixed a bug where the wrong API path was used to download a software installer.
+* Improved fleetctl gitops error message when trying to change team name to a team that already exists.
+* Updated ABM (Apple Business Manager) host tooltip copy on the manage host page to clarify when host vitals will be available to view.
+* Added index to query_results DB table to speed up finding the last query timestamp for a given query and host.
+* Displayed the label names in case-insensitive alphabetical order in the fleet UI.
+
 ## Fleet 4.55.0 (Aug 8, 2024)
 
 **NOTE:** Beginning with v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.36.
