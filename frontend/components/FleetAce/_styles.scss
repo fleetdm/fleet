@@ -34,6 +34,10 @@
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
+
+    .custom-link {
+      font-size: inherit;
+    }
   }
 
   .loading-spinner {

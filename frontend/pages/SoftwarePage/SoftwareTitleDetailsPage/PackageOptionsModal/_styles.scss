@@ -1,13 +1,13 @@
 .package-options-modal {
-  &__form-inputs {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+  &__header {
+    margin: $pad-large 0;
+  }
+  
+  &__fleet-labels-list {
+    @include fleet-labels-list;
+  }
+  &__fleet-label {
+    @include fleet-labels-list-item;
   }
 
-  &__input-field {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
-  }
 }

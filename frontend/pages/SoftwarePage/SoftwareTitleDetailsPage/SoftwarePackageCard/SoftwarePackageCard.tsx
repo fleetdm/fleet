@@ -15,6 +15,8 @@ import {
   ISoftwarePackageStatus,
   IAppStoreAppStatus,
 } from "interfaces/software";
+import { ILabelIdentifier } from "interfaces/label";
+
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -361,16 +363,17 @@ const SoftwarePackageCard = ({
     );
   };
 
-  const renderLabelInfo = () => {
-    const labels = softwarePackage?.labels_include_any?.length
-      ? softwarePackage.labels_include_any.map((label) => label.name)
-      : softwarePackage?.labels_exclude_any.map((label) => label.name) || [];
+  const renderLabelInfo = (
+    pkgLabels: ILabelIdentifier[],
+    packageLabelsIncludeAny: boolean
+  ) => {
+    const labelNames = pkgLabels.map((label) => label.name);
 
-    const count = labels.length;
+    const count = labelNames.length;
 
-    const tooltipLines = softwarePackage?.labels_include_any?.length
-      ? ["Includes any:", ...labels]
-      : ["Excludes any:", ...labels];
+    const tooltipLines = packageLabelsIncludeAny
+      ? ["Includes any:", ...labelNames]
+      : ["Excludes any:", ...labelNames];
 
     return (
       <TooltipWrapper
@@ -397,6 +400,18 @@ const SoftwarePackageCard = ({
     (softwarePackage?.labels_exclude_any &&
       softwarePackage?.labels_exclude_any.length > 0);
 
+  let packageLabels: ILabelIdentifier[] | undefined;
+  let packageLabelsIncludeAny: boolean | undefined;
+
+  if (hasLabelInfo) {
+    [
+      packageLabels,
+      packageLabelsIncludeAny,
+    ] = softwarePackage?.labels_include_any
+      ? [softwarePackage.labels_include_any, true]
+      : [softwarePackage.labels_exclude_any, false];
+  }
+
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -418,7 +433,12 @@ const SoftwarePackageCard = ({
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
           {isSelfService && renderSelfServiceInfo()}
-          {hasLabelInfo && renderLabelInfo()}
+          {hasLabelInfo &&
+            // neither argument will actually be empty at this point
+            renderLabelInfo(
+              packageLabels || [],
+              packageLabelsIncludeAny || true
+            )}
           {showActions && (
             <ActionsDropdown
               isSoftwarePackage={!!softwarePackage}
@@ -470,6 +490,9 @@ const SoftwarePackageCard = ({
           preInstallQuery={softwarePackage?.pre_install_query}
           postInstallScript={softwarePackage?.post_install_script}
           onExit={() => setShowOptionsModal(false)}
+          installType={softwarePackage?.install_type}
+          labels={packageLabels}
+          labelsIncludeAny={packageLabelsIncludeAny}
         />
       )}
       {showDeleteModal && (
