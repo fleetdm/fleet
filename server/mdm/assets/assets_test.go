@@ -185,15 +185,15 @@ func TestABMToken(t *testing.T) {
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
 	assets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-		fleet.MDMAssetABMCert:  {Value: certPEM},
-		fleet.MDMAssetABMKey:   {Value: keyPEM},
-		fleet.MDMAssetABMToken: {Value: []byte(tokenBytes)},
+		fleet.MDMAssetABMCert:            {Value: certPEM},
+		fleet.MDMAssetABMKey:             {Value: keyPEM},
+		fleet.MDMAssetABMTokenDeprecated: {Value: []byte(tokenBytes)},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{
 			fleet.MDMAssetABMCert,
 			fleet.MDMAssetABMKey,
-			fleet.MDMAssetABMToken,
+			fleet.MDMAssetABMTokenDeprecated,
 		}, assetNames)
 		return assets, nil
 	}

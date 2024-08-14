@@ -209,13 +209,13 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-				fleet.MDMAssetABMCert:  {Name: fleet.MDMAssetABMCert, Value: certPEM},
-				fleet.MDMAssetABMKey:   {Name: fleet.MDMAssetABMKey, Value: keyPEM},
-				fleet.MDMAssetABMToken: {Name: fleet.MDMAssetABMToken, Value: tokenBytes},
-				fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
-				fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
-				fleet.MDMAssetCACert:   {Name: fleet.MDMAssetCACert, Value: certPEM},
-				fleet.MDMAssetCAKey:    {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+				fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+				fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+				fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+				fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+				fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
 			}, nil
 		}
 	}

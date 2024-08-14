@@ -693,7 +693,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
+		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
 		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
 		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
 		{Name: fleet.MDMAssetCACert, Value: certPEM},

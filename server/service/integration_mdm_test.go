@@ -9088,7 +9088,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMToken,
+		fleet.MDMAssetABMTokenDeprecated,
 	})
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -9169,11 +9169,11 @@ func (s *integrationMDMTestSuite) enableABM() {
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMToken,
+		fleet.MDMAssetABMTokenDeprecated,
 	})
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
-	require.Equal(t, smimeMessage, string(assets[fleet.MDMAssetABMToken].Value))
+	require.Equal(t, smimeMessage, string(assets[fleet.MDMAssetABMTokenDeprecated].Value))
 	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
 }
 

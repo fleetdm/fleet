@@ -52,13 +52,13 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	abmAssets, err := svc.ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMToken,
+		fleet.MDMAssetABMTokenDeprecated,
 	})
 	if err != nil {
 		if errors.Is(err, mysql.ErrPartialResult) {
 			_, hasABMKey := abmAssets[fleet.MDMAssetABMKey]
 			_, hasABMCert := abmAssets[fleet.MDMAssetABMCert]
-			_, hasABMToken := abmAssets[fleet.MDMAssetABMToken]
+			_, hasABMToken := abmAssets[fleet.MDMAssetABMTokenDeprecated]
 
 			// to preserve existing behavior, if the ABM setup is
 			// incomplete, return a not found error
