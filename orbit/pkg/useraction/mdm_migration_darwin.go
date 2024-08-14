@@ -60,7 +60,7 @@ var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemp
 ## Migrate to Fleet
 
 Select **Start** and look for this notification in your notification center:` +
-	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
 	"After you start, this window will popup every 3 minutes until you finish.",
 ))
 
@@ -68,7 +68,7 @@ var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
 
 Select **Start** and My device page will appear soon:` +
-	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-manual-migration-1024x500.png)\n\n" +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
 	"After you start, this window will popup every 3 minutes until you finish.",
 ))
 
@@ -76,7 +76,7 @@ var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
 
 Select **Start** and Remote Management window will appear soon:` +
-	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-ade-migration-1024x500.png)\n\n" +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)\n\n" +
 	"After you start, **Remote Management** will popup every minute until you finish.",
 ))
 
@@ -254,7 +254,7 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 
 	// If the user has not set an org logo url, we will use the default fleet logo.
 	if icon == "" {
-		icon = "https://jve-images-snicket.ngrok.app/fleet-mark-color-40x40@4x.png"
+		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
 
 	flags = append([]string{
@@ -278,12 +278,12 @@ func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) 
 	var body string
 	switch true {
 	case preSonoma:
-		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-migration-pre-sonoma-unenroll-1024x500.png)")
+		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)")
 	case isManual:
-		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-manual-migration-1024x500.png)")
+		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)")
 	default:
 		// ADE migration, macOS > 14
-		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-ade-migration-1024x500.png)")
+		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)")
 	}
 
 	return m.render(body,
