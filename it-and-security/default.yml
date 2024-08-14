@@ -38,6 +38,12 @@ org_settings:
     zendesk: [ ]
   mdm:
     apple_bm_default_team: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
+    end_user_authentication:
+      entity_id: "foo"
+      idp_name: "bar"
+      issuer_uri: ""
+      metadata: ""
+      metadata_url: "http://foo.example.com"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""
