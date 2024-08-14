@@ -57,13 +57,20 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
         appleAPNError={errorMdmApple}
         router={router}
       />
-      {isPremiumTier && hasAllData && (
+      {hasAllData && (
         <>
-          <AutomaticEnrollmentSection router={router} />
-          <VppSection router={router} />
-          <IdpSection />
-          <EulaSection />
-          <EndUserMigrationSection router={router} />
+          <AutomaticEnrollmentSection
+            router={router}
+            isPremiumTier={!!isPremiumTier}
+          />
+          <VppSection router={router} isPremiumTier={!!isPremiumTier} />
+          {isPremiumTier && (
+            <>
+              <IdpSection />
+              <EulaSection />
+              <EndUserMigrationSection router={router} />
+            </>
+          )}
         </>
       )}
     </div>

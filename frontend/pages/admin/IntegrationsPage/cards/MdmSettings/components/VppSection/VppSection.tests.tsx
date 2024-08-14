@@ -26,7 +26,7 @@ describe("Vpp Section", () => {
       withBackendMock: true,
     });
 
-    render(<VppSection router={createMockRouter()} />);
+    render(<VppSection router={createMockRouter()} isPremiumTier />);
 
     expect(
       await screen.findByText(
@@ -49,7 +49,7 @@ describe("Vpp Section", () => {
       withBackendMock: true,
     });
 
-    render(<VppSection router={createMockRouter()} />);
+    render(<VppSection router={createMockRouter()} isPremiumTier />);
 
     expect(
       await screen.findByRole("button", { name: "Add VPP" })
@@ -69,9 +69,28 @@ describe("Vpp Section", () => {
       },
       withBackendMock: true,
     });
-    render(<VppSection router={createMockRouter()} />);
+    render(<VppSection router={createMockRouter()} isPremiumTier />);
     expect(
       await screen.findByRole("button", { name: "Edit" })
+    ).toBeInTheDocument();
+  });
+
+  it("render the premium message when not in premium tier", async () => {
+    mockServer.use(defaultVppInfoHandler);
+
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          config: createMockConfig({
+            mdm: createMockMdmConfig({ enabled_and_configured: true }),
+          }),
+        },
+      },
+      withBackendMock: true,
+    });
+    render(<VppSection router={createMockRouter()} isPremiumTier={false} />);
+    expect(
+      await screen.findByText("This feature is included in Fleet Premium.")
     ).toBeInTheDocument();
   });
 });

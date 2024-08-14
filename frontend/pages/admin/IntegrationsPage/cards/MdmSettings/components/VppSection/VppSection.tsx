@@ -14,6 +14,7 @@ import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 const baseClass = "vpp-section";
 
@@ -91,9 +92,10 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
 
 interface IVppSectionProps {
   router: InjectedRouter;
+  isPremiumTier: boolean;
 }
 
-const VppSection = ({ router }: IVppSectionProps) => {
+const VppSection = ({ router, isPremiumTier }: IVppSectionProps) => {
   const { config } = useContext(AppContext);
 
   const { data: vppData, error: vppError, isLoading, isError } = useQuery<
@@ -105,6 +107,10 @@ const VppSection = ({ router }: IVppSectionProps) => {
   });
 
   const renderContent = () => {
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage alignment="left" />;
+    }
+
     if (isLoading) {
       return <Spinner />;
     }
