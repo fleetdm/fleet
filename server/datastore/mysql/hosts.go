@@ -2147,14 +2147,27 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
 func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	var err error
 	// nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
-		err = stmt.GetContext(ctx, dest, args...)
-	} else {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
+		err := stmt.GetContext(ctx, dest, args...)
+		if err == nil || !isMySQLUnknownStatement(err) {
+			return err
+		}
+
+		// if the statement is unknown to the MySQL server, delete it
+		// from the cache and fallback to the regular statement call
+		// bellow. This function will get called again eventually and
+		// we will store a new prepared statement in the cache.
+		//
+		// - see https://github.com/fleetdm/fleet/issues/20781 for an
+		// example of when this can happen.
+		//
+		// - see https://github.com/go-sql-driver/mysql/issues/1555 for
+		// a related open bug in the driver
+		ds.deleteCachedStmt(query)
 	}
-	return err
+
+	return sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
 }
 
 // LoadHostByNodeKey loads the whole host identified by the node key.
@@ -5020,6 +5033,18 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	}
 
 	return counts, nil
+}
+
+func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+		SELECT count(*) FROM host_orbit_info WHERE desktop_version IS NOT NULL
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {

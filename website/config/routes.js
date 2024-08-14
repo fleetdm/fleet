@@ -473,7 +473,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',// Note: This redirect is used on error pages and email templates in the Fleet UI.
+  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
@@ -557,7 +557,7 @@ module.exports.routes = {
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',
 
   // Temporary redirects
   // =============================================================================================================

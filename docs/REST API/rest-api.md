@@ -887,6 +887,14 @@ None.
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
     "windows_updates": {
       "deadline_days": 5,
       "grace_period_days": 1
@@ -1171,6 +1179,14 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -1681,11 +1697,14 @@ _Available in Fleet Premium._
 | apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
-| macos_updates                     | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
-| macos_migration                   | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| macos_setup                       | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
-| macos_settings                    | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
-| windows_settings                  | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
+| ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
+| ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
+| macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
+| macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
+| macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 
 <br/>
 
@@ -1699,6 +1718,32 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ios_updates
+
+_Available in Fleet Premium._
+
+`mdm.ios_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ipados_updates
+
+_Available in Fleet Premium._
+
+`mdm.ipados_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
 
 <br/>
 
@@ -4107,139 +4152,6 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
-
-### List host OS versions
-
-Retrieves the aggregated host OS versions information.
-
-`GET /api/v1/fleet/os_versions`
-
-#### Parameters
-
-| Name                | Type     | In    | Description                                                                                                                          |
-| ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
-| platform            | string   | query | Filters the hosts to the specified platform |
-| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
-| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "count": 1
-  "counts_updated_at": "2023-12-06T22:17:30Z",
-  "os_versions": [
-    {
-      "os_version_id": 123,
-      "hosts_count": 21,
-      "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
-      "name_only": "Microsoft Windows 11 Pro 23H2",
-      "version": "10.0.22621.1234",
-      "platform": "windows",
-      "generated_cpes": [],
-      "vulnerabilities": [
-        {
-          "cve": "CVE-2022-30190",
-          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
-          "cvss_score": 7.8,// Available in Fleet Premium
-          "epss_probability": 0.9729,// Available in Fleet Premium
-          "cisa_known_exploit": false,// Available in Fleet Premium
-          "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-          "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-          "resolved_in_version": ""// Available in Fleet Premium
-        }
-      ]
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-```
-
-OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
-
-```json
-{
-  "hosts_count": 1,
-  "name": "CentOS Linux 7.9.2009",
-  "name_only": "CentOS",
-  "version": "7.9.2009",
-  "platform": "rhel",
-  "generated_cpes": [],
-  "vulnerabilities": []
-}
-```
-
-### Get host OS version
-
-Retrieves information about the specified OS version.
-
-`GET /api/v1/fleet/os_versions/:id`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The OS version's ID. |
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "counts_updated_at": "2023-12-06T22:17:30Z",
-  "os_version": {
-    "id": 123,
-    "hosts_count": 21,
-    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
-    "name_only": "Microsoft Windows 11 Pro 23H2",
-    "version": "10.0.22621.1234",
-    "platform": "windows",
-    "generated_cpes": [],
-    "vulnerabilities": [
-      {
-        "cve": "CVE-2022-30190",
-        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
-        "created_at": "2024-07-01T00:15:00Z",
-        "cvss_score": 7.8,// Available in Fleet Premium
-        "epss_probability": 0.9729,// Available in Fleet Premium
-        "cisa_known_exploit": false,// Available in Fleet Premium
-        "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-        "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-        "resolved_in_version": ""// Available in Fleet Premium
-      }
-    ]
-  }
-}
-```
-
-OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
-
-```json
-{
-  "id": 321,
-  "hosts_count": 1,
-  "name": "CentOS Linux 7.9.2009",
-  "name_only": "CentOS",
-  "version": "7.9.2009",
-  "platform": "rhel",
-  "generated_cpes": [],
-  "vulnerabilities": []
-}
-```
-
-
 ### Get host's scripts
 
 `GET /api/v1/fleet/hosts/:id/scripts`
@@ -4328,14 +4240,18 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "package_available_for_install": "GoogleChrome.pkg",
-      "self_service": true,
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.0.3",
+        "self_service": true,
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "app_store_app": null
       "source": "apps",
       "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
-      },
       "installed_versions": [
         {
           "version": "121.0",
@@ -4348,20 +4264,30 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "package_available_for_install": "FalconSensor-6.44.pkg",
-      "self_service": false,
+      "software_package": {
+        "name": "FalconSensor-6.44.pkg"
+        "self_service": false,
+        "last_install": null
+      },
+      "app_store_app": null    
       "source": "",
       "status": null,
-      "last_install": null,
       "installed_versions": [],
     },
     {
       "id": 147,
-      "name": "Firefox.app",
+      "name": "Logic Pro",
+      "software_package": null
+      "app_store_app": {
+        "app_store_id": "1091189122"
+        "version": "2.04",
+        "last_install": {
+          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
       "source": "apps",
-      "bundle_identifier": "org.mozilla.firefox",
-      "status": null,
-      "last_install": null,
+      "status": "installed",
       "installed_versions": [
         {
           "version": "118.0",
@@ -6355,6 +6281,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6406,6 +6333,30 @@ None.
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2023-11-29T00:00:00Z",
   "default_team": ""
+}
+```
+
+Get Volume Purchasing Program (VPP)
+
+> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/21043/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R6423-R6446.
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp`
+
+#### Example
+
+`GET /api/v1/fleet/vpp`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_name": "Acme Inc.",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "location": "Acme Inc. Main Address"
 }
 ```
 
@@ -8544,16 +8495,20 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software](#add-software)
-- [Download software](#download-software)
-- [Delete software](#delete-software)
+- [Add package](#add-package)
+- [Download package](#download-package)
+- [Delete package or App Store app](#delete-package-or-app-store-app)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
+- [List operating systems](#list-operating-systems)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
+- [Get operating system version](#get-operating-system-version)
+- [Get available App Store apps](#get-available-app-store-apps)
+- [Add App Store app](#add-app-store-app)
 
-### Add software
+### Add package
 
 _Available in Fleet Premium._
 
@@ -8614,13 +8569,11 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software
+### Download package
 
 _Available in Fleet Premium._
 
-Download a software package.
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
 
 #### Parameters
 
@@ -8646,26 +8599,26 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete software
+### Delete package or App Store app
 
 > This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
 
 _Available in Fleet Premium._
 
-Delete a software package.
+Deletes software that's available for install (package or App Store app).
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id  | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
 
 ##### Default response
 
@@ -8723,7 +8676,7 @@ Get a list of all software.
 | order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).                                                              |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                                        |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                            |
+| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                            |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service    | bool    | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
@@ -8744,8 +8697,12 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "software_package": "FirefoxInstall.pkg",
-      "self_service": true,
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true
+      },
+      "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
@@ -8772,7 +8729,7 @@ Get a list of all software.
       "id": 22,
       "name": "Google Chrome.app",
       "software_package": null,
-      "self_service": false,
+      "app_store_app": null,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8804,7 +8761,7 @@ Get a list of all software.
       "id": 32,
       "name": "1Password – Password Manager",
       "software_package": null,
-      "self_service": false,
+      "app_store_app": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -8840,7 +8797,7 @@ Get a list of all software versions.
 | order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
+| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 
 #### Example
@@ -8899,6 +8856,78 @@ Get a list of all software versions.
 }
 ```
 
+### List operating systems
+
+Returns a list of all operating systems.
+
+`GET /api/v1/fleet/os_versions`
+
+#### Parameters
+
+| Name                | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| platform            | string   | query | Filters the hosts to the specified platform |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 1
+  "counts_updated_at": "2023-12-06T22:17:30Z",
+  "os_versions": [
+    {
+      "os_version_id": 123,
+      "hosts_count": 21,
+      "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+      "name_only": "Microsoft Windows 11 Pro 23H2",
+      "version": "10.0.22621.1234",
+      "platform": "windows",
+      "generated_cpes": [],
+      "vulnerabilities": [
+        {
+          "cve": "CVE-2022-30190",
+          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+          "cvss_score": 7.8,// Available in Fleet Premium
+          "epss_probability": 0.9729,// Available in Fleet Premium
+          "cisa_known_exploit": false,// Available in Fleet Premium
+          "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+          "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+          "resolved_in_version": ""// Available in Fleet Premium
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpes": [],
+  "vulnerabilities": []
+}
+```
+
 ### Get software
 
 > The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/20872/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R8953-R8958).
@@ -8912,7 +8941,7 @@ Returns information about the specified software. By default, `versions` are sor
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
 
 #### Example
 
@@ -8927,6 +8956,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -8943,6 +8973,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
+    "app_store_app": null,
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
@@ -8970,6 +9001,47 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
+#### Example (App Store app)
+
+`GET /api/v1/fleet/software/titles/15`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 15,
+    "name": "Logic Pro",
+    "bundle_identifier": "com.apple.logic10",
+    "software_package": null,
+    "app_store_app": {
+      "name": "Logic Pro",
+      "app_store_id": "1091189122",
+      "latest_version": "2.04",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
+    },
+    "source": "apps",
+    "browser": "",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "2.04",
+        "vulnerabilities": [],
+        "hosts_count": 24
+      }
+    ]
+  }
+}
+```
+
 ### Get software version
 
 Returns information about the specified software version.
@@ -8981,7 +9053,7 @@ Returns information about the specified software version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software version's ID. |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
 
 #### Example
 
@@ -9027,8 +9099,140 @@ Returns information about the specified software version.
 }
 ```
 
+### Get operating system version
+
+Retrieves information about the specified operating system (OS) version.
+
+`GET /api/v1/fleet/os_versions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The OS version's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "counts_updated_at": "2023-12-06T22:17:30Z",
+  "os_version": {
+    "id": 123,
+    "hosts_count": 21,
+    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+    "name_only": "Microsoft Windows 11 Pro 23H2",
+    "version": "10.0.22621.1234",
+    "platform": "windows",
+    "generated_cpes": [],
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2022-30190",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+        "created_at": "2024-07-01T00:15:00Z",
+        "cvss_score": 7.8,// Available in Fleet Premium
+        "epss_probability": 0.9729,// Available in Fleet Premium
+        "cisa_known_exploit": false,// Available in Fleet Premium
+        "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+        "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+        "resolved_in_version": ""// Available in Fleet Premium
+      }
+    ]
+  }
+}
+```
+
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "id": 321,
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpes": [],
+  "vulnerabilities": []
+}
+```
+
 ## Vulnerabilities
 
+### Get available App Store apps
+
+Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
+
+`GET /api/v1/fleet/software/app_store_apps`
+
+#### Parameters
+
+| Name    | Type | In | Description |
+| ------- | ---- | -- | ----------- |
+| team_id | integer | query | **Required**. The team ID. Lists available VPP software for specified team. |
+
+#### Example
+
+`GET /api/v1/fleet/software/app_store_apps/?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_apps": {
+    {
+      "name": "Xcode",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "15.4",
+      "app_store_id": "497799835"
+    },
+    {
+      "name": "Logic Pro",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "2.04",
+      "app_store_id": "634148309"
+    },
+}
+}
+```
+
+### Add App Store app
+
+_Available in Fleet Premium._
+
+Add App Store (VPP) app purchased in Apple Business Manager.
+
+`POST /api/v1/fleet/software/app_store_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| app_store_id   | string | body | **Required.** The ID of App Store app. |
+| team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+
+##### Request body
+
+```json
+{
+  "app_store_id": "497799835",
+  "team_id": 2
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+## Vulnerabilities
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
@@ -9043,7 +9247,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified team.  |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified team. Use `0` to filter by hosts assigned to "No team".  |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
 | order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
@@ -9092,7 +9296,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
 | Name     | Type     | In    | Description                                                                                     |
 | ---      | ---      | ---   | ---                                                                                             |
 | cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 
@@ -9630,6 +9834,12 @@ _Available in Fleet Premium_
 | mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
 | &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ios_updates                               | object  | body | iOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ipados_updates                               | object  | body | iPadOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
 | &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |

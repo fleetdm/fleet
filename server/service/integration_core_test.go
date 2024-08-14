@@ -4048,21 +4048,28 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// modify manual label 1 without modifying its hosts
 	modResp = modifyLabelResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String("modified_manual_label1")}, http.StatusOK, &modResp)
+	newName := "modified_manual_label1"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: &newName}, http.StatusOK,
+		&modResp)
 	assert.Equal(t, manualLbl1.ID, modResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
+	assert.Equal(t, newName, modResp.Label.Name)
 
 	// modify manual label 2 adding some hosts
 	modResp = modifyLabelResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
+	newName = "modified_manual_label2"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Name: &newName, Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
 	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 1, modResp.Label.HostCount)
+	assert.Equal(t, newName, modResp.Label.Name)
+	manualLbl2.Name = newName
 
 	// modify manual label 2 clearing its hosts
 	modResp = modifyLabelResponse{}
@@ -8662,6 +8669,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	// insert CVEMeta
+	knownCVEWoPrefix := "2021-1299"
+	knownCVE := "cve-" + knownCVEWoPrefix
 	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
@@ -8688,6 +8697,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			Published:        ptr.Time(mockTime),
 			Description:      "Test CVE 2021-1246",
 		},
+		{
+			CVE:              knownCVE,
+			CVSSScore:        ptr.Float64(6.4),
+			EPSSProbability:  ptr.Float64(0.61),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      fmt.Sprintf("Test %s", knownCVE),
+		},
 	})
 	require.NoError(t, err)
 
@@ -8701,6 +8718,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(3))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
+	assert.Nil(t, resp.KnownVulnerability)
 
 	expected := map[string]struct {
 		fleet.CVEMeta
@@ -8738,6 +8756,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(2))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
+	assert.Nil(t, resp.KnownVulnerability)
 
 	expected = map[string]struct {
 		fleet.CVEMeta
@@ -8771,6 +8790,34 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(0))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
+	assert.Nil(t, resp.KnownVulnerability)
+
+	// test with a known CVE that does not match on software/OS
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE)
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 0)
+	assert.Equal(t, resp.Count, uint(0))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
+
+	// test with a known CVE that does not match on software/OS, but without CVE- prefix
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVEWoPrefix)
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 0)
+	assert.Equal(t, resp.Count, uint(0))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
+
+	// test with a unknown CVE that does not match on software/OS
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE+"1")
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 0)
+	assert.Equal(t, resp.Count, uint(0))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	assert.Equal(t, ptr.Bool(false), resp.KnownVulnerability)
 
 	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")

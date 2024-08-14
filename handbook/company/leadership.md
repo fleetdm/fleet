@@ -250,10 +250,11 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. **Budget compensation:** Ballpark and document compensation research for the role based on 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
+4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
+   - _Update financial model:_ Update ["¶ Financial model"](https://docs.google.com/spreadsheets/d/1tIcuwhmOKolnwNJqQ0zH5rWCqjawYzySDsKTb98RvxI/edit?gid=1184088923#gid=1184088923)
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Business Operations.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
@@ -374,11 +375,13 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Remove open position:** The hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
-4. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** Ensure the hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
+4. **Create 30-60-90 day plan:** 🧑‍🚀 Hiring manager creates a 30-60-90 day plan outlining key role objectives. The plan is reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. To create the 30-60-90 day plan, hiring manager will:
+    - Create a copy of the [30-60-90 day plan template](https://docs.google.com/document/d/1EztmPBuMFXbVoy4ZToXcxasNO38ooOh8Gh5hPXFvJhI/copy) and rename the copied file using the naming convention `[start date] - 30-60-90 day plan - [teammate full name]` and move it to the [30-60-90 day plan folder](https://drive.google.com/drive/u/0/folders/1QWiAbgBFuuofT_3M8oIoBsbEBmubQAj7) in Google Drive.
+    - Follow the prompts in the template to fill out the 30-60-90 day plan for the new teammate before they start.
+5. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
-
 
 
 ## Tracking hours
