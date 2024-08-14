@@ -1079,14 +1079,13 @@ func newAppleMDMDEPProfileAssigner(
 			// abm_tokens), we need to complete migration of the existing token as
 			// during the DB migration we didn't have the organization name, apple id
 			// and renewal date.
-			//incompleteToken, err := ds.GetABMTokenByName(ctx, "")
-			//if err != nil && !fleet.IsNotFound(err) {
-			//	return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
-			//}
-			//if incompleteToken != nil {
-			//	// TODO(mna): make the API call, decrypt the token to get renewal date, update token
-			//	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
-			//}
+			incompleteToken, err := ds.GetABMTokenByOrgName(ctx, "")
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
+			}
+			if incompleteToken != nil {
+				// TODO(mna): make the API call, decrypt the token to get renewal date, update token
+			}
 
 			if fleetSyncer == nil {
 				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
