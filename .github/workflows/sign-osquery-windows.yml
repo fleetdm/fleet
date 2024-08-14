@@ -15,7 +15,7 @@ on:
         required: true
 
 env:
-  RELEASE_TAG: 5.13.0
+  RELEASE_TAG: 5.13.1
 
 jobs:
   codesign_windows:
