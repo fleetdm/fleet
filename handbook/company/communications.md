@@ -465,6 +465,8 @@ We use the following story points to estimate tasks:
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
 
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
+
 
 ### Making a pull request
 
@@ -1042,7 +1044,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 ### What would Mister Rogers say?
 
-[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
 Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
 
@@ -1116,20 +1118,49 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
-### Headings
+### Headings and titles
 
-Headings help readers quickly scan content to find what they need and guide readers through your writing. Organize page content using clear headings specific to the topic they describe. 
+Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
 
-While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document.
+#### Static headings
 
-Keep headings brief, organized, and in a logical order:
+Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+
+#### Task-based headings
+
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+
+#### Avoid _-ing_ verb forms in headings
+
+Avoid starting a heading with _-ing_ verb form, if possible.
+
+_-ing_ verb forms are more difficult for non-native English readers to understand, translate inconsistently, and increase character counts in limit spaces, such as in docs navigation.
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Configure a log destination” | “Configuring a log destination” |
+
+#### Avoid vague verbs in headings
+
+Were possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Log destinations” | “Understand log destinations.” |
+
+
+#### Avoid code in headings
+
+While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document. That aside, it doesn't render well on the website.
+
+#### Heading hierarchy 
+
+Use heading tags to structure your content hierarchically. Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
+
 - H1: Page title
 - H2: Main headings
 - H3: Subheadings
 - H4: Sub-subheadings
-
-Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
-
 
 #### Punctuation in headings
 
@@ -1369,8 +1400,6 @@ line two
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
 | <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
 
-Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item, as shown in the example below.
-
 **Markdown:**
 
 ```
@@ -1386,26 +1415,6 @@ Paragraph about item one
 1. Item one
 
 Paragraph about item one
-
-2. Item two
-
-To make sure that ordered lists increment correctly, you can indent the content nested within the list. For example, the same ordered list with indentation:
-
-**Markdown:**
-
-```
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-```
-
-**Rendered output:**
-
-1. Item one
-
-   Paragraph about item one
 
 2. Item two
 

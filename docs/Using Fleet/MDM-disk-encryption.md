@@ -8,7 +8,9 @@ In Fleet, you can enforce disk encryption for your macOS and Windows hosts.
 
 When disk encryption is enforced, hosts’ disk encryption keys will be stored in Fleet.
 
-For Windows hosts, disk encryption is enforced on the C: volume (default system/OS drive).
+For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant.
+
+For Windows, disk encryption is enforced on the C: volume (default system/OS drive).
 
 ## Enforce disk encryption
 
@@ -54,11 +56,7 @@ How to view the disk encryption key:
 
 ## Migrate macOS hosts
 
-When migrating macOS hosts another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must take action. 
-
-If the host already had disk encryption turned on, the user will need to input their password. 
-
-If the host did not already have disk encryption turned on, the user will need to log out or restart their computer.
+When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their device.
 
 Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-encryption) with your end users.
 

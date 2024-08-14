@@ -29,7 +29,7 @@ module.exports = {
 
     let pricingTable = [];
 
-    let pricingTableCategories = ['Deployment', 'Device management', 'Endpoint operations', 'Vulnerability management', 'Integrations', 'Support'];
+    let pricingTableCategories = ['Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     for(let category of pricingTableCategories) {
       // Get all the features in that have a pricingTableFeatures array that contains this category.
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
@@ -45,7 +45,7 @@ module.exports = {
     }
 
     let pricingTableForSecurity = [];
-    let categoryOrderForSecurityPricingTable = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Vulnerability management'];
+    let categoryOrderForSecurityPricingTable = ['Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     for(let category of categoryOrderForSecurityPricingTable) {
       // Get all the features in that have a pricingTableFeatures array that contains this category.
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
@@ -61,7 +61,7 @@ module.exports = {
     }
 
 
-    let categoryOrderForITPricingTable = [ 'Deployment','Device management', 'Endpoint operations', 'Integrations', 'Support'];
+    let categoryOrderForITPricingTable = ['Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     let pricingTableForIt = [];
     // Sort the IT-focused pricing table from the order of the elements in the categoryOrderForITPricingTable array.
     for(let category of categoryOrderForITPricingTable) {
