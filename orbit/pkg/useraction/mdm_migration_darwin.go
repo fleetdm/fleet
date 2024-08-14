@@ -282,6 +282,7 @@ func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) 
 	case isManual:
 		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-manual-migration-1024x500.png)")
 	default:
+		// ADE migration, macOS > 14
 		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/mdm-ade-migration-1024x500.png)")
 	}
 
@@ -616,6 +617,8 @@ func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
 }
 
 func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
+	// Reset this to the original frequency.
+	m.frequency = 15 * time.Minute
 	return m.mrw.RemoveFile()
 }
 
