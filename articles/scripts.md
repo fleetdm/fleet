@@ -45,7 +45,9 @@ fleetctl CLI:
 fleetctl run-script --script-path=/path/to/script --host=hostname
 ```
 
-<meta name="pageOrderInSection" value="1508">
-<meta name="title" value="Scripts">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-06-04">
+<meta name="articleTitle" value="Scripts">
 <meta name="description" value="Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet.">
-<meta name="navSection" value="Device management">

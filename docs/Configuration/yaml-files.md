@@ -1,4 +1,4 @@
-# GitOps
+# YAML files
 
 Use Fleet's best practice GitOps workflow to manage your computers as code.
 
@@ -583,7 +583,6 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`).
 
-<meta name="title" value="GitOps">
+<meta name="title" value="YAML files">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
-<meta name="navSection" value="The basics">

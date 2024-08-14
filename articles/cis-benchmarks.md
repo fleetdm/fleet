@@ -111,7 +111,9 @@ In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS ho
 
 Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
 
-<meta name="pageOrderInSection" value="1700">
-<meta name="title" value="CIS Benchmarks">
-<meta name="description" value="Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance, covering macOS 13.0 Ventura & Windows Enterprise.">
-<meta name="navSection" value="Security compliance">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="lucasmrod">
+<meta name="authorFullName" value="Lucas Rodriguez">
+<meta name="publishedOn" value="2024-04-02">
+<meta name="articleTitle" value="CIS Benchmarks">
+<meta name="description" value="Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance.">

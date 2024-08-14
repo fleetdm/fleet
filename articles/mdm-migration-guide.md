@@ -1,4 +1,4 @@
-# Migration guide
+# MDM migration guide
 
 This section provides instructions for migrating your hosts away from your old MDM solution to Fleet.
 
@@ -206,7 +206,9 @@ However, Activation Lock bypass codes can only be retrieved from the Mac up to 3
 
 <img width="1399" alt="My device page - turn on disk encryption" src="https://user-images.githubusercontent.com/5359586/229950451-cfcd2314-a993-48db-aecf-11aac576d297.png">
 
-<meta name="pageOrderInSection" value="1502">
-<meta name="title" value="Migration guide">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="zhumo">
+<meta name="authorFullName" value="Mo Zhu">
+<meta name="publishedOn" value="2024-08-14">
+<meta name="articleTitle" value="MDM migration guide">
 <meta name="description" value="Instructions for migrating hosts away from an old MDM solution to Fleet.">
-<meta name="navSection" value="Device management">

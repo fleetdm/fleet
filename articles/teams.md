@@ -1,4 +1,4 @@
-# Segment hosts
+# Teams
 
 _Available in Fleet Premium_
 
@@ -34,6 +34,9 @@ You can automatically enroll hosts to a specific team in Fleet by installing a f
 
 Changing the host's enroll secret after enrollment will not cause the host to be transferred to a different team.
 
-<meta name="pageOrderInSection" value="1000">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-07-11">
+<meta name="articleTitle" value="Teams">
 <meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams.">
-<meta name="navSection" value="The basics">

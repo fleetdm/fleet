@@ -1,4 +1,4 @@
-# Osquery children processes
+# Osquery child processes
 
 Osquery will run a watcher process to keep track of any child process and any managed extensions. What follows is a description of what happens during the watcher REPL and under what circumstances the child process and/or managed extensions are terminated.
 
@@ -25,6 +25,9 @@ If the managed extension is `Non-existent` (either because it was `Non-existent`
 
 Lastly, we check the state of the watcher process itself. If it is deemed unhealthy because of resource contention, then the osquery process is shut down.
 
-<meta name="pageOrderInSection" value="700">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="juan-fdz-hawa">
+<meta name="authorFullName" value="Juan Fernandes">
+<meta name="publishedOn" value="2023-07-28">
+<meta name="articleTitle" value="Osquery child processes">
 <meta name="description" value="Learn about how osquery process manages child processes and managed extensions in Fleet.">
-<meta name="navSection" value="Osquery management">

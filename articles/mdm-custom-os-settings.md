@@ -1,6 +1,6 @@
 # Custom OS settings
 
-In Fleet you can enforce OS settings on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
+In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your your macOS, iOS, iPadOS, and Windows hosts using configuration or device profiles.
 
 ## Enforce OS settings
 
@@ -36,7 +36,9 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
 
-<meta name="pageOrderInSection" value="1505">
-<meta name="title" value="Custom OS settings">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-07-27">
+<meta name="articleTitle" value="Custom OS settings">
 <meta name="description" value="Learn how to enforce custom settings on macOS and Window hosts using Fleet's configuration profiles.">
-<meta name="navSection" value="Device management">

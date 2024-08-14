@@ -1,7 +1,5 @@
 # Enroll hosts
 
-## Introduction
-
 Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using fleetd.
 
 You can enroll macOS, Windows or Linux hosts via the [CLI](#cli) or [UI](#ui). To learn how to enroll Chromebooks, see [Enroll Chromebooks](#enroll-chromebooks).
@@ -379,6 +377,9 @@ but can result in a large volume of error logs. In fleetd v1.15.1, we added an e
 Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host will silence fleetd enrollment errors if a `--fleet-url` is not present.
 This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
 
-<meta name="pageOrderInSection" value="500">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-08">
+<meta name="articleTitle" value="Enroll hosts">
 <meta name="description" value="Learn how to enroll hosts to Fleet.">
-<meta name="navSection" value="The basics">

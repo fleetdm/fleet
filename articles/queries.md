@@ -1,4 +1,4 @@
-# Fleet UI
+# Queries
 - [Creating a query](#create-a-query)
 - [Running a query](#run-a-query)
 - [Scheduling a query](#schedule-a-query)
@@ -72,7 +72,9 @@ By default, queries that run on a schedule will only target platforms compatible
 
 See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to learn how to simultaneously update agent options from the Fleet UI or fleetctl command line tool.
 
-<meta name="title" value="Fleet UI">
-<meta name="pageOrderInSection" value="200">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-09">
+<meta name="articleTitle" value="Queries">
 <meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">
-<meta name="navSection" value="The basics">

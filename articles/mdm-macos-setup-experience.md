@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can customize the out-of-the-box macOS setup experience for your end users:
+In Fleet, you can customize the out-of-the-box macOS Setup Assistant with Remote Management and Automated Device Enrollment (ADE) for end users:
 
 * Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
@@ -161,7 +161,9 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
-<meta name="pageOrderInSection" value="1506">
-<meta name="title" value="macOS setup experience">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-07-03">
+<meta name="articleTitle" value="macOS setup experience">
 <meta name="description" value="Customize your macOS setup experience with Fleet Premium by managing user authentication, Setup Assistant panes, and installing bootstrap packages.">
-<meta name="navSection" value="Device management">

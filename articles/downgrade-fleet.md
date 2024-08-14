@@ -1,4 +1,4 @@
-# Downgrading from Fleet Premium
+# Downgrade from Fleet Premium
 
 Follow these steps to downgrade your Fleet instance from Fleet Premium.
 
@@ -34,8 +34,9 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 1. Remove your license key from your Fleet configuration. Documentation on where the license key is located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
-
-
-<meta name="title" value="Downgrading Fleet">
-<meta name="navSection" value="Dig deeper">
-<meta name="pageOrderInSection" value="2000">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="eashaw">
+<meta name="authorFullName" value="Eric Shaw">
+<meta name="publishedOn" value="2024-01-09">
+<meta name="articleTitle" value="Downgrade from Fleet Premium">
+<meta name="description" value="Learn how to downgrade from Fleet Premium.">

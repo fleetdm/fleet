@@ -1,6 +1,8 @@
-# Usage statistics
+# Fleet usage statistics
 
 Fleet Device Management Inc. periodically collects information about your instance.
+
+> To disable usage statistics, [see here](#disable-usage-statistics).
 
 ## What is included in usage statistics in Fleet?
 
@@ -138,6 +140,9 @@ To disable usage statistics:
 
 3. Uncheck the "Enable usage statistics" checkbox and then select "Update settings."
 
-<meta name="pageOrderInSection" value="1100">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-13">
+<meta name="articleTitle" value="Fleet usage statistics">
 <meta name="description" value="Learn about Fleet's usage statistics and what information is collected.">
-<meta name="navSection" value="Dig deeper">

@@ -1,4 +1,4 @@
-# Disk encryption
+# Enforce disk encryption
 
 _Available in Fleet Premium_
 
@@ -60,7 +60,9 @@ When migrating macOS hosts from another MDM solution, in order to complete the p
 
 Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-encryption) with your end users.
 
-<meta name="pageOrderInSection" value="1504">
-<meta name="title" value="Disk encryption">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-14">
+<meta name="articleTitle" value="Enforce disk encryption">
 <meta name="description" value="Learn how to enforce disk encryption on macOS and Windows hosts and manage encryption keys with Fleet Premium.">
-<meta name="navSection" value="Device management">

@@ -1,4 +1,4 @@
-# Manage access
+# Role-based access
 
 Users have different abilities depending on the access level they have.
 
@@ -175,6 +175,9 @@ Users with access to multiple teams can be assigned different roles for each tea
 
 \** Team-level users only see global query results for hosts on teams where they have access.
 
-<meta name="pageOrderInSection" value="900">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-10">
+<meta name="articleTitle" value="Role-based access">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">
-<meta name="navSection" value="The basics">
