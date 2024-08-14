@@ -6355,10 +6355,13 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	// create a token with an empty name and no team set, and another that will be unused
 	encTok := uuid.NewString()
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
+		doubleEncTok, err := encrypt([]byte(encTok), ds.serverPrivateKey)
+		require.NoError(t, err)
+
+		_, err = q.ExecContext(ctx, `
 			INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token)
 			VALUES ('', '', ?, ?), ('unused', '', ?, ?)
-			`, time.Now(), encTok, time.Now(), uuid.NewString())
+			`, time.Now(), doubleEncTok, time.Now(), uuid.NewString())
 		return err
 	})
 

@@ -24,7 +24,8 @@ CREATE TABLE abm_tokens (
 	apple_id               varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	terms_expired          tinyint(1) NOT NULL DEFAULT '0',
 	renew_at               timestamp NOT NULL,
-	-- encrypted token, encrypted with the ABM cert and key
+	-- encrypted token, encrypted with the ABM cert and key and encrypted again
+	-- with the FleetConfig.Server.PrivateKey
 	token                  blob NOT NULL,
 
 	-- those team_id fields are the default teams where devices from this ABM
@@ -71,20 +72,6 @@ FROM
 WHERE
 	name = ? AND deletion_uuid = ''
 `
-	// TODO(mna): I think this was based on wrong assumptions - the value in
-	// mdm_config_assets seem to ALWAYS be encrypted with the
-	// FleetConfig.Server.PrivateKey value, even if the value is already
-	// encrypted by other means before (such as the ABM token). If we just
-	// transfer this value to abm_tokens, it means we need to double-decrypt the
-	// ABM token when reading it, first with the server private key, then with
-	// ABM cert.
-	//
-	// We need to change either the migration (so that we store it in abm_tokens
-	// as NOT ENCRYPTED by the server private key, only encrypted by ABM cert) or
-	// we need to change how we read it from the abm_tokens in the rest of fleet
-	// (so that we first decrypt it with the server private key, then with ABM
-	// cert).
-
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	var token []byte
 	if err := txx.Get(&token, getABM, fleet.MDMAssetABMTokenDeprecated); err != nil {
