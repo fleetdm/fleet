@@ -1802,9 +1802,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	// delete all host profiles to start from a clean slate, new entries will be added next
 	// TODO(roberto): is this really necessary? this was pre-existing
 	// behavior but I think it can be refactored. For now leaving it as-is.
+	level.Info(ds.logger).Log("msg", "about to do first bulkDeleteMDMAppleHostsConfigProfilesDB")
 	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete all profiles")
 	}
+	level.Info(ds.logger).Log("msg", "completed first bulkDeleteMDMAppleHostsConfigProfilesDB")
 
 	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
 	//
@@ -1824,9 +1826,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			hostProfilesToClean = append(hostProfilesToClean, p)
 		}
 	}
+	level.Info(ds.logger).Log("msg", "about to do second bulkDeleteMDMAppleHostsConfigProfilesDB")
 	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete profiles to clean")
 	}
+	level.Info(ds.logger).Log("msg", "completed second bulkDeleteMDMAppleHostsConfigProfilesDB")
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		baseStmt := fmt.Sprintf(`
@@ -1872,6 +1876,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
+	level.Info(ds.logger).Log("msg", "about to run loop for wantedProfiles", "len(wantedProfiles)", len(wantedProfiles))
 	for _, p := range wantedProfiles {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
@@ -1881,9 +1886,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				batchCount++
 
 				if batchCount >= batchSize {
+					level.Info(ds.logger).Log("msg", "about to execute inner upsert batch for wanted profiles", "batchCount", batchCount, "batchSize", batchSize)
 					if err := executeUpsertBatch(psb.String(), pargs); err != nil {
 						return err
 					}
+					level.Info(ds.logger).Log("msg", "executed inner upsert batch for wanted profiles", "batchCount", batchCount, "batchSize", batchSize)
 					resetBatch()
 				}
 				continue
@@ -1896,13 +1903,16 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		batchCount++
 
 		if batchCount >= batchSize {
+			level.Info(ds.logger).Log("msg", "about to execute outer upsert batch for wanted profiles", "batchCount", batchCount, "batchSize", batchSize)
 			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
 				return err
 			}
+			level.Info(ds.logger).Log("msg", "executed outer upsert batch for wanted profiles", "batchCount", batchCount, "batchSize", batchSize)
 			resetBatch()
 		}
 	}
 
+	level.Info(ds.logger).Log("msg", "about to run loop for currentProfiles", "len(currentProfiles)", len(currentProfiles))
 	for _, p := range currentProfiles {
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
@@ -1920,9 +1930,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		batchCount++
 
 		if batchCount >= batchSize {
+			level.Info(ds.logger).Log("msg", "about to execute upsert batch for current profiles", "batchCount", batchCount, "batchSize", batchSize)
 			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
 				return err
 			}
+			level.Info(ds.logger).Log("msg", "executed upsert batch for current profiles", "batchCount", batchCount, "batchSize", batchSize)
 			resetBatch()
 		}
 	}
