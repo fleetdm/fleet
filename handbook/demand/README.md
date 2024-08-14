@@ -82,21 +82,18 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
-### Upload contacts to SalesForce after an event
+### Upload contacts to Salesforce after an event
 
-Create the lead event source:
-1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention [Retired]Events - {Event name} 
+1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention "[Retired]Events - {Event name}". 
 2. Add the new lead source name to the .csv of leads before uploading to Salesforce.
 3. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
 
-Use the import wizard to upload contacts:
 
-1. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
-2. Select standard object "Accounts and Contacts"
-3. Select "Add new and update existing records". (Do not change the matching rules)
-4. Upload the CSV
-5. Verify the mapped SalesForce object matches the correct CSV Headers
-6. Review & Start Import
+2. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
+    a. Select the standard object "Accounts and Contacts".
+    b. Select "Add new and update existing records" (Do not change the matching rules). 
+    c. Upload the CSV.
+    d. Verify the data is mapped to the correct Salesforce fields and start the Import.
 
 ### Follow up after an event
 
