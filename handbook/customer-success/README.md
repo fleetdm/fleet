@@ -58,16 +58,12 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 
 ### Conduct a health check
 
-Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review. The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
+Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review (QBR). The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
 
-1. Work with your champion to schedule the health check at a time when their Fleet admins and daily users are available.
-2. During the meeting, your customer should share their screen and walk through their day to day use of Fleet.
-3. Ask the customer questions about the features they are using.
-    - Understand the "why" behind their use cases for Fleet
-    - Try not to provide guidance directly on this call
-4. Take notes, and record the meeting if possible.
-5. Review your notes after the meeting, and find areas of improvement that you can highlight to help your partner more thoroughly utilize Fleet.
-6. Add this information to your QBR deck.
+1. Work with your champion to schedule the health check at a time when their Fleet admins and daily users are available. Be sure to take notes, and record the meeting if possible.
+2. During the meeting, ask the customer to share their screen and walk through their day-to-day use of Fleet.
+3. Ask the customer questions about the features they are using to understand the "why" behind their use cases for Fleet. Try not to provide guidance directly on this call.
+4. Review your notes after the meeting, and find areas of improvement that you can highlight to help your partner more thoroughly utilize Fleet and add your findings to the QBR deck.
 
 
 ### Conduct a quarterly business review (QBR)
