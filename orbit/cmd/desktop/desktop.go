@@ -114,10 +114,11 @@ func main() {
 	// swiftDialogCh is a channel shared by the migrator and the offline watcher to
 	// coordinate the display of the dialog and ensure only one dialog is shown at a time.
 	var swiftDialogCh chan struct{}
+	var offlineWatcher *useraction.OfflineWatcher
 
 	// This ticker is used for fetching the desktop summary. It is initialized here because it is
 	// stopped in `OnExit.`
-	const checkInterval = 10 * time.Second
+	const checkInterval = 10 * time.Second // TODO(JVE): put this back to 5 minutes
 	summaryTicker := time.NewTicker(checkInterval)
 
 	onReady := func() {
@@ -195,9 +196,10 @@ func main() {
 		}
 
 		if runtime.GOOS == "darwin" {
-			m, s := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			m, s, o := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
 			mdmMigrator = m
 			swiftDialogCh = s
+			offlineWatcher = o
 		}
 
 		refetchToken := func() {
@@ -408,6 +410,10 @@ func main() {
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
+					if offline := offlineWatcher.ShowIfOffline(ctx); offline {
+						continue
+					}
+
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
 						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
@@ -601,7 +607,7 @@ func logDir() (string, error) {
 	return dir, nil
 }
 
-func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}) {
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, *useraction.OfflineWatcher) {
 	dir, err := migration.Dir()
 	if err != nil {
 		log.Fatal().Err(err).Msg("getting directory for MDM migration file")
@@ -629,7 +635,7 @@ func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, clie
 		swiftDialogCh,
 	)
 
-	useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+	offlineWatcher := useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
 
-	return mdmMigrator, swiftDialogCh
+	return mdmMigrator, swiftDialogCh, offlineWatcher
 }
