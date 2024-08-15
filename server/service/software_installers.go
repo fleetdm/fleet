@@ -250,7 +250,7 @@ func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, _ str
 	return nil, fleet.ErrMissingLicense
 }
 
-func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, _ bool, _ uint, _ *uint) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

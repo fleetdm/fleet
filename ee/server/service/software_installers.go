@@ -27,6 +27,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const softwareInstallerTokenMaxLength = 36 // UUID length
+
 func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -245,6 +247,10 @@ func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, token
 	titleID uint) (*fleet.SoftwareInstallerTokenMetadata, error) {
 	// We will manually authorize this endpoint based on the token.
 	svc.authz.SkipAuthorization(ctx)
+
+	if len(token) > softwareInstallerTokenMaxLength {
+		return nil, fleet.NewPermissionError("invalid token")
+	}
 
 	metaStr, err := svc.distributedLock.GetAndDelete(ctx, fmt.Sprintf("software_installer_token:%s", token))
 	if err != nil {

@@ -9995,6 +9995,29 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 		checkDownloadResponse(t, r, payload.Filename)
 
+		// download the installer by getting token first
+		tokenResp := getSoftwareInstallerTokenResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil, http.StatusOK,
+			&tokenResp, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		require.NotEmpty(t, tokenResp.Token)
+		r = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", titleID, tokenResp.Token), nil,
+			http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// downloading a second time using the same token should fail
+		_ = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", titleID, tokenResp.Token), nil,
+			http.StatusForbidden)
+
+		// alt != media should fail
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=bozo", titleID), nil,
+			http.StatusUnprocessableEntity,
+			&tokenResp, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+
+		// missing team_id should fail
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil,
+			http.StatusBadRequest,
+			&tokenResp)
+
 		// create an orbit host that is not in the team
 		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
 		// downloading installer still works because we allow it explicitly
