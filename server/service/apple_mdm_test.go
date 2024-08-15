@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -3374,78 +3373,127 @@ func TestUnmarshalAppList(t *testing.T) {
 }
 
 func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
-	ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serialNumber string) (*fleet.AppleOSUpdateSettings, error) {
-		return &fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("14.2"),
-		}, nil
-	}
+	gdmf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../mdm/apple/gdmf/test_data.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	os.Setenv("FLEET_DEV_GDMF_URL", gdmf.URL)
+	t.Cleanup(func() {
+		gdmf.Close()
+		os.Unsetenv("FLEET_DEV_GDMF_URL")
+	})
+
+	latestMacOSVersion := "14.6.1"
+	latestMacOSBuild := "23G93"
 
 	testCases := []struct {
-		name                        string
-		deviceOSVersion             string
-		mdmCanRequestSoftwareUpdate bool
-		wantUpdateRequired          string
+		name           string
+		machineInfo    *fleet.MDMAppleMachineInfo
+		updateRequired *fleet.MDMAppleSoftwareUpdateRequiredDetails
+		err            string
 	}{
 		{
-			name:                        "OS version is greater than minimum",
-			deviceOSVersion:             "15.0",
-			mdmCanRequestSoftwareUpdate: true,
-			wantUpdateRequired:          "",
+			name: "OS version is greater than minimum",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.6.2",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
 		},
 		{
-			name:                        "OS version is equal to minimum",
-			deviceOSVersion:             "14.2",
-			mdmCanRequestSoftwareUpdate: true,
-			wantUpdateRequired:          "",
+			name: "OS version is equal to minimum",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   latestMacOSVersion,
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
 		},
 		{
-			name:                        "OS version is less than minimum",
-			deviceOSVersion:             "14.0.2",
-			mdmCanRequestSoftwareUpdate: true,
-			wantUpdateRequired:          "14.2",
+			name: "OS version is less than minimum",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.6.0",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
+				OSVersion:    latestMacOSVersion,
+				BuildVersion: latestMacOSBuild,
+			},
 		},
 		{
-			name:                        "OS version is less than minimum but MDM cannot request software update",
-			deviceOSVersion:             "14.0.2",
-			mdmCanRequestSoftwareUpdate: false,
-			wantUpdateRequired:          "",
+			name: "OS version is less than minimum but MDM cannot request software update",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: false,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.6.0",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
+		},
+		{
+			name: "no match for software update device ID",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.6.0",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "INVALID",
+			},
+			updateRequired: nil,
+			err:            "", // no error, allow enrollment to proceed without software update
+		},
+		{
+			name:           "no machine info",
+			machineInfo:    nil,
+			updateRequired: nil,
+			err:            "", // no error, allow enrollment to proceed without software update
+		},
+		{
+			name: "cannot parse OS version",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "invalid",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
+			err:            "", // no error, allow enrollment to proceed without software update
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, &fleet.MDMAppleMachineInfo{OSVersion: tt.deviceOSVersion, MDMCanRequestSoftwareUpdate: tt.mdmCanRequestSoftwareUpdate})
-			require.NoError(t, err)
-			if tt.wantUpdateRequired == "" {
-				require.Nil(t, sur)
+			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, tt.machineInfo)
+			if tt.err != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.err)
 			} else {
+				require.NoError(t, err)
+			}
+			if tt.updateRequired != nil {
 				require.Equal(t, &fleet.MDMAppleSoftwareUpdateRequired{
-					Code: fleet.MDMAppleSoftwareUpdateRequiredCode,
-					Details: fleet.MDMAppleSoftwareUpdateRequiredDetails{
-						OSVersion: tt.wantUpdateRequired,
-					},
+					Code:    fleet.MDMAppleSoftwareUpdateRequiredCode,
+					Details: *tt.updateRequired,
 				}, sur)
+			} else {
+				require.Nil(t, sur)
 			}
 		})
 	}
-
-	t.Run("error getting OS update settings", func(t *testing.T) {
-		ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serialNumber string) (*fleet.AppleOSUpdateSettings, error) {
-			return nil, newNotFoundError()
-		}
-
-		sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, &fleet.MDMAppleMachineInfo{OSVersion: "14.0.2", MDMCanRequestSoftwareUpdate: true})
-		require.NoError(t, err)
-		require.Nil(t, sur)
-
-		ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serialNumber string) (*fleet.AppleOSUpdateSettings, error) {
-			return nil, errors.New("error")
-		}
-
-		sur, err = svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, &fleet.MDMAppleMachineInfo{OSVersion: "14.0.2", MDMCanRequestSoftwareUpdate: true})
-		require.Error(t, err)
-		require.Nil(t, sur)
-	})
 }

@@ -1436,12 +1436,12 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	svc.authz.SkipAuthorization(ctx)
 
 	if m == nil {
-		level.Info(svc.logger).Log("msg", "no machine info, skipping os version check")
+		level.Debug(svc.logger).Log("msg", "no machine info, skipping os version check")
 		return nil, nil
 	}
 
 	if !m.MDMCanRequestSoftwareUpdate {
-		level.Info(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "machine_info", *m)
+		level.Debug(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "machine_info", *m)
 		return nil, nil
 	}
 
@@ -1450,28 +1450,31 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(*m))
 	if err != nil {
 		// log and continue
-		level.Error(svc.logger).Log("msg", "no match on apple software lookup service, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		level.Debug(svc.logger).Log("msg", "no match on apple software lookup service, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
 		return nil, nil
 	}
 
 	want, err := semver.NewVersion(latest.ProductVersion)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing latest version")
+		level.Debug(svc.logger).Log("msg", "parsing latest version, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		return nil, nil
 	}
 
 	got, err := semver.NewVersion(m.OSVersion)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
+		level.Debug(svc.logger).Log("msg", "parsing device os version, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		return nil, nil
 	}
 
 	if got.LessThan(want) {
 		level.Debug(svc.logger).Log("msg", "checking os version, needs update", "latest", latest.ProductVersion, "build", latest.Build, "got", m.OSVersion)
-
 		return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
 			ProductVersion: latest.ProductVersion,
 			Build:          latest.Build,
 		}), nil
 	}
+
+	level.Debug(svc.logger).Log("msg", "checking os version, no update needed", "latest", latest.ProductVersion, "build", latest.Build, "got", m.OSVersion)
 
 	return nil, nil
 }

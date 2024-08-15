@@ -99,6 +99,7 @@ type integrationMDMTestSuite struct {
 	appleVPPConfigSrv          *httptest.Server
 	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
+	appleGDMFSrv               *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
@@ -520,6 +521,16 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
 	}))
 
+	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../mdm/apple/gdmf/test_data.json")
+		require.NoError(s.T(), err)
+		_, err = w.Write(b)
+		require.NoError(s.T(), err)
+	}))
+
+	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
 
@@ -555,6 +566,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 	s.T().Cleanup(s.appleITunesSrv.Close)
+	s.T().Cleanup(s.appleGDMFSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -1019,7 +1031,6 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	require.NoError(t, err)
 
 	return fleetHost, mdmDevice
-
 }
 
 func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
@@ -9718,7 +9729,6 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	var listCmdResp listMDMAppleCommandsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
 	require.Empty(t, listCmdResp.Results)
-
 }
 
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
@@ -9912,7 +9922,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	var listCmdResp listMDMAppleCommandsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
 	require.Len(t, listCmdResp.Results, commandsSent)
-
 }
 
 func (s *integrationMDMTestSuite) TestVPPApps() {
@@ -10337,13 +10346,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		extraAvailable int
 	}{
 		"iOS app install": {installHost: iOSHost, titleID: iOSTitleID, mdmClient: iOSMdmClient, app: iOSApp},
-		"iPadOS app install": {installHost: iPadOSHost, titleID: iPadOSTitleID, mdmClient: iPadOSMdmClient, app: iPadOSApp,
-			extraAvailable: 1},
+		"iPadOS app install": {
+			installHost: iPadOSHost, titleID: iPadOSTitleID, mdmClient: iPadOSMdmClient, app: iPadOSApp,
+			extraAvailable: 1,
+		},
 	}
 
 	for name, install := range installs {
 		t.Run(name, func(t *testing.T) {
-
 			installHost := install.installHost
 			titleID := install.titleID
 			mdmClient := install.mdmClient
