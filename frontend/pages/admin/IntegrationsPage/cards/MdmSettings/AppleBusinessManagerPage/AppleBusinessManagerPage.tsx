@@ -85,7 +85,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           "success",
           "Automatic enrollment for macOS hosts is enabled."
         );
-        router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+        router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       } catch (e) {
         const msg = getErrorReason(e);
         if (msg.toLowerCase().includes("valid token")) {
@@ -112,7 +112,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     try {
       await mdmAppleBmAPI.disableAutomaticEnrollment();
       renderFlash("success", "Automatic enrollment disabled successfully.");
-      router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     } catch (e) {
       renderFlash(
         "error",
