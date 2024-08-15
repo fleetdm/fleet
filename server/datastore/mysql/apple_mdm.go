@@ -7,6 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -4788,4 +4789,132 @@ WHERE
 		tok.IPadOSDefaultTeamID,
 		tok.ID)
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
+}
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
+
+func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam NullTeamType) (*fleet.VPPTokenDB, error) {
+	stmt := `
+	INSERT INTO
+		vpp_tokens (
+			organization_name,
+			location,
+			renew_at,
+			token,
+			team_id,
+			null_team_type,
+		)
+	VALUES (?, ?, ?, ?, ?, ?)
+`
+
+	if teamID != nil && nullTeam != NullTeamNone {
+		return nil, ctxerr.Errorf(ctx, "nullTeam must be set to NullTeamNone if teamID is present")
+	}
+
+	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
+	}
+
+	var tokRaw fleet.VPPTokenRaw
+	if err := json.Unmarshal([]byte(tokRawBytes), &tokRaw); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshalling raw vpp token")
+	}
+
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", tokRaw.ExpDate)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
+	}
+
+	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
+	if err != nil {
+		ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+	}
+
+	vppTokenDB := &fleet.VPPTokenDB{
+		OrgName:      tokRaw.OrgName,
+		Location:     tok.Location,
+		RenewDate:    exp,
+		Token:        tok.Token,
+		NullTeamType: string(nullTeam),
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		vppTokenDB.OrgName,
+		vppTokenDB.Location,
+		vppTokenDB.RenewDate,
+		tokEnc,
+		vppTokenDB.TeamID,
+		vppTokenDB.NullTeamType,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last inserted row from db")
+	}
+
+	vppTokenDB.ID = uint(id)
+
+	return vppTokenDB, nil
+}
+
+func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+	stmt := `
+	SELECT
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+	WHERE
+		id = ?
+`
+
+	var tokEnc struct {
+		ID           uint      `db:"id"`
+		OrgName      string    `db:"organization_name"`
+		Location     string    `db:"location"`
+		RenewDate    time.Time `db:"renew_at"`
+		Token        []byte    `db:"token"`
+		TeamID       *uint     `db:"team_id"`
+		NullTeamType string    `db:"null_team_type"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token from db")
+	}
+
+	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+	}
+
+	tok := &fleet.VPPTokenDB{
+		ID:           tokEnc.ID,
+		OrgName:      tokEnc.OrgName,
+		Location:     tokEnc.Location,
+		RenewDate:    tokEnc.RenewDate,
+		Token:        string(tokDec),
+		TeamID:       tokEnc.TeamID,
+		NullTeamType: tokEnc.NullTeamType,
+	}
+
+	return tok, nil
 }
