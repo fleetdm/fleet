@@ -1,7 +1,11 @@
-# Configuring maintenance windows in Fleet
+# Automatic installation of software on hosts
 
-![Configuring maintenance windows in Fleet](../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg)
-This guide will walk you through the process of mitigating failing policies on specific hosts using a scheduled maintenance window. You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
+![Automatic installation of software on hosts](../website/assets/images/articles/automatic-software-install-in-fleet-731x738@2x.png)
+
+This guide will walk you through the process of configuring fleet for automatic installation of
+software on specific hosts using pre uploded installation images and using label based install
+policy. You'll learn how to configure and use this feature, as well as understand how the underlying
+mechanism works.
 
 Fleet uses policies as a tool to verify that certain behaviors or conditions are met on hosts. These policies run osquery queries on hosts, which return a boolean result indicating success or failure. For example, a policy might check that passwords have more than a certain number of characters or that the `brew` package manager is up to date. Other policies might ensure that disk encryption is enabled or that the screensaver is set to a specific time and locks the host when it activates.
 
@@ -99,10 +103,10 @@ By automating these tasks, you can focus on more strategic initiatives, confiden
 Implementing scheduled mitigations not only enhances operational efficiency but also contributes to a proactive security posture, helping your organization stay ahead of potential risks.
 
 
-<meta name="articleTitle" value="Configuring maintenance windows in Fleet">
+<meta name="articleTitle" value="Automatic installation of software on hosts">
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-05">
-<meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg">
-<meta name="description" value="A guide to workflows using configuring maintenance windows in Fleet.">
+<meta name="publishedOn" value="2024-08-15">
+<meta name="articleImageUrl" value="../website/assets/images/articles/automatic-software-install-in-fleet-731x738@2x.png">
+<meta name="description" value="A guide to workflows using automatic software installation in Fleet.">
