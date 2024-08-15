@@ -26,6 +26,8 @@ import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
@@ -34,8 +36,6 @@ import {
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
-import endpoints from "utilities/endpoints";
-import URL_PREFIX from "router/url_prefix";
 
 const baseClass = "software-package-card";
 
