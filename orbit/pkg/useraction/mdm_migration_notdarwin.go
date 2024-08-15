@@ -18,20 +18,16 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 	return &NoopOfflineWatcher{}
 }
 
-func MigrationInProgress(m MDMMigrator) (bool, error) {
-	return false, nil
-}
-
 type NoopOfflineWatcher struct{}
 
 func (o *NoopOfflineWatcher) ShowIfOffline(ctx context.Context) bool { return false }
 
 type NoopMDMMigrator struct{}
 
-func (m *NoopMDMMigrator) CanRun() bool                       { return false }
-func (m *NoopMDMMigrator) SetProps(MDMMigratorProps)          {}
-func (m *NoopMDMMigrator) Show() error                        { return nil }
-func (m *NoopMDMMigrator) ShowInterval() error                { return nil }
-func (m *NoopMDMMigrator) Exit()                              {}
-func (m *NoopMDMMigrator) MigrationInProgress() (bool, error) { return false, nil }
-func (m *NoopMDMMigrator) MarkMigrationCompleted() error      { return nil }
+func (m *NoopMDMMigrator) CanRun() bool                         { return false }
+func (m *NoopMDMMigrator) SetProps(MDMMigratorProps)            {}
+func (m *NoopMDMMigrator) Show() error                          { return nil }
+func (m *NoopMDMMigrator) ShowInterval() error                  { return nil }
+func (m *NoopMDMMigrator) Exit()                                {}
+func (m *NoopMDMMigrator) MigrationInProgress() (string, error) { return "", nil }
+func (m *NoopMDMMigrator) MarkMigrationCompleted() error        { return nil }

@@ -612,8 +612,8 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 	return major, nil
 }
 
-func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
-	return m.mrw.FileExists()
+func (m *swiftDialogMDMMigrator) MigrationInProgress() (string, error) {
+	return m.mrw.GetMigrationType()
 }
 
 func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
@@ -843,8 +843,4 @@ func (m *swiftDialogMDMMigrationOffline) getFlags() ([]string, error) {
 	}
 
 	return flags, nil
-}
-
-func MigrationInProgress(m MDMMigrator) (bool, error) {
-	return m.MigrationInProgress()
 }

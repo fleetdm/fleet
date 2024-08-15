@@ -317,13 +317,17 @@ func main() {
 				myDeviceItem.Enable()
 
 				// Check our file to see if we should migrate
-				migrationInProgress, err := useraction.MigrationInProgress(mdmMigrator) // mdmMigrator.MigrationInProgress()
-				if err != nil {
-					go reportError(err, nil)
-					log.Error().Err(err).Msg("checking if MDM migration is in progress")
+				var migrationType string
+				if runtime.GOOS == "darwin" {
+					migrationType, err = mdmMigrator.MigrationInProgress()
+					if err != nil {
+						go reportError(err, nil)
+						log.Error().Err(err).Msg("checking if MDM migration is in progress")
+					}
 				}
-				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
-				// and not run the migrator as we're already in Fleet
+
+				migrationInProgress := migrationType != ""
+
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrationInProgress
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
@@ -359,8 +363,10 @@ func main() {
 						})
 
 						// enable tray items
-						migrateMDMItem.Enable()
-						migrateMDMItem.Show()
+						if migrationType != constant.MDMMigrationTypeADE {
+							migrateMDMItem.Enable()
+							migrateMDMItem.Show()
+						}
 
 						// if the device is unmanaged or we're in force mode and the device needs
 						// migration, enable aggressive mode.
