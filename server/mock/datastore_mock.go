@@ -980,7 +980,7 @@ type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet
 
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
-type ValidateSoftwareInstallerAccessFunc func(ctx context.Context, hostID uint, installerID uint) (bool, error)
+type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID uint, installerID uint) (bool, error)
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
@@ -2457,8 +2457,8 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataByIDFunc        GetSoftwareInstallerMetadataByIDFunc
 	GetSoftwareInstallerMetadataByIDFuncInvoked bool
 
-	ValidateSoftwareInstallerAccessFunc        ValidateSoftwareInstallerAccessFunc
-	ValidateSoftwareInstallerAccessFuncInvoked bool
+	ValidateOrbitSoftwareInstallerAccessFunc        ValidateOrbitSoftwareInstallerAccessFunc
+	ValidateOrbitSoftwareInstallerAccessFuncInvoked bool
 
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
@@ -5874,11 +5874,11 @@ func (s *DataStore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uin
 	return s.GetSoftwareInstallerMetadataByIDFunc(ctx, id)
 }
 
-func (s *DataStore) ValidateSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
+func (s *DataStore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
 	s.mu.Lock()
-	s.ValidateSoftwareInstallerAccessFuncInvoked = true
+	s.ValidateOrbitSoftwareInstallerAccessFuncInvoked = true
 	s.mu.Unlock()
-	return s.ValidateSoftwareInstallerAccessFunc(ctx, hostID, installerID)
+	return s.ValidateOrbitSoftwareInstallerAccessFunc(ctx, hostID, installerID)
 }
 
 func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {

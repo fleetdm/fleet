@@ -218,7 +218,7 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
 
-	access, err := svc.ds.ValidateSoftwareInstallerAccess(ctx, host.ID, installerID)
+	access, err := svc.ds.ValidateOrbitSoftwareInstallerAccess(ctx, host.ID, installerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check software installer access")
 	}
