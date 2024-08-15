@@ -4981,7 +4981,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 		NullTeam  fleet.NullTeamType `db:"null_team_type"`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), tokEncs, stmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEncs, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting vpp tokens from db")
 	}
 
