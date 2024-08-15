@@ -212,9 +212,12 @@ func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, h
 	var access bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &access, query, hostID, installerID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, ctxerr.Wrap(ctx, err, "check software installer association to host")
 	}
-	return access, nil
+	return true, nil
 }
 
 func (ds *Datastore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
