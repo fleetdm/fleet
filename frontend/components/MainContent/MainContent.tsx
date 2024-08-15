@@ -40,6 +40,7 @@ const MainContent = ({
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
+    needsAbmTermsRenewal,
     willAppleBmExpire,
     willApplePnsExpire,
     willVppExpire,
@@ -51,7 +52,6 @@ const MainContent = ({
       : formatDistanceToNow(new Date(sandboxExpiry));
 
   const renderAppWideBanner = () => {
-    const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
     const isFleetLicenseExpired = hasLicenseExpired(
       config?.license.expiration || ""
     );
@@ -63,7 +63,7 @@ const MainContent = ({
         banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
       } else if (isAppleBmExpired || willAppleBmExpire) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
-      } else if (isAppleBmTermsExpired) {
+      } else if (needsAbmTermsRenewal) {
         banner = <AppleBMTermsMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
