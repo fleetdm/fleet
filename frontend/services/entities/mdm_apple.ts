@@ -82,12 +82,12 @@ export default {
   getVppTokens: (): Promise<IMdmVppToken[]> => {
     const { MDM_VPP_TOKENS } = endpoints;
     // return sendRequest("GET", MDM_VPP_TOKENS);
-    const resp = [
+    return Promise.resolve([
       {
         id: 1,
         org_name: "Fleet Device Management Inc.",
         location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2023-11-29T00:00:00Z",
+        renew_date: "2024-11-29T00:00:00Z",
         terms_expired: false,
         teams: [
           "💻 Workstations",
@@ -96,7 +96,6 @@ export default {
           "🔳🏢 Company-owned iPads",
         ],
       },
-    ];
-    return Promise.resolve(resp);
+    ]); // TODO: remove when API is ready
   },
 };
