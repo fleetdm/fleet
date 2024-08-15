@@ -38,7 +38,7 @@ Current supported installation files, manual upload of these formats:
 - Linux: .deb
 
 Coming soon:
-- Ability to auto install from Apple VPP.
+- Ability to auto install from App store (VPP).
 - Install on iOS and iPadOS
 
 ## Using fleet API/GitOps:
