@@ -5,6 +5,7 @@ import React, {
   useState,
 } from "react";
 import FileSaver from "file-saver";
+import { parse } from "content-disposition";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -263,7 +264,21 @@ const SoftwarePackageCard = ({
           `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
         );
       }
-      const filename = name;
+
+      let filename = name;
+      try {
+        const cd = parse(resp.headers["content-disposition"]);
+        if (cd.parameters.filename) {
+          filename = cd.parameters.filename;
+        }
+      } catch (e) {
+        // TODO: Refactor this component's props so we can derive a file extension from the `source`
+        // property from title detail response.
+        //
+        // For now, we'll just use the software name prop as the filename if we can't parse the
+        // content-disposition header.
+      }
+
       const file = new File([resp.data], filename, {
         type: "application/octet-stream",
       });

@@ -420,10 +420,12 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 }
 
 type VPPBatchPayload struct {
-	AppStoreID string `json:"app_store_id"`
+	AppStoreID  string `json:"app_store_id"`
+	SelfService bool   `json:"self_service"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID string              `json:"app_store_id"`
-	Platform   AppleDevicePlatform `json:"platform"`
+	AppStoreID  string              `json:"app_store_id"`
+	SelfService bool                `json:"self_service"`
+	Platform    AppleDevicePlatform `json:"platform"`
 }
