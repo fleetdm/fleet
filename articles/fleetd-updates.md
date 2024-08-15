@@ -1,4 +1,4 @@
-# Self-managed fleet agent updates 
+# Fleetd updates 
 
 The fleetd agent will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery if it detects a later version.
 
@@ -163,5 +163,5 @@ After the key(s) have been rotated, publish the repository in the same fashion a
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-04-30">
-<meta name="articleTitle" value="Self-managed fleet agent updates">
+<meta name="articleTitle" value="Fleetd updates">
 <meta name="description" value="Information on how to manage and secure Fleet agent updates.">

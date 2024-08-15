@@ -1,4 +1,4 @@
-# Commands
+# MDM commands
 
 In Fleet you can run MDM commands to take action on your macOS, iOS, iPadOS, and Windows hosts, like restarting the host, remotely.
 
@@ -85,7 +85,9 @@ You can view a list of the 1,000 latest commands:
 
 The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results).
 
-<meta name="pageOrderInSection" value="1507">
-<meta name="title" value="Commands">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-06-12">
+<meta name="articleTitle" value="MDM commands">
 <meta name="description" value="Learn how to run custom MDM commands on hosts using Fleet.">
-<meta name="navSection" value="Device management">

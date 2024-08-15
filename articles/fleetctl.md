@@ -1,6 +1,6 @@
-# Fleetctl
+# fleetctl
 
-Fleetctl (pronounced "Fleet control") is a command line interface (CLI) tool for managing Fleet from the command line. fleetctl enables a GitOps workflow with Fleet.
+fleetctl (pronounced "Fleet control") is a command line interface (CLI) tool for managing Fleet from the command line. fleetctl enables a GitOps workflow with Fleet.
 
 fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
 
@@ -201,5 +201,5 @@ This will generate a `tar.gz` file with:
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-07-04">
-<meta name="articleTitle" value="Fleetctl">
+<meta name="articleTitle" value="fleetctl">
 <meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating Fleet's agent (fleetd) and more.">

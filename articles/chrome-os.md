@@ -1,4 +1,4 @@
-# ChromeOS and Fleet
+# ChromeOS
 For visibility on ChromeOS hosts, Fleet provides the fleetd Chrome extension which provides similar functionality as osquery on other operating systems.
 
 To learn how to add ChromeOS hosts to Fleet, visit [here](https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks).
@@ -26,5 +26,5 @@ To learn how to debug the Fleetd Chrome extension, visit [here](https://github.c
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
 <meta name="publishedOn" value="2023-11-21">
-<meta name="articleTitle" value="ChromeOS and Fleet">
+<meta name="articleTitle" value="ChromeOS">
 <meta name="description" value="Learn about ChromeOS and Fleet.">
