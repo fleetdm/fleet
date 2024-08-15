@@ -16,7 +16,7 @@ const VppRenewalMessage = ({ expired }: IVppRenewalMessageProps) => {
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/learn-more-about/renew-vpp"
+          url="https://fleetdm.com/learn-more-about/renew-vpp" // TODO: /settings/integrations/mdm/vpp
           text="Renew VPP"
           className={`${baseClass}__new-tab`}
           newTab
