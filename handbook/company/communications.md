@@ -1340,6 +1340,33 @@ Markdown is a simple formatting syntax used to write content on the web. In orde
 
 ### Headings
 
+Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
+
+```
+...previous content.
+
+
+### New heading
+
+Related content... 
+```
+
+
+#### Nested headings
+
+Wherever possible, avoid creating nested headings. For example:
+
+```
+## Things
+
+### Thing 1
+
+Hi my name is Thing 1
+```
+
+
+#### Heading levels
+
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 | Markdown | Rendered heading |
 |:--------------------|:-----------------------------|

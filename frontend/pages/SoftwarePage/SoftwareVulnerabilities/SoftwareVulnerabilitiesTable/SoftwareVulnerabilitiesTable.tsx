@@ -17,7 +17,7 @@ import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
 import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
@@ -258,10 +258,13 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
-          <EmptySoftwareTable
-            tableName="vulnerabilities"
+          <EmptyVulnerabilitiesTable
+            isPremiumTier={isPremiumTier}
+            teamId={teamId}
+            exploitedFilter={showExploitedVulnerabilitiesOnly}
             isSoftwareDisabled={!isSoftwareEnabled}
-            noSearchQuery={query === ""}
+            searchQuery={query}
+            knownVulnerability={data?.known_vulnerability}
           />
         )}
         defaultSortHeader={orderKey}
