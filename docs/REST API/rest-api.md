@@ -4317,6 +4317,8 @@ _Available in Fleet Premium._
 
 Install software on a macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
+Note: Orbit only installs software it has been asked to install, but technically has access to all installer executables.
+
 `POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
 #### Parameters
