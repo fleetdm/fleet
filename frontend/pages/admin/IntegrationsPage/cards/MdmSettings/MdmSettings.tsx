@@ -129,7 +129,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
             isVppOn={!noVppTokenUploaded}
             isPremiumTier={!!isPremiumTier}
           />
-          {isPremiumTier && (
+          {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
             <>
               <IdpSection />
               <EulaSection
