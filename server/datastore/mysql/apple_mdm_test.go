@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -85,6 +87,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
+		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
 	}
 
 	for _, c := range cases {
@@ -6431,4 +6434,40 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Empty(t, tokReload.MacOSTeam)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+}
+
+func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tokens, err := ds.ListVPPTokens(ctx)
+	_ = tokens
+	assert.NoError(t, err)
+}
+
+func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
+	var randBytes [32]byte
+	_, err := rand.Read(randBytes[:])
+	if err != nil {
+		return nil, fmt.Errorf("generating random bytes: %w", err)
+	}
+	token := base64.StdEncoding.EncodeToString(randBytes[:])
+	raw := fleet.VPPTokenRaw{
+		OrgName: orgName,
+		Token:   token,
+		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
+	}
+	rawJson, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
+	}
+
+	base64Token := base64.StdEncoding.EncodeToString(rawJson)
+
+	dataToken := fleet.VPPTokenData{Token: base64Token, Location: location}
+	dataTokenJson, err := json.Marshal(dataToken)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
+	}
+
+	return dataTokenJson, nil
 }

@@ -4791,7 +4791,7 @@ WHERE
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
-func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+func (ds *Datastore) CreateVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
 	stmt := `
 	INSERT INTO
 		vpp_tokens (
