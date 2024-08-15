@@ -11800,7 +11800,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	// Grab the distributed lock for this event
 	distributedLock := redis_lock.NewLock(s.redisPool)
 	lockValue := uuid.New().String()
-	result, err := distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	result, err := distributedLock.SetIfNotExist(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
@@ -11824,7 +11824,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	ok, err := distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
 	require.NoError(t, err)
 	assert.True(t, ok)
-	result, err = distributedLock.AcquireLock(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue, 0)
+	result, err = distributedLock.SetIfNotExist(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
@@ -11842,7 +11842,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 
 	// We grab the normal lock again.
 	lockValue2 := uuid.New().String()
-	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2, 0)
+	result, err = distributedLock.SetIfNotExist(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 	// We release the reserve lock.
@@ -11970,7 +11970,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	// Grab the lock
 	event = eventUpdated
 	lockValue = uuid.New().String()
-	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	result, err = distributedLock.SetIfNotExist(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
@@ -12043,7 +12043,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	), http.StatusOK, &distributedResp)
 
 	// We set a flag that event was updated recently. Callback shouldn't do anything since event was updated recently
-	_, err = distributedLock.AcquireLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue,
+	_, err = distributedLock.SetIfNotExist(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue,
 		1000)
 	require.NoError(t, err)
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,

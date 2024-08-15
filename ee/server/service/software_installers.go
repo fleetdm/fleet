@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -183,9 +184,12 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 	return nil
 }
 
-func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
-		return nil, err
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*fleet.SoftwareInstaller,
+	error) {
+	if !skipAuthz {
+		if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, true)
@@ -196,12 +200,87 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 	return meta, nil
 }
 
-func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error) {
+	downloadRequested := alt == "media"
+	if !downloadRequested {
+		svc.authz.SkipAuthorization(ctx)
+		return "", fleet.NewInvalidArgumentError("alt", "only alt=media is supported")
+	}
+
 	if teamID == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return "", fleet.NewInvalidArgumentError("team_id", "is required")
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return "", err
+	}
+
+	meta := fleet.SoftwareInstallerTokenMetadata{
+		TitleID: titleID,
+		TeamID:  *teamID,
+	}
+	metaByte, err := json.Marshal(meta)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshaling software installer metadata")
+	}
+
+	// Generate token and store in Redis
+	token := uuid.NewString()
+	const tokenExpirationMs = 10 * 60 * 1000 // 10 minutes
+	ok, err := svc.distributedLock.SetIfNotExist(ctx, fmt.Sprintf("software_installer_token:%s", token), string(metaByte),
+		tokenExpirationMs)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "saving software installer token")
+	}
+	if !ok {
+		// Should not happen since token is unique
+		return "", ctxerr.Errorf(ctx, "failed to save software installer token")
+	}
+
+	return token, nil
+}
+
+func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, token string,
+	titleID uint) (*fleet.SoftwareInstallerTokenMetadata, error) {
+	// We will manually authorize this endpoint based on the token.
+	svc.authz.SkipAuthorization(ctx)
+
+	metaStr, err := svc.distributedLock.GetAndDelete(ctx, fmt.Sprintf("software_installer_token:%s", token))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software installer token metadata")
+	}
+	if metaStr == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("invalid token"))
+	}
+
+	var meta fleet.SoftwareInstallerTokenMetadata
+	if err := json.Unmarshal([]byte(*metaStr), &meta); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling software installer token metadata")
+	}
+
+	if titleID != meta.TitleID {
+		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("invalid token"))
+	}
+
+	// The token is valid.
+	return &meta, nil
+}
+
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
+	teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	downloadRequested := alt == "media"
+	if !downloadRequested {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("alt", "only alt=media is supported")
+	}
+
+	if teamID == nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("team_id", "is required")
 	}
 
-	meta, err := svc.GetSoftwareInstallerMetadata(ctx, titleID, teamID)
+	meta, err := svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
 	if err != nil {
 		return nil, err
 	}

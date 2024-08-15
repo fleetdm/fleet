@@ -184,6 +184,11 @@ type getSoftwareInstallerRequest struct {
 	TitleID uint   `url:"title_id"`
 }
 
+type downloadSoftwareInstallerRequest struct {
+	TitleID uint   `url:"title_id"`
+	Token   string `url:"token"`
+}
+
 type getSoftwareInstallerResponse struct {
 	// meta *fleet.SoftwareInstaller // NOTE: API design currently only supports downloading the
 	Err error `json:"error,omitempty"`
@@ -194,18 +199,55 @@ func (r getSoftwareInstallerResponse) error() error { return r.Err }
 func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
-	downloadRequested := req.Alt == "media"
-	if !downloadRequested {
-		// TODO: confirm error handling
-		return getSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
-	}
-
-	payload, err := svc.DownloadSoftwareInstaller(ctx, req.TitleID, req.TeamID)
+	payload, err := svc.DownloadSoftwareInstaller(ctx, false, req.Alt, req.TitleID, req.TeamID)
 	if err != nil {
 		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
 
 	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
+}
+
+func getSoftwareInstallerTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getSoftwareInstallerRequest)
+
+	token, err := svc.GenerateSoftwareInstallerToken(ctx, req.Alt, req.TitleID, req.TeamID)
+	if err != nil {
+		return getSoftwareInstallerTokenResponse{Err: err}, nil
+	}
+	return getSoftwareInstallerTokenResponse{Token: token}, nil
+}
+
+func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*downloadSoftwareInstallerRequest)
+
+	meta, err := svc.GetSoftwareInstallerTokenMetadata(ctx, req.Token, req.TitleID)
+	if err != nil {
+		return getSoftwareInstallerResponse{Err: err}, nil
+	}
+
+	payload, err := svc.DownloadSoftwareInstaller(ctx, true, "media", meta.TitleID, &meta.TeamID)
+	if err != nil {
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
+	}
+
+	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
+}
+
+func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, _ string, _ uint, _ *uint) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}
+
+func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, _ string, _ uint) (*fleet.SoftwareInstallerTokenMetadata,
+	error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
@@ -215,6 +257,13 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 
 	return nil, fleet.ErrMissingLicense
 }
+
+type getSoftwareInstallerTokenResponse struct {
+	Err   error  `json:"error,omitempty"`
+	Token string `json:"token"`
+}
+
+func (r getSoftwareInstallerTokenResponse) error() error { return r.Err }
 
 type orbitDownloadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
@@ -239,7 +288,9 @@ func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context
 	r.payload.Installer.Close()
 }
 
-func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, _ bool, _ string, _ uint,
+	_ *uint) (*fleet.DownloadSoftwareInstallerPayload,
+	error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
