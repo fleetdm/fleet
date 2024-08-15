@@ -195,8 +195,32 @@ func main() {
 			migrateMDMItem.Hide()
 		}
 
+		reportError := func(err error, info map[string]any) {
+			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
+				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
+				return
+			}
+
+			fleetdErr := fleet.FleetdError{
+				ErrorSource:         "fleet-desktop",
+				ErrorSourceVersion:  version,
+				ErrorTimestamp:      time.Now(),
+				ErrorMessage:        err.Error(),
+				ErrorAdditionalInfo: info,
+			}
+
+			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
+				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
+			}
+		}
+
 		if runtime.GOOS == "darwin" {
-			m, s, o := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			m, s, o, err := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			if err != nil {
+				go reportError(err, nil)
+				log.Error().Err(err).Msg("setting up MDM migration resources")
+			}
+
 			mdmMigrator = m
 			swiftDialogCh = s
 			offlineWatcher = o
@@ -268,25 +292,6 @@ func main() {
 				}
 			}
 		}()
-
-		reportError := func(err error, info map[string]any) {
-			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
-				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
-				return
-			}
-
-			fleetdErr := fleet.FleetdError{
-				ErrorSource:         "fleet-desktop",
-				ErrorSourceVersion:  version,
-				ErrorTimestamp:      time.Now(),
-				ErrorMessage:        err.Error(),
-				ErrorAdditionalInfo: info,
-			}
-
-			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
-				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
-			}
-		}
 
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
@@ -613,10 +618,10 @@ func logDir() (string, error) {
 	return dir, nil
 }
 
-func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher) {
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher, error) {
 	dir, err := migration.Dir()
 	if err != nil {
-		log.Fatal().Err(err).Msg("getting directory for MDM migration file")
+		return nil, nil, nil, err
 	}
 
 	mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
@@ -643,5 +648,5 @@ func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, clie
 
 	offlineWatcher := useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
 
-	return mdmMigrator, swiftDialogCh, offlineWatcher
+	return mdmMigrator, swiftDialogCh, offlineWatcher, nil
 }

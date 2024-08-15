@@ -69,7 +69,7 @@ var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
 
 Select **Start** and My device page will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
-	"After you start, this window will popup every 3 minutes until you finish.",
+	"After you start, this dialog will popup every 3 minutes until you finish.",
 ))
 
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
@@ -375,6 +375,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 	previousMigrationType, err := m.mrw.GetMigrationType()
 	if err != nil {
 		log.Error().Err(err).Msg("getting migration type")
+		return fmt.Errorf("getting migration type: %w", err)
 	}
 
 	isManualMigration := isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual
@@ -453,7 +454,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			switch true {
+			switch {
 			case isPreSonoma:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
