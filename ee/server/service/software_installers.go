@@ -213,9 +213,18 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	_, ok := hostctx.FromContext(ctx)
+	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
+	access, err := svc.ds.ValidateSoftwareInstallerAccess(ctx, host.ID, installerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check software installer access")
+	}
+
+	if !access {
+		return nil, fleet.NewUserMessageError(errors.New("Host doesn't have access to this installer"), http.StatusForbidden)
 	}
 
 	// get the installer's metadata

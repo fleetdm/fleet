@@ -1557,6 +1557,11 @@ type Datastore interface {
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
 
+	// ValidateSoftwareInstallerAccess checks if a host has access to
+	// an installer. Access is granted if there is currently an unfinished
+	// install request present in host_software_installs
+	ValidateSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error)
+
 	// GetSoftwareInstallerMetadataByTeamAndTitleID returns the software
 	// installer corresponding to the specified team and title ids. If
 	// withScriptContents is true, also returns the contents of the install and
