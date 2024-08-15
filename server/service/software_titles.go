@@ -68,14 +68,17 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, err
 	}
 
-	if opt.TeamID != nil && *opt.TeamID != 0 {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return nil, 0, nil, fleet.ErrMissingLicense
-		}
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
+	}
+
+	if opt.TeamID != nil && *opt.TeamID != 0 && !lic.IsPremium() {
+		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
 	// always include metadata for software titles
