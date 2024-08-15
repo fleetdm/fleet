@@ -63,7 +63,8 @@ func setupRunners() {
 func main() {
 	// FIXME: we need to do a better job of graceful shutdown, releasing resources, stopping
 	// tickers, etc. (https://github.com/fleetdm/fleet/issues/21256)
-	ctx, cancel := context.WithCancel(context.Background())
+	// This context will be used as a general context to handle graceful shutdown in the future.
+	offlineWatcherCtx, cancelOfflineWatcherCtx := context.WithCancel(context.Background())
 
 	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
@@ -215,7 +216,7 @@ func main() {
 		}
 
 		if runtime.GOOS == "darwin" {
-			m, s, o, err := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			m, s, o, err := mdmMigrationSetup(offlineWatcherCtx, tufUpdateRoot, fleetURL, client, &tokenReader)
 			if err != nil {
 				go reportError(err, nil)
 				log.Error().Err(err).Msg("setting up MDM migration resources")
@@ -421,7 +422,7 @@ func main() {
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
-					if offline := offlineWatcher.ShowIfOffline(ctx); offline {
+					if offline := offlineWatcher.ShowIfOffline(offlineWatcherCtx); offline {
 						continue
 					}
 
@@ -445,7 +446,7 @@ func main() {
 			close(swiftDialogCh)
 		}
 		summaryTicker.Stop()
-		cancel()
+		cancelOfflineWatcherCtx()
 	}
 
 	systray.Run(onReady, onExit)
