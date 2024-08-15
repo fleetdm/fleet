@@ -486,6 +486,7 @@ When reviewing subscription agreements on customer paper or when a customer has 
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
 ### Tech stack admins
+
 | Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
 |:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
 | CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
