@@ -21,6 +21,8 @@ func NewReadWriter(path, filename string) *ReadWriter {
 	}
 }
 
+// SetMigrationFile sets `typ` in the file used to track MDM migration type. This overwrites the
+// file if it exists.
 func (rw *ReadWriter) SetMigrationFile(typ string) error {
 	_, err := rw.read()
 	switch {
@@ -43,6 +45,7 @@ func (rw *ReadWriter) SetMigrationFile(typ string) error {
 	return nil
 }
 
+// RemoveFile removes the file used for tracking the MDM migration type.
 func (rw *ReadWriter) RemoveFile() error {
 	if err := os.Remove(rw.FileName); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -56,6 +59,8 @@ func (rw *ReadWriter) RemoveFile() error {
 	return nil
 }
 
+// GetMigrationType returns the contents of the MDM migration file. The contents say what type of
+// migration it is.
 func (rw *ReadWriter) GetMigrationType() (string, error) {
 	data, err := rw.read()
 	if err != nil {
@@ -69,6 +74,7 @@ func (rw *ReadWriter) GetMigrationType() (string, error) {
 	return data, nil
 }
 
+// FileExists returns whether or not the MDM migration file exists on this host.
 func (rw *ReadWriter) FileExists() (bool, error) {
 	_, err := os.Stat(rw.FileName)
 	if err != nil {
@@ -82,6 +88,7 @@ func (rw *ReadWriter) FileExists() (bool, error) {
 	return true, nil
 }
 
+// DirExists returns whether or not the directory where the MDM migration file is stored exists.
 func (rw *ReadWriter) DirExists() (bool, error) {
 	_, err := os.Stat(rw.FileName)
 	if err != nil {
@@ -122,18 +129,24 @@ type fileWatcher struct {
 	rw *ReadWriter
 }
 
+// GetMigrationType returns the contents of the MDM migration file which indicate what type of
+// migration it is.
 func (r *fileWatcher) GetMigrationType() (string, error) {
 	return r.rw.GetMigrationType()
 }
 
+// FileExists returns whether or not the MDM migration file exists on this host.
 func (r *fileWatcher) FileExists() (bool, error) {
 	return r.rw.FileExists()
 }
 
+// DirExists returns whether or not the directory where the MDM migration file is stored exists.
 func (r *fileWatcher) DirExists() (bool, error) {
 	return r.rw.DirExists()
 }
 
+// Dir returns the path to the directory where the MDM migration file is stored. This path should be
+// ~/Library/Caches/com.fleetdm.orbit
 func Dir() (string, error) {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
