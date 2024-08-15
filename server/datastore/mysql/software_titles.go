@@ -100,6 +100,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "available_for_install and vulnerable can't be provided together")
 	}
 
+	if (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) && !opt.VulnerableOnly {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args := selectSoftwareTitlesSQL(opt)
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
@@ -263,7 +267,7 @@ SELECT
 	si.filename as package_name,
 	si.version as package_version,
 	-- in a future iteration, will be supported for VPP apps
-	0 as vpp_app_self_service,
+	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vap.latest_version as vpp_app_version,
 	vap.icon_url as vpp_app_icon_url
@@ -321,6 +325,30 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	}
 
 	var args []any
+	if opt.VulnerableOnly && (opt.KnownExploit || opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0) {
+		softwareJoin += `
+			INNER JOIN cve_meta cm ON scve.cve = cm.cve
+		`
+		if opt.KnownExploit {
+			softwareJoin += `
+				AND cm.cisa_known_exploit = 1
+			`
+		}
+		if opt.MinimumCVSS > 0 {
+			softwareJoin += `
+				AND cm.cvss_score >= ?
+			`
+			args = append(args, opt.MinimumCVSS)
+		}
+
+		if opt.MaximumCVSS > 0 {
+			softwareJoin += `
+				AND cm.cvss_score <= ?
+			`
+			args = append(args, opt.MaximumCVSS)
+		}
+	}
+
 	if match != "" {
 		additionalWhere = " (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)

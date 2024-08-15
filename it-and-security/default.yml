@@ -86,3 +86,4 @@ org_settings:
 policies:
 queries:
   - path: ./lib/collect-fleetd-update-channels.queries.yml
+software:

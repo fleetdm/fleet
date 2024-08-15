@@ -597,6 +597,11 @@ func (c *GoogleCalendar) createEvent(
 			continue
 		}
 
+		if gEvent.Transparency == "transparent" {
+			// Ignore events that do not block time on the calendar (e.g. free events)
+			continue
+		}
+
 		// Ignore events that the user has declined
 		var declined bool
 		for _, attendee := range gEvent.Attendees {
