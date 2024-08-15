@@ -216,9 +216,10 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			}
 			schema := vuln.Schema()
 
-			meta := fleet.CVEMeta{
-				CVE:         cve,
-				Description: schema.CVE.Description.DescriptionData[0].Value,
+			meta := fleet.CVEMeta{CVE: cve}
+
+			if len(schema.CVE.Description.DescriptionData) > 0 {
+				meta.Description = schema.CVE.Description.DescriptionData[0].Value
 			}
 
 			if schema.Impact.BaseMetricV3 != nil {
