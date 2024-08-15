@@ -317,7 +317,7 @@ func main() {
 				myDeviceItem.Enable()
 
 				// Check our file to see if we should migrate
-				migrationInProgress, err := mdmMigrator.MigrationInProgress()
+				migrationInProgress, err := useraction.MigrationInProgress(mdmMigrator) // mdmMigrator.MigrationInProgress()
 				if err != nil {
 					go reportError(err, nil)
 					log.Error().Err(err).Msg("checking if MDM migration is in progress")

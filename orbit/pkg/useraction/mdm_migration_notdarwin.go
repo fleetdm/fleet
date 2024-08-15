@@ -18,11 +18,13 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 	return &NoopOfflineWatcher{}
 }
 
+func MigrationInProgress(m MDMMigrator) (bool, error) {
+	return false, nil
+}
+
 type NoopOfflineWatcher struct{}
 
-func (o *NoopOfflineWatcher) ShowIfOffline(ctx context.Context) bool {
-	return false
-}
+func (o *NoopOfflineWatcher) ShowIfOffline(ctx context.Context) bool { return false }
 
 type NoopMDMMigrator struct{}
 

@@ -844,3 +844,7 @@ func (m *swiftDialogMDMMigrationOffline) getFlags() ([]string, error) {
 
 	return flags, nil
 }
+
+func MigrationInProgress(m MDMMigrator) (bool, error) {
+	return m.MigrationInProgress()
+}
