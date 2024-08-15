@@ -36,6 +36,11 @@ Coming soon:
 - Ability to auto install from Apple VPP.
 - Install on iOS and iPadOS
 
+Using API:
+The same result can be achieved by using Fleet API.
+See our `POST /api/v1/fleet/software/package` API for details.
+Example:
+
 
 
 When a policy fails, it may indicate a potential security risk or non-compliance that requires attention. With this new feature, you can automate the mitigation of such failures by scheduling maintenance during a designated time window. For instance, if a `brew` update is required, administrators can schedule a time with the host's user to run an update script via a webhook. This webhook can be integrated with a low-code or no-code solution to streamline the process.
