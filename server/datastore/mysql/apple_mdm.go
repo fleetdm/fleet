@@ -4709,7 +4709,7 @@ LIMIT 500
 
 func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
 	const stmt = `
-SELECT 
+SELECT
 	abt.id,
 	abt.organization_name,
 	abt.apple_id,
@@ -4724,13 +4724,13 @@ SELECT
 	COALESCE(t3.name, '') as ipados_team
 FROM
 	abm_tokens abt
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	teams t1 ON t1.id = abt.macos_default_team_id
-LEFT OUTER JOIN 
-	teams t2 ON t2.id = abt.ios_default_team_id 
-LEFT OUTER JOIN 
-	teams t3 ON t3.id = abt.ipados_default_team_id 
-WHERE 
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+WHERE
 	abt.organization_name = ?`
 
 	var abmTok fleet.ABMToken
@@ -4740,14 +4740,25 @@ WHERE
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get abm token by org name")
 	}
+
+	// decrypt the token with the serverPrivateKey, the resulting value will be
+	// the token still encrypted, but just with the ABM cert and key (it is that
+	// encrypted value that is stored with another layer of encryption with the
+	// serverPrivateKey).
+	decrypted, err := decrypt(abmTok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+	}
+	abmTok.EncryptedToken = decrypted
+
 	return &abmTok, nil
 }
 
 func (ds *Datastore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
 	const stmt = `
-UPDATE 
-	abm_tokens 
-SET 
+UPDATE
+	abm_tokens
+SET
 	organization_name = ?,
 	apple_id = ?,
 	terms_expired = ?,
@@ -4759,14 +4770,19 @@ SET
 WHERE
 	id = ?`
 
-	_, err := ds.writer(ctx).ExecContext(
+	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt with datastore.serverPrivateKey")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
 		tok.OrganizationName,
 		tok.AppleID,
 		tok.TermsExpired,
 		tok.RenewAt,
-		tok.EncryptedToken,
+		doubleEncTok,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
 		tok.IPadOSDefaultTeamID,

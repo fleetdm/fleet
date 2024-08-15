@@ -21,13 +21,13 @@ import (
 // getVPPToken returns the base64 encoded VPP token, ready for use in requests to Apple's VPP API.
 // It returns an error if the token is expired.
 func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
-	configMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+	configMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPTokenDeprecated})
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
 	var vppTokenData fleet.VPPTokenData
-	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPToken].Value, &vppTokenData); err != nil {
+	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPTokenDeprecated].Value, &vppTokenData); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 

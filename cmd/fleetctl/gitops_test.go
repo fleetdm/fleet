@@ -1382,8 +1382,8 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				asset := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-					fleet.MDMAssetVPPToken: {
-						Name:  fleet.MDMAssetVPPToken,
+					fleet.MDMAssetVPPTokenDeprecated: {
+						Name:  fleet.MDMAssetVPPTokenDeprecated,
 						Value: token,
 					},
 				}

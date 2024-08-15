@@ -24,6 +24,8 @@ CREATE TABLE abm_tokens (
 	apple_id               varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	terms_expired          tinyint(1) NOT NULL DEFAULT '0',
 	renew_at               timestamp NOT NULL,
+	-- encrypted token, encrypted with the ABM cert and key and encrypted again
+	-- with the FleetConfig.Server.PrivateKey
 	token                  blob NOT NULL,
 
 	-- those team_id fields are the default teams where devices from this ABM
@@ -77,7 +79,7 @@ WHERE
 			// nothing to migrate, exit early
 			return nil
 		}
-		return fmt.Errorf("selecting team configs: %w", err)
+		return fmt.Errorf("selecting existing ABM token: %w", err)
 	}
 
 	// get the current ABM configuration from the app config

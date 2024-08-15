@@ -46,7 +46,7 @@ var (
 		fleet.MDMAssetCACert:             {},
 		fleet.MDMAssetCAKey:              {},
 		fleet.MDMAssetSCEPChallenge:      {},
-		fleet.MDMAssetVPPToken:           {},
+		fleet.MDMAssetVPPTokenDeprecated: {},
 	}
 )
 
@@ -181,7 +181,7 @@ func main() {
 			fleet.MDMAssetABMKey,
 			fleet.MDMAssetABMTokenDeprecated,
 			fleet.MDMAssetSCEPChallenge,
-			fleet.MDMAssetVPPToken,
+			fleet.MDMAssetVPPTokenDeprecated,
 		}
 
 		if flagExportName != "" {
