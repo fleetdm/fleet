@@ -27,7 +27,7 @@ import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 import { QueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { IMdmAbmToken } from "interfaces/mdm";
+import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
 import { isBefore } from "date-fns";
 
 interface IAppProps {
@@ -46,10 +46,11 @@ interface RecordWithRenewDate {
 
 const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
 
+// TODO: add tests for this function
 const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   const earliest = records.reduce((acc, record) => {
     const renewDate = new Date(record.renew_date);
-    return isBefore(renewDate, acc) ? renewDate : acc;
+    return isBefore(acc, renewDate) ? acc : renewDate;
   }, new Date(NaN));
 
   if (isNaN(earliest.valueOf())) {
@@ -124,11 +125,11 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   });
 
   // Get the Apple Push VPP token expiration date
-  useQuery(["vppToken"], () => mdmAppleAPI.getVppInfo(), {
+  useQuery<IMdmVppToken[]>(["vpp_tokens"], () => mdmAppleAPI.getVppTokens(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
     onSuccess: (data) => {
-      setVppExpiry(data.renew_date);
+      setVppExpiry(getEarliestExpiry(data));
     },
   });
 

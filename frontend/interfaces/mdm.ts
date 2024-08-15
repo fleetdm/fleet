@@ -27,6 +27,15 @@ export interface IMdmAbmToken {
   ipados_team: string;
 }
 
+export interface IMdmVppToken {
+  id: number;
+  org_name: string;
+  location: string;
+  renew_date: string;
+  terms_expired: boolean; // TODO: what does this mean in the context of VPP? isn't this just an abm concept?
+  teams: string[];
+}
+
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
 };
