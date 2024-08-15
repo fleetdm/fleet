@@ -31,6 +31,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -39,10 +40,12 @@ import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFilters,
+  ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
   getSoftwareFilterForQueryKey,
   getSoftwareVulnFiltersForQueryKey,
+  getVulnFilterDetails,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -71,7 +74,7 @@ interface ISoftwareTableProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
-  vulnFilters: ISoftwareVulnFilters;
+  vulnFilters: ISoftwareVulnFiltersParams;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
@@ -186,7 +189,8 @@ const SoftwareTable = ({
   }, [generateTableConfig, data, router, teamId]);
 
   // determines if a user should be able to search in the table
-  const searchable = isSoftwareEnabled;
+  const searchable =
+    isSoftwareEnabled && !(tableData?.length === 0 && query === "");
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -195,7 +199,7 @@ const SoftwareTable = ({
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
-      ...vulnFilters,
+      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
     };
 
     router.replace(
@@ -317,31 +321,23 @@ const SoftwareTable = ({
     )
       return <></>;
 
-    const filterButtonText = () => {
-      let filterCount = 0;
-
-      if (vulnFilters.vulnerable) {
-        filterCount += 1;
-        if (vulnFilters.exploit) {
-          filterCount += 1;
-        }
-        if (vulnFilters.min_cvss_score || vulnFilters.max_cvss_score) {
-          filterCount += 1;
-        }
-      }
-
-      return filterCount > 0
-        ? `${filterCount} filter${filterCount > 1 ? "s" : ""}`
-        : "Add filter";
-    };
+    const vulnFilterDetails = getVulnFilterDetails(vulnFilters);
 
     return (
-      <div className={`${baseClass}__filters`}>
+      <TooltipWrapper
+        className={`${baseClass}__filters`}
+        position="left"
+        underline={false}
+        showArrow
+        tipOffset={12}
+        tipContent={vulnFilterDetails.tooltipText}
+        disableTooltip={vulnFilterDetails.filterCount === 0}
+      >
         <Button variant="text-link" onClick={onAddFilterClick}>
           <Icon name="filter" color="core-fleet-blue" />
-          <span>{filterButtonText()}</span>
+          <span>{vulnFilterDetails.buttonText}</span>
         </Button>
-      </div>
+      </TooltipWrapper>
     );
   };
 

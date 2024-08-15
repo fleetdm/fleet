@@ -26,12 +26,13 @@
   }
 
   &__filters {
-    .button {
-      padding-right: 0;
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
 
-      .children-wrapper {
-        gap: $pad-small;
-      }
+    .children-wrapper {
+      gap: $pad-small;
     }
   }
 

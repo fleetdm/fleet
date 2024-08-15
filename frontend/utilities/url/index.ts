@@ -46,14 +46,25 @@ interface IMutuallyExclusiveHostParams {
 }
 
 export const parseQueryValueToNumberOrUndefined = (
-  value: QueryValues
+  value: QueryValues,
+  min?: number,
+  max?: number
 ): number | undefined => {
+  const isWithinRange = (num: number) => {
+    if (min !== undefined && max !== undefined) {
+      return num >= min && num <= max;
+    }
+    return true; // No range check if min or max is undefined
+  };
+
   if (typeof value === "number") {
-    return value;
+    return isWithinRange(value) ? value : undefined;
   }
   if (typeof value === "string") {
     const parsedValue = parseFloat(value);
-    return isNaN(parsedValue) ? undefined : parsedValue;
+    return !isNaN(parsedValue) && isWithinRange(parsedValue)
+      ? parsedValue
+      : undefined;
   }
   return undefined;
 };

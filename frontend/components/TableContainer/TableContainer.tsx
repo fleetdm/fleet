@@ -306,13 +306,10 @@ const TableContainer = <T,>({
             {customControl && customControl()}
           </div>
           <div className="box search">
-            {" "}
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <div
-                  className={`${baseClass}__search-input ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
+                  className={`${baseClass}__search-input`}
                   data-tip
                   data-for="search-tooltip"
                   data-tip-disable={!searchToolTipText}
