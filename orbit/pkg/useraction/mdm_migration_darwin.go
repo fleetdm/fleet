@@ -622,15 +622,23 @@ func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 	return m.mrw.RemoveFile()
 }
 
+type offlineWatcher struct {
+	client          *service.DeviceClient
+	swiftDialogPath string
+	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
+	swiftDialogCh chan struct{}
+	fileWatcher   migration.FileWatcher
+}
+
 // StartMDMMigrationOfflineWatcher starts a watcher running on a 3-minute loop that checks if the
 // device goes offline in the process of migrating to Fleet's MDM and offline. If so, it shows a
 // dialog to prompt the user to connect to the internet.
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) *OfflineWatcher {
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
 	if cap(swiftDialogCh) != 1 {
 		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
 	}
 
-	watcher := &OfflineWatcher{
+	watcher := &offlineWatcher{
 		client:          client,
 		swiftDialogPath: swiftDialogPath,
 		swiftDialogCh:   swiftDialogCh,
@@ -660,7 +668,7 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 
 // ShowIfOffline shows the offline dialog if the host is offline.
 // It returns true if the host is offline, and false otherwise.
-func (o *OfflineWatcher) ShowIfOffline(ctx context.Context) bool {
+func (o *offlineWatcher) ShowIfOffline(ctx context.Context) bool {
 	// try the dialog channel
 	select {
 	case o.swiftDialogCh <- struct{}{}:
@@ -695,7 +703,7 @@ func (o *OfflineWatcher) ShowIfOffline(ctx context.Context) bool {
 	return true
 }
 
-func (o *OfflineWatcher) isUnmanaged() bool {
+func (o *offlineWatcher) isUnmanaged() bool {
 	mt, err := o.fileWatcher.GetMigrationType()
 	if err != nil {
 		log.Error().Err(err).Msg("getting migration type")
@@ -711,7 +719,7 @@ func (o *OfflineWatcher) isUnmanaged() bool {
 	return true
 }
 
-func (o *OfflineWatcher) isOffline() bool {
+func (o *offlineWatcher) isOffline() bool {
 	err := o.client.Ping()
 	if err == nil {
 		log.Debug().Msg("offline dialog, ping ok, device is online")
@@ -762,7 +770,7 @@ func isOfflineError(err error) bool {
 }
 
 // ShowDialogMDMMigrationOffline displays the dialog every time is called
-func (o *OfflineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context) error {
+func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context) error {
 	props := MDMMigratorProps{
 		DisableTakeover: true,
 	}

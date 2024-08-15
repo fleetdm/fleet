@@ -114,7 +114,7 @@ func main() {
 	// swiftDialogCh is a channel shared by the migrator and the offline watcher to
 	// coordinate the display of the dialog and ensure only one dialog is shown at a time.
 	var swiftDialogCh chan struct{}
-	var offlineWatcher *useraction.OfflineWatcher
+	var offlineWatcher useraction.MDMOfflineWatcher
 
 	// This ticker is used for fetching the desktop summary. It is initialized here because it is
 	// stopped in `OnExit.`
@@ -607,7 +607,7 @@ func logDir() (string, error) {
 	return dir, nil
 }
 
-func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, *useraction.OfflineWatcher) {
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher) {
 	dir, err := migration.Dir()
 	if err != nil {
 		log.Fatal().Err(err).Msg("getting directory for MDM migration file")
