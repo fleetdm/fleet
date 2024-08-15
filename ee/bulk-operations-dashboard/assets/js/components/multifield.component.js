@@ -63,8 +63,9 @@ parasails.registerComponent('multifield', {
           <option :value="undefined" selected>---</option>
           <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.name}}</option>
         </select>
-        <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelect'">
+        <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputTeamSelectItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelect'">
           <option :value="undefined" selected>---</option>
+          <option value="allTeams">All teams</option>
           <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
         </select>
         <input :type="inputType" :placeholder="inputPlaceholder" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType">
@@ -119,7 +120,7 @@ parasails.registerComponent('multifield', {
       } else {
         for(let option of this.selectOptions){
           // If we're using inputType="nameAndHostCountSelect", we will validate all options before cloning the object.
-          if(!option.fleetApid){
+          if(typeof option.fleetApid !== 'number'){
             throw new Error(`Option in selectOptions is missing an fleetApid. When using inputType="teamSelect", An fleetApid property is required for all objects in the selectOptions array. Object missing an fleetApid: ${option}`);
           }
           if(!option.teamName){
@@ -181,6 +182,16 @@ parasails.registerComponent('multifield', {
     inputDefaultItemField: async function($event, idx) {
       var parsedValue = $event.target.value || undefined;
       this.currentFieldValues[idx] = parsedValue;
+      await this.forceRender();
+      this._handleChangingFieldValues();
+    },
+
+    inputTeamSelectItemField: async function($event, idx) {
+      var parsedValue = $event.target.value || undefined;
+      this.currentFieldValues[idx] = parsedValue;
+      if(parsedValue === 'allTeams') {
+        this.currentFieldValues = _.pluck(this.optionsForSelect, 'fleetApid')
+      }
       await this.forceRender();
       this._handleChangingFieldValues();
     },

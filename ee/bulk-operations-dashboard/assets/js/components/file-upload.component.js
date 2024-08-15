@@ -96,7 +96,7 @@ parasails.registerComponent('fileUpload', {
             <label purpose="file-upload" for="file-upload-input">
               <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose File
             </label>
-            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" :accept="mode === 'image' ? 'image/*' : ''" @change="changeFileInput($event)"/>
+            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" accept=".xml,.mobileconfig" @change="changeFileInput($event)"/>
           </div>
         </div>
       </div>
@@ -107,6 +107,36 @@ parasails.registerComponent('fileUpload', {
             <p><strong>{{selectedFileName.replace(/\.(xml|mobileconfig)$/g, '').replace(/^\d{4}-\d{2}-\d{2}_/, '')}}</strong></p>
             <p class="muted" v-if="_.endsWith(selectedFileName, 'xml')">Windows</p>
             <p class="muted" v-else>macOS, iOS, iPadOS</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="mode === 'scripts'">
+      <div purpose="script-upload-input" v-if="isEmpty">
+        <div class="d-flex flex-column align-items-center">
+          <!-- <input id='file-upload' type="file" > -->
+          <div class="d-flex flex-row justify-content-center mb-2">
+            <img style="height: 40px; width: 34px; margin-right: 16px;" src="/images/script-icon-sh-34x40@2x.png">
+            <img style="height: 40px; width: 34px;" src="/images/script-icon-ps1-34x40@2x.png">
+          </div>
+          <p class="mb-2">Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows</p>
+          <p style="color: #8B8FA2" class="muted">By default, scripts will run with “#!/bin/sh” on macOS and Linux. </p>
+          <div class="btn-and-tips-if-relevant">
+            <label purpose="file-upload" for="file-upload-input">
+              <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose File
+            </label>
+            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" accept=".sh,.ps1" @change="changeFileInput($event)"/>
+          </div>
+        </div>
+      </div>
+      <div purpose="script-information" v-else>
+        <div class="d-flex flex-row justify-content-start">
+          <img style="height: 40px; width: 34px;" src="/images/script-icon-ps1-34x40@2x.png" v-if="_.endsWith(selectedFileName, 'ps1')">
+          <img style="height: 40px; width: 34px;" src="/images/script-icon-sh-34x40@2x.png" v-else>
+          <div class="d-flex flex-column">
+            <p><strong>{{selectedFileName}}</strong></p>
+            <p class="muted" v-if="_.endsWith(selectedFileName, 'ps1')">Windows</p>
+            <p class="muted" v-else>macOS & Linux</p>
           </div>
         </div>
       </div>
