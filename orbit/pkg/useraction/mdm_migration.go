@@ -1,6 +1,10 @@
 package useraction
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
+)
 
 // MDMMigrator represents the minimum set of methods a migration must implement
 // in order to be used by Fleet Desktop.
@@ -40,4 +44,12 @@ type MDMMigratorProps struct {
 type MDMMigratorHandler interface {
 	NotifyRemote() error
 	ShowInstructions() error
+}
+
+type OfflineWatcher struct {
+	client          *service.DeviceClient
+	swiftDialogPath string
+	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
+	swiftDialogCh chan struct{}
+	fileWatcher   migration.FileWatcher
 }

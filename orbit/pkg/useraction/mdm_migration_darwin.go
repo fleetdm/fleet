@@ -658,14 +658,6 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 	return watcher
 }
 
-type OfflineWatcher struct {
-	client          *service.DeviceClient
-	swiftDialogPath string
-	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
-	swiftDialogCh chan struct{}
-	fileWatcher   migration.FileWatcher
-}
-
 // ShowIfOffline shows the offline dialog if the host is offline.
 // It returns true if the host is offline, and false otherwise.
 func (o *OfflineWatcher) ShowIfOffline(ctx context.Context) bool {
