@@ -394,7 +394,6 @@ const SoftwareTable = ({
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}
-        responsiveSoftwareHeader
       />
     </div>
   );

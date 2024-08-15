@@ -3,6 +3,7 @@
     width: initial; // 100% causes weird rendering in dropdown
   }
 
+  // Container is responsive design used when customFilters is rendered
   .container {
     display: grid;
     grid-template-columns: 1fr auto auto; /* First column takes all remaining space */
@@ -178,14 +179,14 @@
       min-width: 250px;
     }
 
-    // &.stack-table-controls {
-    //   padding-bottom: $pad-large;
-    //   margin-left: 0;
+    &.stack-table-controls {
+      padding-bottom: $pad-large;
+      margin-left: 0;
 
-    //   @media (min-width: $break-xs) {
-    //     padding-bottom: 0;
-    //   }
-    // }
+      @media (min-width: $break-xs) {
+        padding-bottom: 0;
+      }
+    }
 
     .input-field {
       padding-left: 42px;

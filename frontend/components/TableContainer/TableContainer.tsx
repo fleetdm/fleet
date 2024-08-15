@@ -81,6 +81,7 @@ interface ITableContainerProps<T = any> {
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
   customControl?: () => JSX.Element;
+  /** Filter button right of the search rendering alternative responsive design */
   customFilters?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
@@ -99,8 +100,6 @@ interface ITableContainerProps<T = any> {
    * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
-  /** This responsively moves the search bar up and full width only */
-  responsiveSoftwareHeader?: boolean;
 }
 
 const baseClass = "table-container";
@@ -156,7 +155,6 @@ const TableContainer = <T,>({
   setExportRows,
   resetPageIndex,
   disableTableHeader,
-  responsiveSoftwareHeader,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -275,7 +273,7 @@ const TableContainer = <T,>({
 
   return (
     <div className={wrapperClasses}>
-      {responsiveSoftwareHeader ? (
+      {customFilters ? (
         <div className="container">
           <div className="box">
             {renderCount && !disableCount && (
@@ -416,7 +414,6 @@ const TableContainer = <T,>({
                   </ReactTooltip>
                 </div>
               )}
-              {customFilters && customFilters()}
             </div>
           )}
         </>
