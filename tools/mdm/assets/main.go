@@ -38,15 +38,15 @@ var (
 	flagExportName  string
 
 	validNames = map[fleet.MDMAssetName]struct{}{
-		fleet.MDMAssetABMCert:       {},
-		fleet.MDMAssetABMToken:      {},
-		fleet.MDMAssetABMKey:        {},
-		fleet.MDMAssetAPNSCert:      {},
-		fleet.MDMAssetAPNSKey:       {},
-		fleet.MDMAssetCACert:        {},
-		fleet.MDMAssetCAKey:         {},
-		fleet.MDMAssetSCEPChallenge: {},
-		fleet.MDMAssetVPPToken:      {},
+		fleet.MDMAssetABMCert:            {},
+		fleet.MDMAssetABMTokenDeprecated: {},
+		fleet.MDMAssetABMKey:             {},
+		fleet.MDMAssetAPNSCert:           {},
+		fleet.MDMAssetAPNSKey:            {},
+		fleet.MDMAssetCACert:             {},
+		fleet.MDMAssetCAKey:              {},
+		fleet.MDMAssetSCEPChallenge:      {},
+		fleet.MDMAssetVPPToken:           {},
 	}
 )
 
@@ -179,7 +179,7 @@ func main() {
 			fleet.MDMAssetAPNSCert,
 			fleet.MDMAssetABMCert,
 			fleet.MDMAssetABMKey,
-			fleet.MDMAssetABMToken,
+			fleet.MDMAssetABMTokenDeprecated,
 			fleet.MDMAssetSCEPChallenge,
 			fleet.MDMAssetVPPToken,
 		}

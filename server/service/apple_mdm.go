@@ -3922,12 +3922,12 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 
 	// delete the old token and insert the new one
 	// TODO(roberto): replacing the token should be done in a single transaction in the DB
-	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMToken})
+	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMTokenDeprecated})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting old ABM token in database")
 	}
 	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
+		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving ABM token in database")
@@ -3971,7 +3971,7 @@ func (svc *Service) DisableABM(ctx context.Context) error {
 	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMToken,
+		fleet.MDMAssetABMTokenDeprecated,
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "disabling ABM config")

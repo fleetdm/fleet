@@ -43,6 +43,32 @@ func (a AppleBM) AuthzType() string {
 	return "mdm_apple"
 }
 
+// TODO: during API implementation, remove AppleBM above or reconciliate those
+// two types. We'll likely need a new authz type for the ABM token.
+type ABMToken struct {
+	ID                  uint      `db:"id" json:"id"`
+	AppleID             string    `db:"apple_id" json:"apple_id"`
+	OrganizationName    string    `db:"organization_name" json:"org_name"`
+	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	EncryptedToken      []byte    `db:"token" json:"-"`
+
+	// MDMServerURL is not a database field, it is computed from the AppConfig's
+	// Server URL and the static path to the MDM endpoint (using
+	// apple_mdm.ResolveAppleMDMURL).
+	MDMServerURL string `db:"-" json:"mdm_server_url"`
+
+	// the following fields are not in the abm_tokens table, they must be queried
+	// by a LEFT JOIN on the corresponding team, coalesced to an empty string if
+	// null (no team).
+	MacOSTeam  string `db:"macos_team" json:"macos_team"`
+	IOSTeam    string `db:"ios_team" json:"ios_team"`
+	IPadOSTeam string `db:"ipados_team" json:"ipados_team"`
+}
+
 type AppleCSR struct {
 	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
 	APNsKey  []byte `json:"apns_key"`
@@ -625,9 +651,11 @@ const (
 	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
-	// MDMAssetABMToken is an encrypted JSON file that contains a token
-	// that can be used for the authentication process with the ABM API
-	MDMAssetABMToken MDMAssetName = "abm_token"
+	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API.
+	// Deprecated: ABM tokens are now stored in the abm_tokens, they are not in
+	// mdm_config_assets anymore.
+	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"

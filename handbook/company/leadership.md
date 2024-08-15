@@ -384,6 +384,19 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 
+## CEO shadow program
+
+The CEO shadow program is a three-day temporary assignment (usually completed during onboarding) in which team members will shadow all relevant meetings on the CEO's calendar. This gives team members an overview of all aspects of the company and provides high context and in turn, high-output contributors. The program also creates opportunities for the CEO to build relationships with team members across the company and to identify challenges and opportunities earlier. 
+ 
+> **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
+
+There are many short-term tasks you'll be asked to perform as a shadow. Here are some examples:
+- Prepare for, participate in, take notes during, and follow up on meetings.
+- Make handbook updates and shadow PR reviews.
+- Solve urgent issues. For example, help solve a complaint from a customer or coordinate the response to a technical issue.
+- Create and/or complete GitHub issues involving multiple departments at Fleet, and work towards closing or creating pull requests to complete issues.
+
+
 ## Tracking hours
 Fleet asks US-based hourly contributors to track hours in Gusto, and contributors outside the US to track hours via Pilot.co.
 

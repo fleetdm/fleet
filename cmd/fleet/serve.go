@@ -564,7 +564,7 @@ the way that the Fleet server works.
 				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
 					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
-					{Name: fleet.MDMAssetABMToken, Value: appleBM.EncryptedToken},
+					{Name: fleet.MDMAssetABMTokenDeprecated, Value: appleBM.EncryptedToken},
 				})
 				if err != nil {
 					// duplicate key errors mean that we already
@@ -611,7 +611,7 @@ the way that the Fleet server works.
 				appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
 					fleet.MDMAssetABMCert,
 					fleet.MDMAssetABMKey,
-					fleet.MDMAssetABMToken,
+					fleet.MDMAssetABMTokenDeprecated,
 				})
 				if err != nil {
 					initFatal(err, "validating MDM ABM assets from database")
