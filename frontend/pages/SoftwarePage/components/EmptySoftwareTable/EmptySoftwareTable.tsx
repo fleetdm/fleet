@@ -50,16 +50,16 @@ const EmptySoftwareTable = ({
   };
 
   if (noSearchQuery && softwareFilter === "allSoftware") {
-    emptySoftware.header = "No software detected";
+    emptySoftware.header = `No ${tableName} detected`;
   }
 
   if (softwareFilter === "allSoftware" && installableSoftwareExists) {
-    emptySoftware.header = "No software detected";
+    emptySoftware.header = `No ${tableName} detected`;
     emptySoftware.info = "Install software on your hosts to see versions.";
   }
 
   if (isCollectingSoftware) {
-    emptySoftware.header = "No software detected";
+    emptySoftware.header = `No ${tableName} detected`;
     emptySoftware.info = `Expecting to see ${softwareTypeText}? Check back later.`;
   }
 
@@ -80,7 +80,7 @@ const EmptySoftwareTable = ({
 
   return (
     <EmptyTable
-      graphicName="empty-software"
+      graphicName="empty-search-question"
       header={emptySoftware.header}
       info={emptySoftware.info}
     />

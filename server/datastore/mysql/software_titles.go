@@ -263,7 +263,7 @@ SELECT
 	si.filename as package_name,
 	si.version as package_version,
 	-- in a future iteration, will be supported for VPP apps
-	0 as vpp_app_self_service,
+	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vap.latest_version as vpp_app_version,
 	vap.icon_url as vpp_app_icon_url
