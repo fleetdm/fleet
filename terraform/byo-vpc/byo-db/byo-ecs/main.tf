@@ -232,7 +232,7 @@ resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-gr
 }
 
 resource "aws_security_group" "main" {
-  count       = var.fleet_config.security_groups == null ? 1 : 0
+  count       = var.fleet_config.networking.security_groups == null ? 1 : 0
   name        = var.fleet_config.security_group_name
   description = "Fleet ECS Service Security Group"
   vpc_id      = var.vpc_id
