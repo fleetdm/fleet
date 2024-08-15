@@ -50,6 +50,10 @@ Example:
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * TODO Sharon: Describe the workflow 
 
+### Detailed flowchart
+![Flowchart](../website/assets/images/articles/automatic-software-install-in-fleet-13762x2946@2x.png)
+
+
 ## Prerequisites
 
 * Fleet premium. 
