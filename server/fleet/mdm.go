@@ -764,12 +764,23 @@ type VPPTokenDB struct {
 	RenewDate time.Time `json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token        string `json:"-"`
-	TeamID       *uint  `json:"team_id"`
-	NullTeamType string `json:"null_team_type"`
+	Token    string       `json:"-"`
+	TeamID   *uint        `json:"team_id"`
+	NullTeam NullTeamType `json:"null_team_type"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
 
 type AppleDevice int
 

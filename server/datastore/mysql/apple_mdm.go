@@ -4791,18 +4791,7 @@ WHERE
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
-type NullTeamType string
-
-const (
-	// VPP token is inactive, only valid option if teamID is set.
-	NullTeamNone NullTeamType = "none"
-	// VPP token is available for all teams.
-	NullTeamAllTeams NullTeamType = "allteams"
-	// VPP token is available only for "No team" team.
-	NullTeamNoTeam NullTeamType = "noteam"
-)
-
-func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam NullTeamType) (*fleet.VPPTokenDB, error) {
+func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
 	stmt := `
 	INSERT INTO
 		vpp_tokens (
@@ -4816,7 +4805,7 @@ func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, 
 	VALUES (?, ?, ?, ?, ?, ?)
 `
 
-	if teamID != nil && nullTeam != NullTeamNone {
+	if teamID != nil && nullTeam != fleet.NullTeamNone {
 		return nil, ctxerr.Errorf(ctx, "nullTeam must be set to NullTeamNone if teamID is present")
 	}
 
@@ -4841,11 +4830,11 @@ func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, 
 	}
 
 	vppTokenDB := &fleet.VPPTokenDB{
-		OrgName:      tokRaw.OrgName,
-		Location:     tok.Location,
-		RenewDate:    exp,
-		Token:        tok.Token,
-		NullTeamType: string(nullTeam),
+		OrgName:   tokRaw.OrgName,
+		Location:  tok.Location,
+		RenewDate: exp,
+		Token:     tok.Token,
+		NullTeam:  nullTeam,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
@@ -4856,7 +4845,7 @@ func (ds *Datastore) SaveVPPToken(ctx context.Context, tok *fleet.VPPTokenData, 
 		vppTokenDB.RenewDate,
 		tokEnc,
 		vppTokenDB.TeamID,
-		vppTokenDB.NullTeamType,
+		vppTokenDB.NullTeam,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
@@ -4888,13 +4877,13 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 `
 
 	var tokEnc struct {
-		ID           uint      `db:"id"`
-		OrgName      string    `db:"organization_name"`
-		Location     string    `db:"location"`
-		RenewDate    time.Time `db:"renew_at"`
-		Token        []byte    `db:"token"`
-		TeamID       *uint     `db:"team_id"`
-		NullTeamType string    `db:"null_team_type"`
+		ID        uint      `db:"id"`
+		OrgName   string    `db:"organization_name"`
+		Location  string    `db:"location"`
+		RenewDate time.Time `db:"renew_at"`
+		Token     []byte    `db:"token"`
+		TeamID    *uint     `db:"team_id"`
+		NullTeam  string    `db:"null_team_type"`
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
@@ -4907,14 +4896,56 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 	}
 
 	tok := &fleet.VPPTokenDB{
-		ID:           tokEnc.ID,
-		OrgName:      tokEnc.OrgName,
-		Location:     tokEnc.Location,
-		RenewDate:    tokEnc.RenewDate,
-		Token:        string(tokDec),
-		TeamID:       tokEnc.TeamID,
-		NullTeamType: tokEnc.NullTeamType,
+		ID:        tokEnc.ID,
+		OrgName:   tokEnc.OrgName,
+		Location:  tokEnc.Location,
+		RenewDate: tokEnc.RenewDate,
+		Token:     string(tokDec),
+		TeamID:    tokEnc.TeamID,
+		NullTeam:  fleet.NullTeamType(tokEnc.NullTeam),
 	}
 
 	return tok, nil
+}
+
+func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
+	stmt := `
+	UPDATE
+		vpp_tokens
+	SET
+		organization_name = ?,
+		location = ?,
+		renew_at = ?,
+		token = ?,
+		team_id = ?,
+		null_team_type = ?
+	WHERE
+		id = ?
+`
+
+	if tok.TeamID != nil && tok.NullTeam != fleet.NullTeamNone {
+		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
+	}
+
+	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
+	if err != nil {
+		ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrgName,
+		tok.Location,
+		tok.RenewDate,
+		tokEnc,
+		tok.TeamID,
+		tok.NullTeam,
+		tok.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp token")
+	}
+
+	return nil
 }
