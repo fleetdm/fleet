@@ -7,7 +7,22 @@ software on specific hosts using pre uploded installation images and using label
 policy. You'll learn how to configure and use this feature, as well as understand how the underlying
 mechanism works.
 
-Fleet uses policies as a tool to verify that certain behaviors or conditions are met on hosts. These policies run osquery queries on hosts, which return a boolean result indicating success or failure. For example, a policy might check that passwords have more than a certain number of characters or that the `brew` package manager is up to date. Other policies might ensure that disk encryption is enabled or that the screensaver is set to a specific time and locks the host when it activates.
+Fleet uses policies as a tool to verify that certain behaviors or conditions are met on hosts. These
+policies run osquery queries on hosts, which return a boolean result indicating success or failure.
+For example, a policy might check that passwords have more than a certain number of characters or
+that the `brew` package manager is up to date. Other policies might ensure that disk encryption is
+enabled or that the screensaver is set to a specific time and locks the host when it activates.
+
+Current supported installation files, manual upload of these formats:
+- Macos: .pkg
+- Windows: .msi, .exe
+- Linux: .deb
+
+Coming soon:
+- Ability to auto install from Apple VPP.
+- Install on iOS and iPadOS
+
+
 
 When a policy fails, it may indicate a potential security risk or non-compliance that requires attention. With this new feature, you can automate the mitigation of such failures by scheduling maintenance during a designated time window. For instance, if a `brew` update is required, administrators can schedule a time with the host's user to run an update script via a webhook. This webhook can be integrated with a low-code or no-code solution to streamline the process.
 
