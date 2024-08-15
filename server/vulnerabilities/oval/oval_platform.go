@@ -13,6 +13,7 @@ type Platform string
 
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
 const OvalFilePrefix = "fleet_oval"
+const GovalDictionaryFilePrefix = "fleet_goval_dictionary"
 
 // SupportedSoftwareSources are the software sources for which we are using OVAL for vulnerability detection.
 var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages"}
@@ -69,6 +70,10 @@ func (op Platform) ToFilename(date time.Time, extension string) string {
 	return fmt.Sprintf("%s_%s-%d_%02d_%02d.%s", OvalFilePrefix, op, date.Year(), date.Month(), date.Day(), extension)
 }
 
+func (op Platform) ToGovalDictionaryFilename() string {
+	return fmt.Sprintf("%s_%s.sqlite3", GovalDictionaryFilePrefix, op)
+}
+
 // IsSupported returns whether the given platform is currently supported.
 func (op Platform) IsSupported() bool {
 	supported := []string{
@@ -89,8 +94,23 @@ func (op Platform) IsSupported() bool {
 		"rhel_07",
 		"rhel_08",
 		"rhel_09",
-		"amzn_02",
 	}
+	for _, p := range supported {
+		if strings.HasPrefix(string(op), p) {
+			return true
+		}
+	}
+	return false
+}
+
+func (op Platform) IsGovalDictionarySupported() bool {
+	supported := []string{
+		"amzn_01",
+		"amzn_02",
+		"amzn_2022",
+		"amzn_2023",
+	}
+
 	for _, p := range supported {
 		if strings.HasPrefix(string(op), p) {
 			return true
