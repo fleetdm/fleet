@@ -6440,8 +6440,8 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	tokens, err := ds.ListVPPTokens(ctx)
-	_ = tokens
 	assert.NoError(t, err)
+	assert.Len(t, tokens, 0)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
