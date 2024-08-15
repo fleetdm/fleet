@@ -4877,13 +4877,13 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 `
 
 	var tokEnc struct {
-		ID        uint      `db:"id"`
-		OrgName   string    `db:"organization_name"`
-		Location  string    `db:"location"`
-		RenewDate time.Time `db:"renew_at"`
-		Token     []byte    `db:"token"`
-		TeamID    *uint     `db:"team_id"`
-		NullTeam  string    `db:"null_team_type"`
+		ID        uint               `db:"id"`
+		OrgName   string             `db:"organization_name"`
+		Location  string             `db:"location"`
+		RenewDate time.Time          `db:"renew_at"`
+		Token     []byte             `db:"token"`
+		TeamID    *uint              `db:"team_id"`
+		NullTeam  fleet.NullTeamType `db:"null_team_type"`
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
@@ -4902,7 +4902,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		RenewDate: tokEnc.RenewDate,
 		Token:     string(tokDec),
 		TeamID:    tokEnc.TeamID,
-		NullTeam:  fleet.NullTeamType(tokEnc.NullTeam),
+		NullTeam:  tokEnc.NullTeam,
 	}
 
 	return tok, nil
@@ -4948,4 +4948,61 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) 
 	}
 
 	return nil
+}
+
+func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting vpp token")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	stmt := `
+	SELECT
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+`
+	var tokEncs []struct {
+		ID        uint               `db:"id"`
+		OrgName   string             `db:"organization_name"`
+		Location  string             `db:"location"`
+		RenewDate time.Time          `db:"renew_at"`
+		Token     []byte             `db:"token"`
+		TeamID    *uint              `db:"team_id"`
+		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), tokEncs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp tokens from db")
+	}
+
+	var tokens []fleet.VPPTokenDB
+
+	for _, tokEnc := range tokEncs {
+		tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+		}
+
+		tokens = append(tokens, fleet.VPPTokenDB{
+			ID:        tokEnc.ID,
+			OrgName:   tokEnc.OrgName,
+			Location:  tokEnc.Location,
+			RenewDate: tokEnc.RenewDate,
+			Token:     string(tokDec),
+			TeamID:    tokEnc.TeamID,
+			NullTeam:  tokEnc.NullTeam,
+		})
+	}
+
+	return tokens, nil
 }
