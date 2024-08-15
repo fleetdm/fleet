@@ -2,16 +2,30 @@
 
 ![Automatic installation of software on hosts](../website/assets/images/articles/automatic-software-install-in-fleet-731x738@2x.png)
 
+Fleet has the ability to automatically and remotly install software on hosts based on labels applied to them. 
 This guide will walk you through the process of configuring fleet for automatic installation of
 software on specific hosts using pre uploded installation images and using label based install
 policy. You'll learn how to configure and use this feature, as well as understand how the underlying
 mechanism works.
 
-Fleet uses policies as a tool to verify that certain behaviors or conditions are met on hosts. These
-policies run osquery queries on hosts, which return a boolean result indicating success or failure.
-For example, a policy might check that passwords have more than a certain number of characters or
-that the `brew` package manager is up to date. Other policies might ensure that disk encryption is
-enabled or that the screensaver is set to a specific time and locks the host when it activates.
+Fleet allows its users to upload trusted software installation file to be installed and used on hosts.
+When adding a new software, it is possible to configure this specific software to be installed to
+all hosts or alternativly to host with a specific label. 
+
+How to do it:
+- In Fleet click the upper menu `Software` tab.
+- On top left corner drop down menu, select a team (or `No team`)
+- On top right corner click `Add software`.
+- In the newly openned modal add a new trusted binary.
+- In the `Install` dropdown menu select "Automatic".
+- Under the `Target` section select `All hosts` or `Custom`.
+- If `Custom` was selected, right below it will appear a dropdown that will allow `Include` or `Exclude` specific labels. A list of labels will be shown to configure the proper operation
+
+
+In the example below Install on all hosts EXCEPT those with 'Okta - Engineering' label
+
+![Install on all hosts EXCEPT those with 'Okta - Engineering' label](../website/assets/images/articles/automatic-software-install-in-fleet-729x924@2x.png)
+
 
 Current supported installation files, manual upload of these formats:
 - Macos: .pkg
