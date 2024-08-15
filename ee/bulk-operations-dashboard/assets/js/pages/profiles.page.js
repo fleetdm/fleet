@@ -23,9 +23,6 @@ parasails.registerPage('profiles', {
     editProfileFormRules: {
       // no form rules, for this form.
     },
-    addProfileFormRules: {
-      // newProfile: {required: true}
-    },
     profileToEdit: {},
     cloudError: '',
     newProfile: undefined,
@@ -35,10 +32,10 @@ parasails.registerPage('profiles', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
+    this.profilesToDisplay = this.profiles;
+    console.log(this.teams);
   },
   mounted: async function() {
-    this.profilesToDisplay = this.profiles;
-    console.log(this.teams)
     //…
   },
 
@@ -57,14 +54,13 @@ parasails.registerPage('profiles', {
       await this.forceRender();
     },
     changeTeamFilter: async function() {
-      console.log(this.teamFilter);
-      if(this.teamFilter){
+      if(this.teamFilter !== undefined){
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
-        console.log(this.selectedTeam);
         let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
           // console.log(profile.profiles);
-          return _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
+          return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
         })
+        console.log(profilesOnThisTeam);
         this.profilesToDisplay = profilesOnThisTeam;
       } else {
         this.profilesToDisplay = this.profiles;
@@ -73,11 +69,11 @@ parasails.registerPage('profiles', {
     clickChangeTeamFilter: async function(teamApid) {
       this.teamFilter = teamApid;
       console.log(teamApid);
+      console.log(this.teamFilter);
       this.selectedTeam = _.find(this.teams, {'fleetApid': teamApid});
       console.log(this.selectedTeam);
       let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
-        // console.log(profile.profiles);
-        return _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
+        return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
       })
       this.profilesToDisplay = profilesOnThisTeam;
       console.log(profilesOnThisTeam);
@@ -120,34 +116,27 @@ parasails.registerPage('profiles', {
     handleSubmittingDeleteProfileForm: async function() {
       let argins = _.clone(this.formData);
       let response = await Cloud.deleteProfile.with({profile: argins.profile});
-      // this.syncing = false;
-      this.profiles = _.remove(this.profiles, (existingProfile)=>{
-        return existingProfile.name === argins.profile.name
-      })
+      await this._getProfiles();
     },
     handleSubmittingAddProfileForm: async function() {
       let argins = _.clone(this.formData);
       let newProfile = await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
-      if(newProfile.teams) {
-        for(let team of newProfile.teams){
-          console.log(team.fleetApid)
-          let thisTeam = _.find(this.teams, {fleetApid: Number(team.fleetApid)});
-          team.teamName = thisTeam.teamName;
-        }
-        console.log(newProfile.teams);
-        console.log(newProfile);
-        let profileAlreadyExists = _.find(this.profiles, {name: newProfile.name});
-        if(profileAlreadyExists){
-          this.profiles = _.remove(this.profiles, (existingProfile)=>{
-            return existingProfile.name === newProfile.name;
-          })
-          newProfile.teams = _.merge(profileAlreadyExists.teams, newProfile.teams)
-          console.log(this.profiles);
-        }
-      }
-      console.log(this.profiles);
-      this.profiles.push(newProfile);
-      await this.forceRender;
+      await this._getProfiles();
     },
+    handleSubmittingEditProfileForm: async function() {
+      let argins = _.clone(this.formData);
+      if(argins.newTeamIds === [undefined]){
+        argins.newTeamIds = [];
+      }
+      let updatedProfile = await Cloud.editProfile.with({profile: argins.profile, newProfile: argins.newProfile, newTeamIds: argins.newTeamIds});
+      await this._getProfiles();
+    },
+    _getProfiles: async function() {
+      this.syncing = true;
+      let newProfilesInformation = await Cloud.getProfiles();
+      this.profiles = newProfilesInformation;
+      this.syncing = false;
+      await this.changeTeamFilter();
+    }
   }
 });

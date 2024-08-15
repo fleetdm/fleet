@@ -1,23 +1,19 @@
 module.exports = {
 
 
-  friendlyName: 'View profiles',
+  friendlyName: 'Get profiles',
 
 
-  description: 'Display "Profiles" page.',
-
+  description: 'returns an array of all profiles on a Fleet instance.',
 
   exits: {
-
     success: {
-      viewTemplatePath: 'pages/profiles'
+      outputType: [{}],
     }
-
   },
 
 
-  fn: async function () {
-
+  fn: async function (inputs) {
 
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
@@ -46,6 +42,7 @@ module.exports = {
       teamName: 'No team',
     });
 
+    // console.log(teamApids);
     let allProfiles = [];
 
     for(let teamApid of teamApids){
@@ -75,7 +72,9 @@ module.exports = {
     let profilesForThisTeam = noTeamConfigurationProfilesResponseData.profiles;
     allProfiles = allProfiles.concat(profilesForThisTeam);
 
-    let profilesInformation = [];
+    // console.log(allProfiles);
+
+    let profilesOnThisFleetInstance = [];
 
     let allProfilesByIdentifier = _.groupBy(allProfiles, 'identifier');
 
@@ -99,15 +98,14 @@ module.exports = {
         createdAt: new Date(profile.created_at).getTime(),
         teams: teamsForThisProfile
       }
-      profilesInformation.push(profileInformation)
+      profilesOnThisFleetInstance.push(profileInformation)
     }
-    profilesInformation = _.sortByOrder(profilesInformation, 'name', 'asc');
+    profilesOnThisFleetInstance = _.sortByOrder(profilesOnThisFleetInstance, 'name', 'asc');
     let undeployedProfiles = await UndeployedProfile.find();
 
-    profilesInformation = _.union(profilesInformation, undeployedProfiles);
-
+    profilesOnThisFleetInstance = _.union(profilesOnThisFleetInstance, undeployedProfiles);
     // Respond with view.
-    return {profiles: profilesInformation, teams};
+    return profilesOnThisFleetInstance;
 
   }
 

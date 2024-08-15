@@ -82,6 +82,14 @@ module.exports = {
         });
         let parsedJsonResponse = JSON.parse(newProfileResponse.body)
         let uuidForThisProfile = parsedJsonResponse.profile_uuid;
+        // send a request to the Fleet instance to get the bundleId of the new profile.
+        await sails.helpers.http.get.with({
+          baseUrl: sails.config.custom.fleetBaseUrl,
+          url: `/api/v1/fleet/configuration_profiles/${uuidForThisProfile}`,
+          headers: {
+            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+          }
+        });
         newTeams.push({
           fleetApid: teamApid,
           uuid: JSON.parse(newProfileResponse.body).profile_uuid

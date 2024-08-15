@@ -8,51 +8,42 @@
         </div>
         <div class="d-flex flex-row align-items-center">
           <p class="mb-0 mr-2">Team:</p>
-          <select class="custom-select team-select mr-3" v-model="teamFilter" @change="changeTeamFilter()">
+          <select class="custom-select team-select" v-model="teamFilter" @change="changeTeamFilter()">
             <option :value="undefined" selected>All teams</option>
             <option v-for="team of teams" :value="team.fleetApid">{{team.teamName}}</option>
           </select>
         </div>
       </div>
     </div>
-    <div class="d-flex flex-row justify-content-between">
+    <div class="d-flex flex-row justify-content-between pb-3">
       <div>
-        <p>Profiles</p>
+        <p><strong>Profiles</strong></p>
       </div>
       <div>
         <p style="color: #6A67FE; cursor: pointer;" @click="clickOpenAddProfileModal()">+ Add profile</p>
       </div>
     </div>
-    <div class="mb-4 border rounded table-responsive">
+    <div style="overflow: visible;" class="mb-4 border rounded table-responsive" v-if="profilesToDisplay.length > 0">
       <table class="table my-0">
         <thead>
           <tr>
             <th class="sortable" :class="sortDirection === 'ASC' ? 'ascending' : sortDirection === 'DESC' ? 'descending' : ''" @click="clickChangeSortDirection()">
               <div style="cursor: pointer;" class="d-flex flex-row align-items-center pointer">
                 <small><strong>Name</strong></small>
-                <div class="sort-arrows">
-                  <span class="ascending-arrow"></span>
-                  <span class="descending-arrow"></span>
-                </div>
+                <div class="sort-arrows"><span class="ascending-arrow"></span><span class="descending-arrow"></span></div>
               </div>
             </th>
-            <th>
-              <small><strong>Platform</strong></small>
-            </th>
-            <th v-if="!selectedTeam.name">
-              <span><small><strong>Team</strong></small></span>
-            </th>
-            <th>
-              <span><small><strong>Upload date</strong></small></span>
-            </th>
+            <th><small><strong>Platform</strong></small></th>
+            <th v-if="teamFilter === undefined"><span><small><strong>Team</strong></small></span></th>
+            <th><span><small><strong>Upload date</strong></small></span></th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="profile in profilesToDisplay" :key="profile.name">
+          <tr v-for="profile in profilesToDisplay" :key="profile.createdAt">
             <td class="name-column">{{profile.name}}</td>
             <td>{{platformFriendlyNames[profile.platform]}}</td>
-            <td v-if="!selectedTeam.name">
+            <td v-if="teamFilter === undefined">
               <a class="affected-teams-link" v-if="profile.teams && profile.teams.length > 0">
                 <span class="truncated-affected-teams" v-if="profile.teams.length > 1">
                   {{profile.teams.length}} teams
@@ -64,6 +55,7 @@
                   {{profile.teams[0].teamName}}
                 </span>
               </a>
+              <p v-else>---</p>
             </td>
             <td>
               <js-timestamp :at="profile.createdAt" format="timeago"></js-timestamp>
@@ -79,15 +71,10 @@
         </tbody>
       </table>
     </div>
-    <div v-if="false">
+    <div v-else>
       <h2 class="px-3 text-center mx-auto pt-5">No profiles matching the selected filters were found.</h2>
     </div>
   </div>
-<!--   <h1>For development</h1>
-  <h3>profiles</h3>
-  <p v-for="profile in profiles">{{profile}}</p>
-  <h3>team</h3>
-  <p v-for="team in teams">{{team}}</p> -->
 <%//  ╔═╗╔╦╗╦╔╦╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
   //  ║╣  ║║║ ║   ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
   //  ╚═╝═╩╝╩ ╩   ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝%>
@@ -97,7 +84,7 @@
         <h3>Edit profile</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
-      <ajax-form action="editProfile" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
+      <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
         <div purpose="profile-information" v-if="!formData.newProfile">
           <div class="d-flex flex-row justify-content-start">
             <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
@@ -144,7 +131,7 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
-        <file-upload id="file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
+        <file-upload id="file-upload" mode="profiles" :disabled="syncing" v-model="formData.newProfile"></file-upload>
         <div purpose="teams-picker">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
@@ -153,9 +140,7 @@
           <a purpose="cancel-button" @click="closeModal()">Cancel</a>
           <ajax-button :syncing.sync="syncing" type="submit">Add</ajax-button>
         </div>
-
       </ajax-form>
-
     </div>
   </modal>
 </div>
