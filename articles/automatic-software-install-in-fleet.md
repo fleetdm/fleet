@@ -30,8 +30,10 @@ installed on:
 In the example below Install on all hosts EXCEPT those with 'Okta - Engineering' label
 
 ![Install on all hosts EXCEPT those with 'Okta - Engineering' label](../website/assets/images/articles/automatic-software-install-in-fleet-729x924@2x.png)
+*Install on all hosts EXCEPT those with 'Okta - Engineering' label*
 
 
+```
 Current supported installation files, manual upload of these formats:
 - Macos: .pkg
 - Windows: .msi, .exe
@@ -40,6 +42,7 @@ Current supported installation files, manual upload of these formats:
 Coming soon:
 - Ability to auto install from App store (VPP).
 - Install on iOS and iPadOS
+```
 
 ## Using fleet API/GitOps:
 The same result can be achieved by using Fleet API, Fleetctl ot GitOps.
@@ -56,9 +59,8 @@ TODO - link to relevant GitOps
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * TODO Sharon: Describe the workflow 
 
-### Detailed flowchart
 ![Flowchart](../website/assets/images/articles/automatic-software-install-in-fleet-13762x2946@2x.png)
-
+*Detailed flowchart*
 
 ## Prerequisites
 
