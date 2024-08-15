@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
@@ -158,6 +159,7 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, config, vulnAutomationEnabled != "")
 
@@ -172,6 +174,7 @@ func scanVulnerabilities(
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
@@ -353,6 +356,53 @@ func checkOvalVulnerabilities(
 		results = append(results, r...)
 		if err != nil {
 			errHandler(ctx, logger, "analyzing oval definitions", err)
+		}
+	}
+
+	return results
+}
+
+func checkGovalDictionaryVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	var results []fleet.SoftwareVulnerability
+
+	// Get Platforms
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for goval_dictionary pulls", err)
+		return nil
+	}
+
+	if !config.DisableDataSync {
+		// Sync on disk goval_dictionary sqlite with current OS Versions.
+		downloaded, err := goval_dictionary.Refresh(ctx, versions, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating goval_dictionary databases", err)
+		}
+		for _, d := range downloaded {
+			level.Debug(logger).Log("goval_dictionary-sync-downloaded", d)
+		}
+	}
+
+	// Analyze all supported os versions using the synced goval_dictionary definitions.
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		elapsed := time.Since(start)
+		level.Debug(logger).Log(
+			"msg", "goval_dictionary-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(ctx, logger, "analyzing goval_dictionary definitions", err)
 		}
 	}
 
