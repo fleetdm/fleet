@@ -14,8 +14,14 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 	return &NoopMDMMigrator{}
 }
 
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) {
-	return
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
+	return &NoopOfflineWatcher{}
+}
+
+type NoopOfflineWatcher struct{}
+
+func (o *NoopOfflineWatcher) ShowIfOffline(ctx context.Context) bool {
+	return false
 }
 
 type NoopMDMMigrator struct{}
