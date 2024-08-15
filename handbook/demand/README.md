@@ -82,6 +82,7 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
+
 ### Upload contacts to Salesforce after an event
 
 1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention "[Retired]Events - {Event name}". 
@@ -89,16 +90,18 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
     a. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
 
 
-2. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
+3. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
     a. Select the standard object "Accounts and Contacts".
     b. Select "Add new and update existing records" (Do not change the matching rules). 
     c. Upload the CSV.
     d. Verify the data is mapped to the correct Salesforce fields and start the Import.
 
+
 ### Follow up after an event
 
-Email relevant information according to the event buying situation, but refer to the original lead list in [Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR) for those who asked for contact.
-If feedback is present in the original event CSV, manually add any worthwhile feedback to the contact description in SalesForce.
+1. Email relevant information according to the event buying situation, but refer to the original lead list in [Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR) for those who asked for contact.
+2. If feedback is present in the original event CSV, manually add any worthwhile feedback to the contact description in Salesforce.
+
 
 ### Optimize ads through experimentation
 
