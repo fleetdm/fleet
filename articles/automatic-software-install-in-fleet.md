@@ -8,9 +8,13 @@ software on specific hosts using pre uploded installation images and using label
 policy. You'll learn how to configure and use this feature, as well as understand how the underlying
 mechanism works.
 
-Fleet allows its users to upload trusted software installation file to be installed and used on hosts.
-When adding a new software, it is possible to configure this specific software to be installed to
-all hosts or alternativly to host with a specific label. 
+Fleet allows its users to upload trusted software installation files to be installed and used on hosts.
+When adding a new software, it is possible to configure this specific software to be automatically
+installed on:
+- All hosts
+- All hosts excluding specific label/s
+- Only on hosts with specific label/s
+
 
 ## Step-by-Step Instructions
 
@@ -20,7 +24,7 @@ all hosts or alternativly to host with a specific label.
 - In the newly openned modal add a new trusted binary.
 - In the `Install` dropdown menu select "Automatic".
 - Under the `Target` section select `All hosts` or `Custom`.
-- If `Custom` was selected, right below it will appear a dropdown that will allow `Include` or `Exclude` specific labels. A list of labels will be shown to configure the proper operation
+- If `Custom` was selected, right below it will appear a dropdown that will allow `Include` or `Exclude` of specific label/s. A list of labels will be shown to configure the proper operation
 
 
 In the example below Install on all hosts EXCEPT those with 'Okta - Engineering' label
@@ -41,7 +45,9 @@ Coming soon:
 The same result can be achieved by using Fleet API, Fleetctl ot GitOps.
 
 Example:
-
+TODO - add API usage
+TODO - Add Fleetctl usage
+TODO - link to relevant GitOps 
 
 
 
@@ -65,8 +71,8 @@ Example:
 
 ## Additional Information
 
-* Video: [How maintenance windows work under the hood](https://www.youtube.com/watch?v=Ra47xZwSitQ). (~4m)
-* Video: [Detailed demo of this feature](https://www.youtube.com/watch?v=d4TElmLD1M8). (~20m)
+* Add Demo video if exists
+* Add other docs
 
 ## Conclusion
 
