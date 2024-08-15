@@ -12,8 +12,12 @@ export interface IEmptyVulnerabilitiesTableProps {
   knownVulnerability?: boolean;
 }
 
-const isValidCVEFormat = (query: string): boolean => {
-  const cveRegex = /^(CVE-)?\d{4}-\d{4,}$/i;
+export const isValidCVEFormat = (query: string): boolean => {
+  if (query.length < 9) {
+    return false;
+  }
+
+  const cveRegex = /^(CVE-)?\d{4}-\d{4,5}$/i;
   return cveRegex.test(query);
 };
 

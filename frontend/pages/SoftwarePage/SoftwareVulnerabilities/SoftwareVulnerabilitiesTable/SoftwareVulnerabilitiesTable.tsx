@@ -18,6 +18,8 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
 import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
+import { isValidCVEFormat } from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable/EmptyVulnerabilitiesTable";
+
 import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
@@ -180,8 +182,11 @@ const SoftwareVulnerabilitiesTable = ({
     router.push(path);
   };
 
+  // This table checks for exact matches only and users want to see validation if invalid query
+  const validQuery = query ? isValidCVEFormat(query) : true;
+
   const renderVulnerabilityCount = () => {
-    if (!data?.vulnerabilities || !data?.count) return null;
+    if (!data?.vulnerabilities || !data?.count || !validQuery) return null;
 
     return (
       <>
@@ -254,8 +259,8 @@ const SoftwareVulnerabilitiesTable = ({
     <div className={baseClass}>
       <TableContainer
         columnConfigs={vulnerabilitiesTableHeaders}
-        data={data?.vulnerabilities ?? []}
-        isLoading={isLoading}
+        data={validQuery ? data?.vulnerabilities ?? [] : []}
+        isLoading={isLoading && validQuery}
         resultsTitle={"items"}
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
