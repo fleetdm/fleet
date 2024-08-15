@@ -57,7 +57,7 @@ func (rw *ReadWriter) RemoveFile() error {
 }
 
 func (rw *ReadWriter) GetMigrationType() (string, error) {
-	data, err := rw.read() // TODO: confirm error handling with jahziel, what about other errors?
+	data, err := rw.read()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil

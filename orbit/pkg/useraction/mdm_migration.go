@@ -1,6 +1,10 @@
 package useraction
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"context"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 // MDMMigrator represents the minimum set of methods a migration must implement
 // in order to be used by Fleet Desktop.
@@ -20,8 +24,8 @@ type MDMMigrator interface {
 	// Exit tries to stop any processes started by the migrator.
 	Exit()
 	// MigrationInProgress checks if the MDM migration is still in progress (i.e. the host is not
-	// yet fully enrolled in Fleet MDM).
-	MigrationInProgress() (bool, error)
+	// yet fully enrolled in Fleet MDM). It returns the type of migration that is in progress, if any.
+	MigrationInProgress() (string, error)
 	// MarkMigrationCompleted marks the migration as completed. This is currently done by removing
 	// the migration file.
 	MarkMigrationCompleted() error
@@ -40,4 +44,8 @@ type MDMMigratorProps struct {
 type MDMMigratorHandler interface {
 	NotifyRemote() error
 	ShowInstructions() error
+}
+
+type MDMOfflineWatcher interface {
+	ShowIfOffline(ctx context.Context) bool
 }

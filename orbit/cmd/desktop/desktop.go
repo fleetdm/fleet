@@ -114,10 +114,11 @@ func main() {
 	// swiftDialogCh is a channel shared by the migrator and the offline watcher to
 	// coordinate the display of the dialog and ensure only one dialog is shown at a time.
 	var swiftDialogCh chan struct{}
+	var offlineWatcher useraction.MDMOfflineWatcher
 
 	// This ticker is used for fetching the desktop summary. It is initialized here because it is
 	// stopped in `OnExit.`
-	const checkInterval = 10 * time.Second
+	const checkInterval = 5 * time.Minute
 	summaryTicker := time.NewTicker(checkInterval)
 
 	onReady := func() {
@@ -194,37 +195,11 @@ func main() {
 			migrateMDMItem.Hide()
 		}
 
-		// TODO: we can probably extract this into a function that sets up both the migrator and the
-		// offline watcher
 		if runtime.GOOS == "darwin" {
-			dir, err := migration.Dir()
-			if err != nil {
-				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
-			}
-
-			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
-
-			// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
-			swiftDialogCh = make(chan struct{}, 1)
-
-			_, swiftDialogPath, _ := update.LocalTargetPaths(
-				tufUpdateRoot,
-				"swiftDialog",
-				update.SwiftDialogMacOSTarget,
-			)
-			mdmMigrator = useraction.NewMDMMigrator(
-				swiftDialogPath,
-				15*time.Minute,
-				&mdmMigrationHandler{
-					client:      client,
-					tokenReader: &tokenReader,
-				},
-				mrw,
-				fleetURL,
-				swiftDialogCh,
-			)
-
-			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+			m, s, o := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			mdmMigrator = m
+			swiftDialogCh = s
+			offlineWatcher = o
 		}
 
 		refetchToken := func() {
@@ -342,13 +317,17 @@ func main() {
 				myDeviceItem.Enable()
 
 				// Check our file to see if we should migrate
-				migrationInProgress, err := mdmMigrator.MigrationInProgress()
-				if err != nil {
-					go reportError(err, nil)
-					log.Error().Err(err).Msg("checking if MDM migration is in progress")
+				var migrationType string
+				if runtime.GOOS == "darwin" {
+					migrationType, err = mdmMigrator.MigrationInProgress()
+					if err != nil {
+						go reportError(err, nil)
+						log.Error().Err(err).Msg("checking if MDM migration is in progress")
+					}
 				}
-				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
-				// and not run the migrator as we're already in Fleet
+
+				migrationInProgress := migrationType != ""
+
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrationInProgress
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
@@ -384,8 +363,10 @@ func main() {
 						})
 
 						// enable tray items
-						migrateMDMItem.Enable()
-						migrateMDMItem.Show()
+						if migrationType != constant.MDMMigrationTypeADE {
+							migrateMDMItem.Enable()
+							migrateMDMItem.Show()
+						}
 
 						// if the device is unmanaged or we're in force mode and the device needs
 						// migration, enable aggressive mode.
@@ -435,6 +416,10 @@ func main() {
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
+					if offline := offlineWatcher.ShowIfOffline(ctx); offline {
+						continue
+					}
+
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
 						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
@@ -626,4 +611,37 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher) {
+	dir, err := migration.Dir()
+	if err != nil {
+		log.Fatal().Err(err).Msg("getting directory for MDM migration file")
+	}
+
+	mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
+
+	// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
+	swiftDialogCh := make(chan struct{}, 1)
+
+	_, swiftDialogPath, _ := update.LocalTargetPaths(
+		tufUpdateRoot,
+		"swiftDialog",
+		update.SwiftDialogMacOSTarget,
+	)
+	mdmMigrator := useraction.NewMDMMigrator(
+		swiftDialogPath,
+		15*time.Minute,
+		&mdmMigrationHandler{
+			client:      client,
+			tokenReader: tokenReader,
+		},
+		mrw,
+		fleetURL,
+		swiftDialogCh,
+	)
+
+	offlineWatcher := useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+
+	return mdmMigrator, swiftDialogCh, offlineWatcher
 }

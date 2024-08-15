@@ -61,7 +61,7 @@ var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemp
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
-	"After you start, this window will popup every 15 minutes until you finish.",
+	"After you start, this window will popup every 3 minutes until you finish.",
 ))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
@@ -69,7 +69,7 @@ var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
 
 Select **Start** and My device page will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
-	"After you start, this window will popup every 15 minutes until you finish.",
+	"After you start, this window will popup every 3 minutes until you finish.",
 ))
 
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
@@ -86,7 +86,7 @@ var errorTemplate = template.Must(template.New("").Parse(`
 Please contact your IT admin [here]({{ .ContactURL }}).
 `))
 
-var unenrollPreSonoma = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)"
+var unenrollBody = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
 
 var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
@@ -274,19 +274,23 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 	return m.baseDialog.render(flags...)
 }
 
-func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma bool) (chan swiftDialogExitCode, chan error) {
-	body := "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds..."
-	height := "200"
-	if preSonoma {
-		body = unenrollPreSonoma
-		height = "669"
+func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) (chan swiftDialogExitCode, chan error) {
+	var body string
+	switch true {
+	case preSonoma:
+		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)")
+	case isManual:
+		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)")
+	default:
+		// ADE migration, macOS > 14
+		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)")
 	}
 
 	return m.render(body,
 		"--button1text", "Start",
 		"--button1disabled",
 		"--quitkey", "x",
-		"--height", height,
+		"--height", "669",
 	)
 }
 
@@ -384,6 +388,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
 	}
 
+	isPreSonoma := vers < constant.SonomaMajorVersion
+
 	message, flags, err := m.getMessageAndFlags(vers, isManualMigration)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
@@ -405,7 +411,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		if previousMigrationType == constant.MDMMigrationTypeManual {
+		if previousMigrationType == constant.MDMMigrationTypeManual || previousMigrationType == constant.MDMMigrationTypePreSonoma {
 			// Launch the "My device" page.
 			log.Info().Msg("showing instructions")
 
@@ -417,7 +423,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner(vers < 14)
+			m.renderLoadingSpinner(isPreSonoma, isCurrentlyManuallyEnrolled)
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -448,7 +454,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 
 			switch true {
-			case vers < 14:
+			case isPreSonoma:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
 				}
@@ -468,11 +474,12 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 					return err
 				}
 
+				m.frequency = 3 * time.Minute
+
 			default:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeADE); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
 				}
-
 			}
 
 			// close the spinner
@@ -539,7 +546,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 	}
 
 	height := "669"
-	if version != 0 && version < 15 {
+	if version != 0 && version < constant.SonomaMajorVersion {
 		height = "440"
 		tmpl = mdmMigrationTemplatePreSonoma
 	}
@@ -605,18 +612,28 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 	return major, nil
 }
 
-func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
-	return m.mrw.FileExists()
+func (m *swiftDialogMDMMigrator) MigrationInProgress() (string, error) {
+	return m.mrw.GetMigrationType()
 }
 
 func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
+	// Reset this to the original frequency.
+	m.frequency = 15 * time.Minute
 	return m.mrw.RemoveFile()
+}
+
+type offlineWatcher struct {
+	client          *service.DeviceClient
+	swiftDialogPath string
+	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
+	swiftDialogCh chan struct{}
+	fileWatcher   migration.FileWatcher
 }
 
 // StartMDMMigrationOfflineWatcher starts a watcher running on a 3-minute loop that checks if the
 // device goes offline in the process of migrating to Fleet's MDM and offline. If so, it shows a
 // dialog to prompt the user to connect to the internet.
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) {
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
 	if cap(swiftDialogCh) != 1 {
 		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
 	}
@@ -641,28 +658,24 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 				return
 			case <-ticker.C:
 				log.Debug().Msg("offline dialog, got tick")
-				go watcher.processTick(ctx)
+				go watcher.ShowIfOffline(ctx)
 			}
 		}
 	}()
+
+	return watcher
 }
 
-type offlineWatcher struct {
-	client          *service.DeviceClient
-	swiftDialogPath string
-	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
-	swiftDialogCh chan struct{}
-	fileWatcher   migration.FileWatcher
-}
-
-func (o *offlineWatcher) processTick(ctx context.Context) {
+// ShowIfOffline shows the offline dialog if the host is offline.
+// It returns true if the host is offline, and false otherwise.
+func (o *offlineWatcher) ShowIfOffline(ctx context.Context) bool {
 	// try the dialog channel
 	select {
 	case o.swiftDialogCh <- struct{}{}:
 		log.Debug().Msg("occupying dialog channel")
 	default:
 		log.Debug().Msg("dialog channel already occupied")
-		return
+		return false
 	}
 
 	defer func() {
@@ -677,7 +690,7 @@ func (o *offlineWatcher) processTick(ctx context.Context) {
 	}()
 
 	if !o.isUnmanaged() || !o.isOffline() {
-		return
+		return false
 	}
 
 	log.Info().Msg("showing offline dialog")
@@ -686,6 +699,8 @@ func (o *offlineWatcher) processTick(ctx context.Context) {
 	} else {
 		log.Info().Msg("done showing offline dialog")
 	}
+
+	return true
 }
 
 func (o *offlineWatcher) isUnmanaged() bool {
@@ -701,8 +716,6 @@ func (o *offlineWatcher) isUnmanaged() bool {
 
 	log.Debug().Msgf("offline dialog, device is unmanaged, migration type %s", mt)
 
-	// TODO: Maybe check show profiles and skip showing the dialog if the device is managed?
-
 	return true
 }
 
@@ -716,7 +729,7 @@ func (o *offlineWatcher) isOffline() bool {
 		log.Error().Err(err).Msg("offline dialog, error pinging server does not contain dial tcp or no such host, assuming device is online")
 		return false
 	}
-	log.Error().Err(err).Msg("offline dialog, error pinging server, assuming device is offline")
+	log.Debug().Err(err).Msg("offline dialog, error pinging server, assuming device is offline")
 
 	return true
 }
@@ -732,7 +745,7 @@ func isOfflineError(err error) bool {
 		}
 	}
 
-	//  //  TODO: We're starting with basic string matching and planning to improve error matching
+	//  //  NOTE: We're starting with basic string matching and planning to improve error matching
 	//  // in future iterations. Here's some ideas for stuff to add in addition to strings.Contains:
 	// 	if urlErr, ok := err.(*url.Error); ok {
 	// 		log.Info().Msg("is url error")
@@ -776,7 +789,7 @@ func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context)
 	select {
 	case <-ctx.Done():
 		log.Debug().Msg("dialog context canceled")
-		// TODO: do we care about this? anything we need to clean up?
+		m.baseDialog.Exit()
 		return nil
 	case err := <-errCh:
 		return fmt.Errorf("showing offline dialog: %w", err)
