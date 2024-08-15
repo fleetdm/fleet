@@ -758,15 +758,15 @@ type VPPTokenData struct {
 
 // VPPTokenDB represents a VPP token record in the DB
 type VPPTokenDB struct {
-	ID        uint      `json:"id" db:"id"`
-	OrgName   string    `json:"org_name" db:"organization_name"`
-	Location  string    `json:"location" db:"location"`
-	RenewDate time.Time `json:"renew_date" db:"renew_at"`
+	ID        uint      `json:"id"`
+	OrgName   string    `json:"org_name"`
+	Location  string    `json:"location"`
+	RenewDate time.Time `json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token        string `json:"-" db:"-"`
-	TeamID       *uint  `json:"team_id" db:"team_id"`
-	NullTeamType string `json:"null_team_type" db:"null_team_type"`
+	Token        string `json:"-"`
+	TeamID       *uint  `json:"team_id"`
+	NullTeamType string `json:"null_team_type"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
