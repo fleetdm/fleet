@@ -52,7 +52,7 @@ You can use your software management tool of choice to distribute Fleet's agent 
 
 ### Fleet Desktop
 
-[Fleet Desktop](./Fleet-desktop.md) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
+[Fleet Desktop](https://fleetdm.com/guides/fleet-desktop) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
 
 You can include Fleet Desktop in Fleet's agent (fleetd) by including `--fleet-desktop` in the `fleetctl package` command.
 
