@@ -7,6 +7,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 
 type IAbmTableConfig = Column<IMdmAbmToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
@@ -40,26 +41,41 @@ export const generateTableConfig = (
       accessor: "renew_date",
       Header: "Renew date",
       disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       accessor: "apple_id",
       Header: "Apple ID",
       disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       accessor: "macos_team",
       Header: "macOS team",
       disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       accessor: "ios_team",
       Header: "iOS team",
       disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       accessor: "ipados_team",
       Header: "iPadOS team",
       disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       Header: "",
