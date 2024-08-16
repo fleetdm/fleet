@@ -2,17 +2,18 @@ package gdmf
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/pkg/retry"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
 
@@ -89,7 +90,7 @@ func GetLatestOSVersion(device apple_mdm.MachineInfo) (*Asset, error) {
 					latestIdx = i // first match found, update the index
 					continue
 				}
-				if compareVersions(assetSet[latestIdx].ProductVersion, s.ProductVersion) < 0 {
+				if apple_mdm.CompareVersions(assetSet[latestIdx].ProductVersion, s.ProductVersion) < 0 {
 					latestIdx = i // found a later version, update the index
 				}
 			}
@@ -99,25 +100,6 @@ func GetLatestOSVersion(device apple_mdm.MachineInfo) (*Asset, error) {
 		return nil, fmt.Errorf("no matching asset found for device %s", device.Product)
 	}
 	return &assetSet[latestIdx], nil
-}
-
-// compareVersions returns an integer comparing two versions according to semantic version
-// precedence. The result will be 0 if a == b, -1 if a < b, or +1 if a > b.
-// An invalid semantic version string is considered less than a valid one. All invalid semantic
-// version strings compare equal to each other.
-func compareVersions(a string, b string) int {
-	verA, errA := semver.NewVersion(a)
-	verB, errB := semver.NewVersion(b)
-	switch {
-	case errA != nil && errB != nil:
-		return 0
-	case errA != nil:
-		return -1
-	case errB != nil:
-		return 1
-	default:
-		return verA.Compare(verB)
-	}
 }
 
 // client is a package-level client (similar to http.DefaultClient) so it can
@@ -142,46 +124,57 @@ func GetAssetMetadata() (*APIResponse, error) {
 	}
 	req.Header.Set("User-Agent", "fleet-device-management")
 
-	var bodyResp APIResponse
-
-	if err = do(req, &bodyResp); err != nil {
+	resp, err := doWithRetry(req)
+	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
-
-	return &bodyResp, nil
-}
-
-func do[T any](req *http.Request, dest *T) error {
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("making request to Apple endpoint: %w", err)
-	}
 	defer resp.Body.Close()
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body from Apple endpoint: %w", err)
+		return nil, fmt.Errorf("reading response body from Apple endpoint: %w", err)
+	}
+	var dest APIResponse
+	if err := json.Unmarshal(body, &dest); err != nil {
+		return nil, fmt.Errorf("decoding response data from Apple endpoint: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode >= http.StatusInternalServerError {
-			return retry.Do(
-				func() error { return do(req, dest) },
-				retry.WithInterval(1*time.Second),
-				retry.WithMaxAttempts(4),
-			)
+	return &dest, nil
+}
+
+func doWithRetry(req *http.Request) (*http.Response, error) {
+	const (
+		maxRetries           = 3
+		retryBackoff         = 1 * time.Second
+		maxWaitForRetryAfter = 10 * time.Second
+	)
+	var resp *http.Response
+	var err error
+	op := func() error {
+		resp, err = client.Do(req)
+		if err != nil {
+			return err
 		}
-
-		return fmt.Errorf("calling Apple endpoint failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	if dest != nil {
-		if err := json.Unmarshal(body, dest); err != nil {
-			return fmt.Errorf("decoding response data from Apple endpoint: %w", err)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			// handle 429 rate-limits, see
+			rawAfter := resp.Header.Get("Retry-After")
+			afterSecs, err := strconv.ParseInt(rawAfter, 10, 0)
+			if err == nil && (time.Duration(afterSecs)*time.Second) < maxWaitForRetryAfter {
+				// the retry-after duration is reasonable, wait for it and return a
+				// retryable error so that we try again.
+				time.Sleep(time.Duration(afterSecs) * time.Second)
+				return errors.New("retry after requested delay")
+			}
 		}
+		if resp.StatusCode >= http.StatusBadRequest {
+			// 400+ status can be worth retrying
+			return fmt.Errorf("calling gdmf endpoint failed with status %d", resp.StatusCode)
+		}
+		return nil
 	}
-
-	return nil
+	if err := backoff.Retry(op, backoff.WithMaxRetries(backoff.NewConstantBackOff(retryBackoff), uint64(maxRetries))); err != nil {
+		return nil, err
+	}
+	return resp, err
 }
 
 func getBaseURL() string {

@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1440,43 +1439,78 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
+	level.Debug(svc.logger).Log("msg", "checking os version", "serial", m.Serial, "current_version", m.OSVersion)
+
 	if !m.MDMCanRequestSoftwareUpdate {
-		level.Debug(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "machine_info", *m)
+		level.Debug(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "serial", m.Serial)
 		return nil, nil
 	}
 
-	level.Debug(svc.logger).Log("msg", "checking os version", "machine_info", fmt.Sprintf("%+v", *m))
-
-	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(*m))
+	needsUpdate, err := svc.needsOSUpdateForDEPEnrollment(ctx, *m)
 	if err != nil {
-		// log and continue
-		level.Debug(svc.logger).Log("msg", "no match on apple software lookup service, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		return nil, ctxerr.Wrap(ctx, err, "checking os updates settings", "serial", m.Serial)
+	}
+
+	if !needsUpdate {
+		level.Debug(svc.logger).Log("msg", "device is above minimum, skipping os version check", "serial", m.Serial)
 		return nil, nil
 	}
 
-	want, err := semver.NewVersion(latest.ProductVersion)
+	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(*m)
 	if err != nil {
-		level.Debug(svc.logger).Log("msg", "parsing latest version, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		// log for debugging but allow enrollment to proceed
+		level.Info(svc.logger).Log("msg", "getting apple software update required", "serial", m.Serial, "err", err)
 		return nil, nil
 	}
 
-	got, err := semver.NewVersion(m.OSVersion)
+	return sur, nil
+}
+
+func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
+	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
+	// look up DEP hosts by serial number. It grabs the team id and platform from the
+	// hosts table. Then it uses the team id to get either the global config or team config.
+	// Finally, it uses the platform to get os updates settings from the config for
+	// one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
+	// least of which is that the platform is correct in the hosts table. If the platform is wrong,
+	// we'll end up with a meaningless comparison of unrelated versions. We could potentially add
+	// some cross-check against the machine info to ensure that the platform of the host aligns with
+	// what we expect from the machine info. But that would involve work to derive the platform from
+	// the machine info (presumably from the product name, but that's not a 1:1 mapping).
+	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
 	if err != nil {
-		level.Debug(svc.logger).Log("msg", "parsing device os version, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		if fleet.IsNotFound(err) {
+			level.Info(svc.logger).Log("msg", "checking os updates settings, settings not found", "serial", m.Serial)
+			return false, nil
+		}
+		return false, err
+	}
+	// TODO: confirm what this check should do
+	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
+		level.Info(svc.logger).Log("msg", "checking os updates settings, minimum version not set", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
+		return false, nil
+	}
+
+	return apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+}
+
+func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
+	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(m))
+	if err != nil {
+		return nil, err
+	}
+
+	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, latest.ProductVersion)
+	if err != nil {
+		return nil, err
+	} else if !needsUpdate {
 		return nil, nil
 	}
 
-	if got.LessThan(want) {
-		level.Debug(svc.logger).Log("msg", "checking os version, needs update", "latest", latest.ProductVersion, "build", latest.Build, "got", m.OSVersion)
-		return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
-			ProductVersion: latest.ProductVersion,
-			Build:          latest.Build,
-		}), nil
-	}
-
-	level.Debug(svc.logger).Log("msg", "checking os version, no update needed", "latest", latest.ProductVersion, "build", latest.Build, "got", m.OSVersion)
-
-	return nil, nil
+	return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
+		ProductVersion: latest.ProductVersion,
+		Build:          latest.Build,
+	}), nil
 }
 
 func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {

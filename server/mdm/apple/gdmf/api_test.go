@@ -218,3 +218,33 @@ func TestGetLatest(t *testing.T) {
 		})
 	}
 }
+
+func TestRetries(t *testing.T) {
+	retryCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		retryCount++
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write(nil)
+		require.NoError(t, err)
+	}))
+	os.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
+	t.Cleanup(func() {
+		srv.Close()
+		os.Unsetenv("FLEET_DEV_GDMF_URL")
+	})
+
+	latest, err := GetLatestOSVersion(apple_mdm.MachineInfo{
+		OSVersion:                "14.4.1",
+		Product:                  "Mac15,7",
+		Serial:                   "TESTSERIAL",
+		SoftwareUpdateDeviceID:   "J516sAP",
+		SupplementalBuildVersion: "23E224",
+		UDID:                     uuid.New().String(),
+		Version:                  "23E224",
+	})
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "calling gdmf endpoint failed with status 400")
+	require.Nil(t, latest)
+	require.Equal(t, 4, retryCount)
+}
