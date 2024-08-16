@@ -209,6 +209,7 @@ const SoftwareTable = ({
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
+      ...getSoftwareFilterForQueryKey("allSoftware"), // Reset to all software
       ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
     };
 
@@ -286,16 +287,6 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    console.log("softwareFilter", softwareFilter);
-    // Hide controls if no software is detected with no filters present
-    if (
-      query === "" &&
-      !showVersions &&
-      softwareFilter === "allSoftware" &&
-      data?.count === 0
-    )
-      return <></>;
-
     const options = showVersions
       ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
       : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
@@ -323,15 +314,6 @@ const SoftwareTable = ({
   };
 
   const renderCustomFilters = () => {
-    // Hide filters if no software is detected with no filters present
-    if (
-      query === "" &&
-      !showVersions &&
-      softwareFilter === "allSoftware" &&
-      data?.count === 0
-    )
-      return <></>;
-
     const vulnFilterDetails = getVulnFilterDetails(vulnFilters);
 
     return (
