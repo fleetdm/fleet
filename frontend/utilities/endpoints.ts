@@ -72,12 +72,13 @@ export default {
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
   // MDM endpoints
+  MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
   MDM_APPLE_ABM_TOKEN: `/${API_VERSION}/fleet/mdm/apple/abm_token`,
   MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
@@ -85,7 +86,8 @@ export default {
 
   // Apple VPP endpoints
   MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
-  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`,
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`, // TODO: Deprecated?
+  MDM_VPP_TOKENS: `/${API_VERSION}/fleet/vpp_tokens`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
