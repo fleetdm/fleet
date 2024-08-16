@@ -1325,7 +1325,7 @@ type Datastore interface {
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
-	CreateVPPToken(ctx context.Context, tok *VPPTokenData, teamID *uint, nullTeam NullTeamType) (*VPPTokenDB, error)
+	InsertVPPToken(ctx context.Context, tok *VPPTokenData, teamID *uint, nullTeam NullTeamType) (*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, tok *VPPTokenDB) error
 	DeleteVPPToken(ctx context.Context, tokenID uint) error

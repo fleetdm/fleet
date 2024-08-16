@@ -4791,7 +4791,7 @@ WHERE
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
-func (ds *Datastore) CreateVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
 	stmt := `
 	INSERT INTO
 		vpp_tokens (
@@ -4800,7 +4800,7 @@ func (ds *Datastore) CreateVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 			renew_at,
 			token,
 			team_id,
-			null_team_type,
+			null_team_type
 		)
 	VALUES (?, ?, ?, ?, ?, ?)
 `
@@ -4886,7 +4886,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		NullTeam  fleet.NullTeamType `db:"null_team_type"`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token from db")
 	}
 

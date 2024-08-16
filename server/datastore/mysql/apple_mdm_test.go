@@ -6442,9 +6442,36 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	tokens, err := ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, tokens, 0)
+
+	orgName := "Donkey Kong"
+	location := "Jungle"
+	dataToken, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName, location)
+	require.NoError(t, err)
+
+	tok, err := ds.InsertVPPToken(ctx, dataToken, nil, fleet.NullTeamNone)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Equal(t, (*uint)(nil), tok.TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
+
+	tok.NullTeam = fleet.NullTeamAllTeams
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.NoError(t, err)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Equal(t, (*uint)(nil), tok.TeamID)
+	assert.Equal(t, fleet.NullTeamAllTeams, tok.NullTeam)
 }
 
-func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
+func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
 	var randBytes [32]byte
 	_, err := rand.Read(randBytes[:])
 	if err != nil {
@@ -6463,11 +6490,5 @@ func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte,
 
 	base64Token := base64.StdEncoding.EncodeToString(rawJson)
 
-	dataToken := fleet.VPPTokenData{Token: base64Token, Location: location}
-	dataTokenJson, err := json.Marshal(dataToken)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
-	}
-
-	return dataTokenJson, nil
+	return &fleet.VPPTokenData{Token: base64Token, Location: location}, nil
 }
