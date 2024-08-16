@@ -1332,6 +1332,9 @@ type Datastore interface {
 	// ListABMTokens lists all of the ABM tokens.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
+	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

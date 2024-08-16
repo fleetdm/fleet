@@ -4831,6 +4831,7 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
 	const stmt = `
 SELECT
+	abt.id,
 	abt.organization_name,
 	abt.apple_id,
 	abt.terms_expired,
@@ -4859,4 +4860,19 @@ LEFT OUTER JOIN
 	}
 
 	return tokens, nil
+}
+
+func (ds *Datastore) UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error {
+	const stmt = `
+UPDATE
+	abm_tokens
+SET
+	macos_default_team_id = ?,
+	ios_default_team_id = ?,
+	ipados_default_team_id = ?
+WHERE
+	id = ?`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, macOSTeamID, iOSTeamID, iPadOSTeamID, tokenID)
+	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }

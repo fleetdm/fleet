@@ -812,7 +812,11 @@ type Service interface {
 	// decrypted using the keys stored in the database, then saves the token.
 	SaveABMToken(ctx context.Context, token io.Reader) (*ABMToken, error)
 
+	// ListABMTokens lists all the ABM tokens in Fleet.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
+	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error
 
 	// DisableABM disables ABM by soft-deleting the relevant assets
 	DisableABM(ctx context.Context) error

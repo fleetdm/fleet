@@ -4016,7 +4016,7 @@ func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -4026,4 +4026,39 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	}
 
 	return tokens, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Update ABM token teams endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type updateABMTokenTeamsRequest struct {
+	TokenID      uint `url:"token_id"`
+	MacOSTeamID  uint `json:"macos_team_id"`
+	IOSTeamID    uint `json:"ios_team_id"`
+	IPadOSTeamID uint `json:"ipados_team_id"`
+}
+
+type updateABMTokenTeamsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateABMTokenTeamsResponse) error() error { return r.Err }
+
+func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateABMTokenTeamsRequest)
+
+	if err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID); err != nil {
+		return &updateABMTokenTeamsResponse{Err: err}, nil
+	}
+
+	return &updateABMTokenTeamsResponse{}, nil
+}
+
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return ctxerr.Wrap(ctx, svc.ds.UpdateABMTokenTeams(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID), "updating token teams")
 }
