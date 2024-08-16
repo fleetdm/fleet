@@ -4731,6 +4731,10 @@ func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
 		), http.StatusOK,
 	)
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledActivitiesWebhook{}.ActivityName(), "", 0,
+	)
+
 	appConfig := s.getConfig()
 	require.True(t, appConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	require.Equal(t, "http://some/url", appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)

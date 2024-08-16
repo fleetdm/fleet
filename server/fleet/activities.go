@@ -106,6 +106,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
+
+	ActivityTypeEnabledActivitiesWebhook{},
+	ActivityTypeDisabledActivitiesWebhook{},
 }
 
 type ActivityDetails interface {
@@ -1766,4 +1769,28 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }`
+}
+
+type ActivityTypeEnabledActivitiesWebhook struct {
+}
+
+func (a ActivityTypeEnabledActivitiesWebhook) ActivityName() string {
+	return "enabled_activities_webhook"
+}
+
+func (a ActivityTypeEnabledActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns on the activities webhook.`,
+		`This activity does not contain any detail fields.`, ""
+}
+
+type ActivityTypeDisabledActivitiesWebhook struct {
+}
+
+func (a ActivityTypeDisabledActivitiesWebhook) ActivityName() string {
+	return "disabled_activities_webhook"
+}
+
+func (a ActivityTypeDisabledActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns off the activities webhook.`,
+		`This activity does not contain any detail fields.`, ""
 }
