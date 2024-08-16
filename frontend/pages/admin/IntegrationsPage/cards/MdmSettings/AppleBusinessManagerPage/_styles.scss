@@ -3,11 +3,25 @@
     margin-bottom: $pad-xlarge;
   }
 
-  h1 {
-    margin-bottom: $pad-xxlarge;
-    font-size: $large;
-
+  &__page-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
   }
+
+  &__page-header-section {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+    align-items: center;
+    justify-content: space-between;
+
+    h1 {
+      margin-bottom: 0;
+      font-size: $large;
+    }
+  }
+
 
   &__add-adm-message {
     margin: 0 auto;

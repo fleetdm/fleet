@@ -9,21 +9,18 @@ import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
-import { IMdmAppleBm } from "interfaces/mdm";
+import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
-import { readableDate } from "utilities/helpers";
 
 import BackLink from "components/BackLink";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink/CustomLink";
 import DataError from "components/DataError";
-import FileUploader from "components/FileUploader";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 
-import DownloadKey from "../../../../components/DownloadFileButtons/DownloadABMKey";
 import DisableAutomaticEnrollmentModal from "./modals/DisableAutomaticEnrollmentModal";
 import RenewTokenModal from "./modals/RenewTokenModal";
+import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 
 const baseClass = "apple-business-manager-page";
 
@@ -72,16 +69,17 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
+  const [showAddAbmModal, setShowAddAbmModal] = useState(false);
 
   const {
-    data: mdmAppleBm,
-    error: errorMdmAppleBm,
+    data: abmTokens,
+    error: errorAbmTokens,
     isLoading,
     isRefetching,
     refetch,
-  } = useQuery<IMdmAppleBm, AxiosError, IMdmAppleBm>(
-    ["mdmAppleBmAPI"],
-    () => mdmAppleBmAPI.getAppleBMInfo(),
+  } = useQuery<IMdmAbmToken[], AxiosError>(
+    ["abmTokens"],
+    () => mdmAppleBmAPI.getTokens(),
     {
       refetchOnWindowFocus: false,
       retry: (tries, error) =>
@@ -159,10 +157,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     return <Spinner />;
   }
 
-  const showDataError = errorMdmAppleBm && errorMdmAppleBm.status !== 404;
-  const showConnectAbm = !mdmAppleBm;
+  const showDataError = errorAbmTokens && errorAbmTokens.status !== 404;
+  const showConnectAbm = !abmTokens;
 
   const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
     if (showDataError) {
       return (
         <div>
@@ -175,7 +177,23 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       );
     }
 
-    return <AddAbmMessage />;
+    if (abmTokens?.length === 0) {
+      return <AddAbmMessage />;
+    }
+
+    if (abmTokens) {
+      return (
+        <>
+          <p>
+            Add your ABM to automatically enroll newly purchased Apple hosts
+            when they&apos;re first unboxed and set up by your end users.
+          </p>
+          <AppleBusinessManagerTable abmTokens={abmTokens} />
+        </>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -186,8 +204,22 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-mdm`}
         />
-        <h1>Apple Business Manager (ABM)</h1>
-        <>{renderContent()}</>
+        <div className={`${baseClass}__page-content`}>
+          <div className={`${baseClass}__page-header-section`}>
+            <h1>Apple Business Manager (ABM)</h1>
+            {abmTokens?.length !== 0 && (
+              <Button
+                variant="brand"
+                onClick={() => {
+                  console.log("click add abm");
+                }}
+              >
+                Add ABM
+              </Button>
+            )}
+          </div>
+          <>{renderContent()}</>
+        </div>
       </>
       {showDisableModal && (
         <DisableAutomaticEnrollmentModal
