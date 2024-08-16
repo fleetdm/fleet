@@ -728,9 +728,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/mdm/apple/apns_certificate", uploadMDMAppleAPNSCertEndpoint, uploadMDMAppleAPNSCertRequest{})
 	ue.DELETE("/api/_version_/fleet/mdm/apple/apns_certificate", deleteMDMAppleAPNSCertEndpoint, deleteMDMAppleAPNSCertRequest{})
 
-	ue.GET("/api/_version_/fleet/vpp_tokens", nil, nil)
+	// TODO Most of these don't have auth yet!!
+	ue.GET("/api/_version_/fleet/vpp_tokens", getVPPTokens, getMDMAppleVPPTokenRequest{})
 	ue.POST("/api/_version_/fleet/vpp_tokens", uploadMDMAppleVPPTokenEndpoint, uploadMDMAppleVPPTokenRequest{})
-	ue.PATCH("/api/_version_/fleet/app_tokens/{id}/teams", patchVPPTokensTeams, patchVPPTokensTeamsRequest{})
+	ue.PATCH("/api/_version_/fleet/vpp_tokens/{id}/teams", patchVPPTokensTeams, patchVPPTokensTeamsRequest{})
+	ue.DELETE("/api/_version_/fleet/vpp_token/{id}", deleteVPPToken, deleteVPPTokenRequest{})
 
 	ue.GET("/api/_version_/fleet/vpp", getMDMAppleVPPTokenEndpoint, getMDMAppleVPPTokenRequest{})
 	ue.DELETE("/api/_version_/fleet/mdm/apple/vpp_token", deleteMDMAppleVPPTokenEndpoint, deleteMDMAppleVPPTokenRequest{})

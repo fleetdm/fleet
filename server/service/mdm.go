@@ -2703,6 +2703,32 @@ func (svc *Service) GetVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error
 	return svc.ds.ListVPPTokens(ctx)
 }
 
+type deleteVPPTokenRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteVPPTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteVPPTokenResponse) error() error { return r.Err }
+
+func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(deleteVPPTokenRequest)
+	_ = req
+
+	err := svc.DeleteVPPToken(ctx, req.ID)
+	if err != nil {
+		return deleteVPPTokenResponse{Err: err}, nil
+	}
+
+	return deleteVPPTokenResponse{}, nil
+}
+
+func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	return svc.ds.DeleteVPPToken(ctx, tokenID)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // GET /vpp
 ////////////////////////////////////////////////////////////////////////////////
