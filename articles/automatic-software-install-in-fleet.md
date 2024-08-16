@@ -78,13 +78,17 @@ TODO - link to relevant GitOps
 
 ## Conclusion
 
-By following this guide, you’ve learned how to effectively automate the mitigation of failing policies on hosts using Fleet's scheduled maintenance window feature. This approach not only ensures that your fleet remains compliant and secure but also respects your users' time by scheduling maintenance at convenient intervals.
+Software deployment can be time consumng and risky if not done the proper way.
+This guide presents Fleet's ability to mass deploy software to your fleet in a way that is both
+simple and safe. Starting with uploading a trusted installer and ending with deploying it to the
+proper set of machines.
 
-Leveraging Fleet’s integration with Google Calendar and webhooks, you can streamline the process of addressing policy failures, reducing manual oversight, and minimizing disruptions to your users' workflows. Whether it's updating critical software, ensuring security measures like disk encryption, or maintaining compliance with organizational policies, this feature provides a powerful tool to maintain the health and security of your infrastructure.
+Leveraging Fleet’s ability to install and upgrade software on your hosts, you can streamline the
+process of controlling your hosts, replacing old versions of software and having the up-to-date info
+on what's installed on your fleet.
 
-By automating these tasks, you can focus on more strategic initiatives, confident that Fleet is helping to keep your systems secure and your users satisfied. For more detailed insights into how this feature works or to explore additional customization options, refer to the additional resources provided.
-
-Implementing scheduled mitigations not only enhances operational efficiency but also contributes to a proactive security posture, helping your organization stay ahead of potential risks.
+By automating software deployment, you can gain better control on what's installed on your machines
+and have a better ability to upgrade software versions with known issues.
 
 
 <meta name="articleTitle" value="Automatic installation of software on hosts">
