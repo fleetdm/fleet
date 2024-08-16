@@ -810,7 +810,7 @@ type Service interface {
 
 	// SaveABMToken reads and validates if the provided token can be
 	// decrypted using the keys stored in the database, then saves the token.
-	SaveABMToken(ctx context.Context, token io.Reader) error
+	SaveABMToken(ctx context.Context, token io.Reader) (*ABMToken, error)
 
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 

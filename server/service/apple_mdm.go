@@ -3852,7 +3852,8 @@ func (uploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 }
 
 type uploadABMTokenResponse struct {
-	Err error `json:"error,omitempty"`
+	Token *fleet.ABMToken `json:"token,omitempty"`
+	Err   error           `json:"error,omitempty"`
 }
 
 func (r uploadABMTokenResponse) error() error { return r.Err }
@@ -3865,20 +3866,21 @@ func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}
 	defer ff.Close()
 
-	if err := svc.SaveABMToken(ctx, ff); err != nil {
+	token, err := svc.SaveABMToken(ctx, ff)
+	if err != nil {
 		return uploadABMTokenResponse{
 			Err: err,
 		}, nil
 	}
 
-	return uploadABMTokenResponse{}, nil
+	return uploadABMTokenResponse{Token: token}, nil
 }
 
-func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
+func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
 	// first check for reads as we need to load the cert/key from the db. We will
 	// do another write check below.
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return err
+		return nil, err
 	}
 
 	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
@@ -3887,39 +3889,39 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 	})
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: "Please generate a keypair first.",
 			}, "saving ABM token")
 		}
 
-		return ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
+		return nil, ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
 	}
 
 	tokenBytes, err := io.ReadAll(token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading token bytes")
+		return nil, ctxerr.Wrap(ctx, err, "reading token bytes")
 	}
 
 	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
 	if derCert == nil {
-		return ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
+		return nil, ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
 	}
 
 	cert, err := x509.ParseCertificate(derCert.Bytes)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing ABM certificate")
+		return nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
 	}
 
 	decryptedToken, err := assets.DecryptRawABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value)
 	if err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
 			InternalErr: err,
 		}, "validating ABM token")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
 	tok := &fleet.ABMToken{
@@ -3927,22 +3929,27 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 	}
 
 	if err := apple_mdm.SetNewABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting ABM token metadata")
+		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 
-	if err := svc.ds.InsertABMToken(ctx, tok); err != nil {
-		return ctxerr.Wrap(ctx, err, "save ABM token")
+	tok, err = svc.ds.InsertABMToken(ctx, tok)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "save ABM token")
 	}
 
 	// flip the app config flag
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving app config")
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM enablement")
+	}
+
+	return tok, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -4790,7 +4790,7 @@ WHERE
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
-func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) error {
+func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
 	const stmt = `
 INSERT INTO
 	abm_tokens
@@ -4802,10 +4802,10 @@ ON DUPLICATE KEY UPDATE
 	`
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
+		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(
+	res, err := ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
 		tok.OrganizationName,
@@ -4817,22 +4817,40 @@ ON DUPLICATE KEY UPDATE
 		tok.IOSDefaultTeamID,
 		tok.IPadOSDefaultTeamID,
 	)
-	return ctxerr.Wrap(ctx, err, "inserting abm_token")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token")
+	}
+
+	tokenID, _ := res.LastInsertId()
+
+	tok.ID = uint(tokenID)
+
+	return tok, nil
 }
 
 func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
 	const stmt = `
 SELECT
-	organization_name,
-	apple_id,
-	terms_expired,
-	renew_at,
-	token,
-	macos_default_team_id,
-	ios_default_team_id,
-	ipados_default_team_id
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.token,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
 FROM
-	abm_tokens
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+
 	`
 
 	var tokens []*fleet.ABMToken

@@ -1327,7 +1327,7 @@ type Datastore interface {
 
 	// InsertABMToken inserts a new ABM token into the datastore.
 	// TODO(JVE): change name to upsert
-	InsertABMToken(ctx context.Context, tok *ABMToken) error
+	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
 
 	// ListABMTokens lists all of the ABM tokens.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
