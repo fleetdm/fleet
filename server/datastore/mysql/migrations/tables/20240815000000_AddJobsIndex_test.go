@@ -1,11 +1,12 @@
 package tables
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240806101121(t *testing.T) {
+func TestUp_20240815000000(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Apply current migration
