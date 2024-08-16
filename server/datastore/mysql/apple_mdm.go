@@ -4876,3 +4876,15 @@ WHERE
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, macOSTeamID, iOSTeamID, iPadOSTeamID, tokenID)
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
+
+func (ds *Datastore) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	const stmt = `
+DELETE FROM
+	abm_tokens
+WHERE ID = ?
+		`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, tokenID)
+
+	return ctxerr.Wrap(ctx, err, "deleting ABM token")
+}

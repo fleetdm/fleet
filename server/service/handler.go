@@ -722,7 +722,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
 	ue.GET("/api/_version_/fleet/mdm/apple/abm_public_key", generateABMKeyPairEndpoint, nil)
 	ue.POST("/api/_version_/fleet/abm_tokens", uploadABMTokenEndpoint, uploadABMTokenRequest{})
-	ue.DELETE("/api/_version_/fleet/abm_tokens", disableABMEndpoint, nil)
+	ue.DELETE("/api/_version_/fleet/abm_tokens/{token_id:[0-9]}", disableABMEndpoint, disableABMRequest{})
 	ue.GET("/api/_version_/fleet/abm_tokens", listABMTokensEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/abm_tokens/{token_id:[0-9]+}/teams", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
 	ue.PATCH("/api/_version_/fleet/abm_tokens/{token_id:[0-9]+}/renew", renewABMTokenEndpoint, uploadABMTokenRequest{})

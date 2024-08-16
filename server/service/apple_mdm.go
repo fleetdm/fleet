@@ -3956,6 +3956,10 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.A
 // Disable ABM endpoint
 ////////////////////////////////////////////////////////////////////////////////
 
+type disableABMRequest struct {
+	TokenID uint `url:"token_id"`
+}
+
 type disableABMResponse struct {
 	Err error `json:"error,omitempty"`
 }
@@ -3964,14 +3968,15 @@ func (r disableABMResponse) error() error { return r.Err }
 func (r disableABMResponse) Status() int  { return http.StatusNoContent }
 
 func disableABMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	if err := svc.DisableABM(ctx); err != nil {
+	req := request.(*disableABMRequest)
+	if err := svc.DisableABM(ctx, req.TokenID); err != nil {
 		return disableABMResponse{Err: err}, nil
 	}
 
 	return disableABMResponse{}, nil
 }
 
-func (svc *Service) DisableABM(ctx context.Context) error {
+func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -3983,6 +3988,10 @@ func (svc *Service) DisableABM(ctx context.Context) error {
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "disabling ABM config")
+	}
+
+	if err := svc.ds.DeleteABMToken(ctx, tokenID); err != nil {
+		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
 
 	// flip the app config flag

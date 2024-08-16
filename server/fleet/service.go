@@ -818,8 +818,8 @@ type Service interface {
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error
 
-	// DisableABM disables ABM by soft-deleting the relevant assets
-	DisableABM(ctx context.Context) error
+	// DisableABM deletes the given ABM token.
+	DisableABM(ctx context.Context, tokenID uint) error
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.

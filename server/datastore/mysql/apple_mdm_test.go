@@ -6434,14 +6434,16 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm2.Name, tokReload.IOSTeam)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
 
+	// Remove unused token
+	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
+
 	toks, err = ds.ListABMTokens(ctx)
 	require.NoError(t, err)
-	require.Len(t, toks, 2)
-	expTok1, expTok2 := toks[0], toks[1]
-	require.Equal(t, "unused", expTok1.OrganizationName)
-	require.Equal(t, "org-name", expTok2.OrganizationName)
-	require.Equal(t, "name@example.com", expTok2.AppleID)
-	require.Empty(t, expTok2.MacOSTeam)
-	require.Equal(t, tm2.Name, expTok2.IOSTeam)
-	require.Equal(t, tm3.Name, expTok2.IPadOSTeam)
+	require.Len(t, toks, 1)
+	expTok := toks[0]
+	require.Equal(t, "org-name", expTok.OrganizationName)
+	require.Equal(t, "name@example.com", expTok.AppleID)
+	require.Empty(t, expTok.MacOSTeam)
+	require.Equal(t, tm2.Name, expTok.IOSTeam)
+	require.Equal(t, tm3.Name, expTok.IPadOSTeam)
 }
