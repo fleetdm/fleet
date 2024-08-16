@@ -6,7 +6,7 @@ import { capitalize } from "lodash";
 
 const baseClass = "status-indicator";
 
-type IIndicatorValue = "success" | "warning" | "error" | "indeterminate";
+export type IIndicatorValue = "success" | "warning" | "error" | "indeterminate";
 
 interface IStatusIndicatorProps {
   /** Only the first letter of value will be capitalized by the component.
