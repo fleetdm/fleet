@@ -1,4 +1,4 @@
-name: Build fleetdm/fleetctl and check docker image for vulnerabilities
+name: Build fleetctl docker dependencies and check vulnerabilities
 
 on:
   workflow_dispatch:
@@ -52,10 +52,36 @@ jobs:
       - name: Install Go Dependencies
         run: make deps-go
 
+      - name: Build fleetdm/wix
+        run: make wix-docker
+
+      - name: Build fleetdm/bomutils
+        run: make bomutils-docker
+
       - name: Build fleetdm/fleetctl
         run: make fleetctl-docker
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner on fleetdm/wix
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: "fleetdm/wix"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
+      - name: Run Trivy vulnerability scanner on fleetdm/bomutils
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: "fleetdm/bomutils"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
+      - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
         uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: "fleetdm/fleetctl"

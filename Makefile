@@ -224,6 +224,9 @@ fleetctl-docker: xp-fleetctl
 bomutils-docker:
 	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
 
+wix-docker:
+	cd tools/wix-docker && docker build -t fleetdm/wix --platform=linux/amd64 -f Dockerfile .
+
 .pre-binary-bundle:
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux

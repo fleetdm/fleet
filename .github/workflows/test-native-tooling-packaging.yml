@@ -61,6 +61,12 @@ jobs:
     - name: Install Go Dependencies
       run: make deps-go
 
+    - name: Build fleetdm/wix
+      run: make wix-docker
+
+    - name: Build fleetdm/bomutils
+      run: make bomutils-docker
+
     - name: Build fleetdm/fleetctl
       run: make fleetctl-docker
 

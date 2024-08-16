@@ -18,8 +18,8 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* 
 
 # copy macOS dependencies
-COPY --from=fleetdm/bomutils /usr/bin/mkbom /usr/local/bin/xar /usr/bin/
-COPY --from=fleetdm/bomutils /usr/local/lib /usr/local/lib/
+COPY --from=fleetdm/bomutils:latest /usr/bin/mkbom /usr/local/bin/xar /usr/bin/
+COPY --from=fleetdm/bomutils:latest /usr/local/lib /usr/local/lib/
 COPY --from=builder /transporter/itms /usr/local/
 COPY --from=builder /usr/local/cargo/bin/rcodesign /usr/local/bin
 

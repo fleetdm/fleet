@@ -1,4 +1,4 @@
-FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8 AS builder
+FROM debian:stable-slim@sha256:90128f59a7c6f6fdcb6493f587ea352d5c7507f52a6ddfba66fc56cd3d99dc2b AS builder
 
 RUN apt-get update
 RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl git
@@ -7,7 +7,8 @@ RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-de
 RUN git clone -b master \
     --depth=1 --no-tags --progress \
     --no-recurse-submodules https://github.com/hogliux/bomutils.git && \
-    cd bomutils && make && make install
+    cd bomutils && git reset --hard c41ad8b67d82a0071245ce8a5069023d39a885b8 && \
+    make && make install
 
 # Install xar
 RUN curl -L https://github.com/mackyle/xar/archive/refs/tags/xar-1.6.1.tar.gz > xar.tar.gz && \
@@ -19,9 +20,9 @@ COPY patch.txt .
 RUN cd xar-xar-1.6.1/xar && patch < ../../patch.txt && autoconf && ./configure && make && make install
 
 
-FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8
+FROM debian:stable-slim@sha256:90128f59a7c6f6fdcb6493f587ea352d5c7507f52a6ddfba66fc56cd3d99dc2b
 
-RUN apt-get update && apt-get install -y --no-install-recommends libxml2  && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libxml2 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/bin /usr/bin/
 COPY --from=builder /usr/local/bin /usr/local/bin/
 COPY --from=builder /usr/local/lib /usr/local/lib/
