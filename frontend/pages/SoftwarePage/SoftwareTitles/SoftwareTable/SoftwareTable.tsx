@@ -39,7 +39,6 @@ import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 import {
   ISoftwareDropdownFilterVal,
-  ISoftwareVulnFilters,
   ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
@@ -188,9 +187,20 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  // determines if a user should be able to search in the table
-  const searchable =
-    isSoftwareEnabled && !(tableData?.length === 0 && query === "");
+  // Determines if a user should be able to filter or search in the table
+  const hasData = tableData && tableData.length > 0;
+  const hasQuery = query !== "";
+  const hasSoftwareFilter = softwareFilter !== "allSoftware";
+  const hasVersionFilter = showVersions;
+  const hasVulnFilters = getVulnFilterDetails(vulnFilters).filterCount > 0;
+
+  const showFilterHeaders =
+    isSoftwareEnabled &&
+    (hasData ||
+      hasQuery ||
+      hasSoftwareFilter ||
+      hasVersionFilter ||
+      hasVulnFilters);
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -276,6 +286,7 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
+    console.log("softwareFilter", softwareFilter);
     // Hide controls if no software is detected with no filters present
     if (
       query === "" &&
@@ -379,15 +390,15 @@ const SoftwareTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={searchable}
+        searchable={showFilterHeaders}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happeing outside of
         // the TableContainer.
         // additionalQueries={softwareFilter}
-        customControl={searchable ? renderCustomControls : undefined}
-        customFilters={searchable ? renderCustomFilters : undefined}
+        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customFilters={showFilterHeaders ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}
         renderFooter={renderTableFooter}
