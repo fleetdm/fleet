@@ -37,7 +37,6 @@ import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
 import SoftwarePackageCard from "./SoftwarePackageCard";
-import { getPackageCardInfo } from "./helpers";
 
 const baseClass = "software-title-details-page";
 

@@ -362,3 +362,32 @@ $max-width: 2560px;
     transform: rotate(315deg);
   }
 }
+
+@mixin fleet-labels-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 180px;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+    overflow-y: auto;
+
+    .fleet-label {
+      @include fleet-labels-list-item;
+    }
+}
+
+@mixin fleet-labels-list-item {
+    display: flex;
+    align-items: center;
+    gap: $pad-xlarge;
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    box-sizing: border-box;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+  }
+    .form-field--checkbox {
+      width: auto;
+    }
+}
