@@ -4834,6 +4834,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		Location:  tok.Location,
 		RenewDate: exp,
 		Token:     tok.Token,
+		TeamID:    teamID,
 		NullTeam:  nullTeam,
 	}
 

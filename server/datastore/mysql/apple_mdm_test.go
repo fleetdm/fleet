@@ -6501,6 +6501,24 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location, tok.Location)
 	assert.Equal(t, team2.ID, *tok.TeamID)
 	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
+
+	orgName2 := "Diddy Kong"
+	location2 := "Mines"
+	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
+	require.NoError(t, err)
+
+	// Creating a duplicate location
+	_, err = ds.InsertVPPToken(ctx, dataToken, &team2.ID, fleet.NullTeamNone)
+	require.Error(t, err)
+
+	tok2, err := ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamNone)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken2.Location, tok2.Location)
+	assert.Equal(t, dataToken2.Token, tok2.Token)
+	assert.Equal(t, orgName2, tok2.OrgName)
+	assert.Equal(t, location2, tok2.Location)
+	assert.Equal(t, team.ID, *tok2.TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok2.NullTeam)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
