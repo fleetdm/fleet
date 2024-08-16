@@ -50,11 +50,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -69,12 +72,36 @@ const (
 type redisLiveQuery struct {
 	// connection pool
 	pool fleet.RedisPool
+	// in memory cache
+	cache           memCache
+	cacheExpiration time.Duration
+
+	logger kitlog.Logger
+}
+
+type memCache struct {
+	sqlCache           map[string]string
+	activeQueriesCache []string
+	cacheExp           time.Time
+	mu                 sync.RWMutex
 }
 
 // NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool fleet.RedisPool) *redisLiveQuery {
-	return &redisLiveQuery{pool: pool}
+func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger) *redisLiveQuery {
+	return &redisLiveQuery{
+		pool:            pool,
+		cache:           newMemCache(),
+		cacheExpiration: 1 * time.Second,
+		logger:          logger,
+	}
+}
+
+func newMemCache() memCache {
+	return memCache{
+		sqlCache:           make(map[string]string),
+		activeQueriesCache: make([]string, 0),
+	}
 }
 
 // generate keys for the bitfield and sql of a query - those always go in pair
@@ -154,47 +181,39 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 
 	keysBySlot := redis.SplitKeysBySlot(r.pool, names...)
 	queries := make(map[string]string)
-	expired := make(map[string]struct{})
 	for _, qkeys := range keysBySlot {
-		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries, expired); err != nil {
+		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
 			return nil, err
-		}
-	}
-
-	if len(expired) > 0 {
-		// a certain percentage of the time so that we don't overwhelm redis with a
-		// bunch of similar deletion commands at the same time, clean up the
-		// expired queries.
-		if time.Now().UnixNano()%cleanupExpiredQueriesModulo == 0 {
-			names := make([]string, 0, len(expired))
-			for k := range expired {
-				names = append(names, k)
-			}
-			// ignore error, best effort removal
-			_ = r.removeQueryNames(names...)
 		}
 	}
 
 	return queries, nil
 }
 
-func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string, expiredQueries map[string]struct{}) error {
+func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string) error {
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
+
+	var cachedSQL map[string]string
+
+	r.cache.mu.RLock()
+	if r.cache.cacheExp.Before(time.Now()) {
+		r.cache.mu.RUnlock()
+		cacheCopy, err := r.loadCache()
+		if err != nil {
+			return fmt.Errorf("load cache: %w", err)
+		}
+		cachedSQL = cacheCopy.sqlCache
+	} else {
+		cachedSQL = r.cache.sqlCache
+		r.cache.mu.RUnlock()
+	}
 
 	// Pipeline redis calls to check for this host in the bitfield of the
 	// targets of the query.
 	for _, key := range queryKeys {
 		if err := conn.Send("GETBIT", key, hostID); err != nil {
 			return fmt.Errorf("getbit query targets: %w", err)
-		}
-
-		// Additionally get SQL even though we don't yet know whether this query
-		// is targeted to the host. This allows us to avoid an additional
-		// roundtrip to the Redis server and likely has little cost due to the
-		// small number of queries and limited size of SQL
-		if err := conn.Send("GET", sqlKeyPrefix+key); err != nil {
-			return fmt.Errorf("get query sql: %w", err)
 		}
 	}
 
@@ -215,27 +234,11 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 			return fmt.Errorf("receive target: %w", err)
 		}
 
-		// Be sure to read SQL even if we are not going to include this query.
-		// Otherwise we will read an incorrect number of returned results from
-		// the pipeline.
-		sql, err := redigo.String(conn.Receive())
-		if err != nil {
-			if err != redigo.ErrNil {
-				return fmt.Errorf("receive sql: %w", err)
+		if targeted == 1 {
+			if sql, found := cachedSQL[key]; found {
+				queriesByHost[name] = sql
 			}
-
-			// It is possible the livequery key has expired but was still in the set
-			// - handle this gracefully by collecting the keys to remove them from
-			// the set and keep going.
-			expiredQueries[name] = struct{}{}
-			continue
 		}
-
-		if targeted == 0 {
-			// Host not targeted with this query
-			continue
-		}
-		queriesByHost[name] = sql
 	}
 	return nil
 }
@@ -316,14 +319,103 @@ func (r *redisLiveQuery) removeQueryNames(names ...string) error {
 }
 
 func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
+	r.cache.mu.RLock()
+	if r.cache.cacheExp.After(time.Now()) {
+		names := r.cache.activeQueriesCache
+		r.cache.mu.RUnlock()
+		return names, nil
+	}
+	r.cache.mu.RUnlock()
+
+	cacheCopy, err := r.loadCache()
+	if err != nil {
+		return nil, fmt.Errorf("load cache: %w", err)
+	}
+
+	return cacheCopy.activeQueriesCache, nil
+}
+
+func (r *redisLiveQuery) loadCache() (memCache, error) {
+	expiredQueries := make(map[string]struct{})
+	sqlCache := make(map[string]string)
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	names, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	if err != nil && err != redigo.ErrNil {
-		return nil, err
+	if err != nil {
+		return memCache{}, fmt.Errorf("get active queries: %w", err)
 	}
-	return names, nil
+
+	for _, name := range names {
+		_, sqlKey := generateKeys(name)
+		if err := conn.Send("GET", sqlKey); err != nil {
+			return memCache{}, fmt.Errorf("get query sql: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return memCache{}, fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, name := range names {
+		_, sqlKey := generateKeys(name)
+
+		sql, err := redigo.String(conn.Receive())
+		if err != nil {
+			if err != redigo.ErrNil {
+				return memCache{}, fmt.Errorf("receive query sql: %w", err)
+			}
+
+			// It is possible the livequery key has expired but was still in the set
+			// - handle this gracefully by collecting the keys to remove them from
+			// the set and keep going.
+			expiredQueries[name] = struct{}{}
+			continue
+		}
+
+		sqlCache[sqlKey] = sql
+	}
+
+	// remove expired queries from the names list
+	if len(expiredQueries) > 0 {
+		newNames := make([]string, 0, len(names)-len(expiredQueries))
+		for _, name := range names {
+			if _, found := expiredQueries[name]; !found {
+				newNames = append(newNames, name)
+			}
+		}
+		names = newNames
+	}
+
+	r.cache.mu.Lock()
+	r.cache.sqlCache = sqlCache
+	r.cache.activeQueriesCache = names
+	r.cache.cacheExp = time.Now().Add(r.cacheExpiration)
+	r.cache.mu.Unlock()
+
+	if len(expiredQueries) > 0 {
+		// a certain percentage of the time so that we don't overwhelm redis with a
+		// bunch of similar deletion commands at the same time, clean up the
+		// expired queries.
+		if time.Now().UnixNano()%cleanupExpiredQueriesModulo == 0 {
+			names := make([]string, 0, len(expiredQueries))
+			for k := range expiredQueries {
+				names = append(names, k)
+			}
+
+			go func() {
+				err = r.removeQueryNames(names...)
+				if err != nil {
+					level.Warn(r.logger).Log("msg", "removing expired live queries", "err", err)
+				}
+			}()
+		}
+	}
+
+	return memCache{
+		sqlCache:           sqlCache,
+		activeQueriesCache: names,
+	}, nil
 }
 
 func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
