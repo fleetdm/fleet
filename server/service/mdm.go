@@ -2778,6 +2778,10 @@ func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (e
 }
 
 func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving vpp token")
@@ -2814,6 +2818,10 @@ func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer,
 }
 
 func (svc *Service) GetVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
 	return svc.ds.ListVPPTokens(ctx)
 }
 
@@ -2829,7 +2837,6 @@ func (r deleteVPPTokenResponse) error() error { return r.Err }
 
 func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(deleteVPPTokenRequest)
-	_ = req
 
 	err := svc.DeleteVPPToken(ctx, req.ID)
 	if err != nil {
@@ -2840,6 +2847,10 @@ func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errore
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
 	return svc.ds.DeleteVPPToken(ctx, tokenID)
 }
 
