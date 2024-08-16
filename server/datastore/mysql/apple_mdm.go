@@ -4792,7 +4792,7 @@ WHERE
 }
 
 func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
-	stmt := `
+	insertStmt := `
 	INSERT INTO
 		vpp_tokens (
 			organization_name,
@@ -4807,6 +4807,10 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	if teamID != nil && nullTeam != fleet.NullTeamNone {
 		return nil, ctxerr.Errorf(ctx, "nullTeam must be set to NullTeamNone if teamID is present")
+	}
+
+	if err := ds.checkVPPNullTeam(ctx, nil, nullTeam); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking vpp token null team")
 	}
 
 	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
@@ -4840,7 +4844,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	res, err := ds.writer(ctx).ExecContext(
 		ctx,
-		stmt,
+		insertStmt,
 		vppTokenDB.OrgName,
 		vppTokenDB.Location,
 		vppTokenDB.RenewDate,
@@ -4929,6 +4933,10 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) 
 		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
 	}
 
+	if err := ds.checkVPPNullTeam(ctx, tok.TeamID, tok.NullTeam); err != nil {
+		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
+	}
+
 	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
 	if err != nil {
 		ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
@@ -5008,4 +5016,23 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 	}
 
 	return tokens, nil
+}
+
+func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, nullTeam fleet.NullTeamType) error {
+	nullTeamStmt := `SELECT id FROM vpp_tokens WHERE null_team_type = ?`
+
+	if nullTeam != fleet.NullTeamNone {
+		var id uint
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, nullTeamStmt, nullTeam); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, err, "checking for nullteam constraints")
+			}
+		} else {
+			if currentID == nil || *currentID != id {
+				return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
+			}
+		}
+	}
+
+	return nil
 }

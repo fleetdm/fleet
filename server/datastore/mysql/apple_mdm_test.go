@@ -6455,6 +6455,27 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	dataToken, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName, location)
 	require.NoError(t, err)
 
+	orgName2 := "Diddy Kong"
+	location2 := "Mines"
+	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
+	require.NoError(t, err)
+
+	orgName3 := "Cranky Cong"
+	location3 := "Cranky's Cabin"
+	dataToken3, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName3, location3)
+	require.NoError(t, err)
+
+	orgName4 := "Funky Kong"
+	location4 := "Funky's Fishing Shack"
+	dataToken4, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName4, location4)
+	require.NoError(t, err)
+
+	orgName5 := "Lanky Kong"
+	location5 := "Lanky Kong's Pool"
+	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
+	_ = dataToken5
+	require.NoError(t, err)
+
 	tok, err := ds.InsertVPPToken(ctx, dataToken, nil, fleet.NullTeamNone)
 	assert.NoError(t, err)
 	assert.Equal(t, dataToken.Location, tok.Location)
@@ -6509,11 +6530,6 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team2.ID, *tok.TeamID)
 	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
 
-	orgName2 := "Diddy Kong"
-	location2 := "Mines"
-	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
-	require.NoError(t, err)
-
 	// Inserting a duplicate token (location constraint)
 	_, err = ds.InsertVPPToken(ctx, dataToken, &team2.ID, fleet.NullTeamNone)
 	require.Error(t, err)
@@ -6546,6 +6562,20 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, tokens, 1)
 	assert.Equal(t, tok2.ID, tokens[0].ID)
+
+	// No team token
+	_, err = ds.InsertVPPToken(ctx, dataToken3, nil, fleet.NullTeamNoTeam)
+	assert.NoError(t, err)
+
+	// Only one no team allowed
+	_, err = ds.InsertVPPToken(ctx, dataToken4, nil, fleet.NullTeamNoTeam)
+	assert.Error(t, err)
+
+	// Try to update to duplicate no team
+	tok2.TeamID = nil
+	tok2.NullTeam = fleet.NullTeamNoTeam
+	err = ds.UpdateVPPToken(ctx, tok2)
+	assert.Error(t, err)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
