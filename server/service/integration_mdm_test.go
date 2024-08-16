@@ -3443,11 +3443,6 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
-	// host is not DEP so migration is not allowed
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, !installedFromDEP, mdmName, ""))
-	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
-	require.False(t, webhookCalled)
-
 	// host is not enrolled to MDM so migration is not allowed
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, !enrolled, mdmURL, installedFromDEP, mdmName, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
@@ -3531,6 +3526,16 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	err = s.ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
 
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+	require.True(t, webhookCalled)
+	webhookCalled = false
+
+	// host is manually enrolled, which is allowed
+	h.RefetchCriticalQueriesUntil = ptr.Time(time.Now().Add(-1 * time.Minute))
+	err = s.ds.UpdateHost(context.Background(), h)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, !installedFromDEP, mdmName, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
 	require.True(t, webhookCalled)
 	webhookCalled = false
@@ -5487,6 +5492,37 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			false,
 			true,
 			s.server.URL,
+			false,
+			fleet.WellKnownMDMSimpleMDM,
+			"",
+		)
+		require.NoError(t, err)
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDesktopResp.Err)
+		require.Zero(t, *getDesktopResp.FailingPolicies)
+		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+
+		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+
+		// simulate a device that is manually enrolled to 3rd party
+		err = s.ds.SetOrUpdateMDMData(
+			ctx,
+			host.ID,
+			false,
+			true,
+			"https://simplemdm.com",
 			false,
 			fleet.WellKnownMDMSimpleMDM,
 			"",

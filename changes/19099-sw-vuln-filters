@@ -1,0 +1,1 @@
+- adds the following filters to `/software/titles` and `/software/versions` API endpoints: `exploit: bool`, `min_cvss_score: float`, `max_cvss_score: float`
