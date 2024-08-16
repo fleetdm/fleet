@@ -12,7 +12,7 @@ In Fleet, you can customize the out-of-the-box macOS Setup Assistant with Remote
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
-macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
+macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
 ## End user authentication and EULA
 
@@ -20,7 +20,7 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 ### End user authentication
 
-To require end user authentication, first [configure single sign-on (SSO)](../Deploy/single-sign-on-sso.md). Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+To require end user authentication, first [configure single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso). Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 If you've already configured SSO in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
 
@@ -155,7 +155,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
 
-  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./mdm-setup.md#pending-hosts).
+  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 
