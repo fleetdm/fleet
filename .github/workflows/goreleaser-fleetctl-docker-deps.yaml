@@ -1,0 +1,58 @@
+# Builds and releases to production the fleetdm/bomutils:latest and fleetdm/wix:latest
+# docker images, which are the docker image dependencies of the fleetctl command.
+#
+# This is separate from Fleet releases because we only release
+# fleetdm/bomutils and fleetdm/wix only if we add new dependencies
+# or for security updates.
+name: Release fleetctl docker dependencies
+
+on:
+  push:
+    tags:
+      - "fleetctl-docker-deps-*"
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  push_latest:
+    runs-on: ubuntu-latest
+    environment: Docker Hub
+    permissions:
+      contents: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
+      - name: Build fleetdm/wix
+        run: make wix-docker
+
+      - name: Build fleetdm/bomutils
+        run: make bomutils-docker 
+
+      - name: Push fleetdm/bomutils
+        run: docker push fleetdm/bomutils:latest
+
+      - name: Push fleetdm/wix
+        run: docker push fleetdm/wix:latest
