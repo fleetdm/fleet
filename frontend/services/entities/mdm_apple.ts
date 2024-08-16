@@ -1,3 +1,4 @@
+import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -76,5 +77,25 @@ export default {
       team_id: teamId,
       platform,
     });
+  },
+
+  getVppTokens: (): Promise<IMdmVppToken[]> => {
+    const { MDM_VPP_TOKENS } = endpoints;
+    // return sendRequest("GET", MDM_VPP_TOKENS);
+    return Promise.resolve([
+      {
+        id: 1,
+        org_name: "Fleet Device Management Inc.",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-11-29T00:00:00Z",
+        terms_expired: false,
+        teams: [
+          "💻 Workstations",
+          "💻🐣 Workstations (canary)",
+          "📱🏢 Company-owned iPhones",
+          "🔳🏢 Company-owned iPads",
+        ],
+      },
+    ]); // TODO: remove when API is ready
   },
 };

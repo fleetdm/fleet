@@ -15,6 +15,27 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
+export interface IMdmAbmToken {
+  id: number;
+  apple_id: string;
+  org_name: string;
+  mdm_server_url: string;
+  renew_date: string;
+  terms_expired: boolean;
+  macos_team: string;
+  ios_team: string;
+  ipados_team: string;
+}
+
+export interface IMdmVppToken {
+  id: number;
+  org_name: string;
+  location: string;
+  renew_date: string;
+  terms_expired: boolean; // TODO: what does this mean in the context of VPP? isn't this just an abm concept?
+  teams: string[];
+}
+
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
 };

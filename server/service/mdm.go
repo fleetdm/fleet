@@ -2635,7 +2635,7 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetVPPToken, Value: dataBytes},
+		{Name: fleet.MDMAssetVPPTokenDeprecated, Value: dataBytes},
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
@@ -2678,13 +2678,13 @@ func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInf
 		return nil, err
 	}
 
-	assetMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+	assetMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPTokenDeprecated})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name VPP token")
 	}
 
 	var tokenData fleet.VPPTokenData
-	if err := json.Unmarshal(assetMap[fleet.MDMAssetVPPToken].Value, &tokenData); err != nil {
+	if err := json.Unmarshal(assetMap[fleet.MDMAssetVPPTokenDeprecated].Value, &tokenData); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
@@ -2734,7 +2734,7 @@ func (svc *Service) DeleteMDMAppleVPPToken(ctx context.Context) error {
 		return err
 	}
 
-	if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken}); err != nil {
+	if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPTokenDeprecated}); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete VPP token")
 	}
 

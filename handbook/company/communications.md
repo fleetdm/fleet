@@ -133,11 +133,10 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers expect a timely follow-up from Fleet based on the conversations that they had at the event.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
-1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
-3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
+1. Once a list of badge scans is available, Fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
+2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
 
 
 ### Podcast
@@ -1339,6 +1338,33 @@ Markdown is a simple formatting syntax used to write content on the web. In orde
 
 
 ### Headings
+
+Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
+
+```
+...previous content.
+
+
+### New heading
+
+Related content... 
+```
+
+
+#### Nested headings
+
+Wherever possible, avoid creating nested headings. For example:
+
+```
+## Things
+
+### Thing 1
+
+Hi my name is Thing 1
+```
+
+
+#### Heading levels
 
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 | Markdown | Rendered heading |

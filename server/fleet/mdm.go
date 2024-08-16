@@ -653,14 +653,17 @@ const (
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
 	// that can be used for the authentication process with the ABM API.
-	// Deprecated: ABM tokens are now stored in the abm_tokens, they are not in
-	// mdm_config_assets anymore.
+	// Deprecated: ABM tokens are now stored in the abm_tokens table, they are
+	// not in mdm_config_assets anymore.
 	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
-	// MDMAssetVPPToken is the name of the token used by MDM to authenticate to Apple's VPP service.
-	MDMAssetVPPToken MDMAssetName = "vpp_token"
+	// MDMAssetVPPTokenDeprecated is the name of the token used by MDM to
+	// authenticate to Apple's VPP service.
+	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
 )
 
 type MDMConfigAsset struct {

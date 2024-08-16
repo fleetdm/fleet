@@ -16,7 +16,7 @@ const VppRenewalMessage = ({ expired }: IVppRenewalMessageProps) => {
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/learn-more-about/renew-vpp"
+          url="https://fleetdm.com/learn-more-about/renew-vpp" // TODO: /settings/integrations/mdm/vpp
           text="Renew VPP"
           className={`${baseClass}__new-tab`}
           newTab
@@ -28,13 +28,15 @@ const VppRenewalMessage = ({ expired }: IVppRenewalMessageProps) => {
       {expired ? (
         <>
           Your Volume Purchasing Program (VPP) content token has expired. You
-          can&apos;t add or install App Store apps.
+          can’t add or install App Store apps. Users with the admin role in
+          Fleet can renew VPP.
         </>
       ) : (
         <>
           Your Volume Purchasing Program (VPP) content token is less than 30
-          days from expiration. If it expires, you won&apos;t be able to add or
-          install App Store apps.
+          days from expiration. If it expires, you won’t be able to add or
+          install App Store apps. Users with the admin role in Fleet can renew
+          VPP.
         </>
       )}
     </InfoBanner>

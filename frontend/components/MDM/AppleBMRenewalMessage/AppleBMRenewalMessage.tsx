@@ -16,7 +16,7 @@ const AppleBMRenewalMessage = ({ expired }: IAppleBMRenewalMessageProps) => {
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/learn-more-about/renew-abm"
+          url="https://fleetdm.com/learn-more-about/renew-abm" // TODO: /settings/integrations/mdm/abm
           text="Renew ABM"
           className={`${baseClass}__new-tab`}
           newTab
@@ -27,14 +27,16 @@ const AppleBMRenewalMessage = ({ expired }: IAppleBMRenewalMessageProps) => {
     >
       {expired ? (
         <>
-          Your Apple Business Manager (ABM) server token has expired or is
-          invalid. New macOS hosts will not automatically enroll to Fleet.
+          Your Apple Business Manager (ABM) server token has expired. macOS,
+          iOS, and iPadOS hosts won’t automatically enroll to Fleet. Users with
+          the admin role in Fleet can renew ABM.
         </>
       ) : (
         <>
           Your Apple Business Manager (ABM) server token is less than 30 days
-          from expiration. If it expires, new macOS hosts will not automatically
-          enroll to Fleet.
+          from expiration. If it expires, macOS, iOS, and iPadOS hosts won’t
+          automatically enroll to Fleet. Users with the admin role in Fleet can
+          renew ABM.
         </>
       )}
     </InfoBanner>

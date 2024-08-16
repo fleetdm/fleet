@@ -14,9 +14,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
-import mdmAppleBMAPI, {
-  IGetAppleBMInfoResponse,
-} from "services/entities/mdm_apple_bm";
+import mdmAppleBMAPI from "services/entities/mdm_apple_bm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { ErrorBoundary } from "react-error-boundary";
@@ -29,6 +27,8 @@ import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 import { QueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { isBefore } from "date-fns";
 
 interface IAppProps {
   children: JSX.Element;
@@ -39,6 +39,29 @@ interface IAppProps {
     query: QueryParams;
   };
 }
+
+interface RecordWithRenewDate {
+  renew_date: string;
+}
+
+const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
+
+// TODO: add tests for this function
+const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
+  const earliest = records.reduce((acc, record) => {
+    const renewDate = new Date(record.renew_date);
+    return isBefore(acc, renewDate) ? acc : renewDate;
+  }, new Date(NaN));
+
+  if (isNaN(earliest.valueOf())) {
+    // this should never happen assuming the API always returns valid dates, but just in case we'll
+    // return a guaranteed past date and log a warning to aid debugging
+    console.warn("No valid renew dates found, returning guaranteed past date.");
+    return GUARANTEED_PAST_DATE;
+  }
+
+  return earliest.toISOString();
+};
 
 const baseClass = "app";
 
@@ -66,22 +89,27 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   // We will do a series of API calls to get the data that we need to display
   // warnings to the user about various token expirations.
 
-  // Get the Apple Business Manager token expiration date
-  useQuery<IGetAppleBMInfoResponse, AxiosError>(
-    ["abm"],
-    () => mdmAppleBMAPI.getAppleBMInfo(),
+  // Get the ABM tokens
+  useQuery<IMdmAbmToken[], AxiosError>(
+    ["abm_tokens"],
+    () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.apple_bm_enabled_and_configured,
+      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
       onSuccess: (data) => {
-        setABMExpiry(data.renew_date);
+        setABMExpiry({
+          earliestExpiry: getEarliestExpiry(data),
+          needsAbmTermsRenewal: data.some((token) => token.terms_expired),
+        });
       },
+      // TODO: Do we need to catch and check for a 400 status code? The old
+      // API behaved this way when the token is already expired or invalid.
       onError: (err) => {
-        // we need to catch and check for a 400 status code because the
-        // API behaves this way when the token is already expired or invalid.
         if (err.status === 400) {
-          const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
-          setABMExpiry(GUARANTEED_PAST_DATE);
+          setABMExpiry({
+            earliestExpiry: GUARANTEED_PAST_DATE,
+            needsAbmTermsRenewal: true, // TODO: if order of precedence for banners changes, we may need to upate this
+          });
         }
       },
     }
@@ -97,11 +125,11 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   });
 
   // Get the Apple Push VPP token expiration date
-  useQuery(["vppToken"], () => mdmAppleAPI.getVppInfo(), {
+  useQuery<IMdmVppToken[]>(["vpp_tokens"], () => mdmAppleAPI.getVppTokens(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
     onSuccess: (data) => {
-      setVppExpiry(data.renew_date);
+      setVppExpiry(getEarliestExpiry(data));
     },
   });
 
