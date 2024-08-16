@@ -735,6 +735,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/vpp_token/{id}", deleteVPPToken, deleteVPPTokenRequest{})
 
 	ue.GET("/api/_version_/fleet/vpp", getMDMAppleVPPTokenEndpoint, getMDMAppleVPPTokenRequest{})
+	ue.POST("/api/_version_/fleet/mdm/apple/vpp_token", uploadMDMAppleVPPTokenEndpoint, uploadMDMAppleVPPTokenRequest{})
 	ue.DELETE("/api/_version_/fleet/mdm/apple/vpp_token", deleteMDMAppleVPPTokenEndpoint, deleteMDMAppleVPPTokenRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsEndpoint, batchAssociateAppStoreAppsRequest{})
 

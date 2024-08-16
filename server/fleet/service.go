@@ -717,6 +717,7 @@ type Service interface {
 	GetVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
+	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
 	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
 	DeleteMDMAppleVPPToken(ctx context.Context) error
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
