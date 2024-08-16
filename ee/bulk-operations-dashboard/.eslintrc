@@ -39,7 +39,8 @@
     "_": true,
 
     // Models:
-    "User": true
+    "User": true,
+    "UndeployedProfile": true
     
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
