@@ -2653,6 +2653,8 @@ type patchVPPTokensTeamsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
+func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
+
 func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	// TODO Waiting for spec on how to handle no-team/all-teams
 
@@ -2676,7 +2678,30 @@ func (svc *Service) UpdateVPPTokensTeams(ctx context.Context, tokenID uint, team
 	return nil
 }
 
-func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
+type getVPPTokensRequest struct{}
+
+type getVPPTokensResponse struct {
+	Tokens []fleet.VPPTokenDB `json:"tokens,omitempty"`
+	Err    error              `json:"error,omitempty"`
+}
+
+func (r getVPPTokensResponse) error() error { return r.Err }
+
+func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(getVPPTokensRequest)
+	_ = req
+
+	tokens, err := svc.GetVPPTokens(ctx)
+	if err != nil {
+		return getVPPTokensResponse{Err: err}, nil
+	}
+
+	return getVPPTokensResponse{Tokens: tokens}, nil
+}
+
+func (svc *Service) GetVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	return svc.ds.ListVPPTokens(ctx)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // GET /vpp

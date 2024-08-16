@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -714,6 +715,7 @@ type Service interface {
 
 	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) (*VPPTokenDB, error)
 	UpdateVPPTokenTeams(ctx context.Context, tokenID *uint, nullTeam NullTeamType) error
+	GetVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error)
 	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
 	DeleteMDMAppleVPPToken(ctx context.Context) error
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
