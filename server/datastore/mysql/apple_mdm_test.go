@@ -6378,10 +6378,12 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
 	tok.AppleID = "name@example.com"
-	tok.MacOSDefaultTeamID = &tm1.ID
-	tok.IOSDefaultTeamID = &tm2.ID
+	// tok.MacOSDefaultTeamID = &tm1.ID
+	// tok.IOSDefaultTeamID = &tm2.ID
 	err = ds.SaveABMToken(ctx, tok)
 	require.NoError(t, err)
+
+	// err = ds.UpdateABMTokenTeams(ctx, tok.ID, )
 
 	// reload that token
 	tokReload, err := ds.GetABMTokenByOrgName(ctx, "org-name")

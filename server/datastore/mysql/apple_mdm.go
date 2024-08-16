@@ -4862,7 +4862,7 @@ LEFT OUTER JOIN
 	return tokens, nil
 }
 
-func (ds *Datastore) UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error {
+func (ds *Datastore) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error {
 	const stmt = `
 UPDATE
 	abm_tokens

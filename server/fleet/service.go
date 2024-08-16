@@ -816,7 +816,7 @@ type Service interface {
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
-	UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error
+	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error
 
 	// DisableABM disables ABM by soft-deleting the relevant assets
 	DisableABM(ctx context.Context) error

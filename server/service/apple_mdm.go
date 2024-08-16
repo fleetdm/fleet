@@ -4033,10 +4033,10 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateABMTokenTeamsRequest struct {
-	TokenID      uint `url:"token_id"`
-	MacOSTeamID  uint `json:"macos_team_id"`
-	IOSTeamID    uint `json:"ios_team_id"`
-	IPadOSTeamID uint `json:"ipados_team_id"`
+	TokenID      uint  `url:"token_id"`
+	MacOSTeamID  *uint `json:"macos_team_id"`
+	IOSTeamID    *uint `json:"ios_team_id"`
+	IPadOSTeamID *uint `json:"ipados_team_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
@@ -4055,7 +4055,7 @@ func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc f
 	return &updateABMTokenTeamsResponse{}, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID uint) error {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return err
 	}
