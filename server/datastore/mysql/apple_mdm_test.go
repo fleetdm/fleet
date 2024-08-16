@@ -6378,12 +6378,13 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
 	tok.AppleID = "name@example.com"
-	// tok.MacOSDefaultTeamID = &tm1.ID
-	// tok.IOSDefaultTeamID = &tm2.ID
+	tok.MacOSDefaultTeamID = &tm1.ID
+	tok.IOSDefaultTeamID = &tm2.ID
 	err = ds.SaveABMToken(ctx, tok)
 	require.NoError(t, err)
 
-	// err = ds.UpdateABMTokenTeams(ctx, tok.ID, )
+	err = ds.UpdateABMTokenTeams(ctx, tok.ID, tok.MacOSDefaultTeamID, tok.IOSDefaultTeamID, nil)
+	require.NoError(t, err)
 
 	// reload that token
 	tokReload, err := ds.GetABMTokenByOrgName(ctx, "org-name")
@@ -6439,6 +6440,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	expTok1, expTok2 := toks[0], toks[1]
 	require.Equal(t, "unused", expTok1.OrganizationName)
 	require.Equal(t, "org-name", expTok2.OrganizationName)
+	require.Equal(t, "name@example.com", expTok2.AppleID)
 	require.Empty(t, expTok2.MacOSTeam)
 	require.Equal(t, tm2.Name, expTok2.IOSTeam)
 	require.Equal(t, tm3.Name, expTok2.IPadOSTeam)
