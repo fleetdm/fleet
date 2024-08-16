@@ -25,6 +25,10 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
+import {
+  getExploitedVulnerabiltiesDropdownOptions,
+  normalizeCVE,
+} from "./helpers";
 
 const baseClass = "software-vulnerabilities-table";
 
@@ -63,6 +67,33 @@ const SoftwareVulnerabilitiesTable = ({
   isLoading,
   resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
+  const validQuery = query ? isValidCVEFormat(query) : true;
+
+  // Customer request that turns this table's fuzzy API search
+  // into exact match in the UI -- Logic lives here
+  // Various empty states live in EmptyVulnerabilitiesTable
+  const exactMatchSearchData = (() => {
+    // Invalid queries replace any results with no results
+    if (!validQuery) {
+      return [];
+    }
+
+    // No search query renders all results returned from API
+    if (!query) {
+      return data?.vulnerabilities || [];
+    }
+
+    // Query returning results filter the vulnerabilities to return only the exact match
+    if (data?.vulnerabilities) {
+      const normalizedQuery = normalizeCVE(query);
+
+      return data.vulnerabilities.filter(
+        (vulnerability) => normalizeCVE(vulnerability.cve) === normalizedQuery
+      );
+    }
+    return [];
+  })();
+
   const { isPremiumTier } = useContext(AppContext);
 
   const determineQueryParamChange = useCallback(
@@ -182,15 +213,17 @@ const SoftwareVulnerabilitiesTable = ({
     router.push(path);
   };
 
-  // This table checks for exact matches only and users want to see validation if invalid query
-  const validQuery = query ? isValidCVEFormat(query) : true;
-
   const renderVulnerabilityCount = () => {
-    if (!data?.vulnerabilities || !data?.count || !validQuery) return null;
+    if (!exactMatchSearchData.length || !data?.count || !validQuery)
+      return null;
+
+    // Count without a query is returned from API, but exact match search
+    // must show filtered count
+    const count = query ? exactMatchSearchData.length : data.count;
 
     return (
       <>
-        <TableCount name="items" count={data?.count} />
+        <TableCount name="items" count={count} />
         {data?.vulnerabilities && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
@@ -220,34 +253,13 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
-  const getExploitedVulnerabiltiesDropdownOptions = () => {
-    const disabledTooltipContent = "Available in Fleet Premium.";
-
-    return [
-      {
-        disabled: false,
-        label: "All vulnerabilities",
-        value: false,
-        helpText: "All vulnerabilities detected on your hosts.",
-      },
-      {
-        disabled: !isPremiumTier,
-        label: "Exploited vulnerabilities",
-        value: true,
-        helpText:
-          "Vulnerabilities that have been actively exploited in the wild.",
-        tooltipContent: !isPremiumTier && disabledTooltipContent,
-      },
-    ];
-  };
-
   // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <Dropdown
         value={showExploitedVulnerabilitiesOnly}
         className={`${baseClass}__exploited-vulnerabilities-dropdown`}
-        options={getExploitedVulnerabiltiesDropdownOptions()}
+        options={getExploitedVulnerabiltiesDropdownOptions(isPremiumTier)}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
         tableFilterDropdown
@@ -259,7 +271,7 @@ const SoftwareVulnerabilitiesTable = ({
     <div className={baseClass}>
       <TableContainer
         columnConfigs={vulnerabilitiesTableHeaders}
-        data={validQuery ? data?.vulnerabilities ?? [] : []}
+        data={exactMatchSearchData}
         isLoading={isLoading && validQuery}
         resultsTitle={"items"}
         emptyComponent={() => (

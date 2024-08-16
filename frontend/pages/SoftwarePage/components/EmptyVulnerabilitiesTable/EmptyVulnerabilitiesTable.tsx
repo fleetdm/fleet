@@ -66,7 +66,7 @@ const EmptyVulnerabilitiesTable = ({
     }.`;
     if (isPremiumTier && exploitedFilter) {
       emptyVulns.info =
-        "If you're filtering by exploited CVEs, try removing the filter to expand your search.";
+        "Try removing the exploited vulnerabilities filter to expand your search.";
     }
     emptyVulns.additionalInfo = renderLearnMoreLink();
   } else if (knownVulnerability === false) {
