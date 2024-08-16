@@ -92,7 +92,7 @@
           <h3>Edit script</h3>
           <div class="pointer" @click="closeModal()">&times;</div>
         </div>
-        <ajax-form action="editScript" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addScriptsFormRules" @submitted="submittedForm()">
+        <ajax-form action="editScript" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptFormRules" @submitted="submittedForm()">
           <div purpose="script-information" v-if="!formData.newScripts">
             <div class="d-flex flex-row justify-content-start">
               <img style="height: 40px; width: 34px;" src="/images/script-icon-ps1-34x40@2x.png" v-if="scriptToEdit.platform === 'Windows'">
@@ -108,6 +108,8 @@
             <p class="mb-2"><strong>Teams</strong></p>
             <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
           </div>
+          <cloud-error v-if="cloudError === 'scriptNameDoesNotMatch'">The new scripts file name identifier must match the old scripts’ file name.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
           <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
             <ajax-button :syncing.sync="syncing" type="submit">Save</ajax-button>
           </div>
@@ -125,6 +127,7 @@
       <p>Delete this script from all teams.</p>
       <p>This will cancel the script from running.</p>
       <ajax-form :handle-submitting="handleSubmittingDeleteScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptsFormRules" @submitted="submittedForm()">
+        <cloud-error v-if="cloudError"></cloud-error>
       <div class="d-flex flex-row justify-content-end align-items-center">
         <a class="text-danger mr-3" @click="closeModal()">Cancel</a>
         <ajax-button class="btn btn-danger" :syncing.sync="syncing">Delete</ajax-button>
@@ -140,12 +143,16 @@
           <h3>Add script</h3>
           <div class="pointer" @click="closeModal()">&times;</div>
         </div>
-        <ajax-form :handle-submitting="handleSubmittingAddScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addScriptsFormRules" @submitted="submittedForm()">
-          <file-upload id="file-upload" mode="scripts" :disabled="syncing" v-model="formData.newScript"></file-upload>
-          <div purpose="teams-picker">
+        <ajax-form :handle-submitting="handleSubmittingAddScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addScriptFormRules" @submitted="submittedForm()">
+          <file-upload id="file-upload" :class="[formErrors.newScript ? 'is-invalid' : '']"  mode="scripts" :disabled="syncing" v-model="formData.newScript"></file-upload>
+          <div class="invalid-feedback text-center" v-if="formErrors.newScript">Please upload a new script.</div>
+          <div purpose="teams-picker" class="mt-4" :class="[formErrors.teams ? 'is-invalid' : '']">
             <p class="mb-2"><strong>Teams</strong></p>
             <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
           </div>
+          <div class="invalid-feedback text-center" v-if="formErrors.teams">Please select the teams you want to deploy this script to.</div>
+          <cloud-error v-if="cloudError && cloudError === 'scriptWithThisNameAlreadyExists'">A script with the same name as the uploaded script already exists on one or more of the selected teams.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
           <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
             <a purpose="cancel-button" @click="closeModal()">Cancel</a>
             <ajax-button :syncing.sync="syncing" type="submit">Add</ajax-button>

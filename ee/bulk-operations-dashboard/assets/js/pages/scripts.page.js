@@ -17,15 +17,14 @@ parasails.registerPage('scripts', {
     profiles: [],
     formData: {},
     formErrors: {},
-    addScriptsFormRules: {
-      newScript: {required: true},
+    addScriptFormRules: {
+      newScript: {
+        required: true,
+      },
       teams: {required: true},
     },
-    editScriptsFormRules: {
+    editScriptFormRules: {
       // no form rules, for this form.
-    },
-    addScriptsFormRules: {
-      // newScript: {required: true}
     },
     profileToEdit: {},
     cloudError: '',
@@ -84,7 +83,7 @@ parasails.registerPage('scripts', {
       console.log(scriptsOnThisTeam);
     },
     clickDownloadScript: async function(script) {
-      window.open('/download-script?id='+encodeURIComponent(script.teams[0].id));
+      window.open('/download-script?id='+encodeURIComponent(script.teams[0].scriptFleetApid));
       // Call the download script cloud action
       // Return the downloaded script with the correct filename
       // Or possible make these just open the download endpoint in a new tab to download it.

@@ -25,7 +25,10 @@ module.exports = {
 
 
   exits: {
-
+    scriptWithThisNameAlreadyExists: {
+      description: 'A script with this name already exists on the Fleet Instance',
+      statusCode: 409,
+    },
   },
 
 
@@ -34,8 +37,10 @@ module.exports = {
     let path = require('path');
     let fileStream = newScript._files[0].stream;
     let scriptFilename = fileStream.filename;
+    console.log(scriptFilename)
     // Strip out any automatically added date prefixes from uploaded scritps.
     let datelessExtensionlessFilename = scriptFilename.replace(/^\d{4}-\d{2}-\d{2}\s/, '').replace(/\.[^/.]+$/, '');
+    console.log(datelessExtensionlessFilename)
     let extension = '.'+scriptFilename.split('.').pop();
     // Write the filestream to a temporary file to get the contents as text, and delete the temporary file.
     let tempFilePath = `.tmp/${scriptFilename}`;
@@ -62,7 +67,7 @@ module.exports = {
       let requestBodyForThisTeam = {
         script: {
           options: {
-            filename: scriptFilename,
+            filename: datelessExtensionlessFilename + extension,
             contentType: 'application/octet-stream'
           },
           value: profileContents,
@@ -87,6 +92,9 @@ module.exports = {
         headers: {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
         },
+      })
+      .intercept({raw: {statusCode: 409}}, (err)=>{
+        return 'scriptWithThisNameAlreadyExists';
       });
       let parsedJsonResponse = JSON.parse(newScriptResponse.body)
       let uuidForThisProfile = parsedJsonResponse.script_id;
