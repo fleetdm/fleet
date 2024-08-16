@@ -148,6 +148,14 @@
   .pointer {
     cursor: pointer;
   }
+  [parasails-component='file-upload'] {
+    &.is-invalid {
+      border: 1px solid #dc3545;
+    }
+  }
+  .is-invalid ~ .invalid-feedback {
+    display: block;
+  }
   [purpose='profile-upload-input'] {
     display: flex;
     padding: 32px;
@@ -159,7 +167,6 @@
     border-radius: 4px;
     border: 1px solid #E2E4EA;
     background: #F9FAFC;
-    margin-bottom: 24px;
   }
   [purpose='profile-information'] {
     display: flex;
@@ -189,6 +196,7 @@
     border: 1px solid #E2E4EA;
     background: #F9FAFC;
     margin-bottom: 24px;
+    margin-top: 24px;
   }
   // input[type='file'] {
   //   display: none;
@@ -205,6 +213,7 @@
       margin-right: 8px;
     }
   }
+
   [purpose='modal-buttons'] {
     [purpose='cancel-button'] {
       color: @core-vibrant-blue;

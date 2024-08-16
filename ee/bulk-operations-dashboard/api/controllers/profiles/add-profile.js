@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Add profile',
+  friendlyName: 'Add profile',// TODO: rename to upload profile
 
 
   description: '',
@@ -12,48 +12,59 @@ module.exports = {
     newProfile: {
       type: 'ref',
       description: 'An Upstream with an incoming file upload.',
-      // required: true,
+      required: true,
     },
     teams: {
-      type: ['ref'],
+      type: ['string'],
       description: 'An array of team IDs that this profile will be added to'
     }
   },
 
 
   exits: {
+    success: {
+      outputDescription: 'The new profile has been uploaded',
+      outputType: {},
+    },
+
+    noFileAttached: {
+      description: 'No file was attached.',
+      responseType: 'badRequest'
+    },
+
+    tooBig: {
+      description: 'The file is too big.',
+      responseType: 'badRequest'
+    },
 
   },
 
 
   fn: async function ({newProfile, teams}) {
-    // console.log(newProfile);
-
-    let path = require('path');
-    let fileStream = newProfile._files[0].stream;
-    let profileFileName = fileStream.filename;
+    let util = require('util');
+    let profile = await sails.reservoir(newProfile, {
+      maxBytes: 3000000
+    })
+    .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
+    .intercept((err)=>new Error('The photo upload failed: '+util.inspect(err)));
+    if(!profile) {
+      throw 'noFileAttached';
+    }
+    let profileContents = profile[0].contentBytes;
+    let profileFileName = profile[0].name;
     let datelessExtensionlessFilename = profileFileName.replace(/^\d{4}-\d{2}-\d{2}_/, '').replace(/\.[^/.]+$/, '');
     let extension = '.'+profileFileName.split('.').pop();
-    let tempFilePath = `.tmp/${profileFileName}`;
     let profilePlatform = 'darwin';
     if(_.endsWith(profileFileName, '.xml')) {
       profilePlatform = 'windows';
     }
-    await sails.helpers.fs.writeStream.with({
-      sourceStream: newProfile._files[0].stream,
-      destination: tempFilePath,
-      force: true,
-    });
-    let profileContents = await sails.helpers.fs.read(tempFilePath);
-    await sails.helpers.fs.rmrf(path.join(sails.config.appPath, tempFilePath));
-
 
     let profileToReturn;
     let newProfileInfo = {
       name: datelessExtensionlessFilename,
-      platform: _.endsWith(profileFileName, '.xml') ? 'windows' : 'darwin',
+      platform: profilePlatform,
       profileType: extension,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
     if(!teams) {
       newProfileInfo.profileContents = profileContents;
@@ -67,7 +78,7 @@ module.exports = {
           url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
           enctype: 'multipart/form-data',
           body: {
-            team_id: teamApid,
+            team_id: teamApid,// eslint-disable-line camelcase
             profile: {
               options: {
                 filename: profileFileName,
@@ -80,7 +91,7 @@ module.exports = {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           },
         });
-        let parsedJsonResponse = JSON.parse(newProfileResponse.body)
+        let parsedJsonResponse = JSON.parse(newProfileResponse.body);
         let uuidForThisProfile = parsedJsonResponse.profile_uuid;
         // send a request to the Fleet instance to get the bundleId of the new profile.
         await sails.helpers.http.get.with({
@@ -93,7 +104,7 @@ module.exports = {
         newTeams.push({
           fleetApid: teamApid,
           uuid: JSON.parse(newProfileResponse.body).profile_uuid
-        })
+        });
       }
       newProfileInfo.teams = newTeams;
       profileToReturn = newProfileInfo;

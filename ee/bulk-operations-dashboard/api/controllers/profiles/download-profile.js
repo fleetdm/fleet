@@ -61,17 +61,13 @@ module.exports = {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
         }
       });
-      console.log(profileDownloadResponse);
       let contentDispositionHeader = profileDownloadResponse.headers['content-disposition'];
       let filenameMatch = contentDispositionHeader.replace(/^attachment;filename="(.+?)"$/, '$1');
-      console.log(filenameMatch);
       filename = filenameMatch;
       let contentType = profileDownloadResponse.headers['content-type'];
       download = profileDownloadResponse.body;
       this.res.type(contentType);
-      // console.log(profileDownloadResponse);
     }
-    console.log(typeof filename, filename);
     this.res.attachment(filename);
     // All done.
     return download;

@@ -24,7 +24,7 @@ module.exports = {
     // If the provided profile does not have a teams array and has an ID, it is an undeployed profile that will be deleted.
     if(profile.id && !profile.teams){
       await UndeployedProfile.destroy({id: profile.id});
-    } else {
+    } else {// Otherwise, this is a deployed profile, and we'll use information from the teams array to remove the profile.
       for(let team of profile.teams){
         await sails.helpers.http.sendHttpRequest.with({
           method: 'DELETE',

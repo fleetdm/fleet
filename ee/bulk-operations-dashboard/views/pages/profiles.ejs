@@ -40,7 +40,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="profile in profilesToDisplay" :key="profile.createdAt">
+          <tr v-for="profile in profilesToDisplay">
             <td class="name-column">{{profile.name}}</td>
             <td>{{platformFriendlyNames[profile.platform]}}</td>
             <td v-if="teamFilter === undefined">
@@ -84,7 +84,7 @@
         <h3>Edit profile</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
-      <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
+      <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
         <div purpose="profile-information" v-if="!formData.newProfile">
           <div class="d-flex flex-row justify-content-start">
             <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
@@ -94,12 +94,14 @@
             </div>
           </div>
         </div>
+        <cloud-error v-if="cloudError === 'payloadIdentifierDoesNotMatch'"></cloud-error>
         <file-upload id="file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
         <div purpose="teams-picker">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
         </div>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
+          <cloud-error v-if="cloudError && cloudError !== 'payloadIdentifierDoesNotMatch'"></cloud-error>
           <ajax-button :syncing.sync="syncing" type="submit">Save</ajax-button>
         </div>
       </ajax-form>
@@ -115,6 +117,7 @@
     </div>
     <p>Delete this profile from all teams</p>
     <ajax-form :handle-submitting="handleSubmittingDeleteProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
+    <cloud-error v-if="cloudError"></cloud-error>
     <div class="d-flex flex-row justify-content-end align-items-center">
       <a class="text-danger mr-3" @click="closeModal()">Cancel</a>
       <ajax-button class="btn btn-danger" :syncing.sync="syncing">Delete</ajax-button>
@@ -131,11 +134,15 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
-        <file-upload id="file-upload" mode="profiles" :disabled="syncing" v-model="formData.newProfile"></file-upload>
-        <div purpose="teams-picker">
+        <file-upload id="file-upload" mode="profiles" :class="[formErrors.newProfile ? 'is-invalid' : '']"  :disabled="syncing" v-model="formData.newProfile">
+        </file-upload>
+        <div class="invalid-feedback text-center" v-if="formErrors.newProfile">Please upload a new profile.</div>
+
+        <div purpose="teams-picker" class="mt-4">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
         </div>
+        <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <a purpose="cancel-button" @click="closeModal()">Cancel</a>
           <ajax-button :syncing.sync="syncing" type="submit">Add</ajax-button>
