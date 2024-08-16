@@ -537,7 +537,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Renew ABM token](#renew-abm-token)
 - [Delete ABM token](#delete-abm-token)
 - [Add VPP token](#add-VPP-token)
-- [Update VPP token's teams](#udpate-vpp-tokens-teams)
+- [Update VPP token's teams](#update-vpp-tokens-teams)
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
