@@ -4789,3 +4789,33 @@ WHERE
 		tok.ID)
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
+
+func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) error {
+	const stmt = `
+INSERT INTO
+	abm_tokens
+	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	token = VALUES(token),
+	renew_at = VALUES(renew_at)
+	`
+	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrganizationName,
+		tok.AppleID,
+		tok.TermsExpired,
+		tok.RenewAt,
+		doubleEncTok,
+		tok.MacOSDefaultTeamID,
+		tok.IOSDefaultTeamID,
+		tok.IPadOSDefaultTeamID,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting abm_token")
+}

@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -3911,7 +3910,6 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "parsing ABM certificate")
 	}
 
-	// TODO(JVE): does oat.AccessToken have the JSON for tok below
 	oat, err := assets.DecryptRawABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value)
 	if err != nil {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -3920,28 +3918,18 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		}, "validating ABM token")
 	}
 
-	slog.With("filename", "server/service/apple_mdm.go", "func", "SaveABMToken").Info("JVE_LOG: what is in oat? ", "oat.AccessToken", oat.AccessToken)
-
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	// delete the old token and insert the new one
-	// TODO(roberto): replacing the token should be done in a single transaction in the DB
-	// err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMTokenDeprecated})
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "deleting old ABM token in database")
-	// }
-	// err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-	// 	{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
-	// })
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "saving ABM token in database")
-	// }
+	tok := fleet.ABMToken{
+		EncryptedToken: tokenBytes,
+		RenewAt:        oat.AccessTokenExpiry,
+	}
 
-	var tok fleet.ABMToken
-
-	svc.ds.SaveABMToken(ctx, &tok)
+	if err := svc.ds.InsertABMToken(ctx, &tok); err != nil {
+		return ctxerr.Wrap(ctx, err, "save ABM token")
+	}
 
 	// flip the app config flag
 	appCfg, err := svc.ds.AppConfig(ctx)

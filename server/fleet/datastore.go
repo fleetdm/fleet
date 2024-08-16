@@ -1325,6 +1325,9 @@ type Datastore interface {
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
+	// InsertABMToken inserts a new ABM token into the datastore.
+	InsertABMToken(ctx context.Context, tok *ABMToken) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
