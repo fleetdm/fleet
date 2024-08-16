@@ -3987,3 +3987,36 @@ func (svc *Service) DisableABM(ctx context.Context) error {
 	appCfg.MDM.AppleBMEnabledAndConfigured = false
 	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List ABM tokens endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type listABMTokensResponse struct {
+	Err    error             `json:"error,omitempty"`
+	Tokens []*fleet.ABMToken `json:"tokens,omitempty"`
+}
+
+func (r listABMTokensResponse) error() error { return r.Err }
+
+func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	tokens, err := svc.ListABMTokens(ctx)
+	if err != nil {
+		return &listABMTokensResponse{Err: err}, nil
+	}
+
+	return &listABMTokensResponse{Tokens: tokens}, nil
+}
+
+func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	tokens, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
+	}
+
+	return tokens, nil
+}

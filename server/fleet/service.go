@@ -812,6 +812,8 @@ type Service interface {
 	// decrypted using the keys stored in the database, then saves the token.
 	SaveABMToken(ctx context.Context, token io.Reader) error
 
+	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
 	// DisableABM disables ABM by soft-deleting the relevant assets
 	DisableABM(ctx context.Context) error
 

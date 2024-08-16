@@ -4819,3 +4819,26 @@ ON DUPLICATE KEY UPDATE
 	)
 	return ctxerr.Wrap(ctx, err, "inserting abm_token")
 }
+
+func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	const stmt = `
+SELECT
+	organization_name,
+	apple_id,
+	terms_expired,
+	renew_at,
+	token,
+	macos_default_team_id,
+	ios_default_team_id,
+	ipados_default_team_id
+FROM
+	abm_tokens
+	`
+
+	var tokens []*fleet.ABMToken
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokens, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
+	}
+
+	return tokens, nil
+}

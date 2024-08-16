@@ -1326,7 +1326,11 @@ type Datastore interface {
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
 	// InsertABMToken inserts a new ABM token into the datastore.
+	// TODO(JVE): change name to upsert
 	InsertABMToken(ctx context.Context, tok *ABMToken) error
+
+	// ListABMTokens lists all of the ABM tokens.
+	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
