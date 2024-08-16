@@ -3981,6 +3981,7 @@ func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
 		return err
 	}
 
+	// TODO(JVE): should we ever delete these? if so, probably if no more tokens exist.
 	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
@@ -3994,6 +3995,7 @@ func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
 		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
 
+	// TODO(JVE): only flip if no more tokens?
 	// flip the app config flag
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
