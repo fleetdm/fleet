@@ -2537,12 +2537,12 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 // POST /mdm/apple/vpp_token
 ////////////////////////////////////////////////////////////////////////////////
 
-type uploadMDMAppleVPPTokenRequest struct {
+type uploadVPPTokenRequest struct {
 	File *multipart.FileHeader
 }
 
-func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := uploadMDMAppleVPPTokenRequest{}
+func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := uploadVPPTokenRequest{}
 
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
@@ -2564,34 +2564,34 @@ func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.
 	return &decoded, nil
 }
 
-type uploadMDMAppleVPPTokenResponse struct {
+type uploadVPPTokenResponse struct {
 	Err   error             `json:"error,omitempty"`
 	Token *fleet.VPPTokenDB `json:"token,omitempty"`
 }
 
-func (r uploadMDMAppleVPPTokenResponse) Status() int { return http.StatusAccepted }
+func (r uploadVPPTokenResponse) Status() int { return http.StatusAccepted }
 
-func (r uploadMDMAppleVPPTokenResponse) error() error {
+func (r uploadVPPTokenResponse) error() error {
 	return r.Err
 }
 
-func uploadMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*uploadMDMAppleVPPTokenRequest)
+func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadVPPTokenRequest)
 	file, err := req.File.Open()
 	if err != nil {
-		return uploadMDMAppleVPPTokenResponse{Err: err}, nil
+		return uploadVPPTokenResponse{Err: err}, nil
 	}
 	defer file.Close()
 
-	tok, err := svc.UploadMDMAppleVPPToken(ctx, file)
+	tok, err := svc.UploadVPPToken(ctx, file)
 	if err != nil {
-		return uploadMDMAppleVPPTokenResponse{Err: err}, nil
+		return uploadVPPTokenResponse{Err: err}, nil
 	}
 
-	return uploadMDMAppleVPPTokenResponse{Token: tok}, nil
+	return uploadVPPTokenResponse{Token: tok}, nil
 }
 
-func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
+func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -2663,7 +2663,7 @@ func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (e
 	return nil, nil
 }
 
-func (svc *Service) UpdateVPPTokensTeams(ctx context.Context, tokenID uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamID *uint, nullTeam fleet.NullTeamType) error {
 	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving vpp token")

@@ -730,7 +730,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// TODO Most of these don't have auth yet!!
 	ue.GET("/api/_version_/fleet/vpp_tokens", getVPPTokens, getMDMAppleVPPTokenRequest{})
-	ue.POST("/api/_version_/fleet/vpp_tokens", uploadMDMAppleVPPTokenEndpoint, uploadMDMAppleVPPTokenRequest{})
+	ue.POST("/api/_version_/fleet/vpp_tokens", uploadVPPTokenEndpoint, uploadVPPTokenRequest{})
 	ue.PATCH("/api/_version_/fleet/vpp_tokens/{id}/teams", patchVPPTokensTeams, patchVPPTokensTeamsRequest{})
 	ue.DELETE("/api/_version_/fleet/vpp_token/{id}", deleteVPPToken, deleteVPPTokenRequest{})
 
