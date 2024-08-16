@@ -2,6 +2,7 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { isValidCVEFormat } from "pages/SoftwarePage/SoftwareVulnerabilities/SoftwareVulnerabilitiesTable/helpers";
 
 export interface IEmptyVulnerabilitiesTableProps {
   isPremiumTier?: boolean;
@@ -11,15 +12,6 @@ export interface IEmptyVulnerabilitiesTableProps {
   searchQuery?: string;
   knownVulnerability?: boolean;
 }
-
-export const isValidCVEFormat = (query: string): boolean => {
-  if (query.length < 9) {
-    return false;
-  }
-
-  const cveRegex = /^(CVE-)?\d{4}-\d{4,5}$/i;
-  return cveRegex.test(query);
-};
 
 const renderLearnMoreLink = () => {
   return (

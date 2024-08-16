@@ -1,5 +1,14 @@
 import { IVulnerability } from "interfaces/vulnerability";
 
+export const isValidCVEFormat = (query: string): boolean => {
+  if (query.length < 9) {
+    return false;
+  }
+
+  const cveRegex = /^(CVE-)?\d{4}-\d{4,}$/i;
+  return cveRegex.test(query);
+};
+
 // Function to normalize a CVE entry by removing the "CVE-" prefix and converting to lowercase
 export const normalizeCVE = (cve: string): string => {
   return cve.toLowerCase().replace(/^cve-/, "");

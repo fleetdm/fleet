@@ -18,7 +18,6 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
 import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
-import { isValidCVEFormat } from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable/EmptyVulnerabilitiesTable";
 
 import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -28,6 +27,7 @@ import generateTableConfig from "./VulnerabilitiesTableConfig";
 import {
   getExploitedVulnerabiltiesDropdownOptions,
   normalizeCVE,
+  isValidCVEFormat,
 } from "./helpers";
 
 const baseClass = "software-vulnerabilities-table";
