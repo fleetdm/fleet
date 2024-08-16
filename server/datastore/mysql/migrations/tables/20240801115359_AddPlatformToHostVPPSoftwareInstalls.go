@@ -54,7 +54,7 @@ func Up_20240801115359(tx *sql.Tx) error {
 	}
 	_, err = tx.Exec(`
 		ALTER TABLE host_vpp_software_installs
-			ADD FOREIGN KEY host_vpp_software_installs_ibfk_3 (adam_id, platform) REFERENCES vpp_apps (adam_id, platform) ON DELETE CASCADE`)
+			ADD CONSTRAINT host_vpp_software_installs_ibfk_3 FOREIGN KEY (adam_id, platform) REFERENCES vpp_apps (adam_id, platform) ON DELETE CASCADE`)
 	if err != nil {
 		return fmt.Errorf("updating foreign key in host_vpp_software_installs: %w", err)
 	}
