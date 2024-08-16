@@ -6493,6 +6493,12 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	tokens, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, tokens, 1)
+	assert.Equal(t, dataToken.Location, tokens[0].Location)
+	assert.Equal(t, dataToken.Token, tokens[0].Token)
+	assert.Equal(t, orgName, tokens[0].OrgName)
+	assert.Equal(t, location, tokens[0].Location)
+	assert.Equal(t, team2.ID, *tokens[0].TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -6528,6 +6534,10 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location2, tok2.Location)
 	assert.Equal(t, team.ID, *tok2.TeamID)
 	assert.Equal(t, fleet.NullTeamNone, tok2.NullTeam)
+
+	tokens, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 2)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
