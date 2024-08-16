@@ -11,6 +11,7 @@ import (
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	kitlog "github.com/go-kit/log"
+	"github.com/micromdm/micromdm/dep"
 )
 
 // SetABMTokenMetadata uses the provided ABM token to fetch the associated
@@ -22,11 +23,11 @@ func SetABMTokenMetadata(
 	abmToken *fleet.ABMToken,
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
-	logger kitlog.Logger) error {
-
+	logger kitlog.Logger,
+) error {
 	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.OrganizationName)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting ABM token")
 	}
 
 	depClient := NewDEPClient(depStorage, ds, logger)
@@ -46,6 +47,39 @@ func SetABMTokenMetadata(
 				InternalErr: err,
 			}, "apple GET /account request failed with authentication error")
 		}
+		return ctxerr.Wrap(ctx, err, "apple GET /account request failed")
+	}
+
+	if res.AdminID == "" {
+		// fallback to facilitator ID, as this is the same information but for
+		// older versions of the Apple API.
+		// https://github.com/fleetdm/fleet/issues/7515#issuecomment-1346579398
+		res.AdminID = res.FacilitatorID
+	}
+
+	abmToken.OrganizationName = res.OrgName
+	abmToken.AppleID = res.AdminID
+	abmToken.RenewAt = decryptedToken.AccessTokenExpiry
+	return nil
+}
+
+func SetNewABMTokenMetadata(
+	ctx context.Context,
+	abmToken *fleet.ABMToken,
+	decryptedToken *depclient.OAuth1Tokens,
+	depStorage storage.AllDEPStorage,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) error {
+	params := dep.OAuthParameters{
+		AccessToken:    decryptedToken.AccessToken,
+		ConsumerKey:    decryptedToken.ConsumerKey,
+		ConsumerSecret: decryptedToken.ConsumerSecret,
+		AccessSecret:   decryptedToken.AccessSecret,
+	}
+	dc := dep.NewClient(params)
+	res, err := dc.Account()
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple GET /account request failed")
 	}
 
