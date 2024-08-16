@@ -7,32 +7,30 @@ import Icon from "components/Icon/Icon";
 const baseClass = "automatic-enrollment-card";
 
 interface IAppleAutomaticEnrollmentCardProps {
+  isAppleMdmOn: boolean;
   viewDetails: () => void;
-  turnOn?: () => void;
   configured?: boolean;
 }
 
 const AppleAutomaticEnrollmentCard = ({
+  isAppleMdmOn,
   viewDetails,
-  turnOn,
   configured,
 }: IAppleAutomaticEnrollmentCardProps) => {
   let icon = "";
   let msg =
     "To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM.";
-  if (!turnOn && !configured) {
+  if (isAppleMdmOn && !configured) {
     msg =
-      "Automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end user.";
-  } else if (!turnOn && configured) {
+      "Add an Apple Business Manager (ABM) connection to automatically enroll newly " +
+      "purchased Apple hosts when they're first unboxed and set up by your end users.";
+  } else if (isAppleMdmOn && configured) {
     msg = "Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts enabled.";
     icon = "success";
   }
 
   return (
-    <Card
-      className={`${baseClass} ${turnOn ? `${baseClass}__turn-on-mdm` : ""}`}
-      color="gray"
-    >
+    <Card className={baseClass} color="gray">
       <div>
         {!icon && (
           <h3>Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.</h3>
@@ -48,30 +46,17 @@ const AppleAutomaticEnrollmentCard = ({
           )}
         </p>
       </div>
-      {turnOn && (
+      {isAppleMdmOn && !configured && (
         <Button
-          className="apple-details-button"
-          onClick={turnOn}
-          variant="text-icon"
-        >
-          Turn on MDM
-        </Button>
-      )}
-      {!turnOn && !configured && (
-        <Button
-          className="apple-details-button"
+          className="add-abm-button"
           onClick={viewDetails}
           variant="brand"
         >
-          Enable
+          Add ABM
         </Button>
       )}
-      {!turnOn && configured && (
-        <Button
-          className="apple-details-button"
-          onClick={viewDetails}
-          variant="text-icon"
-        >
+      {isAppleMdmOn && configured && (
+        <Button onClick={viewDetails} variant="text-icon">
           <Icon name="pencil" />
           Edit
         </Button>

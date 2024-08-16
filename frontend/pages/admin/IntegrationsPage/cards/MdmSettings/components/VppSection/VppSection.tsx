@@ -9,13 +9,14 @@ import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Card from "components/Card";
-import SectionHeader from "components/SectionHeader";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
-const baseClass = "vpp";
+const baseClass = "vpp-section";
 
 interface IVppCardProps {
   isAppleMdmOn: boolean;
@@ -24,10 +25,6 @@ interface IVppCardProps {
 }
 
 const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
-  const nagivateToMdm = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  };
-
   const navigateToVppSetup = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_VPP_SETUP);
   };
@@ -41,12 +38,10 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
           iOS, iPadOS) MDM.
         </p>
       </div>
-      <Button onClick={nagivateToMdm} variant="text-link">
-        Turn on MDM
-      </Button>
     </div>
   );
-  const isOnContent = (
+
+  const isVppOnContent = (
     <div className={`${baseClass}__vpp-on-content`}>
       <p>
         <span>
@@ -61,17 +56,21 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
     </div>
   );
 
-  const isOffContent = (
+  const isVppOffContent = (
     <div className={`${baseClass}__vpp-off-content`}>
       <div>
         <h3>Volume Purchasing Program (VPP)</h3>
         <p>
-          Install apps from Apple&apos;s App Store purchased through Apple
-          Business Manager.
+          Add a VPP connection to install Apple App Store apps purchased through
+          Apple Business Manager.
         </p>
       </div>
-      <Button onClick={navigateToVppSetup} variant="brand">
-        Enable
+      <Button
+        className={`${baseClass}__add-vpp-button`}
+        onClick={navigateToVppSetup}
+        variant="brand"
+      >
+        Add VPP
       </Button>
     </div>
   );
@@ -81,7 +80,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
       return appleMdmDiabledContent;
     }
 
-    return isVppOn ? isOnContent : isOffContent;
+    return isVppOn ? isVppOnContent : isVppOffContent;
   };
 
   return (
@@ -91,45 +90,37 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
   );
 };
 
-interface IVppProps {
+interface IVppSectionProps {
   router: InjectedRouter;
+  isVppOn: boolean;
+  isPremiumTier: boolean;
 }
 
-const Vpp = ({ router }: IVppProps) => {
+const VppSection = ({ router, isVppOn, isPremiumTier }: IVppSectionProps) => {
   const { config } = useContext(AppContext);
 
-  const { data: vppData, error: vppError, isLoading, isError } = useQuery<
-    IGetVppInfoResponse,
-    AxiosError
-  >("vppInfo", () => mdmAppleAPI.getVppInfo(), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    retry: false,
-  });
-
   const renderContent = () => {
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError && vppError?.status !== 404) {
-      return <DataError />;
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage alignment="left" />;
     }
 
     return (
       <VppCard
         isAppleMdmOn={!!config?.mdm.enabled_and_configured}
-        isVppOn={!!vppData && vppError?.status !== 404}
+        isVppOn={isVppOn}
         router={router}
       />
     );
   };
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="Volume Purchasing Program (VPP)" />
+    <SettingsSection
+      title="Volume Purchasing Program (VPP)"
+      className={baseClass}
+    >
       <>{renderContent()}</>
-    </div>
+    </SettingsSection>
   );
 };
 
-export default Vpp;
+export default VppSection;

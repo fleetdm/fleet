@@ -7,11 +7,11 @@ import configAPI from "services/entities/config";
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
-import SectionHeader from "components/SectionHeader";
 import validateUrl from "components/forms/validators/valid_url";
 import ReactTooltip from "react-tooltip";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 const baseClass = "idp-section";
 
@@ -74,8 +74,7 @@ const IdpSection = () => {
   };
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="End user authentication" />
+    <SettingsSection className={baseClass} title="End user authentication">
       <form>
         <p>
           Connect Fleet to your identity provider to require end users to
@@ -130,7 +129,7 @@ const IdpSection = () => {
           Complete all fields to save end user authentication.
         </ReactTooltip>
       </form>
-    </div>
+    </SettingsSection>
   );
 };
 
