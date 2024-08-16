@@ -1,5 +1,5 @@
 import React from "react";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -8,9 +8,11 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import RenewDateCell from "./RenewDateCell";
 
 type IAbmTableConfig = Column<IMdmAbmToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
+type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
 
 type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
 
@@ -41,8 +43,8 @@ export const generateTableConfig = (
       accessor: "renew_date",
       Header: "Renew date",
       disableSortBy: true,
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
+      Cell: (cellProps: IRenewDateCellProps) => (
+        <RenewDateCell value={cellProps.cell.value} />
       ),
     },
     {

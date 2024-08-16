@@ -11,6 +11,38 @@
     min-width: 8px;
   }
 
+  // New indicator styles
+  &--success {
+    &:before {
+      background-color: $ui-success;
+    }
+  }
+
+  &--warning {
+    &:before {
+      background-color: $ui-offline;
+    }
+  }
+
+  &--error {
+    &:before {
+      background-color: $ui-error;
+    }
+  }
+
+  &--indeterminate {
+    &:before {
+      background-color: $ui-offline;
+    }
+  }
+
+
+  // NOTE: We will move away from styling the indicator status depending
+  // on the value passed to the component. Instead we have added an `indicator`
+  // prop that will allow us explicitly define the desired status. This makes
+  // the component more flexible and easier to use. The next two blocks of
+  // styles (host status and user status) will be removed in the future.
+
   // host status
   &--online:before,
   &--enabled:before,
