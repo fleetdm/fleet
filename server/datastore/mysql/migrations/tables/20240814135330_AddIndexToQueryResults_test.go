@@ -1,11 +1,12 @@
 package tables
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240806101121(t *testing.T) {
+func TestUp_20240814135330(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Apply current migration
@@ -16,11 +17,11 @@ func TestUp_20240806101121(t *testing.T) {
 	err := db.QueryRow(`
 		SELECT 1 FROM information_schema.statistics
 		WHERE table_schema = DATABASE()
-		AND table_name = 'jobs'
-		AND index_name = 'idx_jobs_state_not_before_updated_at'
+		AND table_name = 'query_results'
+		AND index_name = 'idx_query_id_host_id_last_fetched'
 	`).Scan(&indexExists)
 
 	require.NoError(t, err)
-	require.True(t, indexExists, "Index idx_jobs_state_not_before_updated_at should exist")
+	require.True(t, indexExists, "Index idx_query_id_host_id_last_fetched should exist")
 
 }

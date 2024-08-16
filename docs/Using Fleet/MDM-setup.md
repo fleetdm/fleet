@@ -30,9 +30,9 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
 5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
 
-New or wiped macOS, iOS, and iPadOS hosts that are in ABM, before they've been set up, appear in Fleet with **MDM status** set to "Pending".
+macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
 
-All macOS hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No team". 
+macOS hosts that automatically enroll will be assigned to a default team. If no default team is set, then the host will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
