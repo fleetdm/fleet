@@ -712,7 +712,8 @@ type Service interface {
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
-	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
+	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) (*VPPTokenDB, error)
+	UpdateVPPTokenTeams(ctx context.Context, tokenID *uint, nullTeam NullTeamType) error
 	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
 	DeleteMDMAppleVPPToken(ctx context.Context) error
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error

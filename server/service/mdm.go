@@ -2565,7 +2565,8 @@ func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.
 }
 
 type uploadMDMAppleVPPTokenResponse struct {
-	Err error `json:"error,omitempty"`
+	Err   error             `json:"error,omitempty"`
+	Token *fleet.VPPTokenDB `json:"token,omitempty"`
 }
 
 func (r uploadMDMAppleVPPTokenResponse) Status() int { return http.StatusAccepted }
@@ -2578,20 +2579,21 @@ func uploadMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, sv
 	req := request.(*uploadMDMAppleVPPTokenRequest)
 	file, err := req.File.Open()
 	if err != nil {
-		return uploadMDMAppleAPNSCertResponse{Err: err}, nil
+		return uploadMDMAppleVPPTokenResponse{Err: err}, nil
 	}
 	defer file.Close()
 
-	if err := svc.UploadMDMAppleVPPToken(ctx, file); err != nil {
-		return &uploadMDMAppleVPPTokenResponse{Err: err}, nil
+	tok, err := svc.UploadMDMAppleVPPToken(ctx, file)
+	if err != nil {
+		return uploadMDMAppleVPPTokenResponse{Err: err}, nil
 	}
 
-	return &uploadMDMAppleVPPTokenResponse{}, nil
+	return uploadMDMAppleVPPTokenResponse{Token: tok}, nil
 }
 
-func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error {
+func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
 	privateKey := svc.config.Server.PrivateKey
@@ -2600,16 +2602,16 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	if len(privateKey) == 0 {
-		return ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		return nil, ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
 	if token == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 	}
 
 	tokenBytes, err := io.ReadAll(token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading VPP token")
+		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
 	locName, err := vpp.GetConfig(string(tokenBytes))
@@ -2618,10 +2620,10 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		if errors.As(err, &vppErr) {
 			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
 			if vppErr.ErrorNumber == 9622 {
-				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 			}
 		}
-		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 
 	data := fleet.VPPTokenData{
@@ -2629,25 +2631,52 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		Location: locName,
 	}
 
-	dataBytes, err := json.Marshal(data)
+	tok, err := svc.ds.InsertVPPToken(ctx, &data, nil, fleet.NullTeamNoTeam)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating VPP data object for storage")
-	}
-
-	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetVPPTokenDeprecated, Value: dataBytes},
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
+		return nil, ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
 
 	act := fleet.ActivityEnabledVPP{}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
+	}
+
+	return tok, nil
+}
+
+type patchVPPTokensTeamsRequest struct {
+	ID     uint  `url:"id"`
+	TeamID *uint `json:"team_id"`
+}
+
+type patchVPPTokensTeamsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	// TODO Waiting for spec on how to handle no-team/all-teams
+
+	// req := request.(patchVPPTokensTeamsRequest)
+	// svc.UpdateVPPTokenTeams(ctx, req.TeamID, req.)
+	return nil, nil
+}
+
+func (svc *Service) UpdateVPPTokensTeams(ctx context.Context, tokenID uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving vpp token")
+	}
+
+	tok.TeamID = teamID
+	tok.NullTeam = nullTeam
+	if err := svc.ds.UpdateVPPToken(ctx, tok); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
 
 	return nil
 }
+
+func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
 
 ////////////////////////////////////////////////////////////////////////////////
 // GET /vpp

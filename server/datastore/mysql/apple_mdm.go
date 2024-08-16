@@ -4830,7 +4830,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
 	if err != nil {
-		ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
 	}
 
 	vppTokenDB := &fleet.VPPTokenDB{
@@ -4939,7 +4939,7 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) 
 
 	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
 	if err != nil {
-		ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+		return ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
 	}
 
 	_, err = ds.writer(ctx).ExecContext(
