@@ -27,6 +27,26 @@ import RenewTokenModal from "./modals/RenewTokenModal";
 
 const baseClass = "apple-business-manager-page";
 
+const AddAbmMessage = () => {
+  return (
+    <div className={`${baseClass}__add-adm-message`}>
+      <h2>Add your ABM</h2>
+      <p>
+        Automatically enroll newly purchased Apple hosts when they&apos;re first
+        unboxed and set up by your end users.
+      </p>
+      <Button
+        variant="brand"
+        onClick={() => {
+          console.log("click add abm");
+        }}
+      >
+        Add ABM
+      </Button>
+    </div>
+  );
+};
+
 const ButtonWrap = ({
   onClickDisable,
   onClickRenew,
@@ -142,6 +162,22 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const showDataError = errorMdmAppleBm && errorMdmAppleBm.status !== 404;
   const showConnectAbm = !mdmAppleBm;
 
+  const renderContent = () => {
+    if (showDataError) {
+      return (
+        <div>
+          <DataError />
+          <ButtonWrap
+            onClickDisable={onClickDisable}
+            onClickRenew={onClickRenew}
+          />
+        </div>
+      );
+    }
+
+    return <AddAbmMessage />;
+  };
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -151,122 +187,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           className={`${baseClass}__back-to-mdm`}
         />
         <h1>Apple Business Manager (ABM)</h1>
-        {showDataError && (
-          <div>
-            <DataError />
-            <ButtonWrap
-              onClickDisable={onClickDisable}
-              onClickRenew={onClickRenew}
-            />
-          </div>
-        )}
-        {!showDataError && !showConnectAbm && (
-          <div>
-            <h4>Apple ID</h4>
-            <p>{mdmAppleBm.apple_id}</p>
-            <h4>Organization name</h4>
-            <p>{mdmAppleBm.org_name}</p>
-            <h4>MDM server URL</h4>
-            <p>{mdmAppleBm.mdm_server_url}</p>
-            <h4>Renew date</h4>
-            <p>{readableDate(mdmAppleBm.renew_date)}</p>
-            <ButtonWrap
-              onClickDisable={onClickDisable}
-              onClickRenew={onClickRenew}
-            />
-          </div>
-        )}
-        {!showDataError && showConnectAbm && (
-          <>
-            <p>
-              Connect Fleet to your Apple Business Manager account to
-              automatically enroll macOS hosts to Fleet when they’re first
-              booted.{" "}
-            </p>
-            {/* Ideally we'd use the native browser list styles and css to display
-        the list numbers but this does not allow us to style the list items as we'd
-        like so we write the numbers in the JSX instead. */}
-            <ol className={`${baseClass}__setup-list`}>
-              <li>
-                <span>1.</span>
-                <p>
-                  Download your public key.{" "}
-                  <DownloadKey baseClass={baseClass} />
-                </p>
-              </li>
-              <li>
-                <span>2.</span>
-                <span>
-                  <span>
-                    Sign in to{" "}
-                    <CustomLink
-                      newTab
-                      text="Apple Business Manager"
-                      url="https://business.apple.com"
-                    />
-                    <br />
-                    If your organization doesn’t have an account, select{" "}
-                    <b>Sign up now</b>.
-                  </span>
-                </span>
-              </li>
-              <li>
-                <span>3.</span>
-                <span>
-                  Select your <b>account name</b> at the bottom left of the
-                  screen, then select <b>Preferences</b>.
-                </span>
-              </li>
-              <li>
-                <span>4.</span>
-                <span>
-                  In the <b>Your MDM Servers</b> section, select <b>Add</b>.
-                </span>
-              </li>
-              <li>
-                <span>5.</span>
-                <span>Enter a name for the server such as “Fleet”.</span>
-              </li>
-              <li>
-                <span>6.</span>
-                <span>
-                  Under <b>MDM Server Settings</b>, upload the public key
-                  downloaded in the first step and select <b>Save</b>.
-                </span>
-              </li>
-              <li>
-                <span>7.</span>
-                <span>
-                  In the <b>Default Device Assignment</b> section, select{" "}
-                  <b>Change</b>, then assign the newly created server as the
-                  default for your Macs, and select <b>Done</b>.
-                </span>
-              </li>
-              <li>
-                <span>8.</span>
-                <span>
-                  Select newly created server in the sidebar, then select{" "}
-                  <b>Download Token</b> on the top.
-                </span>
-              </li>
-              <li>
-                <span>9.</span>
-                <span>Upload the downloaded token (.p7m file).</span>
-              </li>
-            </ol>
-            <FileUploader
-              className={`${baseClass}__file-uploader ${
-                isUploading ? `${baseClass}__file-uploader--loading` : ""
-              }`}
-              accept=".p7m"
-              message="ABM token (.p7m)"
-              graphicName={"file-p7m"}
-              buttonType="link"
-              buttonMessage={isUploading ? "Uploading..." : "Upload"}
-              onFileUpload={uploadToken}
-            />
-          </>
-        )}
+        <>{renderContent()}</>
       </>
       {showDisableModal && (
         <DisableAutomaticEnrollmentModal

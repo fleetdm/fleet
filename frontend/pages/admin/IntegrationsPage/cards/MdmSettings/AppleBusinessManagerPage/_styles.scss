@@ -6,17 +6,39 @@
   h1 {
     margin-bottom: $pad-xxlarge;
     font-size: $large;
+
   }
 
-  h4 {
-    margin-bottom: 0;
-    font-size: $x-small;
+  &__add-adm-message {
+    margin: 0 auto;
+    text-align: center;
+    width: 450px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    > h2 {
+      margin-bottom: $pad-small;
+      font-size: $small;
+      font-weight: $bold;
+    }
+
+    > p {
+      margin: 0 0 $pad-medium;
+    }
   }
 
-  p {
-    font-size: $x-small;
-    margin: 0 0 $pad-large;
-  }
+  // NOTE: STYLES FOR THE ADM SETUP STEPS
+  // h4 {
+  //   margin-bottom: 0;
+  //   font-size: $x-small;
+  // }
+
+  // p {
+  //   font-size: $x-small;
+  //   margin: 0 0 $pad-large;
+  // }
 
   &__setup-list {
     font-size: $x-small;
