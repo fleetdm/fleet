@@ -1,19 +1,5 @@
 # Log destinations
 
-- [Log destinations](#log-destinations)
-  - [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
-  - [Snowflake](#snowflake)
-  - [Splunk](#splunk)
-  - [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
-  - [AWS Lambda](#aws-lambda)
-  - [Google Cloud Pub/Sub](#google-cloud-pubsub)
-  - [Apache Kafka](#apache-kafka)
-  - [Stdout](#stdout)
-  - [Filesystem](#filesystem)
-  - [Sending logs outside of Fleet](#sending-logs-outside-of-fleet)
-
-This document provides a list of the supported log destinations in Fleet.
-
 Log destinations can be used in Fleet to log:
 - Osquery [status logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs).
 
@@ -23,10 +9,26 @@ Log destinations can be used in Fleet to log:
 
 
 To configure each log destination, you must set the correct logging configuration options in Fleet.
+
 Check out the reference documentation for:
   - [Osquery status logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin).
   - [Osquery result logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin).
   - [Activity audit logging configuration options](https://fleetdm.com/docs/deploying/configuration#activity_audit_log_plugin).
+
+This guide provides a list of the supported log destinations in Fleet.
+
+### In this guide:
+
+- [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
+- [Snowflake](#snowflake)
+- [Splunk](#splunk)
+- [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
+- [AWS Lambda](#aws-lambda)
+- [Google Cloud Pub/Sub](#google-cloud-pubsub)
+- [Apache Kafka](#apache-kafka)
+- [Stdout](#stdout)
+- [Filesystem](#filesystem)
+- [Sending logs outside of Fleet](#sending-logs-outside-of-fleet)
 
 ## Amazon Kinesis Data Firehose
 
@@ -145,6 +147,9 @@ See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable
 
 If `--logger_plugin=tls` is used with osquery clients, the following configuration can be applied on the Fleet server for handling the incoming logs.
 
-<meta name="pageOrderInSection" value="600">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="rachaelshaw">
+<meta name="authorFullName" value="Rachael Shaw">
+<meta name="publishedOn" value="2023-11-02">
+<meta name="articleTitle" value="Log destinations">
 <meta name="description" value="Learn about supported log destinations in Fleet, including Amazon Kinesis, AWS Lambda Snowflake, Splunk, and more.">
-<meta name="navSection" value="Security compliance">

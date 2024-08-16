@@ -11,7 +11,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 - Windows 10 Enterprise
 - Windows 11 Enterprise
 
-[Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
+[Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 
 These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is no configuration profile or Group Policy Object (GPO) in place to enforce the setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
 
@@ -95,7 +95,7 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 - Devices must be running [`fleetd`](https://fleetdm.com/docs/using-fleet/orbit), Fleet's lightweight agent.
 - Some CIS Benchmarks explicitly involve verifying MDM-based controls, so devices must be enrolled to an MDM solution.
-- On macOS, the orbit component of fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](./Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
+- On macOS, the orbit component of fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos).
 
 ## Limitations
 
@@ -111,7 +111,9 @@ In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS ho
 
 Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
 
-<meta name="pageOrderInSection" value="1700">
-<meta name="title" value="CIS Benchmarks">
-<meta name="description" value="Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance, covering macOS 13.0 Ventura & Windows Enterprise.">
-<meta name="navSection" value="Security compliance">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="lucasmrod">
+<meta name="authorFullName" value="Lucas Rodriguez">
+<meta name="publishedOn" value="2024-04-02">
+<meta name="articleTitle" value="CIS Benchmarks">
+<meta name="description" value="Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance.">

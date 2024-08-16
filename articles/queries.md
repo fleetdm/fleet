@@ -1,16 +1,20 @@
-# Fleet UI
-- [Creating a query](#create-a-query)
-- [Running a query](#run-a-query)
-- [Scheduling a query](#schedule-a-query)
-- [Update agent options](#update-agent-options)
+# Queries
+
+Queries in Fleet allow you to ask questions to help you manage, monitor, and identify threats on your devices. This guide will walk you through how to create, schedule, and run a query.
+
+> New users may find it helpful to start with Fleet's policies. You can find policies and queries from the community in Fleet's [query library](https://fleetdm.com/queries). To learn more about policies, see [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies).
+
+### In this guide:
+
+- [Create a query](#create-a-query)
+- [Run a query](#run-a-query)
+- [Schedule a query](#schedule-a-query)
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
 </div>
 
-Queries in Fleet allow you to ask questions to help you manage, monitor, and identify threats on your devices. This guide will walk you through how to create, schedule, and run a query.
 
-> New users may find it helpful to start with Fleet's policies. You can find policies and queries from the community in Fleet's [query library](https://fleetdm.com/queries). To learn more about policies, see [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies).
 
 ## Create a query
 
@@ -63,16 +67,10 @@ By default, queries that run on a schedule will only target platforms compatible
 
 > Note: When viewing a specific [team](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
-## Update agent options
 
-<!-- Heading is kept so that the link from the Fleet UI still works -->
-<span id="configuring-agent-options" name="configuring-agent-options"></span>
-
-> This content was relocated on 31st August 2023. 
-
-See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to learn how to simultaneously update agent options from the Fleet UI or fleetctl command line tool.
-
-<meta name="title" value="Fleet UI">
-<meta name="pageOrderInSection" value="200">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-09">
+<meta name="articleTitle" value="Queries">
 <meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">
-<meta name="navSection" value="The basics">

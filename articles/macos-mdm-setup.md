@@ -1,4 +1,4 @@
-# Setup
+# macOS MDM setup
 
 To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
 
@@ -36,7 +36,9 @@ macOS hosts that automatically enroll will be assigned to a default team. If no 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
-<meta name="pageOrderInSection" value="1500">
-<meta name="title" value="Setup">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="zhumo">
+<meta name="authorFullName" value="Mo Zhu">
+<meta name="publishedOn" value="2024-07-02">
+<meta name="articleTitle" value="macOS MDM setup">
 <meta name="description" value="Learn how to turn on MDM features in Fleet.">
-<meta name="navSection" value="Device management">

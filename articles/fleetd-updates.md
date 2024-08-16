@@ -1,7 +1,6 @@
-# Self-managed agent updates 
+# Fleetd updates 
 
-The fleetd agent will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery 
-if it detects a later version.
+The fleetd agent will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery if it detects a later version.
 
 To override this behavior, users can set a channel for each component or disable updates altogether. Visit [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop) to learn more.
 Alternatively, users with a Fleet Premium subscription can self-manage an update server.
@@ -160,6 +159,9 @@ fleetctl updates rotate targets
 
 After the key(s) have been rotated, publish the repository in the same fashion as any other update.
 
-<meta name="pageOrderInSection" value="400">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-04-30">
+<meta name="articleTitle" value="Fleetd updates">
 <meta name="description" value="Information on how to manage and secure Fleet agent updates.">
-<meta name="navSection" value="Dig deeper">

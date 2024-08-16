@@ -40,6 +40,9 @@ Host status automations send a webhook request if a configured percentage of hos
 
 Fleet sends these webhook requests once per day by default.
 
-<meta name="pageOrderInSection" value="1509">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-07-03">
+<meta name="articleTitle" value="Automations">
 <meta name="description" value="Configure Fleet automations to trigger webhooks or create tickets in Jira and Zendesk for vulnerability, policy, and host status events.">
-<meta name="navSection" value="Device management">

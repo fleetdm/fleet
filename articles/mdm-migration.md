@@ -1,15 +1,15 @@
-# Migration guide
+# MDM migration
 
 This section provides instructions for migrating your hosts away from your old MDM solution to Fleet.
 
 ## Requirements
 
-1. A [deployed Fleet instance](../Deploying/Introduction.md)
-2. [Fleet connected to Apple](./mdm-setup.md)
+1. A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet
+2. [Fleet connected to Apple](https://fleetdm.com/guides/macos-mdm-setup)
 
 ## Migrate manually enrolled hosts
 
-1. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
+1. [Enroll](https://fleetdm.com/guides/enroll-hosts) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/guides/enroll-hosts#fleet-desktop) 
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 3. In your old MDM solution, unenroll the hosts to be migrated. MacOS does not allow multiple MDMs to be installed at once.
 4. Send [these guided instructions](#how-to-turn-on-mdm) to your end users to complete the final few steps via Fleet Desktop.
@@ -46,8 +46,8 @@ To migrate automatically enrolled hosts, we will do the following steps:
 
 ### Step 1: prepare to migrate hosts
 
-1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
-2. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
+1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
+2. [Enroll](https://fleetdm.com/guides/enroll-hosts) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/guides/enroll-hosts#fleet-desktop) 
 3. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 4. Migrate your hosts to Fleet in ABM:
     1. In ABM, unassign the existing hosts' MDM server from the old MDM solution: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
@@ -178,7 +178,7 @@ _Available in Fleet Premium_
 
 When migrating from a previous MDM, end users need to restart or logout of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions to reset their key. 
 
-To start, enforce FileVault (disk encryption) and escrow in Fleet. Learn how [here](./MDM-disk-encryption.md). 
+To start, enforce FileVault (disk encryption) and escrow in Fleet. Learn how [here](https://fleetdm.com/guides/enforce-disk-encryption). 
 
 After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
@@ -206,7 +206,9 @@ However, Activation Lock bypass codes can only be retrieved from the Mac up to 3
 
 <img width="1399" alt="My device page - turn on disk encryption" src="https://user-images.githubusercontent.com/5359586/229950451-cfcd2314-a993-48db-aecf-11aac576d297.png">
 
-<meta name="pageOrderInSection" value="1502">
-<meta name="title" value="Migration guide">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="zhumo">
+<meta name="authorFullName" value="Mo Zhu">
+<meta name="publishedOn" value="2024-08-14">
+<meta name="articleTitle" value="MDM migration">
 <meta name="description" value="Instructions for migrating hosts away from an old MDM solution to Fleet.">
-<meta name="navSection" value="Device management">

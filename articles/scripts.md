@@ -19,7 +19,7 @@ If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent wi
 
 2. Deploy fleetd to your hosts. If your hosts already have fleetd installed, you can deploy the new fleetd on-top of the old installation.
 
-Learn more about generating a fleetd agent and deploying it [here](./enroll-hosts.md).
+Learn more about generating a fleetd agent and deploying it [here](https://fleetdm.com/guides/enroll-hosts).
 
 ## Execute a script
 
@@ -45,7 +45,9 @@ fleetctl CLI:
 fleetctl run-script --script-path=/path/to/script --host=hostname
 ```
 
-<meta name="pageOrderInSection" value="1508">
-<meta name="title" value="Scripts">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-06-04">
+<meta name="articleTitle" value="Scripts">
 <meta name="description" value="Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet.">
-<meta name="navSection" value="Device management">

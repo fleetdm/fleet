@@ -1,12 +1,8 @@
-# OS updates
+# Enforce OS updates
 
 _Available in Fleet Premium_
 
-In Fleet you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely.
-
-## Enforce OS updates
-
-You can enforce OS updates using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+In Fleet you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 Fleet UI:
 
@@ -54,8 +50,9 @@ Fleet enforces OS updates for quality and feature updates. Read more about the t
 
 When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
 
-<meta name="pageOrderInSection" value="1503">
-<meta name="title" value="OS updates">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="publishedOn" value="2024-08-10">
+<meta name="articleTitle" value="Enforce OS updates">
 <meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, and iPadOS devices.">
-<meta name="navSection" value="Device management">
-
