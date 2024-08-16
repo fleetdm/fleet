@@ -6485,6 +6485,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	err = ds.UpdateVPPToken(ctx, tok)
 	assert.NoError(t, err)
 
+	// Switch teams
 	tok.TeamID = &team2.ID
 	err = ds.UpdateVPPToken(ctx, tok)
 	assert.NoError(t, err)
@@ -6507,8 +6508,16 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
 	require.NoError(t, err)
 
-	// Creating a duplicate location
+	// Inserting a duplicate token (location constraint)
 	_, err = ds.InsertVPPToken(ctx, dataToken, &team2.ID, fleet.NullTeamNone)
+	require.Error(t, err)
+
+	// Team ID and non-none nullteam
+	_, err = ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamAllTeams)
+	require.Error(t, err)
+
+	// 2 tokens on one team
+	_, err = ds.InsertVPPToken(ctx, dataToken2, &team2.ID, fleet.NullTeamNone)
 	require.Error(t, err)
 
 	tok2, err := ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamNone)
