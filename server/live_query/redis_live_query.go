@@ -88,11 +88,11 @@ type memCache struct {
 
 // NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger) *redisLiveQuery {
+func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger, memCacheExp time.Duration) *redisLiveQuery {
 	return &redisLiveQuery{
 		pool:            pool,
 		cache:           newMemCache(),
-		cacheExpiration: 1 * time.Second,
+		cacheExpiration: memCacheExp,
 		logger:          logger,
 	}
 }
@@ -235,7 +235,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 		}
 
 		if targeted == 1 {
-			if sql, found := cachedSQL[key]; found {
+			if sql, found := cachedSQL[name]; found {
 				queriesByHost[name] = sql
 			}
 		}
@@ -358,8 +358,6 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 	}
 
 	for _, name := range names {
-		_, sqlKey := generateKeys(name)
-
 		sql, err := redigo.String(conn.Receive())
 		if err != nil {
 			if err != redigo.ErrNil {
@@ -373,7 +371,7 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 			continue
 		}
 
-		sqlCache[sqlKey] = sql
+		sqlCache[name] = sql
 	}
 
 	// remove expired queries from the names list

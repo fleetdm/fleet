@@ -27,7 +27,7 @@ func TestRedisLiveQuery(t *testing.T) {
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
 	pool := redistest.SetupRedis(t, "*livequery", cluster, true, true)
-	return NewRedisLiveQuery(pool, log.NewNopLogger())
+	return NewRedisLiveQuery(pool, log.NewNopLogger(), 0)
 }
 
 func TestMapBitfield(t *testing.T) {
