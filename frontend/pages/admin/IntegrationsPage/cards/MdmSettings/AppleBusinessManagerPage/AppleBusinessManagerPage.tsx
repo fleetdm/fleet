@@ -7,6 +7,7 @@ import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
@@ -23,6 +24,30 @@ import RenewTokenModal from "./modals/RenewTokenModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 
 const baseClass = "apple-business-manager-page";
+
+interface ITurnOnMdmMessageProps {
+  router: InjectedRouter;
+}
+
+const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
+  return (
+    <div className={`${baseClass}__turn-on-mdm-message`}>
+      <h2>Turn on Apple MDM</h2>
+      <p>
+        To add your ABM and enable automatic enrollment for macOS, iOS, and
+        iPadOS hosts, first turn on Apple MDM.
+      </p>
+      <Button
+        variant="brand"
+        onClick={() => {
+          router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+        }}
+      >
+        Turn on
+      </Button>
+    </div>
+  );
+};
 
 const AddAbmMessage = () => {
   return (
@@ -64,6 +89,7 @@ const ButtonWrap = ({
 };
 
 const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
+  const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUploading, setIsUploading] = useState(false);
@@ -161,6 +187,10 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const showConnectAbm = !abmTokens;
 
   const renderContent = () => {
+    if (!config?.mdm.enabled_and_configured) {
+      return <TurnOnMdmMessage router={router} />;
+    }
+
     if (isLoading) {
       return <Spinner />;
     }
@@ -207,7 +237,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business Manager (ABM)</h1>
-            {abmTokens?.length !== 0 && (
+            {abmTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
               <Button
                 variant="brand"
                 onClick={() => {
