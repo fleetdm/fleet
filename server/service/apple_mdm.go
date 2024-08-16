@@ -4062,3 +4062,26 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 	return ctxerr.Wrap(ctx, svc.ds.UpdateABMTokenTeams(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID), "updating token teams")
 }
+
+type renewABMTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r renewABMTokenResponse) error() error { return r.Err }
+
+func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadABMTokenRequest)
+	ff, err := req.Token.Open()
+	if err != nil {
+		return renewABMTokenResponse{Err: err}, nil
+	}
+	defer ff.Close()
+
+	if _, err = svc.SaveABMToken(ctx, ff); err != nil {
+		return renewABMTokenResponse{
+			Err: err,
+		}, nil
+	}
+
+	return renewABMTokenResponse{}, nil
+}
