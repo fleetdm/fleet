@@ -45,8 +45,15 @@ func Up_20240801115359(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("updating key in host_vpp_software_installs: %w", err)
 	}
+	if indexExistsTx(tx, "host_vpp_software_installs", "host_vpp_software_installs_ibfk_2") {
+		_, err = tx.Exec(`
+		ALTER TABLE host_vpp_software_installs DROP FOREIGN KEY host_vpp_software_installs_ibfk_2`)
+		if err != nil {
+			return fmt.Errorf("updating foreign key in host_vpp_software_installs: %w", err)
+		}
+	}
 	_, err = tx.Exec(`
-		ALTER TABLE host_vpp_software_installs DROP FOREIGN KEY host_vpp_software_installs_ibfk_2,
+		ALTER TABLE host_vpp_software_installs
 			ADD FOREIGN KEY host_vpp_software_installs_ibfk_3 (adam_id, platform) REFERENCES vpp_apps (adam_id, platform) ON DELETE CASCADE`)
 	if err != nil {
 		return fmt.Errorf("updating foreign key in host_vpp_software_installs: %w", err)
