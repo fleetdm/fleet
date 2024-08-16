@@ -6439,6 +6439,13 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kritters"})
+	assert.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
+	_ = team2
+	assert.NoError(t, err)
+
 	tokens, err := ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, tokens, 0)
@@ -6469,6 +6476,31 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location, tok.Location)
 	assert.Equal(t, (*uint)(nil), tok.TeamID)
 	assert.Equal(t, fleet.NullTeamAllTeams, tok.NullTeam)
+
+	tok.TeamID = &team.ID
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.ErrorContains(t, err, "NullTeam must be set to NullTeamNone if TeamID is present")
+
+	tok.NullTeam = fleet.NullTeamNone
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.NoError(t, err)
+
+	tok.TeamID = &team2.ID
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.NoError(t, err)
+
+	tokens, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 1)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Equal(t, team2.ID, *tok.TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {

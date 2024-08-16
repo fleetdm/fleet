@@ -4864,6 +4864,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
 	stmt := `
 	SELECT
+		id,
 		organization_name,
 		location,
 		renew_at,
@@ -4962,6 +4963,7 @@ func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
 	stmt := `
 	SELECT
+		id,
 		organization_name,
 		location,
 		renew_at,
