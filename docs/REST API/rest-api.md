@@ -9050,6 +9050,8 @@ Content-Type: application/octet-stream
 
 ### List App Store apps
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 Returns the list of Apple App Store (VPP) that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
 
 `GET /api/v1/fleet/software/app_store_apps`
@@ -9097,6 +9099,8 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 ```
 
 ### Add App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -9161,6 +9165,8 @@ Body: <blob>
 ```
 
 ### Install package or App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
