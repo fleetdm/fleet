@@ -174,12 +174,13 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	}
 
 	// convert the query name (campaign id) to the key name
-	for i, name := range names {
+	keyNames := make([]string, len(names))
+	for _, name := range names {
 		tkey, _ := generateKeys(name)
-		names[i] = tkey
+		keyNames = append(keyNames, tkey)
 	}
 
-	keysBySlot := redis.SplitKeysBySlot(r.pool, names...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, keyNames...)
 	queries := make(map[string]string)
 	for _, qkeys := range keysBySlot {
 		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
