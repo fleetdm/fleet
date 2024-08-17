@@ -6428,7 +6428,6 @@ None.
     "org_name": "Fleet Device Management Inc.",
     "location": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
     "teams": [
       "💻 Workstations",
       "💻🐣 Workstations (canary)",
