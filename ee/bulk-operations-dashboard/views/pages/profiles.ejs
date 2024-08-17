@@ -87,7 +87,7 @@
       <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
         <div purpose="profile-information" v-if="!formData.newProfile">
           <div class="d-flex flex-row justify-content-start">
-            <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
+            <img style="height: 40px; width: 34px;" alt="Configuration profile" src="/images/profile-34x40@2x.png">
             <div class="d-flex flex-column">
               <p><strong>{{profileToEdit.name}}</strong></p>
               <p class="muted">{{platformFriendlyNames[profileToEdit.platform]}}</p>
@@ -95,7 +95,7 @@
           </div>
         </div>
         <cloud-error v-if="cloudError === 'payloadIdentifierDoesNotMatch'"></cloud-error>
-        <file-upload id="file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
+        <file-upload id="edit-file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
         <div purpose="teams-picker">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
@@ -134,7 +134,7 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
-        <file-upload id="file-upload" mode="profiles" :class="[formErrors.newProfile ? 'is-invalid' : '']"  :disabled="syncing" v-model="formData.newProfile">
+        <file-upload id="add-file-upload" mode="profiles" :class="[formErrors.newProfile ? 'is-invalid' : '']"  :disabled="syncing" v-model="formData.newProfile">
         </file-upload>
         <div class="invalid-feedback text-center" v-if="formErrors.newProfile">Please upload a new profile.</div>
 

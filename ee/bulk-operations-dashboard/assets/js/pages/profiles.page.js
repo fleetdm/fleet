@@ -33,7 +33,6 @@ parasails.registerPage('profiles', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     this.profilesToDisplay = this.profiles;
-    console.log(this.teams);
   },
   mounted: async function() {
     //…
@@ -58,9 +57,8 @@ parasails.registerPage('profiles', {
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
         let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
           // console.log(profile.profiles);
-          return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
-        })
-        console.log(profilesOnThisTeam);
+          return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
+        });
         this.profilesToDisplay = profilesOnThisTeam;
       } else {
         this.profilesToDisplay = this.profiles;
@@ -68,15 +66,11 @@ parasails.registerPage('profiles', {
     },
     clickChangeTeamFilter: async function(teamApid) {
       this.teamFilter = teamApid;
-      console.log(teamApid);
-      console.log(this.teamFilter);
       this.selectedTeam = _.find(this.teams, {'fleetApid': teamApid});
-      console.log(this.selectedTeam);
       let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
-        return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
-      })
+        return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
+      });
       this.profilesToDisplay = profilesOnThisTeam;
-      console.log(profilesOnThisTeam);
     },
     clickDownloadProfile: async function(profile) {
       if(!profile.teams){
@@ -84,15 +78,10 @@ parasails.registerPage('profiles', {
       } else {
         window.open('/download-profile?uuid='+encodeURIComponent(profile.teams[0].uuid));
       }
-      // Call the download profile cloud action
-      // Return the downloaded profile with the correct filename
-      // Or possible make these just open the download endpoint in a new tab to download it.
     },
     clickOpenEditModal: async function(profile) {
-      console.log(profile);
       this.profileToEdit = _.clone(profile);
       this.formData.newTeamIds = _.pluck(this.profileToEdit.teams, 'fleetApid');
-      console.log(this.formData.teams);
       this.formData.profile = profile;
       this.modal = 'edit-profile';
     },
@@ -115,12 +104,12 @@ parasails.registerPage('profiles', {
     },
     handleSubmittingDeleteProfileForm: async function() {
       let argins = _.clone(this.formData);
-      let response = await Cloud.deleteProfile.with({profile: argins.profile});
+      await Cloud.deleteProfile.with({profile: argins.profile});
       await this._getProfiles();
     },
     handleSubmittingAddProfileForm: async function() {
       let argins = _.clone(this.formData);
-      let newProfile = await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
+      await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
       await this._getProfiles();
     },
     handleSubmittingEditProfileForm: async function() {
@@ -128,7 +117,7 @@ parasails.registerPage('profiles', {
       if(argins.newTeamIds === [undefined]){
         argins.newTeamIds = [];
       }
-      let updatedProfile = await Cloud.editProfile.with({profile: argins.profile, newProfile: argins.newProfile, newTeamIds: argins.newTeamIds});
+      await Cloud.editProfile.with({profile: argins.profile, newProfile: argins.newProfile, newTeamIds: argins.newTeamIds});
       await this._getProfiles();
     },
     _getProfiles: async function() {

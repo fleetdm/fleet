@@ -17,7 +17,7 @@ module.exports = {
   },
 
 
-  fn: async function (inputs) {
+  fn: async function () {
 
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
@@ -33,7 +33,6 @@ module.exports = {
 
     let teamApids = _.pluck(allTeams, 'id');
     let teams = [];
-    let teamsInformation = [];
     for(let team of allTeams) {
       teams.push({
         fleetApid: team.id,
@@ -91,14 +90,13 @@ module.exports = {
       if(scriptIdentifier === null){
         continue;
       }
-      let teamIdsForThisProfile = _.pluck(allScriptsByIdentifier[scriptIdentifier], 'team_id');
       let teamsForThisProfile = [];
       for(let script of allScriptsByIdentifier[scriptIdentifier]){
         let informationAboutThisScript = {
           scriptFleetApid: script.id,
           fleetApid: script.team_id ? script.team_id : 0,
           teamName: script.team_id ? _.find(teams, {fleetApid: script.team_id}).teamName : 'No team',
-        }
+        };
         teamsForThisProfile.push(informationAboutThisScript);
       }
       let script = allScriptsByIdentifier[scriptIdentifier][0];// Grab the first script returned in the api repsonse to build our script configuration.
@@ -108,8 +106,8 @@ module.exports = {
         platform: _.endsWith(script.name, 'sh') ? 'macOS & Linux' : 'Windows',
         createdAt: new Date(script.created_at).getTime(),
         teams: teamsForThisProfile
-      }
-      scriptsOnThisFleetInstance.push(scriptInformation)
+      };
+      scriptsOnThisFleetInstance.push(scriptInformation);
     }
     scriptsOnThisFleetInstance = _.sortByOrder(scriptsOnThisFleetInstance, 'name', 'asc');
     return scriptsOnThisFleetInstance;

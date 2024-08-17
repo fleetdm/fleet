@@ -95,15 +95,15 @@
         <ajax-form action="editScript" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptFormRules" @submitted="submittedForm()">
           <div purpose="script-information" v-if="!formData.newScripts">
             <div class="d-flex flex-row justify-content-start">
-              <img style="height: 40px; width: 34px;" src="/images/script-icon-ps1-34x40@2x.png" v-if="scriptToEdit.platform === 'Windows'">
-              <img style="height: 40px; width: 34px;" src="/images/script-icon-sh-34x40@2x.png" v-else>
+              <img style="height: 40px; width: 34px;" alt="Windows script" src="/images/script-icon-ps1-34x40@2x.png" v-if="scriptToEdit.platform === 'Windows'">
+              <img style="height: 40px; width: 34px;" alt="macOs and Linux script" src="/images/script-icon-sh-34x40@2x.png" v-else>
               <div class="d-flex flex-column">
                 <p><strong>{{scriptToEdit.name}}</strong></p>
                 <p class="muted">{{scriptToEdit.platform}}</p>
               </div>
             </div>
           </div>
-          <file-upload id="file-upload" mode="scripts" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newScript"></file-upload>
+          <file-upload id="edit-file-upload" mode="scripts" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newScript"></file-upload>
           <div purpose="teams-picker">
             <p class="mb-2"><strong>Teams</strong></p>
             <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>

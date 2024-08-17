@@ -190,7 +190,7 @@ parasails.registerComponent('multifield', {
       var parsedValue = $event.target.value || undefined;
       this.currentFieldValues[idx] = parsedValue;
       if(parsedValue === 'allTeams') {
-        this.currentFieldValues = _.pluck(this.optionsForSelect, 'fleetApid')
+        this.currentFieldValues = _.pluck(this.optionsForSelect, 'fleetApid');
       }
       await this.forceRender();
       this._handleChangingFieldValues();

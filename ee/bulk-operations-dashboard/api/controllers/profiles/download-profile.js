@@ -50,7 +50,7 @@ module.exports = {
       if(profileToDownload.profileType === '.mobileconfig'){
         this.res.type('application/x-apple-aspen-config');
       } else {
-        this.res.type('application/octet-stream')
+        this.res.type('application/octet-stream');
       }
       download = profileContents;
     } else {

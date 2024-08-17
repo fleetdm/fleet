@@ -37,10 +37,8 @@ module.exports = {
     let path = require('path');
     let fileStream = newScript._files[0].stream;
     let scriptFilename = fileStream.filename;
-    console.log(scriptFilename)
     // Strip out any automatically added date prefixes from uploaded scritps.
     let datelessExtensionlessFilename = scriptFilename.replace(/^\d{4}-\d{2}-\d{2}\s/, '').replace(/\.[^/.]+$/, '');
-    console.log(datelessExtensionlessFilename)
     let extension = '.'+scriptFilename.split('.').pop();
     // Write the filestream to a temporary file to get the contents as text, and delete the temporary file.
     let tempFilePath = `.tmp/${scriptFilename}`;
@@ -52,7 +50,6 @@ module.exports = {
     let profileContents = await sails.helpers.fs.read(tempFilePath);
     await sails.helpers.fs.rmrf(path.join(sails.config.appPath, tempFilePath));
 
-    let scriptToReturn;
     // Build a dictonary of information about this script to return to the scripts page.
     let newScriptInfo = {
       name: datelessExtensionlessFilename,
@@ -60,7 +57,6 @@ module.exports = {
       profileType: extension,
       createdAt: Date.now()
     };
-    let newTeams = [];
     // Send a request to add the script for every team ID in the array of teams.
     for(let teamApid of teams){
       // Build a request body for the team.
@@ -72,7 +68,7 @@ module.exports = {
           },
           value: profileContents,
         }
-      }
+      };
       let addScriptUrl;
       // If the script is being added to the "no team" team, then we need to include the team ID of the no team team in the request URL
       if(Number(teamApid) === 0){
@@ -80,10 +76,10 @@ module.exports = {
       } else {
         // Otherwise, the team_id needs to be included in the request's formData.
         addScriptUrl = `/api/v1/fleet/scripts`;
-        requestBodyForThisTeam.team_id = Number(teamApid)
+        requestBodyForThisTeam.team_id = Number(teamApid);// eslint-disable-line camelcase
       }
       // Send a PSOT request to add the script.
-      let newScriptResponse = await sails.helpers.http.sendHttpRequest.with({
+      await sails.helpers.http.sendHttpRequest.with({
         method: 'POST',
         baseUrl: sails.config.custom.fleetBaseUrl,
         url:addScriptUrl,
@@ -93,21 +89,10 @@ module.exports = {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
         },
       })
-      .intercept({raw: {statusCode: 409}}, (err)=>{
+      .intercept({raw: {statusCode: 409}}, ()=>{
         return 'scriptWithThisNameAlreadyExists';
       });
-      let parsedJsonResponse = JSON.parse(newScriptResponse.body)
-      let uuidForThisProfile = parsedJsonResponse.script_id;
-      newTeams.push({
-        fleetApid: teamApid,
-        scriptFleetApid: JSON.parse(newScriptResponse.body).script_id,
-      })
     }
-    newScriptInfo.teams = newTeams;
-
-
-
-
     // All done.
     return newScriptInfo;
 

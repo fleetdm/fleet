@@ -33,7 +33,6 @@ module.exports = {
 
     let teamApids = _.pluck(allTeams, 'id');
     let teams = [];
-    let teamsInformation = [];
     for(let team of allTeams) {
       teams.push({
         fleetApid: team.id,
@@ -80,7 +79,6 @@ module.exports = {
     let allProfilesByIdentifier = _.groupBy(allProfiles, 'identifier');
 
     for(let profileIdentifier in allProfilesByIdentifier) {
-      let teamIdsForThisProfile = _.pluck(allProfilesByIdentifier[profileIdentifier], 'team_id');
       let teamsForThisProfile = [];
       // let platforms = _.uniq(_.pluck(allProfilesByIdentifier[profileIdentifier], 'platform'));
       for(let profile of allProfilesByIdentifier[profileIdentifier]){
@@ -88,7 +86,7 @@ module.exports = {
           uuid: profile.profile_uuid,
           fleetApid: profile.team_id,
           teamName: _.find(teams, {fleetApid: profile.team_id}).teamName,
-        }
+        };
         teamsForThisProfile.push(informationAboutThisProfile);
       }
       let profile = allProfilesByIdentifier[profileIdentifier][0];// Grab the first profile returned in the api repsonse to build our profile configuration.
@@ -98,8 +96,8 @@ module.exports = {
         platform: profile.platform,
         createdAt: new Date(profile.created_at).getTime(),
         teams: teamsForThisProfile
-      }
-      profilesInformation.push(profileInformation)
+      };
+      profilesInformation.push(profileInformation);
     }
     profilesInformation = _.sortByOrder(profilesInformation, 'name', 'asc');
     let undeployedProfiles = await UndeployedProfile.find();

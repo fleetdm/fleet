@@ -33,7 +33,7 @@ module.exports = {
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
-        })
+        });
       }
     }
     // All done.

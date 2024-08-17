@@ -38,7 +38,6 @@ parasails.registerPage('scripts', {
     //…
   },
   mounted: async function() {
-    console.log(this.teams)
     this.scriptsToDisplay = this.scripts;
   },
 
@@ -62,9 +61,8 @@ parasails.registerPage('scripts', {
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
         console.log(this.selectedTeam);
         let scriptsOnThisTeam = _.filter(this.scripts, (script)=>{
-          // console.log(script.scripts);
-          return _.where(script.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
-        })
+          return _.where(script.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
+        });
         this.scriptsToDisplay = scriptsOnThisTeam;
       } else {
         this.scriptsToDisplay = this.scripts;
@@ -72,27 +70,18 @@ parasails.registerPage('scripts', {
     },
     clickChangeTeamFilter: async function(teamApid) {
       this.teamFilter = teamApid;
-      console.log(teamApid);
       this.selectedTeam = _.find(this.teams, {'fleetApid': teamApid});
-      console.log(this.selectedTeam);
       let scriptsOnThisTeam = _.filter(this.scripts, (script)=>{
-        // console.log(script.scripts);
-        return _.where(script.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0
-      })
+        return _.where(script.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
+      });
       this.scriptsToDisplay = scriptsOnThisTeam;
-      console.log(scriptsOnThisTeam);
     },
     clickDownloadScript: async function(script) {
       window.open('/download-script?id='+encodeURIComponent(script.teams[0].scriptFleetApid));
-      // Call the download script cloud action
-      // Return the downloaded script with the correct filename
-      // Or possible make these just open the download endpoint in a new tab to download it.
     },
     clickOpenEditModal: async function(script) {
-      console.log(script);
       this.scriptToEdit = _.clone(script);
       this.formData.newTeamIds = _.pluck(this.scriptToEdit.teams, 'fleetApid');
-      console.log(this.formData.teams);
       this.formData.script = script;
       this.modal = 'edit-script';
     },
@@ -116,15 +105,13 @@ parasails.registerPage('scripts', {
     },
     handleSubmittingDeleteScriptForm: async function() {
       let argins = _.clone(this.formData);
-      let response = await Cloud.deleteScript.with({script: argins.script});
-      // this.syncing = false;
-      this.scripts = _.remove(this.scripts, (existingScript)=>{
-        return existingScript.name === argins.script.name
-      })
+      await Cloud.deleteScript.with({script: argins.script});
+      await this._getScripts();
     },
     handleSubmittingAddScriptForm: async function() {
       let argins = _.clone(this.formData);
-      let newScript = await Cloud.addScript.with({newScript: argins.newScript, teams: argins.teams});
+      await Cloud.addScript.with({newScript: argins.newScript, teams: argins.teams});
+      await this._getScripts();
     },
     _getScripts: async function() {
       this.syncing = true;

@@ -31,9 +31,6 @@ module.exports = {
 
 
   fn: async function ({id}) {
-    let datePrefix = new Date().toISOString();
-    datePrefix = datePrefix.split('T')[0] +'_';
-    let profileContents;
     let filename;
     let download;
     let profileDownloadResponse = await sails.helpers.http.sendHttpRequest.with({

@@ -23,7 +23,6 @@ module.exports = {
   fn: async function ({script}) {
     // If the provided script does not have a teams array and has an ID, it is an undeployed script that will be deleted.
     for(let teamScript of script.teams){
-      console.log(teamScript);
       await sails.helpers.http.sendHttpRequest.with({
         method: 'DELETE',
         baseUrl: sails.config.custom.fleetBaseUrl,
@@ -31,7 +30,7 @@ module.exports = {
         headers: {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
         }
-      })
+      });
     }
     // All done.
     return;
