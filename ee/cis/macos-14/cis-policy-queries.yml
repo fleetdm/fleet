@@ -3018,13 +3018,13 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy a script that runs the following:
-      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver use-login-window-ui
+      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver authenticate-session-owner
   query: |
     SELECT 1 WHERE EXISTS (
       SELECT JSON_EXTRACT(json_result, '$.rule') AS rule
       FROM authdb
       WHERE right_name = 'system.login.screensaver' AND 
-      rule LIKE '%use-login-window-ui%'
+      rule LIKE '%authenticate-session-owner%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
