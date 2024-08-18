@@ -1351,10 +1351,10 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Location Services Is in the Menu Bar
+  name: CIS - Ensure 'Show Location Icon in Control Center when System Services Request Your Location' Is Enabled
   platforms: macOS
   platform: darwin
-  description: Checks that Location Services option is presented in the Menu Bar.
+  description: This setting provides the user an understanding of the current status of Location Services and which applications are using it.
   resolution: |
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables the "location services" icon in menu bar when System Services request your location.
