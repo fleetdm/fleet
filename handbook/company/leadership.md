@@ -386,15 +386,28 @@ Now what happens?  🔦 Business Operations will then follow the steps in the "H
 
 ## CEO shadow program
 
-The CEO shadow program is a three-day temporary assignment (usually completed during onboarding) in which team members will shadow all relevant meetings on the CEO's calendar. This gives team members an overview of all aspects of the company and provides high context and in turn, high-output contributors. The program also creates opportunities for the CEO to build relationships with team members across the company and to identify challenges and opportunities earlier. 
+The CEO shadow program is a three-day temporary assignment (usually completed during onboarding) in which core team members will shadow all relevant meetings on the CEO's calendar. This gives team members an overview of all aspects of the company and provides high context and in turn, high-output contributors. The program also creates opportunities for the CEO to build relationships with team members across the company and to identify [challenges and opportunities](https://fleetdm.com/handbook/company/leadership#ceo-flaws) earlier. 
  
 > **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
 
-There are many short-term tasks you'll be asked to perform as a shadow. Here are some examples:
-- Prepare for, participate in, take notes during, and follow up on meetings.
-- Make handbook updates and shadow PR reviews.
-- Solve urgent issues. For example, help solve a complaint from a customer or coordinate the response to a technical issue.
-- Create and/or complete GitHub issues involving multiple departments at Fleet, and work towards closing or creating pull requests to complete issues.
+As a CEO shadow, you will be attending both internal and external meetings regarding various areas of the company. In order to make the most of your time as a shadow:
+- **Be on time**: Your time is priceless, your time as a CEO shadow is short! Join each meeting on time, this limits the distraction for other attendees and gives the CEO the opportunity to introduce you to other folks on the call without interrupting the meeting.
+- **Be present**: During meetings outside of your department, it can be easy to find yourself charging ahead on other projects. The interactions you'll have in these meetings and the context you'll gain are important.
+- **Be active**: There are many short-term tasks you'll be asked to perform as a shadow. Here are some examples:
+  - Prepare for, participate in, take notes during, and follow up on meetings.
+  - Make handbook updates and shadow PR reviews.
+  - Solve urgent issues. For example, help solve a complaint from a customer or coordinate the response to a technical issue.
+  - Create and/or complete GitHub issues involving multiple departments at Fleet, and work towards closing or creating pull requests to complete issues.
+
+
+### Prepare for the program
+
+CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.com/calendar/embed?src=mike%40fleetdm.com&ctz=America%2FChicago) that **do not have** "[no shadows]" appended to the calendar event title. Before beginning your time as a [CEO shadow](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program):
+1. Make sure you've read through the [CEO flaws](https://fleetdm.com/handbook/company/leadership#ceo-flaws) to better understand how to communicate with him.
+2. Update your Zoom display name to be "[your name] | CEO shadow" (e.g. "Jayne Doo | CEO shadow").
+3. Know which meetings you're expected to join. **You won't be listed as an attendee on any of the CEO's calendar events** to avoid confusion when scheduling meetings with external participants. You're intentionally marked out of office to avoid scheduling conflicts.
+
+> Please **DO NOT** add yourself as an attendee to any of the CEO's meetings. The CEO regularly meets with prospects and customers in the community, and without the context of the CEO shadow program, an unknown name on the calendar event could be mistaken for a sales tactic.
 
 
 ## Tracking hours
