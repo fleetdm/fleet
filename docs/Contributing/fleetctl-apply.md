@@ -348,7 +348,7 @@ spec:
     scripts:
       - path/to/script1.sh
       - path/to/script2.sh
-  ```
+```
 
 ## Organization settings
 
