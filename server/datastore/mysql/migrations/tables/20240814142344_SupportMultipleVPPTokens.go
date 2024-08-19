@@ -130,7 +130,8 @@ WHERE
 UPDATE
 	host_vpp_software_installs
 SET
-	vpp_token_id = ?
+	vpp_token_id = ?,
+	updated_at = updated_at
 `
 	if _, err = tx.Exec(updHost, tokenID); err != nil {
 		return fmt.Errorf("update VPP token link in host_vpp_software_installs: %w", err)
