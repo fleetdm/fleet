@@ -138,10 +138,13 @@ const SoftwareTable = ({
       if (softwareFilter === "installableSoftware") {
         newQueryParam.available_for_install = true.toString();
       }
+      if (softwareFilter === "selfServiceSoftware") {
+        newQueryParam.self_service = true.toString();
+      }
 
-      return newQueryParam;
+      return { ...newQueryParam, ...vulnFilters };
     },
-    [softwareFilter, teamId]
+    [softwareFilter, teamId, vulnFilters]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
