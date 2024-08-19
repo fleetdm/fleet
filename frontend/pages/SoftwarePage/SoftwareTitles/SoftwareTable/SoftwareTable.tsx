@@ -357,6 +357,7 @@ const SoftwareTable = ({
         emptyComponent={() => (
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
+            vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
             isCollectingSoftware={data?.counts_updated_at === null}

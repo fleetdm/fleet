@@ -176,28 +176,30 @@ export const findOptionBySeverityRange = (
 };
 
 export const getVulnFilterDetails = (
-  vulnFilters: ISoftwareVulnFiltersParams
+  vulnFilters?: ISoftwareVulnFiltersParams
 ) => {
   let filterCount = 0;
   const tooltipText = [];
 
-  if (vulnFilters.vulnerable) {
-    filterCount += 1;
-    tooltipText.push("Vulnerable software");
-
-    if (vulnFilters.minCvssScore || vulnFilters.maxCvssScore) {
+  if (vulnFilters) {
+    if (vulnFilters.vulnerable) {
       filterCount += 1;
-      const severityOption = findOptionBySeverityRange(
-        vulnFilters.minCvssScore,
-        vulnFilters.maxCvssScore
-      );
-      const severityText = stringUtils.capitalize(severityOption?.value);
-      tooltipText.push(`Severity: ${severityText}`);
-    }
+      tooltipText.push("Vulnerable software");
 
-    if (vulnFilters.exploit) {
-      filterCount += 1;
-      tooltipText.push("Has known exploit");
+      if (vulnFilters.minCvssScore || vulnFilters.maxCvssScore) {
+        filterCount += 1;
+        const severityOption = findOptionBySeverityRange(
+          vulnFilters.minCvssScore,
+          vulnFilters.maxCvssScore
+        );
+        const severityText = stringUtils.capitalize(severityOption?.value);
+        tooltipText.push(`Severity: ${severityText}`);
+      }
+
+      if (vulnFilters.exploit) {
+        filterCount += 1;
+        tooltipText.push("Has known exploit");
+      }
     }
   }
 

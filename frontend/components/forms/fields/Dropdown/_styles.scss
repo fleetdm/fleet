@@ -46,10 +46,6 @@
         }
       }
     }
-
-    &--disabled {
-      color: $ui-fleet-black-50; // TODO: Fix this
-    }
   }
 
   &__option {
@@ -75,12 +71,6 @@
     &:hover:not(.is-disabled) {
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
-    }
-
-    &.is-disabled {
-      .Select-value-label {
-        color: $ui-fleet-black-50;
-      }
     }
   }
   .Select-control {
@@ -215,6 +205,12 @@
           color: $core-fleet-black;
           font-size: $small;
         }
+      }
+    }
+
+    &.is-disabled {
+      > .Select-control .Select-value .Select-value-label {
+        color: $ui-fleet-black-50;
       }
     }
   }
