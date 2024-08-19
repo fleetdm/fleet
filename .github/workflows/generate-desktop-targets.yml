@@ -24,11 +24,7 @@ defaults:
     shell: bash
 
 env:
-<<<<<<< HEAD
   FLEET_DESKTOP_VERSION: 1.31.0
-=======
-  FLEET_DESKTOP_VERSION: 1.30.0
->>>>>>> origin/main
 
 permissions:
   contents: read
