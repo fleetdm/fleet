@@ -1,13 +1,11 @@
 name: ntdomains
-examples: >-
+examples: |-
   If the system is joined to a domain, this query will return the domain name as well as all known domain controllers and their IP addresses.
   
   ```
-     
-   SELECT domain_name, domain_controller_name, domain_controller_address, status FROM ntdomains WHERE domain_name != "";
-
+  SELECT domain_name, domain_controller_name, domain_controller_address, status FROM ntdomains WHERE domain_name != "";
   ```
     
-notes: >-
+notes: |-
 
 This table returns a row even if the local system is not joined to a domain - in this case, the `status` column will be `Unknown` and the `name` column will contain `Domain: $Hostname of local system`.

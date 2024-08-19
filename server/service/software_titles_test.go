@@ -15,8 +15,8 @@ import (
 func TestServiceSoftwareTitlesAuth(t *testing.T) {
 	ds := new(mock.Store)
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmf fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
-		return []fleet.SoftwareTitle{}, 0, &fleet.PaginationMetadata{}, nil
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmf fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return []fleet.SoftwareTitleListResult{}, 0, &fleet.PaginationMetadata{}, nil
 	}
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{}, nil

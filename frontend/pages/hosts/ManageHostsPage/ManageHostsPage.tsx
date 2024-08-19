@@ -23,6 +23,7 @@ import hostsAPI, {
   ILoadHostsResponse,
   ISortOption,
   MacSettingsStatusQueryParam,
+  HOSTS_QUERY_PARAMS,
 } from "services/entities/hosts";
 import hostCountAPI, {
   IHostsCountQueryKey,
@@ -49,6 +50,10 @@ import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
+import {
+  isValidSoftwareInstallStatus,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
@@ -72,6 +77,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -112,7 +118,7 @@ interface IManageHostsProps {
   router: InjectedRouter;
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  location: any; // no type in react-router v3
+  location: any; // no type in react-router v3 TODO: Improve this type
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -162,6 +168,10 @@ const ManageHostsPage = ({
     router,
     includeAllTeams: true,
     includeNoTeam: true,
+    overrideParamsOnTeamChange: {
+      // remove the software status filter when selecting all teams
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) => !newTeamId,
+    },
   });
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
@@ -232,6 +242,11 @@ const ManageHostsPage = ({
     queryParams?.software_title_id !== undefined
       ? parseInt(queryParams.software_title_id, 10)
       : undefined;
+  const softwareStatus = isValidSoftwareInstallStatus(
+    queryParams?.[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]
+  )
+    ? (queryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] as SoftwareInstallStatus)
+    : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
@@ -380,6 +395,7 @@ const ManageHostsPage = ({
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -389,8 +405,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
+        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -423,6 +439,7 @@ const ManageHostsPage = ({
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -517,10 +534,10 @@ const ManageHostsPage = ({
   useEffect(() => {
     if (
       location.search.match(
-        /software_id|software_version_id|software_title_id/gi
+        /software_id|software_version_id|software_title_id|software_status/gi
       )
     ) {
-      // regex matches any of "software_id", "software_version_id", or "software_title_id"
+      // regex matches any of "software_id", "software_version_id", "software_title_id", or "software_status"
       // so we don't set the filtered hosts path in those cases
       return;
     }
@@ -562,6 +579,12 @@ const ManageHostsPage = ({
 
     return true;
   };
+
+  // NOTE: Solution also used on ManagePoliciesPage.tsx
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams, page]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
@@ -712,6 +735,25 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleSoftwareInstallStatausChange = (
+    newStatus: SoftwareInstallStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: newStatus,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const onAddLabelClick = () => {
     router.push(`${PATHS.NEW_LABEL}`);
   };
@@ -726,18 +768,6 @@ const ManageHostsPage = ({
     setHiddenColumns(newHiddenColumns);
     setShowEditColumnsModal(false);
   };
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    // TODO: cleanup this effect
-    setResetPageIndex(false);
-    if (queryParams.add_hosts === "true") {
-      setShowAddHostsModal(true);
-    }
-    if (queryParams.page === page) {
-      setPage(queryParams.page);
-    }
-  }, [queryParams, page]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
@@ -815,6 +845,10 @@ const ManageHostsPage = ({
         newQueryParams.software_version_id = softwareVersionId;
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
+        if (softwareStatus && teamIdForApi && teamIdForApi > 0) {
+          // software_status is only valid when software_title_id is present and a team is selected
+          newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
+        }
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
       } else if (mdmEnrollmentStatus) {
@@ -864,6 +898,7 @@ const ManageHostsPage = ({
       softwareId,
       softwareVersionId,
       softwareTitleId,
+      softwareStatus,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
@@ -1062,6 +1097,7 @@ const ManageHostsPage = ({
           softwareId,
           softwareTitleId,
           softwareVersionId,
+          softwareStatus,
           osName,
           osVersionId,
           osVersion,
@@ -1114,6 +1150,7 @@ const ManageHostsPage = ({
             softwareId,
             softwareTitleId,
             softwareVersionId,
+            softwareStatus,
             osName,
             osVersionId,
             osVersion,
@@ -1159,7 +1196,6 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
-      isSandboxMode={isSandboxMode}
     />
   );
 
@@ -1220,21 +1256,15 @@ const ManageHostsPage = ({
   );
 
   const renderAddHostsModal = () => {
-    const enrollSecret =
-      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
-      // additional precaution/reminder to revisit this in connection with future changes.
-      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      isAnyTeamSelected && !isSandboxMode
-        ? teamSecrets?.[0].secret
-        : globalSecrets?.[0].secret;
+    const enrollSecret = isAnyTeamSelected
+      ? teamSecrets?.[0].secret
+      : globalSecrets?.[0].secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
         openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
@@ -1325,6 +1355,7 @@ const ManageHostsPage = ({
       softwareId,
       softwareTitleId,
       softwareVersionId,
+      softwareStatus,
       status,
       mdmId,
       mdmEnrollmentStatus,
@@ -1365,18 +1396,10 @@ const ManageHostsPage = ({
   };
 
   const renderHostCount = useCallback(() => {
-    const count = hostsCount;
-
     return (
-      <div
-        className={`${baseClass}__count ${
-          isLoadingHostsCount ? "count-loading" : ""
-        }`}
-      >
-        {count !== undefined && (
-          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        )}
-        {!!count && (
+      <>
+        <TableCount name="hosts" count={hostsCount} />
+        {!!hostsCount && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1388,7 +1411,7 @@ const ManageHostsPage = ({
             </>
           </Button>
         )}
-      </div>
+      </>
     );
   }, [isLoadingHostsCount, hostsCount]);
 
@@ -1462,7 +1485,8 @@ const ManageHostsPage = ({
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info = "Generate an installer to add your own hosts.";
+          emptyHosts.info =
+            "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts
@@ -1526,6 +1550,7 @@ const ManageHostsPage = ({
       softwareId ||
       softwareTitleId ||
       softwareVersionId ||
+      softwareStatus ||
       osName ||
       osVersionId ||
       osVersion ||
@@ -1553,7 +1578,7 @@ const ManageHostsPage = ({
         }
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
-        pageSize={50}
+        pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{
@@ -1664,6 +1689,7 @@ const ManageHostsPage = ({
               softwareId,
               softwareTitleId,
               softwareVersionId,
+              softwareStatus,
               mdmId,
               mdmEnrollmentStatus,
               lowDiskSpaceHosts,
@@ -1695,9 +1721,11 @@ const ManageHostsPage = ({
               handleChangeBootstrapPackageStatusFilter
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
+            onChangeSoftwareInstallStatusFilter={
+              handleSoftwareInstallStatausChange
+            }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
-            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

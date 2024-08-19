@@ -24,12 +24,15 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 )
 
 type DetailQuery struct {
+	// Description is an optional description of the query to be displayed in the
+	// Host Vitals documentation https://fleetdm.com/docs/using-fleet/understanding-host-vitals
+	Description string
 	// Query is the SQL query string.
 	Query string
 	// QueryFunc is optionally used to dynamically build a query.
@@ -40,6 +43,11 @@ type DetailQuery struct {
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms []string
+	// SoftwareOverrideMatch is a function that can be used to override a software
+	// result.  The function evaluates a software detail query result row and deletes
+	// the result if the function returns true so the result of this detail query can be
+	// used instead.
+	SoftwareOverrideMatch func(row map[string]string) bool
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
@@ -85,8 +93,8 @@ FROM
 	-- whereas on Windows ia.interface is the IP of the interface.
     JOIN routes r ON %s
 WHERE
-	-- Destination 0.0.0.0/0 is the default route on route tables.
-    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+    (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
 	-- Type of route is "gateway" for Unix, "remote" for Windows.
     AND r.type = '%s'
 	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
@@ -173,6 +181,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version number) to
+		// correctly map OS vulnerabilities to hosts. The UBR is not available in the os_version table.
+		// The full version number is available in the `kernel_info` table, but there is a Win10 bug
+		// which is reporting an incorrect build number (3rd part), so we query the Windows registry for the UBR
+		// here instead.  To note, osquery 5.12.0 will have the UBR in the os_version table.
+
 		// display_version is not available in some versions of
 		// Windows (Server 2019). By including it using a JOIN it can
 		// return no rows and the query will still succeed
@@ -181,16 +195,23 @@ var hostDetailQueries = map[string]DetailQuery{
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		ubr_table AS (
+			SELECT data AS ubr
+			FROM registry
+			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			k.version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
-			display_version_table d`,
+			display_version_table d
+		LEFT JOIN
+			ubr_table u`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -269,6 +290,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
@@ -314,7 +336,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			host.HardwareSerial = rows[0]["hardware_serial"]
+			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+				host.HardwareSerial = rows[0]["hardware_serial"]
+			}
 			host.ComputerName = rows[0]["computer_name"]
 			return nil
 		},
@@ -336,6 +360,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
 		Query: `
@@ -542,6 +567,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		// See above description for the `os_version_windows` detail query.
 		//
 		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
 		// To prevent the query from failing in those cases, we join
@@ -552,19 +578,26 @@ var extraDetailQueries = map[string]DetailQuery{
 		SELECT data as display_version
 		FROM registry
 		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	),
+	ubr_table AS (
+	SELECT data AS ubr
+	FROM registry
+	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version,
+		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
 		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
 		kernel_info k
 	LEFT JOIN
-		display_version_table d`,
+		display_version_table d
+	LEFT JOIN
+		ubr_table u`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -724,7 +757,39 @@ var mdmQueries = map[string]DetailQuery{
 
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
-	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
+	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s'", tableName)
+}
+
+func macOSBundleIDExistsQuery(appName string) string {
+	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
+}
+
+// generateSQLForAllExists generates a SQL query that returns
+// 1 if all subqueries return 1, otherwise returns no rows.
+// subqueries should be a list of SQL queries that return 1+ rows
+// if a condition is met, otherwise returns no rows.
+func generateSQLForAllExists(subqueries ...string) string {
+	if len(subqueries) == 0 {
+		return "SELECT 0 LIMIT 0" // Return no rows if no subqueries provided
+	}
+
+	// Generate EXISTS clause for each subquery
+	var conditions []string
+	for _, query := range subqueries {
+		// Remove trailing semicolons from the query to ensure subqueries
+		// are not terminated early (Issue #19401)
+		sanitized := strings.TrimRight(strings.TrimSpace(query), ";")
+
+		condition := fmt.Sprintf("EXISTS (%s)", sanitized)
+		conditions = append(conditions, condition)
+	}
+
+	// Join all conditions with AND
+	fullCondition := strings.Join(conditions, " AND ")
+
+	// Build the final SQL query
+	sql := fmt.Sprintf("SELECT 1 WHERE %s", fullCondition)
+	return sql
 }
 
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
@@ -862,6 +927,7 @@ var scheduledQueryStats = DetailQuery{
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
+	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
 var softwareLinux = DetailQuery{
@@ -878,7 +944,7 @@ SELECT
   '' AS arch,
   '' AS installed_path
 FROM deb_packages
-WHERE status = 'install ok installed'
+WHERE status LIKE '%% ok installed'
 UNION
 SELECT
   package AS name,
@@ -1049,13 +1115,63 @@ FROM chrome_extensions`,
 	DirectIngestFunc: directIngestSoftware,
 }
 
+// SoftwareOverrideQueries are used to override software detail query results.  These DetailQueries
+// must include a `SoftwareOverrideMatch` function that returns true if the software row should be
+// overridden with the results of `Query`.
+// Software queries expect specific columns to be present.  Reference the
+// software_{macos|windows|linux} queries for the expected columns.
+var SoftwareOverrideQueries = map[string]DetailQuery{
+	// macos_firefox Differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
+	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
+	"macos_firefox": {
+		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
+		Query: `
+			WITH app_paths AS (
+				SELECT path
+				FROM apps
+				WHERE bundle_identifier = 'org.mozilla.firefox'
+			),
+			remoting_name AS (
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
+				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+			)
+			SELECT
+				CASE
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+					ELSE 'Firefox.app'
+				END AS name,
+				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+				'Application (macOS)' AS type,
+				apps.bundle_identifier AS bundle_identifier,
+				'' AS extension_id,
+				'' AS browser,
+				'apps' AS source,
+				'' AS vendor,
+				apps.last_opened_time AS last_opened_at,
+				apps.path AS installed_path
+			FROM apps
+			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+			WHERE apps.bundle_identifier = 'org.mozilla.firefox'`,
+		Platforms: []string{"darwin"},
+		Discovery: generateSQLForAllExists(
+			macOSBundleIDExistsQuery("org.mozilla.firefox"),
+			discoveryTable("parse_ini"),
+		),
+		SoftwareOverrideMatch: func(row map[string]string) bool {
+			return row["bundle_identifier"] == "org.mozilla.firefox"
+		},
+	},
+}
+
 var usersQuery = DetailQuery{
 	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
-	Platforms:        []string{"linux", "darwin", "windows"},
+	Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -1095,9 +1211,9 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 	hostOS := fleet.OperatingSystem{
 		Name:          rows[0]["name"],
 		Arch:          rows[0]["arch"],
-		KernelVersion: rows[0]["kernel_version"],
+		KernelVersion: rows[0]["version"],
 		Platform:      rows[0]["platform"],
-		Version:       rows[0]["kernel_version"],
+		Version:       rows[0]["version"],
 	}
 
 	displayVersion := rows[0]["display_version"]
@@ -1597,7 +1713,15 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				if !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				}
+
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
 			}
 		}
 	}
@@ -1882,7 +2006,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-//go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Contributing/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,
@@ -1904,6 +2028,10 @@ func GetDetailQueries(
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+
+		for key, query := range SoftwareOverrideQueries {
+			generatedMap["software_"+key] = query
+		}
 	}
 
 	if features != nil && features.EnableHostUsers {

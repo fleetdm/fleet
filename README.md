@@ -4,7 +4,7 @@
 
 Open-source platform for IT and security teams with thousands of computers.  Designed for APIs, GitOps, webhooks, YAML, and humans.
 
-<a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101" alt="A glass city in the clouds"/></a>
+<a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f835ec29-1cb9-49ba-a0f3-395ffd9d5c9f" alt="A glass city in the clouds"/></a>
 
 
 ## What's it for?
@@ -42,8 +42,6 @@ Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyo
 Fleet has no ambition to replace all of your other tools.  (Though it might replace some, if you want it to.)  Ready-to-use, enterprise-friendly integrations exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
 
 Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
-
-While most folks prefer to use one or the other, Fleet can also coexist peacefully with Rapid7 and other agent-based vulnerability scanners.  This can be useful during migrations.
 
 #### Free as in free
 The free version of Fleet will [always be free](https://fleetdm.com/pricing).  Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).

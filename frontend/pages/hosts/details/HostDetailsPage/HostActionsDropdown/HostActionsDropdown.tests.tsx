@@ -230,7 +230,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -259,7 +259,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -289,7 +289,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -319,7 +319,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -347,7 +347,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Non Fleet MDM"
+          isConnectedToFleetMdm={false}
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -376,7 +376,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -409,7 +409,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={1}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -549,7 +549,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -579,7 +579,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="debian"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -621,7 +621,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="Off"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -651,7 +651,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Non Fleet MDM"
+          isConnectedToFleetMdm={false}
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -683,7 +683,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -713,7 +713,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocking"
           hostScriptsEnabled
@@ -743,7 +743,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="Off"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -773,7 +773,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Non Fleet MDM"
+          isConnectedToFleetMdm={false}
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -785,7 +785,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+    it("does not renders when a macOS host but does not have Fleet mac mdm enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -804,7 +804,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -834,7 +834,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled={false}
@@ -878,7 +878,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -909,7 +909,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -921,7 +921,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+    it("does not render for a macOS host if Fleet Apple MDM is not enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -940,7 +940,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -970,7 +970,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="debian"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1011,7 +1011,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="offline"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
@@ -1039,7 +1039,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="offline"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
@@ -1085,7 +1085,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          mdmName="Fleet"
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
@@ -1136,6 +1136,142 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+    it("does not render the Run script action for global observers/+", async () => {
+      // Global observer
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalObserver: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+    it("does not render the Run script action for team observers/+", async () => {
+      // team observer
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isTeamObserver: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="offline"
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Render options only available for iOS and iPadOS", () => {
+    it("renders only the transfer, wipe, and delete options for iOS", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus={"unlocked"}
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
+
+    it("renders only the transfer, wipe, and delete options for iPadOS", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ipados"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus={"unlocked"}
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });
 });

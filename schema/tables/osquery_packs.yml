@@ -1,9 +1,7 @@
 name: osquery_packs
-examples: >-
+examples: |-
   See query packs currently active on osquery.
   
   ```
-  
   SELECT name FROM osquery_packs WHERE active='1';
-  
   ```

@@ -19,7 +19,8 @@ parasails.registerComponent('logoCarousel', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     return {
-      //…
+      isSafariThirteen: bowser.safari && _.startsWith(bowser.version, '13'),
+      isIosThirteen: bowser.safari && _.startsWith(bowser.version, '13') && bowser.ios,
     };
   },
 
@@ -29,7 +30,7 @@ parasails.registerComponent('logoCarousel', {
   template: `
   <div purpose="logos" class="mx-auto d-flex flex-row align-items-center">
     <div purpose="logo-carousel">
-      <div purpose="logo-row" class="d-flex flex-row align-items-center">
+      <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
         <img alt="Notion logo" src="/images/logo-notion-68x32@2x.png">
         <img alt="Pinterest logo" src="/images/logo-pinterest-98x32@2x.png">
         <img alt="Gusto logo" src="/images/logo-gusto-64x32@2x.png">
@@ -46,7 +47,7 @@ parasails.registerComponent('logoCarousel', {
         <img alt="Dropbox logo" src="/images/logo-dropbox-122x32@2x.png">
         <img alt="Reddit logo" src="/images/logo-reddit-80x32@2x.png">
       </div>
-      <div purpose="logo-row" class="d-flex flex-row align-items-center">
+      <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
         <img alt="Notion logo" src="/images/logo-notion-68x32@2x.png">
         <img alt="Pinterest logo" src="/images/logo-pinterest-98x32@2x.png">
         <img alt="Gusto logo" src="/images/logo-gusto-64x32@2x.png">

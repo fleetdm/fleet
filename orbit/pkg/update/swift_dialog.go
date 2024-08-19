@@ -6,7 +6,6 @@ import (
 )
 
 type SwiftDialogDownloader struct {
-	Fetcher      OrbitConfigFetcher
 	UpdateRunner *Runner
 }
 
@@ -17,31 +16,29 @@ type SwiftDialogDownloaderOptions struct {
 }
 
 func ApplySwiftDialogDownloaderMiddleware(
-	f OrbitConfigFetcher,
 	runner *Runner,
-) OrbitConfigFetcher {
-	return &SwiftDialogDownloader{Fetcher: f, UpdateRunner: runner}
+) fleet.OrbitConfigReceiver {
+	return &SwiftDialogDownloader{UpdateRunner: runner}
 }
 
-func (s *SwiftDialogDownloader) GetConfig() (*fleet.OrbitConfig, error) {
+func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 	log.Debug().Msg("running swiftDialog installer middleware")
-	cfg, err := s.Fetcher.GetConfig()
-	if err != nil {
-		return nil, err
-	}
 
 	if cfg == nil {
 		log.Debug().Msg("SwiftDialogDownloader received nil config")
-		return nil, nil
+		return nil
 	}
 
 	if s.UpdateRunner == nil {
 		log.Debug().Msg("SwiftDialogDownloader received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to swiftDialog")
-		return cfg, nil
+		return nil
 	}
 
+	// TODO: we probably want to ensure that swiftDialog is always installed if we're going to be
+	// using it offline.
 	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
-		return cfg, nil
+		log.Debug().Msg("got false needs migration and false renew enrollment")
+		return nil
 	}
 
 	updaterHasTarget := s.UpdateRunner.HasRunnerOptTarget("swiftDialog")
@@ -57,9 +54,9 @@ func (s *SwiftDialogDownloader) GetConfig() (*fleet.OrbitConfig, error) {
 			log.Debug().Msgf("removing swiftDialog from target options, error updating local hashes: %s", err)
 			s.UpdateRunner.RemoveRunnerOptTarget("swiftDialog")
 			s.UpdateRunner.updater.RemoveTargetInfo("swiftDialog")
-			return cfg, err
+			return err
 		}
 	}
 
-	return cfg, nil
+	return nil
 }

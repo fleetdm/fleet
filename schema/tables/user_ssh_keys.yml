@@ -1,17 +1,13 @@
 name: user_ssh_keys
-examples: >-
+examples: |-
   ```
-
   SELECT * FROM users CROSS JOIN user_ssh_keys USING (uid);
-
   ```
 
   Identify SSH keys stored in clear text in user directories
   
   ```
-  
   SELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;
-  
   ```
 columns:
   - name: pid_with_namespace

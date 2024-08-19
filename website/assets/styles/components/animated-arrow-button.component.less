@@ -1,0 +1,64 @@
+
+/**
+ * <animated-arrow-button>
+ *
+ * App-wide styles for our animated arrow buttons.
+ */
+
+[parasails-component='animated-arrow-button'] {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  padding: 6px 0px;
+  text-decoration: none;
+  font-weight: 700;
+  [purpose='button-text'] {
+    color: @core-fleet-black;
+  }
+  [purpose='animated-arrow'] {
+    margin-left: 8px;
+    stroke-width: 2px;
+    height: 12px;
+    width: 12px;
+    fill: none;
+    // stroke: #FF5C83; « Note: this is overridden by the arrow-color prop;
+  }
+  [purpose='arrow-line'] {
+    opacity: 0;
+    transition: opacity 10ms ease-out;
+  }
+  [purpose='chevron'] {
+    transition: transform 200ms ease-out;
+  }
+  // FUTURE: uncomment this section and add support for multiple button types.
+  // &.secondary {
+  //   [purpose='animated-arrow'] {
+  //     stroke: #FF5C83;
+  //   }
+  // }
+  // &.primary {
+  //   padding: 6px 12px 6px 16px;
+  //   background: #FF5C83;
+  //   border-radius: 18px;
+  //   margin-right: 32px;
+  //   [purpose='button-text'] {
+  //     color: #FFF;
+  //   }
+  //   [purpose='animated-arrow'] {
+  //     stroke: #FFF;
+  //   }
+  // }
+  &:hover {
+    text-decoration: none;
+    [purpose='button-text'] {
+      color: @core-fleet-black;
+    }
+    [purpose='arrow-line'] {
+      opacity: 1;
+      transition: opacity 300ms ease-out;
+    }
+    [purpose='chevron'] {
+      transform: translateX(5px);
+    }
+  }
+}

@@ -21,11 +21,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/pandatix/nvdapi/common"
@@ -36,7 +36,7 @@ import (
 // to the directory specified in the dbDir field in the form of JSON files.
 // It stores the CVE information using the legacy feed format.
 // The reason we decided to store in the legacy format is because
-// the github.com/facebookincubator/nvdtools doesn't yet support parsing
+// the github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools doesn't yet support parsing
 // the new API 2.0 JSON format.
 type CVE struct {
 	client           *http.Client
@@ -183,7 +183,7 @@ func (s *CVE) update(ctx context.Context) error {
 
 func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// The NVD legacy feed files start at year 2002.
-	// This is assumed by the facebookincubator/nvdtools package.
+	// This is assumed by the github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools package.
 	if year < 2002 {
 		year = 2002
 	}
@@ -199,6 +199,9 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
@@ -249,6 +252,9 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
@@ -774,13 +780,32 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 
 	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
 	for _, description := range cve.Descriptions {
-		// Keep only english descriptions to match the legacy.
-		if description.Lang != "en" {
+		// Keep only English descriptions to match the legacy format.
+		var lang string
+		switch description.Lang {
+		case "en":
+			lang = description.Lang
+		case "en-US": // This occurred starting with Microsoft CVE-2024-38200.
+			lang = "en"
+		// non-English descriptions with known language tags are ignored.
+		case "es": // This occurred in a number of 2004 CVEs
+			continue
+		// non-English descriptions with unknown language tags are ignored and warned.
+		default:
+			level.Warn(logger).Log("msg", "Unknown CVE description language tag", "lang", description.Lang)
 			continue
 		}
 		descriptions = append(descriptions, &schema.CVEJSON40LangString{
-			Lang:  description.Lang,
+			Lang:  lang,
 			Value: description.Value,
+		})
+	}
+
+	if len(descriptions) == 0 {
+		// Populate a blank description to prevent Fleet cron job from crashing: https://github.com/fleetdm/fleet/issues/21239
+		descriptions = append(descriptions, &schema.CVEJSON40LangString{
+			Lang:  "en",
+			Value: "",
 		})
 	}
 

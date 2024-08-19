@@ -9,8 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // Name of the macos setup assistant job as registered in the worker. Note that
@@ -384,7 +384,7 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		return ctxerr.Wrap(ctx, err, "getting cooldowns")
 	}
 	if len(serialsByTeamId) == 0 {
-		logger.Log("msg", "no cooldowns to process")
+		level.Info(logger).Log("msg", "no cooldowns to process")
 		return nil
 	}
 
@@ -394,7 +394,7 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			logger.Log("msg", "no cooldowns", "team_id", teamID)
 			continue
 		}
-		logger.Log("msg", "processing cooldowns", "team_id", teamID, "serials", serials)
+		level.Info(logger).Log("msg", "processing cooldowns", "team_id", teamID, "serials", serials)
 
 		var tid *uint
 		if teamID != 0 {

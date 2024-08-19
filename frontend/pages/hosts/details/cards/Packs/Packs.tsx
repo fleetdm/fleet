@@ -72,7 +72,7 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
     <></>
   ) : (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}

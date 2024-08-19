@@ -38,7 +38,7 @@ clean_up () {
     rm -rf "$GO_TOOLS_DIRECTORY"
     ARG=$?
     exit $ARG
-} 
+}
 
 setup () {
     echo "Running setup..."
@@ -58,9 +58,9 @@ setup () {
     cp -r "$KEYS_SOURCE_DIRECTORY" "$KEYS_DIRECTORY"
 
     if ! aws sts get-caller-identity &> /dev/null; then
-        prompt "You need to login to AWS using the cli, press any key to continue..."
+        prompt "You need to login to AWS using the cli."
         aws sso login
-        prompt "AWS SSO login was successful, press any key to continue..."
+        prompt "AWS SSO login was successful."
     fi
 
     # GITHUB_TOKEN is only necessary when releasing to edge.
@@ -71,28 +71,33 @@ setup () {
     # We only need to be logged in to github when releasing to edge.
     if [[ $ACTION == "release-to-edge" ]]; then
         if ! gh auth status >/dev/null 2>&1; then
-            prompt "You need to login to Github using the cli, press any key to continue..."
+            prompt "You need to login to Github using the cli."
             gh auth login
-            prompt "Github login was successful, press any key to continue..."
+            prompt "Github login was successful."
         fi
     fi
 
-    # These need to be exported for use by `fleetctl updates` commands.
-    FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_TARGETS_PASSPHRASE
-    FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_SNAPSHOT_PASSPHRASE
+    #
+    # Passphrases need to be exported for use by `fleetctl updates` commands.
+    #
+
+    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
+        FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TARGETS_PASSPHRASE
+        FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_SNAPSHOT_PASSPHRASE
+    fi
     FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
     export FLEET_TIMESTAMP_PASSPHRASE
 
-    go build -o "$GO_TOOLS_DIRECTORY/replace" "$SCRIPT_DIR/../../tools/tuf/replace" 
+    go build -o "$GO_TOOLS_DIRECTORY/replace" "$SCRIPT_DIR/../../tools/tuf/replace"
     go build -o "$GO_TOOLS_DIRECTORY/download-artifacts" "$SCRIPT_DIR/../../tools/tuf/download-artifacts"
 }
 
 pull_from_remote () {
     echo "Pulling repository from tuf.fleetctl.com... (--dryrun first)"
     aws s3 sync s3://fleet-tuf-repo "$REPOSITORY_DIRECTORY" --exact-timestamps --dryrun
-    prompt "If the --dryrun looks good, press any key to continue... (no output means nothing to update)"
+    prompt "Check if the above --dry-run looks good (no output means nothing to update)."
     aws s3 sync s3://fleet-tuf-repo "$REPOSITORY_DIRECTORY" --exact-timestamps
 }
 
@@ -101,24 +106,27 @@ promote_component_edge_to_stable () {
     component_version=$2
 
     IFS='.' read -r -a version_parts <<< "$component_version"
-    major=${version_parts[0]}  
-    minor=${version_parts[1]}  
+    major=${version_parts[0]}
+    minor=${version_parts[1]}
 
     pushd "$TUF_DIRECTORY"
     case $component_name in
         orbit)
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/macos/edge/orbit" --platform macos --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/linux/edge/orbit" --platform linux --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
+            fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/linux-arm64/edge/orbit" --platform linux-arm64 --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/windows/edge/orbit.exe" --platform windows --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             ;;
         desktop)
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/macos/edge/desktop.app.tar.gz" --platform macos --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/linux/edge/desktop.tar.gz" --platform linux --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
+            fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/linux-arm64/edge/desktop.tar.gz" --platform linux-arm64 --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/windows/edge/fleet-desktop.exe" --platform windows --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             ;;
         osqueryd)
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/macos-app/edge/osqueryd.app.tar.gz" --platform macos-app --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/linux/edge/osqueryd" --platform linux --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
+            fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/linux-arm64/edge/osqueryd" --platform linux-arm64 --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/windows/edge/osqueryd.exe" --platform windows --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             ;;
         *)
@@ -149,7 +157,7 @@ release_fleetd_to_edge () {
     BRANCH_NAME="release-fleetd-v$VERSION"
     ORBIT_TAG="orbit-v$VERSION"
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
-        prompt "A PR for bumping the fleetd version will be created to trigger a Github Action that will build 'Fleet Desktop'. Press any key to continue..."
+        prompt "A PR will be created to trigger a Github Action to build desktop."
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
         make changelog-orbit version="$VERSION"
@@ -158,10 +166,8 @@ release_fleetd_to_edge () {
         git add .github/workflows/generate-desktop-targets.yml "$ORBIT_CHANGELOG"
         git commit -m "Release fleetd $VERSION"
         git push origin "$BRANCH_NAME"
-        prompt "A PR will be created, press any key to continue..."
         gh pr create -f -B main -t "Release fleetd $VERSION"
-        prompt "Press any key to continue after the PR is created and you have made all the necessary edits to it..."
-        prompt "A 'git tag' will be created to trigger a Github Action to build orbit, press any key to continue..."
+        prompt "A 'git tag' will be created to trigger a Github Action to build orbit."
         git tag "$ORBIT_TAG"
         git push origin "$ORBIT_TAG"
         popd
@@ -183,16 +189,18 @@ release_fleetd_to_edge () {
     pushd "$TUF_DIRECTORY"
     fleetctl updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/macos/orbit" --platform macos --name orbit --version "$VERSION" -t edge
     fleetctl updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/linux/orbit" --platform linux --name orbit --version "$VERSION" -t edge
+    fleetctl updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/orbit" --platform linux-arm64 --name orbit --version "$VERSION" -t edge
     fleetctl updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/windows/orbit.exe" --platform windows --name orbit --version "$VERSION" -t edge
     fleetctl updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/macos/desktop.app.tar.gz" --platform macos --name desktop --version "$VERSION" -t edge
     fleetctl updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/linux/desktop.tar.gz" --platform linux --name desktop --version "$VERSION" -t edge
+    fleetctl updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/desktop.tar.gz" --platform linux-arm64 --name desktop --version "$VERSION" -t edge
     fleetctl updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/windows/fleet-desktop.exe" --platform windows --name desktop --version "$VERSION" -t edge
     popd
 }
 
 release_osqueryd_to_edge () {
     echo "Releasing osqueryd to edge..."
-    prompt "A branch and PR for bumping the osquery version will be created. Press any key to continue..."
+    prompt "A branch and PR for bumping the osquery version will be created."
     BRANCH_NAME=release-osqueryd-v$VERSION
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
         pushd "$GIT_REPOSITORY_DIRECTORY"
@@ -201,8 +209,8 @@ release_osqueryd_to_edge () {
         git add .github/workflows/generate-osqueryd-targets.yml
         git commit -m "Bump osqueryd version to $VERSION"
         git push origin "$BRANCH_NAME"
-        open "https://github.com/fleetdm/fleet/pull/new/$BRANCH_NAME"
-        prompt "Press any key to continue after the PR is created..."
+        prompt "A PR will be created to trigger a Github Action to build osqueryd."
+        gh pr create -f -B main -t "Release osqueryd $VERSION"
         popd
     fi
     OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/osqueryd"
@@ -216,6 +224,7 @@ release_osqueryd_to_edge () {
     pushd "$TUF_DIRECTORY"
     fleetctl updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/macos/osqueryd.app.tar.gz" --platform macos-app --name osqueryd --version "$VERSION" -t edge
     fleetctl updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/linux/osqueryd" --platform linux --name osqueryd --version "$VERSION" -t edge
+    fleetctl updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/osqueryd" --platform linux-arm64 --name osqueryd --version "$VERSION" -t edge
     fleetctl updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/windows/osqueryd.exe" --platform windows --name osqueryd --version "$VERSION" -t edge
     popd
 }
@@ -231,12 +240,18 @@ release_to_edge () {
     fi
 }
 
+update_timestamp () {
+    pushd "$TUF_DIRECTORY"
+    fleetctl updates timestamp
+    popd
+}
+
 push_to_remote () {
     echo "Running --dryrun push of repository to tuf.fleetctl.com..."
     aws s3 sync "$REPOSITORY_DIRECTORY" s3://fleet-tuf-repo --dryrun
     if [[ $PUSH_TO_REMOTE == "1" ]]; then
         echo "WARNING: This step will push the release to tuf.fleetctl.com (production)..."
-        prompt "If the --dryrun looks good, press any key to continue..."
+        prompt "Check if the above --dry-run looks good."
         aws s3 sync "$REPOSITORY_DIRECTORY" s3://fleet-tuf-repo
         echo "Release has been pushed!"
         echo "NOTE: You might see some clients failing to upgrade due to some sha256 mismatches."
@@ -248,7 +263,14 @@ push_to_remote () {
 
 prompt () {
     printf "%s\n" "$1"
-    read -r -s -n 1
+    printf "Type 'yes' to continue... "
+    while read -r word;
+    do
+        if [[ "$word" == "yes" ]]; then
+            printf "\n"
+            return
+        fi
+    done
 }
 
 setup_to_become_publisher () {
@@ -262,7 +284,7 @@ setup_to_become_publisher () {
     mkdir -p "$KEYS_DIRECTORY"
     if ! aws sts get-caller-identity &> /dev/null; then
         aws sso login
-        prompt "AWS SSO login was successful, press any key to continue..."
+        prompt "AWS SSO login was successful."
     fi
     # These need to be exported for use by `tuf` commands.
     FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
@@ -289,15 +311,15 @@ fi
 print_reminder () {
     if [[ $ACTION == "release-to-edge" ]]; then
         if [[ $COMPONENT == "fleetd" ]]; then
-            prompt "Make sure to install fleetd with '--orbit-channel=edge --desktop-channel=edge' on a Linux, Windows and macOS VM. (To smoke test the release.) Press any key to continue..."
+            prompt "Make sure to install fleetd with '--orbit-channel=edge --desktop-channel=edge' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         elif [[ $COMPONENT == "osqueryd" ]]; then
-            prompt "Make sure to install fleetd with '--osqueryd-channel=edge' on a Linux, Windows and macOS VM. (To smoke test the release.) Press any key to continue..."
+            prompt "Make sure to install fleetd with '--osqueryd-channel=edge' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         fi
     elif [[ $ACTION == "promote-edge-to-stable" ]]; then
         if [[ $COMPONENT == "fleetd" ]]; then
-            prompt "Make sure to install fleetd with '--orbit-channel=stable --desktop-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.) Press any key to continue..."
+            prompt "Make sure to install fleetd with '--orbit-channel=stable --desktop-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         elif [[ $COMPONENT == "osqueryd" ]]; then
-            prompt "Make sure to install fleetd with '--osqueryd-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.) Press any key to continue..."
+            prompt "Make sure to install fleetd with '--osqueryd-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         fi
     else
         echo "Unsupported action: $ACTION"
@@ -313,6 +335,8 @@ if [[ $ACTION == "release-to-edge" ]]; then
     release_to_edge
 elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     promote_edge_to_stable
+elif [[ $ACTION == "update-timestamp" ]]; then
+    update_timestamp
 else
     echo "Unsupported action: $ACTION"
     exit 1

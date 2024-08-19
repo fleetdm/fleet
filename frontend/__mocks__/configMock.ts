@@ -1,4 +1,57 @@
-import { IConfig } from "interfaces/config";
+import { IConfig, IMdmConfig } from "interfaces/config";
+
+const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
+  enable_disk_encryption: false,
+  windows_enabled_and_configured: true,
+  apple_bm_default_team: "Apples",
+  apple_bm_enabled_and_configured: true,
+  apple_bm_terms_expired: false,
+  enabled_and_configured: true,
+  macos_updates: {
+    minimum_version: "",
+    deadline: "",
+  },
+  ios_updates: {
+    minimum_version: "",
+    deadline: "",
+  },
+  ipados_updates: {
+    minimum_version: "",
+    deadline: "",
+  },
+  macos_settings: {
+    custom_settings: null,
+    enable_disk_encryption: false,
+  },
+  macos_setup: {
+    bootstrap_package: "",
+    enable_end_user_authentication: false,
+    macos_setup_assistant: null,
+    enable_release_device_manually: false,
+  },
+  macos_migration: {
+    enable: false,
+    mode: "",
+    webhook_url: "",
+  },
+  windows_updates: {
+    deadline_days: null,
+    grace_period_days: null,
+  },
+  end_user_authentication: {
+    entity_id: "",
+    issuer_uri: "",
+    metadata: "",
+    metadata_url: "",
+    idp_name: "",
+  },
+};
+
+export const createMockMdmConfig = (
+  overrides?: Partial<IMdmConfig>
+): IMdmConfig => {
+  return { ...DEFAULT_CONFIG_MDM_MOCK, ...overrides };
+};
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
   org_info: {
@@ -14,6 +67,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     deferred_save_host: false,
     query_reports_disabled: false,
     scripts_disabled: false,
+    ai_features_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -46,6 +100,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     host_expiry_enabled: false,
     host_expiry_window: 0,
   },
+  activity_expiry_settings: {
+    activity_expiry_enabled: true,
+    activity_expiry_window: 90,
+  },
   agent_options: "",
   license: {
     tier: "free",
@@ -71,6 +129,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       enable_vulnerabilities_webhook: true,
       destination_url: "https://server.com",
       host_batch_size: 1000,
+    },
+    activities_webhook: {
+      enable_activities_webhook: true,
+      destination_url: "https://server.com",
     },
   },
   integrations: {
@@ -127,44 +189,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_software_inventory: true,
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
-  mdm: {
-    enable_disk_encryption: false,
-    windows_enabled_and_configured: true,
-    apple_bm_default_team: "Apples",
-    apple_bm_enabled_and_configured: true,
-    apple_bm_terms_expired: false,
-    enabled_and_configured: true,
-    macos_updates: {
-      minimum_version: "",
-      deadline: "",
-    },
-    macos_settings: {
-      custom_settings: null,
-      enable_disk_encryption: false,
-    },
-    macos_setup: {
-      bootstrap_package: "",
-      enable_end_user_authentication: false,
-      macos_setup_assistant: null,
-      enable_release_device_manually: false,
-    },
-    macos_migration: {
-      enable: false,
-      mode: "",
-      webhook_url: "",
-    },
-    windows_updates: {
-      deadline_days: null,
-      grace_period_days: null,
-    },
-    end_user_authentication: {
-      entity_id: "",
-      issuer_uri: "",
-      metadata: "",
-      metadata_url: "",
-      idp_name: "",
-    },
-  },
+  mdm: createMockMdmConfig(),
 };
 
 const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

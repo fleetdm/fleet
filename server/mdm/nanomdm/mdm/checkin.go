@@ -29,6 +29,13 @@ type Authenticate struct {
 	Model      string
 	ModelName  string
 
+	// ProductName contains the device's product name (e.g. `iPhone3,1`).
+	//
+	// iPhones and iPads send ProductName but not Model/ModelName,
+	// thus we use this field as the device's Model (which is required
+	// on lifecycle stages).
+	ProductName string
+
 	// Fields that may be present but are not strictly required for the
 	// operation of the MDM protocol. Nice-to-haves.
 	SerialNumber string

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -17,14 +16,18 @@ import (
 
 func setup(t *testing.T) (*mock.Store, *Service) {
 	ds := new(mock.Store)
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert:   {Value: []byte(testCert)},
+			fleet.MDMAssetCAKey:    {Value: []byte(testKey)},
+			fleet.MDMAssetAPNSKey:  {Value: []byte(testKey)},
+			fleet.MDMAssetAPNSCert: {Value: []byte(testCert)},
+		}, nil
+	}
+
 	svc := &Service{
 		ds: ds,
-		config: config.FleetConfig{
-			MDM: config.MDMConfig{
-				AppleSCEPCertBytes: testCert,
-				AppleSCEPKeyBytes:  testKey,
-			},
-		},
 	}
 	return ds, svc
 }
@@ -34,7 +37,10 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 
 	t.Run("fails if SCEP is not configured", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc := &Service{ds: ds, config: config.FleetConfig{}}
+		svc := &Service{ds: ds}
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return nil, nil
+		}
 		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
 		require.Error(t, err)
 	})

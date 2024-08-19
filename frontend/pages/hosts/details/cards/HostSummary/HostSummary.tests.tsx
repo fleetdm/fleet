@@ -8,7 +8,32 @@ import { createMockHostSummary } from "__mocks__/hostMock";
 
 import HostSummary from "./HostSummary";
 
-describe("Host Actions Dropdown", () => {
+describe("Host Summary section", () => {
+  describe("Issues data", () => {
+    it("omit issues header if no issues", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({});
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          showRefetchSpinner={false}
+          onRefetchHost={noop}
+          renderActionDropdown={() => null}
+        />
+      );
+
+      expect(screen.queryByText("Issues")).not.toBeInTheDocument();
+    });
+  });
   describe("Agent data", () => {
     it("with all info present, render Agent header with orbit_version and tooltip with all 3 data points", async () => {
       const render = createCustomRenderer({
@@ -30,7 +55,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 
@@ -70,7 +95,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 
@@ -105,7 +130,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 
@@ -113,7 +138,9 @@ describe("Host Actions Dropdown", () => {
       await user.hover(screen.getByText(new RegExp(fleetdChromeVersion, "i")));
       expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
     });
-    it("for non-Chromebooks with no orbit_version, render Osquery header with osquery_version and no tooltip", async () => {
+  });
+  describe("iOS and iPadOS data", () => {
+    it("for iOS, renders Team, Disk space, and Operating system data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -123,25 +150,127 @@ describe("Host Actions Dropdown", () => {
           },
         },
       });
+
       const summaryData = createMockHostSummary({
-        orbit_version: null,
+        team_id: 2,
+        team_name: "Mobile",
+        platform: "ios",
+        os_version: "iOS 14.7.1",
       });
 
-      const osqueryVersion = summaryData.osquery_version as string;
+      const teamName = summaryData.team_name as string;
+      const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
+      const osVersion = summaryData.os_version as string;
 
-      const { user } = render(
+      render(
         <HostSummary
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
+          isPremiumTier
         />
       );
 
-      expect(screen.getByText("Osquery")).toBeInTheDocument();
-      await user.hover(screen.getByText(new RegExp(osqueryVersion, "i")));
-      expect(screen.queryByText(/Orbit/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/Fleet desktop/i)).not.toBeInTheDocument();
+      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
+        teamName
+      );
+      expect(
+        screen.getByText("Disk space").nextElementSibling
+      ).toHaveTextContent(`${diskSpaceAvailable} GB available`);
+      expect(
+        screen.getByText("Operating system").nextElementSibling
+      ).toHaveTextContent(osVersion);
+      expect(screen.queryByText("Refetch")).toBeInTheDocument();
+
+      expect(screen.queryByText("Status")).not.toBeInTheDocument();
+      expect(screen.queryByText("Memory")).not.toBeInTheDocument();
+      expect(screen.queryByText("Processor type")).not.toBeInTheDocument();
+      expect(screen.queryByText("Agent")).not.toBeInTheDocument();
+      expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
+    });
+    it("for iPadOS, renders Team, Disk space, and Operating system data only", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        team_id: 2,
+        team_name: "Mobile",
+        platform: "ipados",
+        os_version: "iPadOS 16.7.8",
+      });
+
+      const teamName = summaryData.team_name as string;
+      const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
+      const osVersion = summaryData.os_version as string;
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          showRefetchSpinner={false}
+          onRefetchHost={noop}
+          renderActionDropdown={() => null}
+          isPremiumTier
+        />
+      );
+
+      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
+        teamName
+      );
+      expect(
+        screen.getByText("Disk space").nextElementSibling
+      ).toHaveTextContent(`${diskSpaceAvailable} GB available`);
+      expect(
+        screen.getByText("Operating system").nextElementSibling
+      ).toHaveTextContent(osVersion);
+      expect(screen.queryByText("Refetch")).toBeInTheDocument();
+
+      expect(screen.queryByText("Status")).not.toBeInTheDocument();
+      expect(screen.queryByText("Memory")).not.toBeInTheDocument();
+      expect(screen.queryByText("Processor type")).not.toBeInTheDocument();
+      expect(screen.queryByText("Agent")).not.toBeInTheDocument();
+      expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
+    });
+  });
+  describe("Maintenance window data", () => {
+    it("renders maintenance window data with timezone", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        maintenance_window: {
+          starts_at: "3025-06-24T20:48:14-03:00",
+          timezone: "America/Argentina/Buenos_Aires",
+        },
+      });
+      const prettyStartTime = /Jun 24 at 8:48 PM/;
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          showRefetchSpinner={false}
+          onRefetchHost={noop}
+          renderActionDropdown={() => null}
+          isPremiumTier
+        />
+      );
+
+      expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
+      expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
     });
   });
 });

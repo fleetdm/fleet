@@ -1,4 +1,4 @@
-name: "Explore data (fleetdm.com) [DO NOT DELETE]"
+name: "Explore data (fleetdm.com)"
 team_settings:
   features:
     enable_host_users: true
@@ -41,3 +41,4 @@ controls:
 policies:
 queries:
   - path: ../lib/explore-data.queries.yml
+software:

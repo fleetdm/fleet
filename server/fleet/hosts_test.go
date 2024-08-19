@@ -130,6 +130,10 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "tuxedo",
+			expPlatform: "linux",
+		},
+		{
 			host:        "darwin",
 			expPlatform: "darwin",
 		},
@@ -210,108 +214,6 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 	}
 }
 
-func TestIsEnrolledInThirdPartyMDM(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMSimpleMDM},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMSimpleMDM},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsEnrolledInThirdPartyMDM())
-	}
-}
-
-func TestIsDEPCapable(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: true},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: true},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: false},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: false},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
-	}
-}
-
-func TestIsEligibleForBitLockerEncryption(t *testing.T) {
-	require.False(t, (&Host{}).IsEligibleForBitLockerEncryption())
-
-	hostThatNeedsEnforcement := Host{
-		Platform:      "windows",
-		OsqueryHostID: ptr.String("test"),
-		MDMInfo: &HostMDM{
-			Name:             WellKnownMDMFleet,
-			Enrolled:         true,
-			IsServer:         false,
-			InstalledFromDep: true,
-		},
-		MDM: MDMHostData{
-			EncryptionKeyAvailable: false,
-		},
-		DiskEncryptionEnabled: ptr.Bool(false),
-	}
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-
-	// macOS hosts are not elegible
-	hostThatNeedsEnforcement.Platform = "darwin"
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.Platform = "windows"
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-
-	// hosts with disk encryption already enabled are elegible only if we
-	// can't decrypt the key
-	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(true)
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = true
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-
-	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(false)
-	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = false
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-
-	// hosts without MDMinfo are not elegible
-	oldMDMInfo := hostThatNeedsEnforcement.MDMInfo
-	hostThatNeedsEnforcement.MDMInfo = nil
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo = oldMDMInfo
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-
-	// hosts that are not enrolled in MDM are not elegible
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = false
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-}
-
 func TestIsEligibleForDEPMigration(t *testing.T) {
 	testCases := []struct {
 		name                    string
@@ -320,6 +222,8 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 		depProfileResponse      DEPAssignProfileResponseStatus
 		enrolledInThirdPartyMDM bool
 		expected                bool
+		expectedManual          bool
+		hostOS                  string
 	}{
 		{
 			name:                    "Eligible for DEP migration",
@@ -328,6 +232,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: true,
 			expected:                true,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - osqueryHostID nil",
@@ -336,6 +241,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - not DEP assigned to Fleet",
@@ -344,6 +250,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - not enrolled in third-party MDM",
@@ -352,6 +259,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: false,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - not DEP assigned and DEP profile failed",
@@ -360,6 +268,8 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          true,
+			hostOS:                  "macOS 14.5",
 		},
 		{
 			name:                    "Not eligible - DEP assigned and DEP profile failed",
@@ -368,6 +278,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseFailed,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - DEP assigned but not response yet",
@@ -376,6 +287,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      "",
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - DEP assigned but not accessible",
@@ -384,6 +296,27 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
+		},
+		{
+			name:                    "Manual migration eligible - enrolled in 3rd party, but not DEP",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      "",
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+			expectedManual:          true,
+			hostOS:                  "macOS 14.5",
+		},
+		{
+			name:                    "Manual migration ineligible - enrolled in 3rd party, not DEP, but OS version too low",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      "",
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+			expectedManual:          false,
+			hostOS:                  "macOS 13.9",
 		},
 	}
 
@@ -392,14 +325,19 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			host := &Host{
 				OsqueryHostID:      tc.osqueryHostID,
 				DEPAssignedToFleet: tc.depAssignedToFleet,
-				MDMInfo: &HostMDM{
-					Enrolled:               tc.enrolledInThirdPartyMDM,
-					Name:                   "Some MDM",
-					DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
-				},
+				OSVersion:          tc.hostOS,
 			}
 
-			require.Equal(t, tc.expected, host.IsEligibleForDEPMigration())
+			mdmInfo := &HostMDM{
+				Enrolled:               tc.enrolledInThirdPartyMDM,
+				Name:                   "Some MDM",
+				DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
+			}
+
+			require.Equal(t, tc.expected, IsEligibleForDEPMigration(host, mdmInfo, false))
+			manual, err := IsEligibleForManualMigration(host, mdmInfo, false)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedManual, manual)
 		})
 	}
 }

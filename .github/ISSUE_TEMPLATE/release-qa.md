@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
-assignees: 'xpkoala,sabrinabuckets'
+assignees: 'xpkoala,pezhub'
 
 ---
 
@@ -94,9 +94,17 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 <tr><td>MDM enrollment flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
   
-1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
+1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
 2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
 3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+</td><td>pass/fail</td></tr>
+
+<tr><td>MDM migration flow</td><td>Verify MDM migration for ADE and non-ADE hosts</td><td>
+  
+1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
+2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
+3. Turn off MDM on a non ADE-eligible macOS host.
+4. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 </td><td>pass/fail</td></tr>
 
 <tr><td>Scripts</td><td>Verify script library and execution</td><td>
@@ -110,6 +118,15 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 7. Verify scripts display correctly in Activity feed.
 </td><td>pass/fail</td></tr>
 
+<tr><td>Software</td><td>Verify software library and install / download</td><td>
+
+1. Verify software library upload/download/delete.
+2. From Host details (Windows and macOS) run an install that should PASS, verify.
+3. From My Device (Windows and macOS) software tab should have self-service items available, verify.
+4. Verify UI loading state and statuses for installing software.
+6. Verify software installs display correctly in Activity feed.
+</td><td>pass/fail</td></tr>
+
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
 1. Verify able to configure Disk encryption.
@@ -121,9 +138,9 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 <tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
 
 1. Configure End user authentication.
-2. Upload a Boostrap package.
+2. Upload a Bootstrap package.
 3. Enroll an ADE-eligible macOS host and verify successful authentication.
-4. Verify Boostrap package is delivered.
+4. Verify Bootstrap package is delivered.
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
@@ -132,16 +149,19 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Verify on-device that Nudge prompt appears (macOS). 
 </td><td>pass/fail</td></tr>
 
+
+<tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
+
+1. Renew APNs Certificate.
+2. Renew ABM Token.
+3. Ensure ADE host can enroll.
+</td><td>pass/fail</td></tr>
+
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
 
 Using the migration scripts located in fleet/test/upgrade/
 1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
 2. Upgrade test returns an 'OK' response.
-</td><td>pass/fail</td></tr>
-
-<tr><td>Migration Test with Percona XtraDB MySQL Server</td><td>Verify Fleet can migrate to the next version without issues when using a specific version of Percona XtraDB Server.</td><td>
-
-Run the instructions in [tools/percona/test/README.md](../../tools/percona/test/README.md)
 </td><td>pass/fail</td></tr>
   
 <tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>

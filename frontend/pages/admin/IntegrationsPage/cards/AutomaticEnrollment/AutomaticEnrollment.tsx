@@ -13,9 +13,10 @@ import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import Button from "components/buttons/Button/Button";
-import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection/AppleBusinessManagerSection";
-import IdpSection from "./components/IdpSection/IdpSection";
 
+import MdmPlatformsSection from "./components/MdmPlatformsSection/MdmPlatformsSection";
+import DefaultTeamSection from "./components/DefaultTeamSection/DefaultTeamSection";
+import IdpSection from "./components/IdpSection/IdpSection";
 import EulaSection from "./components/EulaSection/EulaSection";
 
 const baseClass = "automatic-enrollment";
@@ -27,7 +28,7 @@ interface IAutomaticEnrollment {
 const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
-  const { isLoading: isLoadingMdmApple, error: errorMdmApple } = useQuery<
+  const { isLoading: isLoadingAPNInfo, error: errorAPNInfo } = useQuery<
     IMdmApple,
     AxiosError
   >(["appleAPNInfo"], () => mdmAppleAPI.getAppleAPNInfo(), {
@@ -42,7 +43,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
 
   if (!isPremiumTier) return <PremiumFeatureMessage />;
 
-  if (isLoadingMdmApple) {
+  if (isLoadingAPNInfo) {
     return (
       <div className={baseClass}>
         <Spinner />
@@ -50,7 +51,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
     );
   }
 
-  if (errorMdmApple?.status === 404) {
+  if (errorAPNInfo?.status === 404) {
     return (
       <EmptyTable
         header="Automatic enrollment for macOS hosts"
@@ -61,15 +62,20 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
     );
   }
 
-  if (errorMdmApple) {
+  if (errorAPNInfo) {
     return <DataError />;
   }
 
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <AppleBusinessManagerSection router={router} />
+        <MdmPlatformsSection router={router} />
       </div>
+      {!!config?.mdm.apple_bm_enabled_and_configured && (
+        <div className={`${baseClass}__section`}>
+          <DefaultTeamSection />
+        </div>
+      )}
       <div className={`${baseClass}__section`}>
         <IdpSection />
       </div>

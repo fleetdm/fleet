@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,6 +59,49 @@ func TestScriptValidate(t *testing.T) {
 	}
 }
 
+func TestValidateShebang(t *testing.T) {
+	tests := []struct {
+		name          string
+		contents      string
+		directExecute bool
+		err           error
+	}{
+		{
+			name:          "no shebang",
+			contents:      "echo hi",
+			directExecute: false,
+		},
+		{
+			name:          "posix shebang",
+			contents:      "#!/bin/sh\necho hi",
+			directExecute: true,
+		},
+		{
+			name:          "zsh shebang",
+			contents:      "#!/bin/zsh\necho hi",
+			directExecute: true,
+		},
+		{
+			name:          "zsh shebang with args",
+			contents:      "#!/bin/zsh -x\necho hi",
+			directExecute: true,
+		},
+		{
+			name:          "shebang with unsupported interpreter",
+			contents:      "#!/usr/bin/python\nprint('hi')",
+			directExecute: false,
+			err:           ErrUnsupportedInterpreter,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			directExecute, err := ValidateShebang(tc.contents)
+			require.Equal(t, tc.directExecute, directExecute)
+			require.ErrorIs(t, tc.err, err)
+		})
+	}
+}
+
 func TestValidateHostScriptContents(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -100,11 +144,21 @@ func TestValidateHostScriptContents(t *testing.T) {
 		{
 			name:    "unsupported interpreter",
 			script:  "#!/bin/bash\necho 'hello'",
-			wantErr: errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`),
+			wantErr: ErrUnsupportedInterpreter,
 		},
 		{
 			name:    "valid script",
 			script:  "#!/bin/sh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid zsh script",
+			script:  "#!/bin/zsh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid zsh script",
+			script:  "#!/usr/bin/zsh\necho 'hello'",
 			wantErr: nil,
 		},
 	}
@@ -173,4 +227,47 @@ func TestHostTimeout(t *testing.T) {
 			require.Equal(t, tt.expectedResult, result)
 		})
 	}
+}
+
+func TestUserMessage(t *testing.T) {
+	hsr := HostScriptResult{}
+
+	// host timeout true
+	m := hsr.UserMessage(true, ptr.Int(0))
+	require.Equal(t, RunScriptHostTimeoutErrMsg, m)
+
+	// nil exit code with timeout
+	hsr.SyncRequest = true
+	hsr.CreatedAt = time.Now().Add(-10 * time.Minute)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptHostTimeoutErrMsg, m)
+
+	// nil exit code without timeout
+	hsr.SyncRequest = true
+	hsr.CreatedAt = time.Now().Add(-3 * time.Minute)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptAlreadyRunningErrMsg, m)
+
+	// exit code set, sync request false
+	hsr.SyncRequest = false
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptAsyncScriptEnqueuedMsg, m)
+
+	// use default timeout value in err if 0
+	hsr.ExitCode = ptr.Int64(-1)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, "Timeout. Fleet stopped the script after 300 seconds to protect host performance.", m)
+
+	// use default timeout value in err if nil
+	m = hsr.UserMessage(false, nil)
+	require.Equal(t, "Timeout. Fleet stopped the script after 300 seconds to protect host performance.", m)
+
+	// use provided timeout value in err
+	m = hsr.UserMessage(false, ptr.Int(30))
+	require.Equal(t, "Timeout. Fleet stopped the script after 30 seconds to protect host performance.", m)
+
+	// run script disabled error
+	hsr.ExitCode = ptr.Int64(-2)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptDisabledErrMsg, m)
 }

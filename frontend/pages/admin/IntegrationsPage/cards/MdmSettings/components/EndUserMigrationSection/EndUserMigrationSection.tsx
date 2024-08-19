@@ -2,10 +2,16 @@ import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
 
+import isURL from "validator/lib/isURL";
+
 import PATHS from "router/paths";
-import configAPI from "services/entities/config";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+
+import { getErrorReason } from "interfaces/errors";
+
+import configAPI from "services/entities/config";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -13,7 +19,6 @@ import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
-import validateUrl from "components/forms/validators/valid_url";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
 
@@ -39,7 +44,11 @@ interface IEndUserMigrationSectionProps {
 }
 
 const validateWebhookUrl = (val: string) => {
-  return validateUrl({ url: val });
+  return isURL(val, {
+    protocols: ["http", "https"],
+    require_protocol: true,
+    require_valid_protocol: true,
+  });
 };
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
@@ -82,6 +91,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
 
   const onChangeWebhookUrl = (webhookUrl: string) => {
     setFormData((prevFormData) => ({ ...prevFormData, webhookUrl }));
+    setIsValidWebhookUrl(validateWebhookUrl(webhookUrl));
   };
 
   const onSubmit = async (e: React.FormEvent<SubmitEvent>) => {
@@ -105,6 +115,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       renderFlash("success", "Successfully updated end user migration!");
       setConfig(updatedConfig);
     } catch (err) {
+      if (
+        getErrorReason(err, {
+          nameEquals: "macos_migration.webhook_url",
+        })
+      ) {
+        setIsValidWebhookUrl(false);
+        return;
+      }
       renderFlash("error", "Could not update. Please try again.");
     }
   };
@@ -194,7 +212,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             page.
           </p>
           <InputField
-            disabled={!formData.isEnabled}
+            readOnly={!formData.isEnabled}
             name="webhook_url"
             label="Webhook URL"
             value={formData.webhookUrl}

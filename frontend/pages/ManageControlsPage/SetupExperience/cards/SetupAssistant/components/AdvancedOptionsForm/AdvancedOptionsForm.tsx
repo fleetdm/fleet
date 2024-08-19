@@ -46,8 +46,8 @@ const AdvancedOptionsForm = ({
       <RevealButton
         className={`${baseClass}__accordion-title`}
         isShowing={showAdvancedOptions}
-        showText="Hide advanced options"
-        hideText="Show advanced options"
+        showText="Show advanced options"
+        hideText="Hide advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
       />

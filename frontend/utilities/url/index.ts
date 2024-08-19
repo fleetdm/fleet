@@ -1,4 +1,4 @@
-import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
+import { isEmpty, reduce, omitBy, Dictionary, snakeCase } from "lodash";
 
 import {
   DiskEncryptionStatus,
@@ -9,6 +9,7 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
+import { isValidSoftwareInstallStatus } from "interfaces/software";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -23,6 +24,7 @@ interface IMutuallyInclusiveHostParams {
 }
 
 interface IMutuallyExclusiveHostParams {
+  teamId?: number;
   label?: string;
   policyId?: number;
   policyResponse?: string;
@@ -33,6 +35,7 @@ interface IMutuallyExclusiveHostParams {
   softwareId?: number;
   softwareVersionId?: number;
   softwareTitleId?: number;
+  softwareStatus?: string;
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
@@ -77,6 +80,48 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
   return queryString;
 };
 
+export const reconcileSoftwareParams = ({
+  teamId,
+  softwareId,
+  softwareVersionId,
+  softwareTitleId,
+  softwareStatus,
+}: Pick<
+  IMutuallyExclusiveHostParams,
+  | "teamId"
+  | "softwareId"
+  | "softwareVersionId"
+  | "softwareTitleId"
+  | "softwareStatus"
+>) => {
+  if (
+    isValidSoftwareInstallStatus(softwareStatus) &&
+    softwareTitleId &&
+    teamId &&
+    teamId > 0
+  ) {
+    return {
+      software_title_id: softwareTitleId,
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
+      team_id: teamId,
+    };
+  }
+
+  if (softwareTitleId) {
+    return { software_title_id: softwareTitleId };
+  }
+
+  if (softwareVersionId) {
+    return { software_version_id: softwareVersionId };
+  }
+
+  if (softwareId) {
+    return { software_id: softwareId };
+  }
+
+  return {};
+};
+
 export const reconcileMutuallyInclusiveHostParams = ({
   label,
   teamId,
@@ -102,9 +147,12 @@ export const reconcileMutuallyInclusiveHostParams = ({
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
     reconciled.team_id = teamId ?? 0;
   }
+
   return reconciled;
 };
+
 export const reconcileMutuallyExclusiveHostParams = ({
+  teamId,
   label,
   policyId,
   policyResponse,
@@ -115,6 +163,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   softwareId,
   softwareVersionId,
   softwareTitleId,
+  softwareStatus,
   osVersionId,
   osName,
   osVersion,
@@ -147,8 +196,17 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
-    case !!softwareTitleId:
-      return { software_title_id: softwareTitleId };
+    case !!softwareStatus ||
+      !!softwareTitleId ||
+      !!softwareVersionId ||
+      !!softwareId:
+      return reconcileSoftwareParams({
+        teamId,
+        softwareId,
+        softwareVersionId,
+        softwareTitleId,
+        softwareStatus,
+      });
     case !!softwareVersionId:
       return { software_version_id: softwareVersionId };
     case !!softwareId:
@@ -191,4 +249,23 @@ export const getLabelParam = (selectedLabels?: string[]) => {
   if (label === undefined) return undefined;
 
   return label.slice(7);
+};
+
+type QueryParamish<T> = keyof T extends string
+  ? {
+      [K in keyof T]: QueryValues;
+    }
+  : never;
+
+export const convertParamsToSnakeCase = <T extends QueryParamish<T>>(
+  params: T
+) => {
+  return reduce<typeof params, QueryParams>(
+    params,
+    (result, val, key) => {
+      result[snakeCase(key)] = val;
+      return result;
+    },
+    {}
+  );
 };

@@ -245,7 +245,6 @@
       padding-right: 7px;
     }
     a:not(.markdown-link):not([purpose='evented-table-label']) {
-      white-space: nowrap;
       &:after {
         background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
         background-size: 7px 7px;
@@ -291,12 +290,11 @@
         }
         .hljs-string { // For words wrapped in quotation marks
           color: #3DB67B;
-          white-space: pre;
         }
         background-color: @ui-off-white;
         border: none;
         word-break: break-word;
-        white-space: normal;
+        text-wrap: wrap;
         padding: 0;
         font-size: 13px;
         line-height: 24px;

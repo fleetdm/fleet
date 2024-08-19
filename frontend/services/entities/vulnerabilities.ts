@@ -33,11 +33,12 @@ export interface IGetVulnerabilityQueryKey extends IGetVulnerabilityOptions {
 export interface IVulnerabilitiesResponse {
   count: number;
   counts_updated_at: string;
-  vulnerabilities: IVulnerability[];
+  vulnerabilities: IVulnerability[] | null; // API can return null
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  known_vulnerability?: boolean;
 }
 
 export interface IVulnerabilityResponse {
@@ -78,7 +79,9 @@ const getVulnerability = ({
   teamId,
 }: IGetVulnerabilityOptions): Promise<IVulnerabilityResponse> => {
   const endpoint = endpoints.VULNERABILITY(vulnerability);
-  const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+  const queryString = buildQueryStringFromParams({ team_id: teamId });
+  const path =
+    typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 
   return sendRequest("GET", path);
 };

@@ -1,27 +1,26 @@
-<div purpose="calendar-section">
-  <div purpose="calendar-card" class="d-flex flex-md-row flex-column align-items-center">
-    <div purpose="calendar-card-body" class="d-flex flex-column align-items-md-start align-items-center">
-      <div purpose="coming-soon-badge">Coming soon</div>
-      <% if(!primaryBuyingSituation) {%>
-      <h3>Stop nudging</h3>
-      <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
-      <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-        <h3>Put IT in your calendar</h3>
-        <p>Install updates and force restarts when your users’ computers are actually free.</p>
-      <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
-        <h3>Tell employees why</h3>
-        <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
-      <%}%>
-      <% if(me && me.primaryBuyingSituation) {%>
-      <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm#primarybuyingsituation=<%= encodeURIComponent(me.primaryBuyingSituation) %>" target="_blank">Let me know</a>
-      <% } else if(primaryBuyingSituation) {%>
-      <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm#primarybuyingsituation=<%= encodeURIComponent(primaryBuyingSituation) %>" target="_blank">Let me know</a>
-      <% } else {%>
-      <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm" target="_blank">Let me know</a>
-      <% } %>
+<div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
+  <div purpose="calendar-feature-text" class="d-flex flex-column">
+  <div purpose="new-badge">NEW</div>
+  <% if(!primaryBuyingSituation) {%>
+    <h3>"This is a terrible time to mess with my computer."</h3>
+    <p>Install updates and force restarts when your users’ computers are actually free.</p>
+  <%} else if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) {%>
+    <h3>Patch your C-suite with confidence</h3>
+    <p>Install updates and force restarts when your users’ computers are actually free.</p>
+  <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
+    <h3>Tell me when and why</h3>
+    <p>Automatically explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
+  <%} %>
+    <% if (primaryBuyingSituation && !['eo-security'].includes(primaryBuyingSituation)) { %><div purpose="calendar-checklist" class="flex-column d-flex">
+      <p>Say goodbye to annoying IT notifications and restarts.</p>
+      <p>Automatically explain why your security policies matter.</p>
+      <p>Stop making exceptions for executives when OS updates lock them out of important meetings.</p>
+    </div><% } %>
+    <div purpose="video-button" class="d-flex flex-row align-items-center" @click="clickOpenVideoModal('calendar')">
+      <img src="/images/icon-play-video-32x32@2x.png" alt="play button">Watch the video
     </div>
-    <div  purpose="calendar-image">
-      <img alt="Fleet in your calendar" src="/images/calendar-graphic-703x420@2x.png">
-    </div>
+  </div>
+  <div purpose="feature-video">
+    <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
   </div>
 </div>

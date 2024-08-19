@@ -1,5 +1,5 @@
 name: event_taps
-examples: >-
+examples: |-
   Identify processes that have a tap into the system, such as access to
   keystrokes, and view details on the executable including signature status,
   team identifier if signed and the authority that emitted the signing
@@ -7,7 +7,5 @@ examples: >-
   applications.
 
   ```
-
   SELECT t.event_tapped, s.identifier, s.signed, s.team_identifier, s.authority FROM event_taps t JOIN processes p ON p.pid = t.tapping_process JOIN signature s on s.path = p.path WHERE s.identifier !='com.apple.ViewBridgeAuxiliary' AND s.identifier !='com.apple.universalaccessd' AND s.identifier !='com.apple.accessibility.AXVisualSupportAgent';
-
   ```

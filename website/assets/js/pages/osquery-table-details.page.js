@@ -90,11 +90,14 @@ parasails.registerPage('osquery-table-details', {
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
         window.hljs.highlightElement(block);
-      });
-      // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
-      $('.hljs-keyword').each((i, el)=>{
-        for(i in el.innerText.match(/select|where|from|join/gi)) {
-          $(el).attr({'purpose':'line-break'});
+        // If this example is a single-line, we'll do some basic formatting to make it more human-readable.
+        if(!$(block)[0].innerText.match(/\n/gmi)){
+          // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
+          $('.hljs-keyword').each((i, el)=>{
+            for(i in el.innerText.match(/select|where|from|join/gi)) {
+              $(el).attr({'purpose':'line-break'});
+            }
+          });
         }
       });
     })();

@@ -1,16 +1,14 @@
 name: macadmins_unified_log
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.
 
   ```
-  
   SELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = "1m";
-  
   ```
 columns:
   - name: trace_id

@@ -424,6 +424,27 @@ func (n *nodeKeyManager) Add(nodekey string) {
 	}
 }
 
+type mdmAgent struct {
+	agentIndex         int
+	MDMCheckInInterval time.Duration
+	model              string
+	serverAddress      string
+	softwareCount      softwareEntityCount
+	stats              *Stats
+	strings            map[string]string
+}
+
+// stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
+
+func (a *mdmAgent) CachedString(key string) string {
+	if val, ok := a.strings[key]; ok {
+		return val
+	}
+	val := randomString(12)
+	a.strings[key] = val
+	return val
+}
+
 type agent struct {
 	agentIndex                    int
 	softwareCount                 softwareEntityCount
@@ -476,6 +497,7 @@ type agent struct {
 	EnrollSecret          string
 	UUID                  string
 	SerialNumber          string
+	defaultSerialProb     float64
 	ConfigInterval        time.Duration
 	LogInterval           time.Duration
 	QueryInterval         time.Duration
@@ -491,6 +513,13 @@ type agent struct {
 	// increase indefinitely (we sacrifice accuracy of logs but that's
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
+}
+
+func (a *agent) GetSerialNumber() string {
+	if rand.Float64() <= a.defaultSerialProb {
+		return "-1"
+	}
+	return a.SerialNumber
 }
 
 type entityCount struct {
@@ -530,6 +559,7 @@ func newAgent(
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
 	emptySerialProb float64,
+	defaultSerialProb float64,
 	mdmProb float64,
 	mdmSCEPChallenge string,
 	liveQueryFailProb float64,
@@ -567,7 +597,7 @@ func newAgent(
 				SCEPChallenge: mdmSCEPChallenge,
 				SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 				MDMURL:        serverAddress + apple_mdm.MDMPath,
-			})
+			}, "MacBookPro16,1")
 			// Have the osquery agent match the MDM device serial number and UUID.
 			serialNumber = macMDMClient.SerialNumber
 			hostUUID = macMDMClient.UUID
@@ -608,6 +638,7 @@ func newAgent(
 		MDMCheckInInterval:            mdmCheckInInterval,
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
+		defaultSerialProb:             defaultSerialProb,
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
@@ -1443,7 +1474,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 		commonSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Common_%d.app", i),
 			"version":           "0.0.1",
-			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%s_%d", a.CachedString("hostname"), i),
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
 			"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
@@ -1498,6 +1529,53 @@ func (a *agent) softwareMacOS() []map[string]string {
 		software[i], software[j] = software[j], software[i]
 	})
 	return software
+}
+
+func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
+	commonSoftware := make([]map[string]string, a.softwareCount.common)
+	for i := 0; i < len(commonSoftware); i++ {
+		commonSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Common_%d", i),
+			"version":           "0.0.1",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
+			"source":            source,
+		}
+	}
+	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonSoftware), func(i, j int) {
+			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
+		})
+		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
+	}
+	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
+	for i := 0; i < len(uniqueSoftware); i++ {
+		uniqueSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           "1.1.1",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
+			"source":            source,
+		}
+	}
+	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniqueSoftware), func(i, j int) {
+			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
+		})
+		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
+	}
+	software := append(commonSoftware, uniqueSoftware...)
+	rand.Shuffle(len(software), func(i, j int) {
+		software[i], software[j] = software[j], software[i]
+	})
+	fleetSoftware := make([]fleet.Software, len(software))
+	for i, s := range software {
+		fleetSoftware[i] = fleet.Software{
+			Name:             s["name"],
+			Version:          s["version"],
+			BundleIdentifier: s["bundle_identifier"],
+			Source:           s["source"],
+		}
+	}
+	return fleetSoftware
 }
 
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
@@ -2150,6 +2228,63 @@ func (a *agent) submitLogs(results []resultLog) error {
 	return nil
 }
 
+func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
+	udid := mdmtest.RandUDID()
+
+	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: mdmSCEPChallenge,
+		SCEPURL:       a.serverAddress + apple_mdm.SCEPPath,
+		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
+	}, a.model)
+	mdmClient.UUID = udid
+	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
+	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
+	productName := a.model
+	softwareSource := "ios_apps"
+	if strings.HasPrefix(a.model, "iPad") {
+		softwareSource = "ipados_apps"
+	}
+
+	if err := mdmClient.Enroll(); err != nil {
+		log.Printf("%s MDM enroll failed: %s", a.model, err)
+		a.stats.IncrementMDMErrors()
+		return
+	}
+
+	a.stats.IncrementMDMEnrollments()
+
+	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+
+	for range mdmCheckInTicker {
+		mdmCommandPayload, err := mdmClient.Idle()
+		if err != nil {
+			log.Printf("MDM Idle request failed: %s: %s", a.model, err)
+			a.stats.IncrementMDMErrors()
+			continue
+		}
+		a.stats.IncrementMDMSessions()
+
+		for mdmCommandPayload != nil {
+			a.stats.IncrementMDMCommandsReceived()
+			switch mdmCommandPayload.Command.RequestType {
+			case "DeviceInformation":
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName)
+			case "InstalledApplicationList":
+				software := a.softwareIOSandIPadOS(softwareSource)
+				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
+			default:
+				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			}
+			if err != nil {
+				log.Printf("MDM Acknowledge request failed: %s: %s", a.model, err)
+				a.stats.IncrementMDMErrors()
+				break
+			}
+		}
+	}
+}
+
 // rows returns a set of rows for use in tests for query results.
 func rows(num int) string {
 	b := strings.Builder{}
@@ -2197,6 +2332,8 @@ func main() {
 		"windows_11_22H2_2861.tmpl": true,
 		"windows_11_22H2_3007.tmpl": true,
 		"ubuntu_22.04.tmpl":         true,
+		"iphone_14.6.tmpl":          true,
+		"ipad_13.18.tmpl":           true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -2249,8 +2386,10 @@ func main() {
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
 		// `-os_templates=windows_11.tmpl:3,macos_14.1.2.tmpl:4,ubuntu_22.04.tmpl:3`
-		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		osTemplates       = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma-separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb   = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
+			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
@@ -2349,6 +2488,35 @@ func main() {
 			tmpl = tmplss[i%len(tmplss)]
 		}
 
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+			model := "iPhone 14,6"
+			if tmpl.Name() == "ipad_13.18.tmpl" {
+				model = "iPad 13,18"
+			}
+			mobileDevice := mdmAgent{
+				agentIndex:         i + 1,
+				MDMCheckInInterval: *mdmCheckInInterval,
+				model:              model,
+				serverAddress:      *serverURL,
+				softwareCount: softwareEntityCount{
+					entityCount: entityCount{
+						common: *commonSoftwareCount,
+						unique: *uniqueSoftwareCount,
+					},
+					vulnerable:                   *vulnerableSoftwareCount,
+					commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
+					commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
+					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
+					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
+				},
+				stats:   stats,
+				strings: make(map[string]string),
+			}
+			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
+			time.Sleep(sleepTime)
+			continue
+		}
+
 		a := newAgent(i+1,
 			*serverURL,
 			*enrollSecret,
@@ -2391,6 +2559,7 @@ func main() {
 			*munkiIssueProb,
 			*munkiIssueCount,
 			*emptySerialProb,
+			*defaultSerialProb,
 			*mdmProb,
 			*mdmSCEPChallenge,
 			*liveQueryFailProb,

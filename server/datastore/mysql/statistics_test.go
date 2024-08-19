@@ -64,6 +64,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 0, stats.NumHostsEnrolled)
 	assert.Equal(t, 0, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 0, stats.NumTeams)
 	assert.Equal(t, 0, stats.NumPolicies)
 	assert.Equal(t, builtinLabels, stats.NumLabels)
@@ -81,6 +87,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.HostExpiryEnabled)
 	assert.Equal(t, false, stats.MDMWindowsEnabled)
 	assert.Equal(t, false, stats.LiveQueryDisabled)
+	assert.Equal(t, false, stats.AIFeaturesDisabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, 0, stats.NumHostsFleetDesktopEnabled)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -202,6 +212,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 1, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumTeams)
 	assert.Equal(t, 1, stats.NumPolicies)
 	assert.Equal(t, builtinLabels+1, stats.NumLabels)
@@ -215,6 +231,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{{OsqueryVersion: "4.9.0", NumHosts: 1}}, stats.HostsEnrolledByOsqueryVersion)
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{{OrbitVersion: "1.1.0", NumHosts: 1}}, stats.HostsEnrolledByOrbitVersion)
+	assert.Equal(t, false, stats.AIFeaturesDisabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 
 	err = ds.RecordStatisticsSent(ctx)
 	require.NoError(t, err)
@@ -300,6 +320,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 5, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 0, stats.NumWeeklyActiveUsers)          // no active user since last stats were sent
 	require.Len(t, stats.HostsEnrolledByOperatingSystem, 3) // empty platform, rhel and macos
 	assert.Equal(t, 5, stats.NumWeeklyPolicyViolationDaysActual)
@@ -314,6 +340,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		{Version: "", NumEnrolled: 1},
 	}, stats.HostsEnrolledByOperatingSystem[""])
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
+	assert.Equal(t, false, stats.AIFeaturesDisabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 
 	// Create multiple new sessions for a single user
 	_, err = ds.NewSession(ctx, u1.ID, "session_key2")
@@ -338,10 +368,20 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 5, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumWeeklyActiveUsers)
 	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysActual)
 	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysPossible)
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
+	assert.Equal(t, false, stats.AIFeaturesDisabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 
 	// Add host to test hosts not responding stats
 	_, err = ds.NewHost(ctx, &fleet.Host{

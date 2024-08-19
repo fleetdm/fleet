@@ -101,9 +101,11 @@ org_settings:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_report_cap: 2000
     query_reports_disabled: false
     scripts_disabled: false
     server_url: $FLEET_SERVER_URL
+    ai_features_disabled: true
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""
@@ -144,7 +146,7 @@ org_settings:
                         "private_key": "google_calendar_private_key",
       }
   mdm:
-    apple_bm_default_team: ""
+    apple_bm_default_team: $APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
       entity_id: ""
       idp_name: ""
@@ -152,6 +154,9 @@ org_settings:
       metadata: ""
       metadata_url: ""
   webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: https://activities_webhook_url
     failing_policies_webhook:
       destination_url: https://host.docker.internal:8080/bozo
       enable_failing_policies_webhook: false
@@ -171,6 +176,9 @@ org_settings:
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings: # Applies to all teams
     host_expiry_enabled: false
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 60
   features: # Features added to all teams
     enable_host_users: true
     enable_software_inventory: true
@@ -179,3 +187,4 @@ org_settings:
   secrets: # These secrets are used to enroll hosts to the "All teams" team
     - secret: SampleSecret123
     - secret: ABC
+software:

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -315,6 +316,66 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "Include Labels Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label1", "label2"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Exclude Labels Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label1", "label2"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label2", "label1"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Include Labels Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label1", "label2"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label4"}},
+			},
+			expected: false,
+		},
+		{
+			name: "Exclude Labels Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label1", "label2"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label2", "label1"}},
+				{Path: "path3", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: false,
+		},
+		{
+			name: "Deprecated Labels Match IncludeAll",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1", "label2"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -322,5 +383,148 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
 			require.Equal(t, tc.expected, result)
 		})
+	}
+}
+
+func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
+	for _, tc := range []struct {
+		profiles         []*fleet.MDMAppleProfilePayload
+		expectedProfiles []*fleet.MDMAppleProfilePayload
+	}{
+		{
+			profiles:         []*fleet.MDMAppleProfilePayload{},
+			expectedProfiles: []*fleet.MDMAppleProfilePayload{},
+		},
+		{
+			profiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  "SomeProfile",
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  fleetmdm.FleetdConfigProfileName,
+					HostPlatform: "ipados",
+				},
+				{
+					ProfileName:  fleetmdm.FleetdConfigProfileName,
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  "SomeProfile2",
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  "SomeProfile3",
+					HostPlatform: "ipados",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ipados",
+				},
+			},
+			expectedProfiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  "SomeProfile",
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  "SomeProfile2",
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  "SomeProfile3",
+					HostPlatform: "ipados",
+				},
+			},
+		},
+		{
+			profiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  "SomeProfile",
+					HostPlatform: "ios",
+				},
+			},
+			expectedProfiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  "SomeProfile",
+					HostPlatform: "ios",
+				},
+			},
+		},
+		{
+			profiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ipados",
+				},
+			},
+			expectedProfiles: []*fleet.MDMAppleProfilePayload{},
+		},
+		{
+			profiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ipados",
+				},
+			},
+			expectedProfiles: []*fleet.MDMAppleProfilePayload{},
+		},
+		{
+			profiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ios",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "darwin",
+				},
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "ipados",
+				},
+			},
+			expectedProfiles: []*fleet.MDMAppleProfilePayload{
+				{
+					ProfileName:  fleetmdm.FleetFileVaultProfileName,
+					HostPlatform: "darwin",
+				},
+			},
+		},
+	} {
+		actualProfiles := fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(tc.profiles)
+		require.Equal(t, len(actualProfiles), len(tc.expectedProfiles))
+		for i := 0; i < len(actualProfiles); i++ {
+			require.Equal(t, *actualProfiles[i], *tc.expectedProfiles[i])
+		}
+
 	}
 }

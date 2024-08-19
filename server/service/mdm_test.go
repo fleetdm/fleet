@@ -7,12 +7,18 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"errors"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -32,14 +38,22 @@ func TestGetMDMApple(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	cfg := config.TestConfig()
-	cfg.MDM.AppleAPNsCert = "testdata/server.pem"
-	cfg.MDM.AppleAPNsKey = "testdata/server.key"
-	cfg.MDM.AppleSCEPCert = "testdata/server.pem"
-	cfg.MDM.AppleSCEPKey = "testdata/server.key"
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
-	_, _, _, err := cfg.MDM.AppleAPNs()
+	certPEM, err := os.ReadFile("testdata/server.pem")
 	require.NoError(t, err)
+
+	keyPEM, err := os.ReadFile("testdata/server.key")
+	require.NoError(t, err)
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: certPEM},
+			fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: keyPEM},
+			fleet.MDMAssetCACert:   {Name: fleet.MDMAssetCACert, Value: certPEM},
+			fleet.MDMAssetCAKey:    {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+		}, nil
+	}
 
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	got, err := svc.GetAppleMDM(ctx)
@@ -58,7 +72,58 @@ func TestGetMDMApple(t *testing.T) {
 func TestMDMAppleAuthorization(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	depStorage := new(nanodep_mock.Storage)
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/account":
+			_, _ = w.Write([]byte(`{"admin_id": "abc", "org_name": "test_org"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
+
+	depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+		return nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true, DEPStorage: depStorage})
+	ds.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+		return map[fleet.MDMAssetName]string{
+			fleet.MDMAssetAPNSCert: "apnscert",
+			fleet.MDMAssetAPNSKey:  "apnskey",
+			fleet.MDMAssetCACert:   "scepcert",
+			fleet.MDMAssetCAKey:    "scepkey",
+		}, nil
+	}
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
+	}
+
+	ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, assets []fleet.MDMConfigAsset) error { return nil }
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Nurv"}}, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		return nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+
+	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error { return nil }
 
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a not found error (given that MDM is not really configured) in case
@@ -81,6 +146,25 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		// deliberately send invalid args so it doesn't actually generate a CSR
 		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
 		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		_, err = svc.GetMDMAppleCSR(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.UploadMDMAppleAPNSCert(ctx, nil)
+		require.Error(t, err)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.DeleteMDMAppleAPNSCert(ctx) // Don't expect anything other than an authz error here, since this is pretty much just a DB wrapper.
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.UploadMDMAppleVPPToken(ctx, nil)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		_, err = svc.GetMDMAppleVPPToken(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.DeleteMDMAppleVPPToken(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 
@@ -303,6 +387,14 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	team1And2UnenrolledHosts := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}, {ID: 2, TeamID: ptr.Uint(2), UUID: "b"}}
 	team2And3UnenrolledHosts := []*fleet.Host{{ID: 2, TeamID: ptr.Uint(2), UUID: "b"}, {ID: 3, TeamID: ptr.Uint(3), UUID: "c"}}
 
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
+	}
+
 	userTeamMaintainerTeam1And2 := &fleet.User{
 		ID: 100,
 		Teams: []fleet.UserTeam{
@@ -411,14 +503,29 @@ func TestRunMDMCommandValidations(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	enrolledMDMInfo := &fleet.HostMDM{Enrolled: true, InstalledFromDep: false, Name: fleet.WellKnownMDMFleet, IsServer: false}
-	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}}
+	singleUnenrolledHost := []*fleet.Host{{ID: 0xf1337, TeamID: ptr.Uint(1), UUID: "unenrolled"}}
 	differentPlatformsHosts := []*fleet.Host{
-		{ID: 1, UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"},
-		{ID: 2, UUID: "b", MDMInfo: enrolledMDMInfo, Platform: "windows"},
+		{ID: 1, UUID: "a", Platform: "darwin"},
+		{ID: 2, UUID: "b", Platform: "windows"},
 	}
-	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "linux"}}
-	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "windows"}}
-	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"}}
+	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "linux"}}
+	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "windows"}}
+	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "darwin"}}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		if hostID == 0xf1337 {
+			return nil, sql.ErrNoRows
+		}
+		return enrolledMDMInfo, nil
+	}
+
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = h.ID != 0xf1337
+		}
+		return res, nil
+	}
 
 	cases := []struct {
 		desc          string
@@ -473,6 +580,13 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	}
 	ds.GetMDMWindowsProfilesSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 		return &fleet.MDMProfilesSummary{}, nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
 	}
 
 	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
@@ -590,6 +704,13 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		return nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
 	}
 
 	cases := []struct {
@@ -719,6 +840,13 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		require.Nil(t, teamID)
 		// Use default zeros verifying, action_required, or removing_enforcement
 		return &fleet.MDMWindowsBitLockerSummary{Verified: 7, Failed: 8, Enforcing: 9}, nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
@@ -913,7 +1041,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
 	ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMWindowsConfigProfile, error) {
@@ -973,11 +1101,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil, false)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil, false)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1002,7 +1130,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		}
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
 	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
@@ -1059,7 +1187,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil, false)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -1098,7 +1226,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
@@ -1394,7 +1524,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -1412,6 +1542,7 @@ func TestValidateProfiles(t *testing.T) {
 		name     string
 		profiles []fleet.MDMProfileBatchPayload
 		wantErr  bool
+		errMsg   string
 	}{
 		{
 			name: "Valid Darwin Profile",
@@ -1449,6 +1580,42 @@ func TestValidateProfiles(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Windows Profile With Deprecated Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Excluded Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsExcludeAny: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Included Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Mixed Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"z"}, LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Too large profile",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "hugeprofile", Contents: []byte(strings.Repeat("a", 1024*1024+1))},
+			},
+			wantErr: true,
+			errMsg:  "validation failed: mdm maximum configuration profile file size is 1 MB",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1456,6 +1623,9 @@ func TestValidateProfiles(t *testing.T) {
 			err := validateProfiles(tt.profiles)
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.errMsg != "" {
+					require.Equal(t, tt.errMsg, err.Error())
+				}
 			} else {
 				require.NoError(t, err)
 			}
@@ -1708,7 +1878,7 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
 

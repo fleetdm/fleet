@@ -1,10 +1,8 @@
 name: sharing_preferences
-examples: >-
+examples: |-
   Identify systems where any type of sharing is enabled. This table can be very
   useful for building policies for specific types of sharing.
 
   ```
-
   SELECT * FROM sharing_preferences WHERE screen_sharing='1' OR file_sharing='1' OR printer_sharing='1' OR remote_login='1' OR remote_management='1' OR remote_apple_events='1' OR internet_sharing='1' OR bluetooth_sharing='1' OR disc_sharing='1' OR content_caching='1';
-
   ```

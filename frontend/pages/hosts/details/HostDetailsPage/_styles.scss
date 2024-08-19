@@ -21,6 +21,16 @@
         "activity agent-options"
         "activity labels"
         "users users";
+      grid-auto-flow: column;
+    }
+
+    // No agent options card for i(Pad)OS, so extend Labels card vertically
+    &__details-panel--ios-grid.react-tabs__tab-panel--selected {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "about about"
+        "activity labels";
+      grid-auto-flow: column;
     }
 
     .about-card {

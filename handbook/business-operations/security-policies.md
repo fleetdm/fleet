@@ -178,6 +178,13 @@ Current Fleet continuity leadership team members include the CEO and CTO.
 
 ### General Disaster Recovery Procedures
 
+#### Recovery objectives
+
+Our Recovery Time Objective (RTO) is the goal we set for the maximum length of time it should take to restore normal operations following an outage or data loss. Our Recovery Point Objective (RPO) is the goal we set for the maximum amount of time we can tolerate losing data.
+
+- RTO: 1 hour
+- RPO: 24 hours
+
 #### Notification and Activation Phase
 
 This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
@@ -371,7 +378,8 @@ Fleet policy requires all workforce members to comply with the HR Security Polic
 
 Fleet policy requires that:
 
-- Background verification checks on candidates for employees and contractors with production access to the Fleet infrastructure resources must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
+
+- Background verification checks on candidates for all Fleet employees and contractors must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
 - Employees, contractors, and third-party users must agree to and sign the terms and conditions of their employment contract and comply with acceptable use.
 - Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures that Fleet already has in place. Employees will also have ongoing security awareness training that is audited.
 - Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
@@ -605,6 +613,79 @@ CTO                                             | Oversight over information sec
 | Employees, contractors, temporary workers, etc. | Acting at all times in a manner that does not place at risk the security of themselves, colleagues, and the information and resources they have use of<br/>  Helping to identify areas where risk management practices should be adopted<br/>  Adhering to company policies and standards of conduct Reporting incidents and observed anomalies or weaknesses                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Head of People Operations                       | Ensuring employees and contractors are qualified and competent for their roles<br/>  Ensuring appropriate testing and background checks are completed<br/>  Ensuring that employees and relevant contractors are presented with company policies <br/>  Ensuring that employee performance and adherence to values is evaluated<br/>  Ensuring that employees receive appropriate security training                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Head of Business Operations                     | Responsible for oversight over third-party risk management process; responsible for review of vendor service contracts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+## Network and system hardening standards
+
+Fleet leverages industry best practices for network hardening, which involves implementing a layered defense strategy called defense in depth. This approach ensures multiple security controls protect data and systems from internal and external threats.
+
+1. Network Segmentation:
+
+Objective: Limit the spread of potential threats and control access to sensitive data.
+
+How we implement: 
+  - Divide our network into distinct segments or subnets, each with its security controls. 
+  - Use VPNs and firewalls to enforce segmentation policies. 
+  - Restrict communication between segments to only what is necessary for business operations.
+
+2. Firewall Configuration:
+
+Objective: Control incoming and outgoing network traffic based on predetermined security rules.
+
+How we implement: 
+  - Implement a default-deny policy, where all traffic is blocked unless explicitly allowed. 
+  - Regularly review and update firewall rules to ensure they align with current security policies and threat landscape.
+
+3. Intrusion Detection and Prevention Systems (IDPS):
+
+Objective: Detect and respond to malicious activity on the network.
+
+How we implement: 
+  - Install and configure IDPS to monitor network traffic for signs of malicious activity or policy violations. 
+  - Use both signature-based and anomaly-based detection methods.
+  - Regularly update IDPS signatures and rules to keep up with emerging threats.
+
+4. Patch Management:
+
+Objective: Ensure all network devices and systems are updated with the latest security patches.
+
+How we implement: 
+  - Establish a patch management policy that includes regular scanning for vulnerabilities.
+  - Prioritize and apply patches based on the vulnerabilities' severity and the affected systems' criticality.
+  - Verify and test patches in a controlled environment before deployment to production systems.
+
+5. Access Control:
+
+Objective: Limit authorized users and devices access to network resources.
+
+How we implement:
+  - Implement strong authentication mechanisms, such as multi-factor authentication (MFA).
+  - Enforce the principle of least privilege, granting users only the access necessary for their roles.
+
+6. Encryption:
+
+Objective: Protect data in transit and at rest from unauthorized access.
+
+How we implement:
+  - Strong encryption protocols like TLS secure data transmitted over the network and at rest.
+  - Encrypt sensitive data stored on physical devices, databases, servers, or other object storage.
+  - Regularly review and update encryption standards to align with industry best practices.
+
+7. Monitoring and Logging:
+
+Objective: Maintain visibility into network activities and detect potential security incidents.
+
+How we implement:
+  - Enable logging on all critical network devices and systems.
+  - Use centralized logging solutions to aggregate and analyze log data.
+  - Implement real-time monitoring and alerting for suspicious activities or policy violations.
+
+8. Regular Security Assessments:
+
+Objective: Identify and remediate security weaknesses in the network.
+
+How we implement:
+  - Regular vulnerability assessments and penetration testing are conducted to evaluate the network's security posture.
+  - Address identified vulnerabilities promptly and reassess to verify remediation.
+  - Perform regular audits of security policies and procedures to ensure they are effective and up to date.
 
 ## Operations security and change management policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_

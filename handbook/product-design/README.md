@@ -1,19 +1,16 @@
-# Product design
+# Product Design
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
-| Role                            | Contributor(s)           |
-|:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
+| Role                             | Contributor(s)           |
+|:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
-| Head of Design                   | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Product Designer                | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_, [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
-| Developer                        | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-
+| Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
 
 ## Responsibilities
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
@@ -52,7 +49,8 @@ When starting a new draft:
     -  **Ready.** Use this page to communicate designs reviews and development.
     -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
 - If the story requires API changes, open a draft PR with the proposed API design.
-
+    - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
+      
 ### Schedule a design review
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.

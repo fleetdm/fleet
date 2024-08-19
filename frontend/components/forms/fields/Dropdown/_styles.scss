@@ -51,14 +51,14 @@
   &__option {
     display: flex;
     flex-direction: column;
+    gap: $pad-small;
     width: 100%;
   }
 
   &__help-text {
-    margin-top: $pad-xsmall;
     font-size: $xx-small;
     white-space: normal;
-    color: $core-fleet-blue;
+    color: $ui-fleet-black-50;
     font-style: italic;
   }
 }

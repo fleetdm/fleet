@@ -6,42 +6,63 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 export interface IEmptySoftwareTableProps {
+  softwareFilter?: ISoftwareDropdownFilterVal;
+  /** tableName is displayed in the search empty state */
+  tableName?: string;
   isSoftwareDisabled?: boolean;
-  isFilterVulnerable?: boolean;
-  isSandboxMode?: boolean;
+  /** noSearchQuery is true when there is no search string filtering the results */
+  noSearchQuery?: boolean;
+  /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
-  isSearching?: boolean;
-  noSandboxHosts?: boolean;
+  /** true if the team has any software installers or VPP apps available to install on hosts */
+  installableSoftwareExists?: boolean;
 }
 
-const EmptySoftwareTable = ({
-  isSoftwareDisabled,
-  isFilterVulnerable,
-  isSandboxMode,
-  isCollectingSoftware,
-  isSearching,
-  noSandboxHosts,
-}: IEmptySoftwareTableProps): JSX.Element => {
-  const emptySoftware: IEmptyTableProps = {
-    header: `No ${
-      isFilterVulnerable ? "vulnerable " : ""
-    }software match the current search criteria`,
-    info: `This report is updated every ${
-      isSandboxMode ? "15 minutes" : "hour"
-    } to protect the performance of your devices.`,
-  };
-  if (isCollectingSoftware) {
-    emptySoftware.header = "No software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
-    if (isSandboxMode) {
-      emptySoftware.info = noSandboxHosts
-        ? "Fleet begins collecting software inventory after a host is enrolled."
-        : "Fleet is collecting software inventory";
-    }
+const generateTypeText = (
+  tableName: string,
+  softwareFilter?: ISoftwareDropdownFilterVal
+) => {
+  if (softwareFilter === "installableSoftware") {
+    return "installable software";
   }
+  if (softwareFilter === "vulnerableSoftware") {
+    return "vulnerable software";
+  }
+  return tableName;
+};
+
+const EmptySoftwareTable = ({
+  softwareFilter = "allSoftware",
+  tableName = "software",
+  isSoftwareDisabled,
+  noSearchQuery,
+  isCollectingSoftware,
+  installableSoftwareExists,
+}: IEmptySoftwareTableProps): JSX.Element => {
+  const softwareTypeText = generateTypeText(tableName, softwareFilter);
+
+  const emptySoftware: IEmptyTableProps = {
+    header: "No items match the current search criteria",
+    info: `Expecting to see ${softwareTypeText}? Check back later.`,
+  };
+
+  if (noSearchQuery && softwareFilter === "allSoftware") {
+    emptySoftware.header = `No ${tableName} detected`;
+  }
+
+  if (softwareFilter === "allSoftware" && installableSoftwareExists) {
+    emptySoftware.header = `No ${tableName} detected`;
+    emptySoftware.info = "Install software on your hosts to see versions.";
+  }
+
+  if (isCollectingSoftware) {
+    emptySoftware.header = `No ${tableName} detected`;
+    emptySoftware.info = `Expecting to see ${softwareTypeText}? Check back later.`;
+  }
+
   if (isSoftwareDisabled) {
     emptySoftware.header = "Software inventory disabled";
     emptySoftware.info = (
@@ -56,16 +77,10 @@ const EmptySoftwareTable = ({
       </>
     );
   }
-  if (isFilterVulnerable && !isSearching) {
-    emptySoftware.header = "No vulnerable software detected";
-    emptySoftware.info = `This report is updated every ${
-      isSandboxMode ? "15 minutes" : "hour"
-    } to protect the performance of your devices.`;
-  }
 
   return (
     <EmptyTable
-      graphicName="empty-software"
+      graphicName="empty-search-question"
       header={emptySoftware.header}
       info={emptySoftware.info}
     />

@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/go-kit/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pandatix/nvdapi/v2"

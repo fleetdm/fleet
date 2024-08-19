@@ -36,6 +36,15 @@ func (ds *Datastore) ListOperatingSystemsForPlatform(ctx context.Context, platfo
 }
 
 func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+	// We optimize for the most common case where the operating system for the host has not changed.
+	// No DB transaction or DB write is needed in this case.
+	updateNeeded, err := isHostOperatingSystemUpdateNeeded(ctx, ds.reader(ctx), hostID, hostOS)
+	if err != nil {
+		return err
+	}
+	if !updateNeeded {
+		return nil
+	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		os, err := getOrGenerateOperatingSystemDB(ctx, tx, hostOS)
 		if err != nil {
@@ -136,26 +145,38 @@ func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 	return &os, nil
 }
 
+func isHostOperatingSystemUpdateNeeded(ctx context.Context, qc sqlx.QueryerContext, hostID uint, hostOS fleet.OperatingSystem) (
+	bool, error,
+) {
+	var resultPresent bool
+	err := sqlx.GetContext(
+		ctx, qc, &resultPresent,
+		`SELECT 1 FROM host_operating_system hos
+				INNER JOIN operating_systems os ON hos.os_id = os.id
+				WHERE hos.host_id = ? AND os.name = ? AND os.version = ? AND os.arch = ? AND os.kernel_version = ? AND os.platform = ? AND os.display_version = ?`,
+		hostID, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion,
+	)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return true, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check host operating system")
+	default:
+		return !resultPresent, nil
+	}
+}
+
 // upsertHostOperatingSystemDB upserts the host operating system table
 // with the operating system id for the given host ID
 func upsertHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, osID uint) error {
-	res, err := tx.ExecContext(ctx, "UPDATE host_operating_system SET os_id = ? WHERE host_id = ?", osID, hostID)
-	if err != nil {
-		return err
-	}
-
-	if n, _ := res.RowsAffected(); n > 0 {
-		// update success
-		return nil
-	}
-
-	// no row to update so insert new row
-	_, err = tx.ExecContext(ctx, "INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)", hostID, osID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	// We do not use the `UPDATE` then `INSERT` pattern here because it causes a deadlock when multiple hosts are enrolled concurrently.
+	// This method will rarely be called -- only when the host_operating_system needs to be updated.
+	_, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE os_id = VALUES(os_id)`, hostID, osID,
+	)
+	return err
 }
 
 // getIDHostOperatingSystemDB queries the `host_operating_system` table and returns the

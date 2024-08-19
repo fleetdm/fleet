@@ -15,13 +15,7 @@ export default {
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
     return `/${API_VERSION}/fleet/email/change/${token}`;
   },
-  DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
-  DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
-  },
-  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
-  },
+
   DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/enable`;
@@ -30,6 +24,16 @@ export default {
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
+
+  // Device endpoints
+  DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_SOFTWARE: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software`,
+  DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -46,6 +50,9 @@ export default {
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
+  HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
+  HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/install/${softwareId}`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
 
@@ -66,10 +73,19 @@ export default {
 
   // MDM endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
+  MDM_APPLE_ABM_TOKEN: `/${API_VERSION}/fleet/mdm/apple/abm_token`,
+  MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
+  MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
+  MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
+  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
+
+  // Apple VPP endpoints
+  MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
@@ -128,6 +144,18 @@ export default {
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
+  SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
+  SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package`,
+  SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
+    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
+  SOFTWARE_PACKAGE_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
+
+  // AI endpoints
+  AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
@@ -175,4 +203,6 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
+
+  COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 };

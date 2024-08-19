@@ -33,7 +33,7 @@ const mockLocation = {
 };
 
 describe("Device User Page", () => {
-  it("renders the software empty message if the device has no software", async () => {
+  it("hides the software tab if the device has no software", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -50,7 +50,7 @@ describe("Device User Page", () => {
     // waiting for the device data to render
     await screen.findByText("About");
 
-    await user.click(screen.getByRole("tab", { name: "Software" }));
+    expect(screen.queryByText(/Software/)).not.toBeInTheDocument();
 
     // TODO: Fix this to the new copy
     // expect(screen.getByText("No software detected")).toBeInTheDocument();
@@ -88,6 +88,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
+          features: { enable_software_inventory: true },
         },
       });
 
@@ -104,6 +105,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
+          features: { enable_software_inventory: true },
         },
       });
 
@@ -120,6 +122,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: false },
+          features: { enable_software_inventory: true },
         },
       });
 
@@ -137,6 +140,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
+          features: { enable_software_inventory: true },
         },
       });
 

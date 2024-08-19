@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -19,6 +20,9 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 )
+
+var ErrGeneric = errors.New(`Something's gone wrong. Please try again. If this keeps happening please file an issue:
+https://github.com/fleetdm/fleet/issues/new/choose`)
 
 func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 	cc, err := clientConfigFromCLI(c)
@@ -204,4 +208,113 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 		cc.TLSSkipVerify = true
 	}
 	return cc, nil
+}
+
+// apiCommand fleetctl api [options] uri
+// -F, --field <key=value>
+// Add a typed parameter in key=value format
+// -H, --header <key:value>
+// Add a HTTP request header in key:value format
+// -X, --method <string> (default "GET")
+// The HTTP method for the request
+func apiCommand() *cli.Command {
+	var (
+		flField  []string
+		flHeader []string
+		flMethod string
+	)
+	return &cli.Command{
+		Name:      "api",
+		Usage:     "Run an api command by uri",
+		UsageText: `fleetctl api [options] [url]`,
+		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:    "F",
+				Aliases: []string{"field"},
+				Usage:   "Add a typed parameter in key=value format",
+			},
+			&cli.StringSliceFlag{
+				Name:    "H",
+				Aliases: []string{"header"},
+				Usage:   "Add a HTTP request header in key:value format",
+			},
+			&cli.StringFlag{
+				Name:        "X",
+				Value:       "GET",
+				Destination: &flMethod,
+				Usage:       "The HTTP method for the request",
+			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			uriString := c.Args().First()
+			params := url.Values{}
+			method := "GET"
+			// TODO add param for body for POST etc
+
+			if uriString == "" {
+				return errors.New("must provide uri first argument")
+			}
+
+			flField = c.StringSlice("F")
+			flHeader = c.StringSlice("H")
+
+			if len(flField) > 0 {
+				for _, each := range flField {
+					k, v, found := strings.Cut(each, "=")
+					if !found {
+						continue
+					}
+					params.Add(k, v)
+				}
+			}
+
+			headers := map[string]string{}
+			if len(flHeader) > 0 {
+				for _, each := range flHeader {
+					k, v, found := strings.Cut(each, ":")
+					if !found {
+						continue
+					}
+					headers[k] = v
+				}
+			}
+
+			if flMethod != "" {
+				method = flMethod
+			}
+
+			if !strings.HasPrefix(uriString, "/") {
+				uriString = fmt.Sprintf("/%s", uriString)
+			}
+
+			if !strings.HasPrefix(uriString, "/api/v1/fleet") {
+				uriString = fmt.Sprintf("/api/v1/fleet%s", uriString)
+			}
+
+			fleetClient, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params.Encode(), nil, headers)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				_, err := io.Copy(c.App.Writer, resp.Body)
+				if err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("Got non 2XX return of %d", resp.StatusCode)
+			}
+
+			return nil
+		},
+	}
 }

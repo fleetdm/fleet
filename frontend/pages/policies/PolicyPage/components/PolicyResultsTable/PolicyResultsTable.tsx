@@ -26,11 +26,7 @@ const PolicyResultsTable = ({
   canAddOrDeletePolicy,
 }: IPolicyResultsTableProps): JSX.Element => {
   return (
-    <div
-      className={`${baseClass} ${
-        canAddOrDeletePolicy ? "" : "hide-selection-column"
-      }`}
-    >
+    <div className={baseClass}>
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
         columnConfigs={generateTableHeaders()}

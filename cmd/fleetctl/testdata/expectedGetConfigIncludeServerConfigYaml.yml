@@ -7,6 +7,9 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 0
   features:
     enable_host_users: true
     enable_software_inventory: false
@@ -26,6 +29,12 @@ spec:
       mode: ""
       webhook_url: ""
     macos_updates:
+      minimum_version: null
+      deadline: null
+    ios_updates:
+      minimum_version: null
+      deadline: null
+    ipados_updates:
       minimum_version: null
       deadline: null
     windows_updates:
@@ -95,9 +104,11 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    query_report_cap: 0
     query_reports_disabled: false
     server_url: ""
     scripts_disabled: false
+    ai_features_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""
@@ -139,6 +150,9 @@ spec:
   vulnerability_settings:
     databases_path: /some/path
   webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: false
+      destination_url: ""
     failing_policies_webhook:
       destination_url: ""
       enable_failing_policies_webhook: false

@@ -24,14 +24,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
 
-	testBMToken := nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-	depStorage, err := ds.NewMDMAppleDEPStorage(testBMToken)
+	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 
 	setupTest := func(t *testing.T, depHandler http.HandlerFunc) *apple_mdm.DEPService {
@@ -42,6 +35,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 
 		err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
 		require.NoError(t, err)
+
+		mysql.SetTestABMAssets(t, ds)
 
 		logger := log.NewNopLogger()
 		return apple_mdm.NewDEPService(ds, depStorage, logger)

@@ -1,18 +1,18 @@
 /** software/os OS tab > Table */
 
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
 
-import { AppContext } from "context/app";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
@@ -39,6 +39,7 @@ interface ISoftwareOSTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const SoftwareOSTable = ({
@@ -51,9 +52,8 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareOSTableProps) => {
-  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
-
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -128,34 +128,25 @@ const SoftwareOSTable = ({
     router.push(path);
   };
 
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!data?.os_versions || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!data?.os_versions || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="software"
-      />
-    );
-  };
-
   const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!data?.os_versions || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {data?.os_versions && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
+          />
+        )}
+      </>
     );
   };
 
@@ -181,9 +172,9 @@ const SoftwareOSTable = ({
         resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
+            tableName="operating systems"
             isSoftwareDisabled={!isSoftwareEnabled}
-            isSandboxMode={isSandboxMode}
-            noSandboxHosts={noSandboxHosts}
+            noSearchQuery // non-searchable table renders not detecting by default
           />
         )}
         defaultSortHeader={orderKey}
@@ -201,6 +192,7 @@ const SoftwareOSTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );

@@ -23,7 +23,7 @@ Fleet Desktop is a menu bar icon that gives end users visibility into the securi
 The Fleetd Chrome extension enrolls ChromeOS devices in Fleet. [Docs](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ## Host
-A host is a computer, server, or other endpoint. Fleet gathers information from an osquery agent installed on each of your hosts. [Docs](https://fleetdm.com/docs/using-fleet/adding-hosts).
+A host is a computer, server, or other endpoint. Fleet gathers information from Fleet's agent (fleetd) installed on each of your hosts. [Docs](https://fleetdm.com/docs/using-fleet/adding-hosts).
 
 ## Team
 A team is a group of hosts. Use teams to segment your hosts into groups that reflect your organization's IT and security policies. [Docs](https://fleetdm.com/docs/using-fleet/teams).
@@ -32,7 +32,8 @@ A team is a group of hosts. Use teams to segment your hosts into groups that ref
 A query in Fleet refers to an osquery query. Osquery uses basic SQL commands to request data from hosts. Use queries to manage, monitor, and identify threats on your devices. [Docs](https://fleetdm.com/docs/using-fleet/fleet-ui).
 
 ## Policy
-A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your organization.
+A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your
+organization. Learn more [here](https://fleetdm.com/securing/what-are-fleet-policies).
 
 ## Host vitals
 Host vitals are the hard-coded queries Fleet uses to populate device details.

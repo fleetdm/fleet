@@ -1,14 +1,11 @@
 name: ad_config
-examples: >-
+examples: |-
   See the [Active Directory](https://en.wikipedia.org/wiki/Active_Directory) domain, if any, that the Mac is bound to.
   
   ```
-  
   SELECT domain FROM ad_config;
-  
   ```
-notes: >-
+notes: |-
  
   - Active Directory is a directory service used to manage users and computers. A domain is the high level grouping of these objects, which a workstation must join in order to provide the user with features such as Single Sign-On to internal applications using Kerberos. 
- 
   - If a host is not bound to an Active Directory domain, then the table returns no results.

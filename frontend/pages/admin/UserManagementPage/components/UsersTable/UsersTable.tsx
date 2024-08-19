@@ -18,6 +18,7 @@ import invitesAPI from "services/entities/invites";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -554,6 +555,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     [loadingTableData, tableDataError, users, invites, currentUser?.id]
   );
 
+  const renderUsersCount = useCallback(() => {
+    return <TableCount name="users" count={users?.length} />;
+  }, [users?.length]);
+
   return (
     <>
       {tableDataError ? (
@@ -578,6 +583,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           isClientSidePagination
+          renderCount={renderUsersCount}
         />
       )}
       {showCreateUserModal && renderCreateUserModal()}

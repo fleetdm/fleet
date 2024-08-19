@@ -1,6 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { OsqueryPlatform } from "interfaces/platform";
-import paths from "router/paths";
+import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -25,6 +24,12 @@ export const DEFAULT_GRAVATAR_LINK_FALLBACK =
 
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
+
+export const ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { value: 30, label: "30 days" },
+  { value: 60, label: "60 days" },
+  { value: 90, label: "90 days" },
+];
 
 export const FREQUENCY_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 0, label: "Never" },
@@ -54,7 +59,10 @@ export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
 
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
+
 export const SUPPORT_LINK = "https://fleetdm.com/support";
+
+export const CONTACT_FLEET_LINK = "https://fleetdm.com/contact";
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -194,6 +202,8 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "Red Hat Linux",
   "Ubuntu Linux",
   "chrome",
+  "iOS",
+  "iPadOS",
 ] as const;
 
 type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
@@ -204,7 +214,7 @@ export const isPlatformLabelNameFromAPI = (
   return PLATFORM_LABEL_NAMES_FROM_API.includes(s as PlatformLabelNameFromAPI);
 };
 
-export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
+export const PLATFORM_DISPLAY_NAMES: Record<string, DisplayPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
   windows: "Windows",
@@ -213,6 +223,8 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   Linux: "Linux",
   chrome: "ChromeOS",
   ChromeOS: "ChromeOS",
+  ios: "iOS",
+  ipados: "iPadOS",
 } as const;
 
 // as returned by the TARGETS API; based on display_text
@@ -228,16 +240,9 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
   chrome: "ChromeOS",
+  iOS: "iOS",
+  iPadOS: "iPadOS",
 } as const;
-
-export const PLATFORM_LABEL_DISPLAY_ORDER = [
-  "macOS",
-  "All Linux",
-  "CentOS Linux",
-  "Red Hat Linux",
-  "Ubuntu Linux",
-  "MS Windows",
-] as const;
 
 export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   PlatformLabelNameFromAPI,
@@ -251,12 +256,14 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
   chrome: "platform",
+  iOS: "platform",
+  iPadOS: "platform",
 } as const;
 
 export const PLATFORM_TYPE_ICONS: Record<
   Extract<
     PlatformLabelNameFromAPI,
-    "All Linux" | "macOS" | "MS Windows" | "chrome"
+    "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
   >,
   IconNames
 > = {
@@ -264,83 +271,41 @@ export const PLATFORM_TYPE_ICONS: Record<
   macOS: "darwin",
   "MS Windows": "windows",
   chrome: "chrome",
+  iOS: "iOS",
+  iPadOS: "iPadOS",
 } as const;
 
 export const hasPlatformTypeIcon = (
   s: string
 ): s is Extract<
   PlatformLabelNameFromAPI,
-  "All Linux" | "macOS" | "MS Windows" | "chrome"
+  "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
 > => {
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
-interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
-  value: "all" | "windows" | "linux" | "darwin" | "chrome" | "";
-  path?: string;
-}
-export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
-  { label: "All", value: "all", path: paths.DASHBOARD },
-  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
-  { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
-  { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
-  { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
-];
+export type PlatformLabelOptions = DisplayPlatform | "All";
 
-// Schedules does not support ChromeOS
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
+export type PlatformValueOptions = Platform | "all";
+
+/** Scheduled queries do not support ChromeOS, iOS, or iPadOS */
+interface ISchedulePlatformDropdownOptions {
+  label: Exclude<PlatformLabelOptions, "ChromeOS" | "iOS" | "iPadOS">;
+  value: Exclude<PlatformValueOptions, "chrome" | "ios" | "ipados"> | "";
+}
+
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: ISchedulePlatformDropdownOptions[] = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
 ];
 
-// Builtin label names returned from API
-export const PLATFORM_NAME_TO_LABEL_NAME = {
-  all: "",
-  darwin: "macOS",
-  windows: "MS Windows",
-  linux: "All Linux",
-  chrome: "chrome",
-};
-
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, hostname, UUID, serial number, or private IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
   "Search hosts by name, hostname, UUID, serial number, or private IP address";
-
-export const VULNERABLE_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: false,
-    helpText: "All software installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Vulnerable software",
-    value: true,
-    helpText:
-      "All software installed on your hosts with detected vulnerabilities.",
-  },
-];
-
-export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All vulnerabilities",
-    value: false,
-    helpText: "All vulnerabilities detected on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Exploited vulnerabilities",
-    value: true,
-    helpText: "Vulnerabilities that have been actively exploited in the wild.",
-  },
-];
 
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
@@ -398,6 +363,7 @@ export const HOST_SUMMARY_DATA = [
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
+  "maintenance_window", // Not rendered on my device page
 ];
 
 export const HOST_ABOUT_DATA = [
@@ -412,6 +378,7 @@ export const HOST_ABOUT_DATA = [
   "batteries",
   "detail_updated_at",
   "last_restarted_at",
+  "platform",
 ];
 
 export const HOST_OSQUERY_DATA = [
@@ -423,4 +390,15 @@ export const HOST_OSQUERY_DATA = [
 export const DEFAULT_USE_QUERY_OPTIONS = {
   retry: 3,
   refetchOnWindowFocus: false,
+};
+
+export const INVALID_PLATFORMS_REASON =
+  "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
+
+export const INVALID_PLATFORMS_FLASH_MESSAGE =
+  "Couldn't save query. Please update platforms and try again.";
+
+export const DATE_FNS_FORMAT_STRINGS = {
+  dateAtTime: "E, MMM d 'at' p",
+  hoursAndMinutes: "HH:mm",
 };

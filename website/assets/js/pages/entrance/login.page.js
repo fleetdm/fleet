@@ -27,7 +27,7 @@ parasails.registerPage('login', {
     showCustomerLogin: true,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     registerSlug: '/register',
-    pageToRedirectToAfterLogin: '/start',
+    pageToRedirectToAfterLogin: '/start#login',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -37,10 +37,12 @@ parasails.registerPage('login', {
     if(window.location.search === '?admin') {
       this.showCustomerLogin = false;
     }
+
     // If we're redirecting this user to the license dispenser after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
-    if(this.redirectToLicenseDispenser){
-      this.loginSlug = '/register?purchaseLicense';
-      this.pageToRedirectToAfterLogin = '/new-license';
+    if(window.location.hash && window.location.hash === '#purchaseLicense'){
+      this.registerSlug = '/register#purchaseLicense';
+      this.pageToRedirectToAfterLogin = '/new-license#login';
+      window.location.hash = '';
     }
   },
   mounted: async function() {
@@ -57,7 +59,7 @@ parasails.registerPage('login', {
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = this.pageToRedirectToAfterLogin;
+      this.goto(this.pageToRedirectToAfterLogin);
     },
 
   }

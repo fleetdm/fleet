@@ -50,8 +50,10 @@ module.exports.policies = {
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,
-  'try-fleet/view-explore-data': true,
-  'try-fleet/view-query-report': true,
   'deliver-talk-to-us-form-submission': true,
+  'get-human-interpretation-from-osquery-sql': true,
   'customers/view-new-license': true,
+  'redirect-vanta-authorization-request': true,
+  'view-deals': true,
+  'deliver-deal-registration-submission': true,
 };

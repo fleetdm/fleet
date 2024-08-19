@@ -38,7 +38,7 @@ func prefixMatches(val []byte, prefix string) bool {
 // GetRawProfilePlatform identifies the platform type of a profile bytes by
 // examining its initial content:
 //
-//   - Returns "darwin" if the profile starts with "<?xml", typical of Darwin
+//   - Returns "darwin" if the profile starts with "<?xml", typical of Apple
 //     platform profiles.
 //   - Returns "windows" if the profile begins with "<replace" or "<add",
 //   - Returns an empty string for profiles that are either unrecognized or
@@ -101,6 +101,14 @@ const (
 	// FleetMacOSUpdatesProfileName is the name of the DDM profile used by Fleet
 	// to configure macOS OS updates.
 	FleetMacOSUpdatesProfileName = "Fleet macOS OS Updates"
+
+	// FleetIOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure iOS OS updates.
+	FleetIOSUpdatesProfileName = "Fleet iOS OS Updates"
+
+	// FleetIPadOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure iPadOS OS updates.
+	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
 )
 
 // FleetReservedProfileNames returns a map of PayloadDisplayName or profile
@@ -111,6 +119,8 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetFileVaultProfileName:        {},
 		FleetWindowsOSUpdatesProfileName: {},
 		FleetMacOSUpdatesProfileName:     {},
+		FleetIOSUpdatesProfileName:       {},
+		FleetIPadOSUpdatesProfileName:    {},
 		FleetCAConfigProfileName:         {},
 	}
 }
@@ -130,5 +140,9 @@ func ListFleetReservedMacOSProfileNames() []string {
 // ListFleetReservedMacOSDeclarationNames returns a list of declaration names
 // that are reserved by Fleet for Apple DDM declarations.
 func ListFleetReservedMacOSDeclarationNames() []string {
-	return []string{FleetMacOSUpdatesProfileName}
+	return []string{
+		FleetMacOSUpdatesProfileName,
+		FleetIOSUpdatesProfileName,
+		FleetIPadOSUpdatesProfileName,
+	}
 }

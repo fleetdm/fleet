@@ -23,6 +23,8 @@ export default {
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
+  DASHBOARD_IOS: `${URL_PREFIX}/dashboard/ios`,
+  DASHBOARD_IPADOS: `${URL_PREFIX}/dashboard/ipados`,
 
   // Admin pages
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
@@ -30,11 +32,14 @@ export default {
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
-  ADMIN_INTEGRATIONS_MDM_MAC: `${URL_PREFIX}/settings/integrations/mdm/apple`,
+  ADMIN_INTEGRATIONS_MDM_APPLE: `${URL_PREFIX}/settings/integrations/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
+  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_APPLE: `${URL_PREFIX}/settings/integrations/automatic-enrollment/apple`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
+  ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/vpp`,
+  ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,
@@ -135,6 +140,9 @@ export default {
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
+  },
+  DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;

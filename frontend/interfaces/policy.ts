@@ -36,7 +36,7 @@ export interface IPolicy {
   author_email: string;
   resolution: string;
   platform: SelectedPlatformString;
-  team_id?: number;
+  team_id: number | null;
   created_at: string;
   updated_at: string;
   critical: boolean;
@@ -74,14 +74,16 @@ export interface IHostPolicy extends IPolicy {
   response: PolicyStatusResponse;
 }
 
+// Policies API can return {}
 export interface ILoadAllPoliciesResponse {
-  policies: IPolicyStats[];
+  policies?: IPolicyStats[];
 }
 
+// Team policies API can return {}
 export interface ILoadTeamPoliciesResponse {
-  policies: IPolicyStats[];
-  inherited_policies: IPolicyStats[];
+  policies?: IPolicyStats[];
 }
+
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
@@ -89,7 +91,7 @@ export interface IPolicyFormData {
   platform?: SelectedPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
-  team_id?: number;
+  team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
 }

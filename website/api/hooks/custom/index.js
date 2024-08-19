@@ -154,7 +154,12 @@ will be disabled and/or hidden in the UI.
             //   https://fleetdm.com/device-management?utm_content=mdm
             if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
               req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
-              return res.redirect(req.path);// « auto-redirect without querystring to make it prettier in the URL bar.
+              // FUTURE: reimplement the following (auto-redirect without querystring to make it prettier in the URL bar), but do it in the client-side JS
+              // using whatever that poppushstateblah thing is that makes it so you can change the URL bar from the browser-side code without screwing up
+              // the history stack (i.e. back button)
+              // ```
+              // return res.redirect(req.path);
+              // ```
             }//ﬁ
 
             if (req.method === 'GET' || req.method === 'HEAD') {
@@ -279,6 +284,21 @@ will be disabled and/or hidden in the UI.
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+              // FUTURE: Only show this CTA to users who are below psyStage 6.
+              // > The code below is so we don't bother users who have completed the questionnaire
+
+              // Determine if this user should see the CTA to bring them to the /start questionnaire using the user's last submitted questionnaire answer.
+              res.locals.showStartCta = !['how-many-hosts','will-you-be-self-hosting','managed-cloud-for-growing-deployments','self-hosted-deploy', 'whats-left-to-get-you-set-up'].includes(req.me.lastSubmittedGetStartedQuestionnaireStep);
+              //  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+              // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
+                res.locals.collapseStartCta = true;
+              } else {
+                res.locals.collapseStartCta = false;
+              }
             }//ﬁ
 
             return next();

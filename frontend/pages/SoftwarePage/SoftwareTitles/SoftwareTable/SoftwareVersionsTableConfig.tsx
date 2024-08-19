@@ -13,10 +13,10 @@ import PATHS from "router/paths";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
-import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -52,23 +52,12 @@ const generateTableHeaders = (
           id.toString()
         )}?${teamQueryParam}`;
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareVersionDetailsPath);
-        };
-
         return (
-          <LinkCell
+          <SoftwareNameCell
+            name={name}
+            source={source}
             path={softwareVersionDetailsPath}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
+            router={router}
           />
         );
       },
@@ -94,9 +83,14 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnerabilitiesCellProps) => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (
+          ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
+        ) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      },
     },
     {
       Header: (cellProps: ITableHeaderProps) => (

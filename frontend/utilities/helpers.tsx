@@ -19,10 +19,11 @@ import {
   intlFormat,
   intervalToDuration,
   isAfter,
+  addDays,
 } from "date-fns";
 import yaml from "js-yaml";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -39,6 +40,7 @@ import {
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
+import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import { checkTable } from "utilities/sql_tools";
@@ -52,9 +54,11 @@ import {
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
+  PolicyResponse,
 } from "utilities/constants";
-import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IActivityDetails } from "interfaces/activity";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -86,6 +90,49 @@ export const addGravatarUrlToResource = (resource: any): any => {
     gravatar_url,
     gravatar_url_dark,
   };
+};
+
+export const createHostsByPolicyPath = (
+  policyId: number,
+  policyResponse: PolicyResponse,
+  teamId?: number | null
+) => {
+  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+    policy_id: policyId,
+    policy_response: policyResponse,
+    team_id: teamId,
+  })}`;
+};
+
+/** Removes Apple OS Prefix from host.os_version. */
+export const removeOSPrefix = (version: string): string => {
+  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
+};
+
+/** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
+export const compareVersions = (version1: string, version2: string) => {
+  const v1Parts = version1.split(".").map(Number);
+  const v2Parts = version2.split(".").map(Number);
+
+  const maxLength = Math.max(v1Parts.length, v2Parts.length);
+
+  // Create a new array with a length of maxLength, mapping each index to a comparison result
+  return (
+    Array.from({ length: maxLength }, (_, index) => {
+      // Retrieve the corresponding parts from v1Parts and v2Parts, defaulting to 0
+      const v1Part = v1Parts[index] || 0;
+      const v2Part = v2Parts[index] || 0;
+
+      // Compare the current parts and return -1, 1, or 0 based on the result
+      if (v1Part < v2Part) return -1;
+      if (v1Part > v2Part) return 1;
+      return 0;
+    })
+      // Use Array.find to return the first non-equal version number in the comparison array
+      .find((result) => result !== 0) ||
+    // If no difference is found, return 0 to indicate equal versions
+    0
+  );
 };
 
 const labelSlug = (label: ILabel): string => {
@@ -671,8 +718,17 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 };
 
-export const licenseExpirationWarning = (expiration: string): boolean => {
+export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
+};
+
+export const willExpireWithinXDays = (
+  expiration: string,
+  x: number
+): boolean => {
+  const xDaysFromNow = addDays(new Date(), x);
+
+  return isAfter(xDaysFromNow, new Date(expiration));
 };
 
 export const readableDate = (date: string) => {
@@ -686,7 +742,7 @@ export const readableDate = (date: string) => {
 };
 
 export const getPerformanceImpactDescription = (
-  scheduledQueryStats: IScheduledQueryStats
+  scheduledQueryStats: ISchedulableQueryStats
 ) => {
   if (
     !scheduledQueryStats.total_executions ||
@@ -802,6 +858,9 @@ export const normalizeEmptyValues = (
   );
 };
 
+export const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
@@ -813,7 +872,7 @@ interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number | undefined };
+  queryParams?: QueryParams;
 }
 
 type RouteParams = Record<string, string>;
@@ -950,6 +1009,9 @@ export function getCustomDropdownOptions(
 
 export default {
   addGravatarUrlToResource,
+  removeOSPrefix,
+  compareVersions,
+  createHostsByPolicyPath,
   formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
@@ -980,7 +1042,8 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
-  licenseExpirationWarning,
+  hasLicenseExpired,
+  willExpireWithinXDays,
   readableDate,
   secondsToHms,
   secondsToDhms,
@@ -988,6 +1051,7 @@ export default {
   setupData,
   syntaxHighlight,
   normalizeEmptyValues,
+  wait,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 };

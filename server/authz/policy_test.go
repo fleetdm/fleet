@@ -500,6 +500,208 @@ func TestAuthorizeSoftwareInventory(t *testing.T) {
 	})
 }
 
+func TestAuthorizeSoftwareInstaller(t *testing.T) {
+	t.Parallel()
+
+	noTeamInstaller := &fleet.SoftwareInstaller{}
+	team1Installer := &fleet.SoftwareInstaller{TeamID: ptr.Uint(1)}
+	team2Installer := &fleet.SoftwareInstaller{TeamID: ptr.Uint(2)}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: noTeamInstaller, action: read, allow: false},
+		{user: nil, object: noTeamInstaller, action: write, allow: false},
+		{user: nil, object: team1Installer, action: read, allow: false},
+		{user: nil, object: team1Installer, action: write, allow: false},
+		{user: nil, object: team2Installer, action: read, allow: false},
+		{user: nil, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserNoRoles, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1Installer, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1Installer, action: write, allow: false},
+		{user: test.UserNoRoles, object: team2Installer, action: read, allow: false},
+		{user: test.UserNoRoles, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserAdmin, object: noTeamInstaller, action: read, allow: true},
+		{user: test.UserAdmin, object: noTeamInstaller, action: write, allow: true},
+		{user: test.UserAdmin, object: team1Installer, action: read, allow: true},
+		{user: test.UserAdmin, object: team1Installer, action: write, allow: true},
+		{user: test.UserAdmin, object: team2Installer, action: read, allow: true},
+		{user: test.UserAdmin, object: team2Installer, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: noTeamInstaller, action: read, allow: true},
+		{user: test.UserMaintainer, object: noTeamInstaller, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1Installer, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1Installer, action: write, allow: true},
+		{user: test.UserMaintainer, object: team2Installer, action: read, allow: true},
+		{user: test.UserMaintainer, object: team2Installer, action: write, allow: true},
+
+		{user: test.UserObserver, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserObserver, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserObserver, object: team1Installer, action: read, allow: false},
+		{user: test.UserObserver, object: team1Installer, action: write, allow: false},
+		{user: test.UserObserver, object: team2Installer, action: read, allow: false},
+		{user: test.UserObserver, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserObserverPlus, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserObserverPlus, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1Installer, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team1Installer, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team2Installer, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team2Installer, action: write, allow: false},
+
+		// TODO: confirm gitops permissions
+		{user: test.UserGitOps, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserGitOps, object: noTeamInstaller, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Installer, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Installer, action: write, allow: true},
+		{user: test.UserGitOps, object: team2Installer, action: read, allow: false},
+		{user: test.UserGitOps, object: team2Installer, action: write, allow: true},
+
+		// TODO: confirm gitops permissions
+		{user: test.UserTeamGitOpsTeam1, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Installer, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Installer, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team2Installer, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Installer, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1Installer, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team2Installer, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1Installer, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1Installer, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team2Installer, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Installer, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Installer, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team2Installer, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Installer, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Installer, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team2Installer, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team2Installer, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
+	t.Parallel()
+
+	noTeamInstallResult := &fleet.HostSoftwareInstallerResultAuthz{}
+	team1InstallResult := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: ptr.Uint(1)}
+	team2InstallResult := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: ptr.Uint(2)}
+	runTestCases(t, []authTestCase{
+		// Write permissions
+		{user: nil, object: noTeamInstallResult, action: write, allow: false},
+		{user: nil, object: team1InstallResult, action: write, allow: false},
+		{user: nil, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserNoRoles, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserAdmin, object: noTeamInstallResult, action: write, allow: true},
+		{user: test.UserAdmin, object: team1InstallResult, action: write, allow: true},
+		{user: test.UserAdmin, object: team2InstallResult, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: noTeamInstallResult, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1InstallResult, action: write, allow: true},
+		{user: test.UserMaintainer, object: team2InstallResult, action: write, allow: true},
+
+		{user: test.UserObserver, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserObserver, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserObserver, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserObserverPlus, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserGitOps, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserGitOps, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserGitOps, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1InstallResult, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1InstallResult, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1InstallResult, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team2InstallResult, action: write, allow: false},
+
+		// Read permissions
+		{user: nil, object: noTeamInstallResult, action: read, allow: false},
+		{user: nil, object: team1InstallResult, action: read, allow: false},
+		{user: nil, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserNoRoles, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1InstallResult, action: read, allow: false},
+		{user: test.UserNoRoles, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserAdmin, object: noTeamInstallResult, action: read, allow: true},
+		{user: test.UserAdmin, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserAdmin, object: team2InstallResult, action: read, allow: true},
+
+		{user: test.UserMaintainer, object: noTeamInstallResult, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserMaintainer, object: team2InstallResult, action: read, allow: true},
+
+		{user: test.UserObserver, object: noTeamInstallResult, action: read, allow: true},
+		{user: test.UserObserver, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserObserver, object: team2InstallResult, action: read, allow: true},
+
+		{user: test.UserObserverPlus, object: noTeamInstallResult, action: read, allow: true},
+		{user: test.UserObserverPlus, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserObserverPlus, object: team2InstallResult, action: read, allow: true},
+
+		{user: test.UserGitOps, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserGitOps, object: team1InstallResult, action: read, allow: false},
+		{user: test.UserGitOps, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1InstallResult, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: team2InstallResult, action: read, allow: false},
+	})
+}
+
 func TestAuthorizeHost(t *testing.T) {
 	t.Parallel()
 
@@ -1899,20 +2101,20 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 
 		{user: test.UserObserver, object: globalScript, action: write, allow: false},
 		{user: test.UserObserver, object: globalScript, action: read, allow: true},
-		{user: test.UserObserver, object: globalSavedScript, action: write, allow: true},
+		{user: test.UserObserver, object: globalSavedScript, action: write, allow: false},
 		{user: test.UserObserver, object: globalSavedScript, action: read, allow: true},
 		{user: test.UserObserver, object: team1Script, action: write, allow: false},
 		{user: test.UserObserver, object: team1Script, action: read, allow: true},
-		{user: test.UserObserver, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserObserver, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserObserver, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserObserverPlus, object: globalScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: globalScript, action: read, allow: true},
-		{user: test.UserObserverPlus, object: globalSavedScript, action: write, allow: true},
+		{user: test.UserObserverPlus, object: globalSavedScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: globalSavedScript, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1Script, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
-		{user: test.UserObserverPlus, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserObserverPlus, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalScript, action: write, allow: false},
@@ -1966,7 +2168,7 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: globalSavedScript, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1Script, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1Script, action: read, allow: true},
-		{user: test.UserTeamObserverTeam1, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserTeamObserverTeam1, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserTeamObserverTeam2, object: globalScript, action: write, allow: false},
@@ -1984,7 +2186,7 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: globalSavedScript, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1Script, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1Script, action: read, allow: true},
-		{user: test.UserTeamObserverPlusTeam1, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserTeamObserverPlusTeam2, object: globalScript, action: write, allow: false},

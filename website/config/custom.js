@@ -85,6 +85,16 @@ module.exports.custom = {
   // ||  (Or if you don't need billing, feel free to remove them.)
   //--------------------------------------------------------------------------
 
+
+  // Other integrations:
+  // openAiSecret: undefined,
+  // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
+  // salesforceIntegrationUsername: undefined,
+  // salesforceIntegrationPasskey: undefined,
+
+  // For cleaning up LinkedIn URLs before creating CRM records.
+  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
+
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
   //  ██║  ██║██████╔╝██║███████╗
@@ -111,12 +121,14 @@ module.exports.custom = {
 
     // 🚀 Code for core product and integrations
     'ee/tools/puppet': 'georgekarrv', //« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
+    'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
+    '/docs/get-started/faq': 'zayhanlon',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
@@ -138,17 +150,17 @@ module.exports.custom = {
     'ee/vulnerability-dashboard': 'eashaw',// (catch-all)
     'ee/vulnerability-dashboard/assets': 'eashaw',
     'ee/vulnerability-dashboard/views': 'eashaw',
-    'ee/vulnerability-dashboard/api': 'mikermcneil',//« Vulnerability dashboard backend, scripts, deps
-    'ee/vulnerability-dashboard/config': 'mikermcneil',
+    'ee/vulnerability-dashboard/api': 'eashaw',//« Vulnerability dashboard backend, scripts, deps
+    'ee/vulnerability-dashboard/config': 'eashaw',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
-    'ee/vulnerability-dashboard/scripts': 'mikermcneil',
-    'ee/vulnerability-dashboard/package.json': 'mikermcneil',
+    'ee/vulnerability-dashboard/scripts': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'eashaw',
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
 
-    '/handbook/company/testimonials.yml': 'mike-j-thomas',
+    'handbook/company/testimonials.yml': 'mike-j-thomas',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -163,7 +175,7 @@ module.exports.custom = {
 
 
     // 🌐 GitHub issue templates
-    //'.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
+    '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
   },
 
@@ -189,10 +201,13 @@ module.exports.custom = {
 
     // Code for core product and integrations
     'ee/tools/puppet': ['lukeheath', 'roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['rachaelshaw'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
+    'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
+    '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
+    'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
@@ -213,7 +228,7 @@ module.exports.custom = {
     'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
 
     // 🫧 Vulnerability dashboard
-    'ee/vulnerability-dashboard': 'mikermcneil',// (catch-all)
+    'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)
     'ee/vulnerability-dashboard/assets': 'eashaw',
     'ee/vulnerability-dashboard/views': 'eashaw',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
@@ -251,13 +266,13 @@ module.exports.custom = {
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
-    '/handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
+    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -286,10 +301,31 @@ module.exports.custom = {
     '/': ['lukeheath'] // Future update this
   },
 
+  //  ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
+  //  ██╔════╝██╔════╝██║  ██║██╔════╝████╗ ████║██╔══██╗
+  //  ███████╗██║     ███████║█████╗  ██╔████╔██║███████║
+  //  ╚════██║██║     ██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║
+  //  ███████║╚██████╗██║  ██║███████╗██║ ╚═╝ ██║██║  ██║
+  //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝
+  //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.11.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
 
+
+  //  ███╗   ███╗██╗███████╗ ██████╗
+  //  ████╗ ████║██║██╔════╝██╔════╝
+  //  ██╔████╔██║██║███████╗██║
+  //  ██║╚██╔╝██║██║╚════██║██║
+  //  ██║ ╚═╝ ██║██║███████║╚██████╗
+  //  ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝
+  //
+  /***************************************************************************
+  *                                                                          *
+  * Any other custom config this Sails app should use during development.    *
+  * (and possibly in ALL environments, if not overridden in config/env/)     *
+  *                                                                          *
+  ***************************************************************************/
 
   // FUTURE: Consolidate these two lists of email domains (And maybe find another word for banned)
   // For the deliver-apple-csr webhook:
@@ -337,36 +373,9 @@ module.exports.custom = {
     'live.com',
     'yandex.ru',
     'ymail.com',
+    'qq.com',
   ],
 
-  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
-  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
-  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
-  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
-  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
-  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
-  //
-  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
-
-  // For sending requests to a Fleet instance:
-  // fleetBaseUrlForQueryReports: '…',
-  // fleetTokenForQueryReports: '…',
-
-  // The API ID of the team of hosts created for query reports.
-  // teamApidForQueryReports:
-
-  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
-  // queryIdsByTableName: {…}
-
-  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
-  // hostIdsByHostPlatform: {…}
-
-  /***************************************************************************
-  *                                                                          *
-  * Any other custom config this Sails app should use during development.    *
-  * (and possibly in ALL environments, if not overridden in config/env/)     *
-  *                                                                          *
-  ***************************************************************************/
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
 
@@ -382,6 +391,14 @@ module.exports.custom = {
   // customerWorkspaceOneOauthId: '…',
   // customerWorkspaceOneOauthSecret: '…',
   // customerMigrationWebhookSecret: '…',
+
+  // For nurture emails:
+  // contactEmailForNutureEmails: '…',
+  // activityCaptureEmailForNutureEmails: '…',
+  // contactNameForNurtureEmails: '…',
+
+  // Deal registration form
+  // dealRegistrationContactEmailAddress: '…',
 
   //…
 

@@ -21,11 +21,11 @@ type listSoftwareTitlesRequest struct {
 }
 
 type listSoftwareTitlesResponse struct {
-	Meta            *fleet.PaginationMetadata `json:"meta"`
-	Count           int                       `json:"count"`
-	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
-	SoftwareTitles  []fleet.SoftwareTitle     `json:"software_titles,omitempty"`
-	Err             error                     `json:"error,omitempty"`
+	Meta            *fleet.PaginationMetadata       `json:"meta"`
+	Count           int                             `json:"count"`
+	CountsUpdatedAt *time.Time                      `json:"counts_updated_at"`
+	SoftwareTitles  []fleet.SoftwareTitleListResult `json:"software_titles"`
+	Err             error                           `json:"error,omitempty"`
 }
 
 func (r listSoftwareTitlesResponse) error() error { return r.Err }
@@ -39,9 +39,12 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 
 	var latest time.Time
 	for _, sw := range titles {
-		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
-			latest = sw.CountsUpdatedAt
+		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
+			latest = *sw.CountsUpdatedAt
 		}
+	}
+	if len(titles) == 0 {
+		titles = []fleet.SoftwareTitleListResult{}
 	}
 	listResp := listSoftwareTitlesResponse{
 		SoftwareTitles: titles,
@@ -58,21 +61,24 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 func (svc *Service) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
-) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
 		return nil, 0, nil, err
 	}
 
-	if opt.TeamID != nil && *opt.TeamID != 0 {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return nil, 0, nil, fleet.ErrMissingLicense
-		}
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
+	}
+
+	if opt.TeamID != nil && *opt.TeamID != 0 && !lic.IsPremium() {
+		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
 	// always include metadata for software titles
@@ -129,7 +135,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -165,6 +171,44 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
+	}
+
+	license, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get license")
+	}
+	if license.IsPremium() {
+		// add software installer data if needed
+		if software.SoftwareInstallersCount > 0 {
+			meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
+			}
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+				}
+				meta.Status = summary
+			}
+			software.SoftwarePackage = meta
+		}
+
+		// add VPP app data if needed
+		if software.VPPAppsCount > 0 {
+			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+			}
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+				}
+				meta.Status = summary
+			}
+			software.AppStoreApp = meta
+		}
 	}
 
 	return software, nil

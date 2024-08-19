@@ -62,7 +62,8 @@ func Analyze(
 
 		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
 		for _, hostID := range hostIDs {
-			software, err := ds.ListSoftwareForVulnDetection(ctx, hostID)
+			hostID := hostID
+			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
 			if err != nil {
 				return nil, err
 			}
@@ -72,6 +73,12 @@ func Analyze(
 				return nil, err
 			}
 			foundInBatch[hostID] = evalR
+
+			evalU, err := defs.EvalKernel(software)
+			if err != nil {
+				return nil, err
+			}
+			foundInBatch[hostID] = append(foundInBatch[hostID], evalU...)
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)

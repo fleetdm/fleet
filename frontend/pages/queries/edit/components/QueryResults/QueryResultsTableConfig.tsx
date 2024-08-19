@@ -50,7 +50,7 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName,
+      accessor: (data) => data[colName],
       Cell: (cellProps: CellProps<T>) => {
         const val = cellProps?.cell?.value;
         return !!val?.length && val.length > 300

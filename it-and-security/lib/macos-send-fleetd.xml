@@ -1,0 +1,15 @@
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>ManifestURL</key>
+      <string>https://download.fleetdm.com/fleetd-base-manifest.plist</string>
+      <key>RequestType</key>
+      <string>InstallEnterpriseApplication</string>
+    </dict>
+
+    <key>CommandUUID</key>
+    <string>adc1bc23-abec-4499-b57f-c8755c7ffe3c</string>
+  </dict>
+</plist>

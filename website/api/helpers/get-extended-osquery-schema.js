@@ -11,6 +11,10 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to include a lastModifiedAt value for each table.',
+    },
+    githubAccessToken: {
+      type: 'string',
+      description: 'A github token used to authenticate requests to the GitHub API'
     }
   },
 
@@ -25,11 +29,10 @@ module.exports = {
   },
 
 
-  fn: async function ({includeLastModifiedAtValue}) {
+  fn: async function ({includeLastModifiedAtValue, githubAccessToken}) {
     let path = require('path');
     let YAML = require('yaml');
     let util = require('util');
-
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
     require('assert')(sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
     let VERSION_OF_OSQUERY_SCHEMA_TO_USE = sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation;
@@ -40,6 +43,14 @@ module.exports = {
     let rawOsqueryTablesLastModifiedAt;
     if(includeLastModifiedAtValue) {
       // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
+      let baseHeadersForGithubRequests = {
+        'User-Agent': 'fleet-schema-builder',
+        'Accept': 'application/vnd.github.v3+json',
+      };
+      // If a GitHub access token was provided, add it to the headers.
+      if(githubAccessToken){
+        baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+      }
       let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
         url: 'https://api.github.com/repos/osquery/osquery-site/commits',
         data: {
@@ -47,10 +58,7 @@ module.exports = {
           page: 1,
           per_page: 1,//eslint-disable-line camelcase
         },
-        headers: {
-          'User-Agent': 'fleet-schema-builder',
-          'Accept': 'application/vnd.github.v3+json',
-        },
+        headers: baseHeadersForGithubRequests
       }).intercept((err)=>{
         return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${util.inspect(err)}`);
       });
@@ -115,7 +123,7 @@ module.exports = {
         expandedTableToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(expandedTableToPush.name);
         // Since we don't have a Fleet override for this table, we'll set the fleetRepoUrl for this table to be a link to create the Fleet override table YAML.
         // This is done by adding a 'filename' and 'value' as search parameters to a url that creates a new folder in the schema/tables/ folder.
-        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: >- # (required) string - The description for this table. Note: this field supports Markdown\n\t# Add description here\nexamples: >- # (optional) string - An example query for this table. Note: This field supports Markdown\n\t# Add examples here\nnotes: >- # (optional) string - Notes about this table. Note: This field supports Markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description. Note: this field supports Markdown\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
+        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: |- # (required) string - The description for this table. Note: this field supports Markdown\n\t# Add description here\nexamples: |- # (optional) string - An example query for this table. Note: This field supports Markdown\n\t# Add examples here\nnotes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description. Note: this field supports Markdown\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
 
         expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema?filename='+encodeURIComponent('tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
 

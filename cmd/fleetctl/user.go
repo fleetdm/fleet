@@ -160,7 +160,7 @@ func createUserCommand() *cli.Command {
 			force_reset := !sso && !apiOnly
 
 			// password requirements are validated as part of `CreateUser`
-			err = client.CreateUser(fleet.UserPayload{
+			sessionKey, err := client.CreateUser(fleet.UserPayload{
 				Password:                 &password,
 				Email:                    &email,
 				Name:                     &name,
@@ -172,6 +172,10 @@ func createUserCommand() *cli.Command {
 			})
 			if err != nil {
 				return fmt.Errorf("Failed to create user: %w", err)
+			}
+
+			if apiOnly && sessionKey != nil && *sessionKey != "" {
+				fmt.Fprintf(c.App.Writer, "Success! The API token for your new user is: %s\n", *sessionKey)
 			}
 
 			return nil
@@ -208,7 +212,6 @@ func createBulkUsersCommand() *cli.Command {
 			}
 			defer csvFile.Close()
 			csvLines, err := csv.NewReader(csvFile).ReadAll()
-
 			if err != nil {
 				return err
 			}
@@ -278,7 +281,7 @@ func createBulkUsersCommand() *cli.Command {
 			}
 
 			for _, user := range users {
-				err = client.CreateUser(user)
+				_, err = client.CreateUser(user)
 				if err != nil {
 					return fmt.Errorf("Failed to create user: %w", err)
 				}
@@ -351,7 +354,6 @@ func deleteBulkUsersCommand() *cli.Command {
 			}
 			defer csvFile.Close()
 			csvLines, err := csv.NewReader(csvFile).ReadAll()
-
 			if err != nil {
 				return err
 			}
@@ -362,10 +364,10 @@ func deleteBulkUsersCommand() *cli.Command {
 				}
 			}
 			return nil
-
 		},
 	}
 }
+
 func generateRandomPassword() (string, error) {
 	password, err := password.Generate(20, 2, 2, false, true)
 	if err != nil {

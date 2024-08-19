@@ -28,9 +28,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"go.mozilla.org/pkcs7"
@@ -135,13 +135,13 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 	return &c
 }
 
-// NewTestMDMClientDEP will create a simulated device that will not fetch the enrollment
+// NewTestMDMClientAppleDirect will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
-func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
 	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
-		Model:        "MacBookPro16,1",
+		Model:        model,
 
 		EnrollInfo: enrollInfo,
 	}
@@ -149,6 +149,14 @@ func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppl
 		fn(&c)
 	}
 	return &c
+}
+
+func (c *TestAppleMDMClient) SetDesktopToken(tok string) {
+	c.desktopURLToken = tok
+}
+
+func (c *TestAppleMDMClient) SetDEPToken(tok string) {
+	c.depURLToken = tok
 }
 
 // Enroll runs the MDM enroll protocol on the simulated device.
@@ -384,6 +392,9 @@ func (c *TestAppleMDMClient) Authenticate() error {
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"SerialNumber": c.SerialNumber,
 	}
+	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
+		payload["ProductName"] = c.Model
+	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
 }
@@ -469,6 +480,43 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"CommandUUID":  cmdUUID,
 	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"QueryResponses": map[string]interface{}{
+			"AvailableDeviceCapacity": float64(51.53312768),
+			"DeviceCapacity":          float64(64),
+			"DeviceName":              deviceName,
+			"OSVersion":               "17.5.1",
+			"ProductName":             productName,
+			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+		},
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID string, software []fleet.Software) (*mdm.Command, error) {
+	mdmSoftware := make([]map[string]interface{}, 0, len(software))
+	for _, s := range software {
+		mdmSoftware = append(mdmSoftware, map[string]interface{}{
+			"Name":         s.Name,
+			"ShortVersion": s.Version,
+			"Identifier":   s.BundleIdentifier,
+		})
+	}
+
+	payload := map[string]any{
+		"Status":                   "Acknowledged",
+		"UDID":                     udid,
+		"CommandUUID":              cmdUUID,
+		"InstalledApplicationList": mdmSoftware,
+	}
+
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
@@ -640,12 +688,21 @@ const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
 
 // RandSerialNumber returns a fake random serial number.
 func RandSerialNumber() string {
-	b := make([]byte, 12)
+	return randStr(12)
+}
+
+func randStr(n int) string {
+	b := make([]byte, n)
 	for i := range b {
 		//nolint:gosec // not used for crypto, only to generate random serial for testing
 		b[i] = serialLetters[mrand.Intn(len(serialLetters))]
 	}
 	return string(b)
+}
+
+// RandUDID returns a fake random iOS/iPadOS 17+ UDID.
+func RandUDID() string {
+	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
 }
 
 type scepClient interface {

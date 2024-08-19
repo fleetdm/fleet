@@ -1,14 +1,12 @@
 name: shimcache
-examples: >-
+examples: |-
   As a byproduct of its functionality, the Application Compatibility Cache (also known as the shimcache) logs some details around process execution. These logs can be useful, especially during incident response. The following query looks for a potential IoC (indicator of compromise) - evidence of process execution of a Windows binary named certutil. (Certutil is a legitimate Windows application, but is also known to be a lolbin - living off the land binary. See more details here: https://lolbas-project.github.io/lolbas/Binaries/Certutil/ ) This query joins the local system's uptime to its results because shimcache logs are kept in memory until the system is rebooted, at which point they are written to disk - so we would also want to know the last time this system was rebooted.
 
   ```
-
-   SELECT entry AS execution_order, path, DATETIME(modified_time, 'unixepoch') AS file_last_modified,  uptime.days || ' days, ' || uptime.hours || ' hours' AS host_uptime FROM shimcache CROSS JOIN uptime WHERE path LIKE '%certutil%';
-
+  SELECT entry AS execution_order, path, DATETIME(modified_time, 'unixepoch') AS file_last_modified,  uptime.days || ' days, ' || uptime.hours || ' hours' AS host_uptime FROM shimcache CROSS JOIN uptime WHERE path LIKE '%certutil%';
   ```
 
-notes: >-
+notes: |-
 
   Some key caveats to know about this data source:
 

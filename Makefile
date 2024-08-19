@@ -249,13 +249,15 @@ fleetd-tables-windows:
 	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-linux-arm64:
+	GOOS=linux GOARCH=arm64 go build -o fleetd_tables_linux_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin_arm:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
 	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
 fleetd-tables-clean:
 	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
 
@@ -279,7 +281,7 @@ binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
-	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
@@ -310,7 +312,7 @@ e2e-serve-premium: e2e-reset-db
 # Usage:
 # make e2e-set-desktop-token host_id=1 token=foo
 e2e-set-desktop-token:
-	docker-compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
 
 changelog:
 	sh -c "find changes -type f | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
@@ -325,7 +327,9 @@ changelog-orbit:
 	sh -c "git rm orbit/changes/*"
 
 changelog-chrome:
-	sh -c "find ee/fleetd-chrome/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
+	@echo -e "## fleetd-chrome $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	sh -c "find ee/fleetd-chrome/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' >> new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md"
 	sh -c "git rm ee/fleetd-chrome/changes/*"
 
@@ -343,7 +347,7 @@ fleetd-tuf:
 
 # Reset the development DB
 db-reset:
-	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --dev
 
 # Back up the development DB to file
@@ -420,6 +424,14 @@ endif
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
 
+# Generate escrowBuddy.pkg bundle from the Escrow Buddy repo.
+#
+# Usage:
+# make escrow-buddy-pkg version=1.0.0 out-path=.
+escrow-buddy-pkg:
+	curl -L https://github.com/macadmins/escrow-buddy/releases/download/v$(version)/Escrow.Buddy-$(version).pkg --output $(out-path)/escrowBuddy.pkg
+
+
 # Build and generate desktop.app.tar.gz bundle.
 #
 # Usage:
@@ -463,6 +475,21 @@ desktop-linux:
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 
+# Build desktop executable for Linux ARM.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux-arm64
+#
+# Output: desktop.tar.gz
+desktop-linux-arm64:
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
+		mkdir /output/fleet-desktop && \
+		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
+
 # Build orbit executable for Windows.
 # This generates orbit executable for Windows that includes versioninfo binary properties
 # These properties can be displayed when right-click on the binary in Windows Explorer.
@@ -485,10 +512,11 @@ db-replica-setup:
 	$(eval MYSQL_REPLICATION_USER := replicator)
 	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; flush privileges;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
 	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
 	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_port=3306,master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	if [ "${FLEET_MYSQL_IMAGE}" == "mysql:8.0" ]; then MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to get_master_public_key=1;"; fi
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "start slave;"
 

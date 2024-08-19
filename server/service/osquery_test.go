@@ -35,8 +35,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -259,7 +259,10 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 	context.Background(),
 	config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}},
 	nil,
-	&fleet.Features{EnableHostUsers: true},
+	&fleet.Features{
+		EnableHostUsers:         true,
+		EnableSoftwareInventory: true,
+	},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -543,6 +546,22 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		switch {
+		case teamID != nil && *teamID == 1:
+			return &fleet.Query{
+				ID:                 4242,
+				Name:               name,
+				AutomationsEnabled: true,
+				TeamID:             ptr.Uint(1),
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		case teamID != nil && *teamID == 2:
+			return &fleet.Query{
+				ID:                 4343,
+				Name:               name,
+				AutomationsEnabled: true,
+				TeamID:             ptr.Uint(2),
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
 		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
 			return &fleet.Query{
 				Name:               name,
@@ -594,11 +613,16 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	teamQueryResultsStored := false
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		if len(rows) == 0 {
 			return nil
 		}
 		switch {
+		case rows[0].QueryID == 4242:
+			t.Fatal("should not happen, as query 4242 is a team query and host is global")
+		case rows[0].QueryID == 4343:
+			teamQueryResultsStored = true
 		case rows[0].QueryID == 123:
 			require.Len(t, rows, 1)
 			require.Equal(t, uint(999), rows[0].HostID)
@@ -651,6 +675,9 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-foo/bar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		// Query results of a query that belongs to a different team than the host's team (can happen when host is transferred from one team to another or no team).
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
 
@@ -668,7 +695,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	require.NoError(t, err)
 
 	host := fleet.Host{
-		ID: 999,
+		ID:     999,
+		TeamID: nil, // Global host.
 	}
 	ctx = hostctx.NewContext(ctx, &host)
 
@@ -688,6 +716,25 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, validResults, testLogger.logs)
+
+	//
+	// Run a similar test but now with a team host.
+	//
+	host = fleet.Host{
+		ID:     999,
+		TeamID: ptr.Uint(2),
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+	results := []json.RawMessage{
+		// This query should be ignored.
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+		// This query should be stored.
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-2/Zoobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+	}
+	err = serv.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
+
+	require.True(t, teamQueryResultsStored)
 }
 
 func TestSaveResultLogsToQueryReports(t *testing.T) {
@@ -719,7 +766,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
@@ -730,13 +777,13 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
@@ -778,7 +825,7 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -829,7 +876,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -886,7 +933,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 
@@ -903,11 +950,11 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		expectedName string
 		hasErr       bool
 	}{
-		{"pack/Global/Query Name", nil, "Query Name", false},
-		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
-		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
-		{"pack/team-foo/Query", nil, "", true},
-		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/Global/Query Name", nil, "Query Name", false},                       // valid global query
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},               // valid team query
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false}, // valid team query
+		{"pack/team-foo/Query", nil, "", true},                                     // missing team ID
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},             // query name contains forward slash
 		{"packGlobalGlobalGlobalGlobal", nil, "Global", false},                     // pack_delimiter=Global
 		{"packXGlobalGlobalXGlobalQueryWith/Slash", nil, "QueryWith/Slash", false}, // pack_delimiter=XGlobal
 		{"pack//Global//QueryWith/Slash", nil, "QueryWith/Slash", false},           // pack_delimiter=//
@@ -917,6 +964,8 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"pack123😁123team-1123😁123QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false}, // pack_delimiter=123😁123
 		{"pack(foo)team-1(foo)fo(o)bar", ptr.Uint(1), "fo(o)bar", false},                   // pack_delimiter=(foo)
 		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
+		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
+		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
@@ -1001,6 +1050,7 @@ func TestGetMostRecentResults(t *testing.T) {
 }
 
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
+	t.Helper()
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
@@ -1011,6 +1061,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":             {},
 		hostDetailQueryPrefix + "orbit_info":                 {},
 		hostDetailQueryPrefix + "software_vscode_extensions": {},
+		hostDetailQueryPrefix + "software_macos_firefox":     {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1027,7 +1078,11 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			AdditionalQueries:       &additional,
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -1311,7 +1366,10 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1468,7 +1526,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1539,7 +1600,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "ABCDEFGH",
+      "hardware_serial": "NEW_HW_SERIAL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1606,6 +1667,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	assert.Equal(t, "NEW_HW_SERIAL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1650,15 +1712,19 @@ func TestDetailQueries(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "linux",
+		ID:             1,
+		Platform:       "linux",
+		HardwareSerial: "HW_SERIAL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1707,9 +1773,8 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +2 for software inventory (+1 for the main software query +1 software_vscode_extensions)
 	// +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+2+1, len(queries)) {
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1772,7 +1837,7 @@ func TestDetailQueries(t *testing.T) {
         "cpu_subtype": "Intel x86-64h Haswell",
         "cpu_type": "x86_64h",
         "hardware_model": "MacBookPro11,4",
-        "hardware_serial": "ABCDEFGH",
+        "hardware_serial": "-1",
         "hardware_vendor": "Apple Inc.",
         "hardware_version": "1.0",
         "hostname": "computer.local",
@@ -1912,6 +1977,8 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
+	assert.Equal(t, "HW_SERIAL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1975,9 +2042,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +2 software inventory (+1 main software query and +1 software extra query )
 	// +1 fleet_no_policies_wildcard query
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2+1, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -2156,7 +2222,10 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)
@@ -2891,7 +2960,9 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
@@ -2925,7 +2996,9 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
@@ -2965,7 +3038,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	// var gotQuery *fleet.Query
@@ -2983,7 +3058,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
@@ -3012,7 +3089,10 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -3209,7 +3289,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{
-				EnableHostUsers: true,
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: true,
 			},
 			WebhookSettings: fleet.WebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -3477,7 +3558,10 @@ func TestLiveQueriesFailing(t *testing.T) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -3567,6 +3651,31 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	someRow := map[string]string{
 		"1": "1",
 	}
+	appToOverride := map[string]string{
+		"name":              "OverrideMe.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
+
+	appThatOverrides := map[string]string{
+		"name":              "OverrideMeSuccess.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -3574,6 +3683,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		resultsIn  fleet.OsqueryDistributedQueryResults
 		statusesIn map[string]fleet.OsqueryStatus
 		messagesIn map[string]string
+		overrides  map[string]osquery_utils.DetailQuery
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
@@ -3757,11 +3867,79 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "override works",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":      fleet.StatusOK,
+				hostDetailQueryPrefix + "software_overrideMe": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					appToOverride,
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_overrideMe": []map[string]string{
+					appThatOverrides,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					appThatOverrides,
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"overrideMe": {
+					SoftwareOverrideMatch: func(row map[string]string) bool {
+						return row["name"] == "OverrideMe.app"
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, log.NewNopLogger())
+			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
+	}
+}
+
+func TestDetailQueriesLinuxDistros(t *testing.T) {
+	for _, linuxPlatform := range fleet.HostLinuxOSs {
+		m := expectedDetailQueriesForPlatform(linuxPlatform)
+		require.Contains(t, m, "users")
+		require.Contains(t, m, "network_interface_unix")
+		require.Contains(t, m, "disk_space_unix")
+		require.Contains(t, m, "os_unix_like")
+		require.Contains(t, m, "orbit_info")
+		require.Contains(t, m, "disk_encryption_linux")
+		require.Contains(t, m, "software_vscode_extensions")
+		require.Contains(t, m, "software_linux")
+	}
+}
+
+// Benchmark function
+func BenchmarkFindPackDelimiterStringCommon(b *testing.B) {
+	// Input data for benchmarking
+	input := "pack/Global/Foo"
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
+	}
+}
+
+func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
+	// Input data for benchmarking
+	input := "packGlobalGlobalGlobalGlobal" // global pack delimiter, global team, query name global
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
 	}
 }

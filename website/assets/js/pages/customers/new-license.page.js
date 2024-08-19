@@ -39,7 +39,31 @@ parasails.registerPage('new-license', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(window.location.hash) {
+      if(typeof analytics !== 'undefined') {
+        if(window.location.hash === '#signup') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+          analytics.track('fleet_website__sign_up');
+        } else if(window.location.hash === '#login') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+        }
+      }
+      window.location.hash = '';
+    }
   },
   mounted: async function() {
 
@@ -67,7 +91,7 @@ parasails.registerPage('new-license', {
 
     clickGoToDashboard: async function() {
       this.syncing = true;
-      window.location = '/customers/dashboard?order-complete';
+      this.goto('/customers/dashboard?order-complete');
     },
 
     submittedQuoteForm: async function(quote) {
@@ -90,7 +114,7 @@ parasails.registerPage('new-license', {
     clickScheduleDemo: async function() {
       this.syncing = true;
       // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
-      window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`;
+      this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`);
     },
 
     clickResetForm: async function() {

@@ -50,8 +50,6 @@ describe("PolicyForm - component", () => {
         showOpenSchemaActionText={false}
         storedPolicy={createMockPolicy({ name: "" })}
         isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
         isTeamObserver={false}
         isUpdatingPolicy={false}
         onCreatePolicy={jest.fn()}
@@ -61,6 +59,11 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
@@ -106,8 +109,6 @@ describe("PolicyForm - component", () => {
         showOpenSchemaActionText={false}
         storedPolicy={createMockPolicy({ platform: undefined })}
         isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
         isTeamObserver={false}
         isUpdatingPolicy={false}
         onCreatePolicy={jest.fn()}
@@ -117,6 +118,11 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
@@ -172,14 +178,12 @@ describe("PolicyForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <PolicyForm
         policyIdForEdit={mockPolicy.id}
         showOpenSchemaActionText={false}
         storedPolicy={createMockPolicy()}
         isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
         isTeamObserver={false}
         isUpdatingPolicy={false}
         onCreatePolicy={jest.fn()}
@@ -189,6 +193,11 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
+        resetAiAutofillData={jest.fn()}
       />
     );
 

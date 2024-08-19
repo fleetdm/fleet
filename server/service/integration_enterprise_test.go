@@ -5,13 +5,16 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -22,6 +25,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -30,6 +36,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
@@ -40,6 +48,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	googleCalendar "google.golang.org/api/calendar/v3"
 )
 
 func TestIntegrationsEnterprise(t *testing.T) {
@@ -77,7 +86,14 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, log.NewJSONLogger(os.Stdout))
+					cronLog := log.NewJSONLogger(os.Stdout)
+					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+						cronLog = kitlog.NewNopLogger()
+					}
+					calendarSchedule, err = cron.NewCalendarSchedule(
+						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
+						cronLog,
+					)
 					return calendarSchedule, err
 				}
 			},
@@ -154,6 +170,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 						"minimum_version": "10.15.0",
 						"deadline":        "2021-01-01",
 					},
+					"ios_updates": map[string]any{
+						"minimum_version": "17.5.1",
+						"deadline":        "2024-07-23",
+					},
+					"ipados_updates": map[string]any{
+						"minimum_version": "18.0",
+						"deadline":        "2024-08-24",
+					},
 				},
 			},
 		},
@@ -173,9 +197,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
 	}, team.Config.Features)
 	require.Equal(t, fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("17.5.1"),
+			Deadline:       optjson.SetString("2024-07-23"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("18.0"),
+			Deadline:       optjson.SetString("2024-08-24"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -270,9 +302,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
 	require.Equal(t, fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("17.5.1"),
+			Deadline:       optjson.SetString("2024-07-23"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("18.0"),
+			Deadline:       optjson.SetString("2024-08-24"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -292,9 +332,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
 	require.Equal(t, fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("17.5.1"),
+			Deadline:       optjson.SetString("2024-07-23"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("18.0"),
+			Deadline:       optjson.SetString("2024-08-24"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -316,9 +364,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.True(t, len(listTmResp.Teams) > 0)
 	require.Equal(t, team.ID, listTmResp.Teams[0].ID)
 	require.Equal(t, fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("17.5.1"),
+			Deadline:       optjson.SetString("2024-07-23"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("18.0"),
+			Deadline:       optjson.SetString("2024-08-24"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(1),
@@ -844,6 +900,35 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.Name, ts.InheritedPolicies[0].Name)
 	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
+	tc := countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
+	require.Nil(t, tc.Err)
+	require.Equal(t, 1, tc.Count)
+
+	gc := countGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &gc)
+	require.Nil(t, gc.Err)
+	require.Equal(t, 1, gc.Count)
+
+	// Test merge inherited
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	require.Len(t, ts.Policies, 2)
+	require.Nil(t, ts.InheritedPolicies)
+	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
+	assert.Equal(t, "select * from osquery;", ts.Policies[0].Query)
+	assert.Equal(t, "Some description", ts.Policies[0].Description)
+	require.NotNil(t, ts.Policies[0].Resolution)
+	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
+	assert.Equal(t, gpol.Name, ts.Policies[1].Name)
+	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
+
+	countResp := countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
+	require.Nil(t, countResp.Err)
+	require.Equal(t, 2, countResp.Count)
+
+	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := deleteTeamPoliciesResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
@@ -851,6 +936,53 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
+	t := s.T()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	// create global query
+	params := fleet.QueryPayload{
+		Name:  ptr.String("global1"),
+		Query: ptr.String("select * from time;"),
+	}
+	var createQueryResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	defer s.cleanupQuery(createQueryResp.Query.ID)
+
+	// create team query
+	params = fleet.QueryPayload{
+		Name:   ptr.String("team1"),
+		Query:  ptr.String("select * from time;"),
+		TeamID: ptr.Uint(team1.ID),
+	}
+	createQueryResp = createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	defer s.cleanupQuery(createQueryResp.Query.ID)
+
+	// list team queries
+	var listQueriesResp listQueriesResponse
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, listQueriesResp.Queries, 1)
+	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+
+	// list merged team queries
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	require.Len(t, listQueriesResp.Queries, 2)
+	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
@@ -2042,7 +2174,15 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
 	require.Equal(t, fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
 		},
@@ -2082,7 +2222,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_updates": &fleet.MacOSUpdates{
+			"macos_updates": &fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2021-01-01"),
 			},
@@ -2188,7 +2328,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusUnprocessableEntity, &tmResp)
 }
 
-func (s *integrationEnterpriseTestSuite) assertMacOSUpdatesDeclaration(teamID *uint, expected *fleet.MacOSUpdates) {
+func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
 	t := s.T()
 	if teamID == nil {
 		teamID = ptr.Uint(0)
@@ -2197,7 +2337,7 @@ func (s *integrationEnterpriseTestSuite) assertMacOSUpdatesDeclaration(teamID *u
 	var declUUID string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(context.Background(), q, &declUUID,
-			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`, teamID, mdm.FleetMacOSUpdatesProfileName)
+			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`, teamID, profileName)
 		if expected == nil {
 			require.Error(t, err)
 			return nil
@@ -2216,10 +2356,9 @@ func (s *integrationEnterpriseTestSuite) assertMacOSUpdatesDeclaration(teamID *u
 	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT12:00:00"`, expected.Deadline.Value))
 }
 
-func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
+func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	t := s.T()
 
-	// Create a team
 	team := &fleet.Team{
 		Name:        t.Name(),
 		Description: "Team description",
@@ -2231,41 +2370,92 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	team.ID = tmResp.Team.ID
 
 	// no OS updates settings at the moment
-	s.assertMacOSUpdatesDeclaration(&team.ID, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, nil)
 
-	// modify the team's config
-	updates := &fleet.MacOSUpdates{
+	// modify the team's config (macOS first)
+	macOSUpdates := &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("10.15.0"),
 		Deadline:       optjson.SetString("2021-01-01"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_updates": updates,
+			"macos_updates": macOSUpdates,
 		},
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 
-	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, nil)
 
-	// only update the deadline
-	updates = &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("10.15.0"),
-		Deadline:       optjson.SetString("2025-10-01"),
+	// modify the team's config (now iOS and iPadOS)
+	iOSUpdates := &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("11.11.11"),
+		Deadline:       optjson.SetString("2022-02-02"),
+	}
+	iPadOSUpdates := &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("12.12.12"),
+		Deadline:       optjson.SetString("2023-03-03"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_updates": updates,
+			"ios_updates":    iOSUpdates,
+			"ipados_updates": iPadOSUpdates,
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "11.11.11", tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2022-02-02", tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "12.12.12", tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2023-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "11.11.11", "deadline": "2022-02-02"}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "12.12.12", "deadline": "2023-03-03"}`, team.ID, team.Name), 0)
+
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, iPadOSUpdates)
+
+	// only update the deadlines
+	macOSUpdates = &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("10.15.0"),
+		Deadline:       optjson.SetString("2025-10-01"),
+	}
+	iOSUpdates = &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("11.11.11"),
+		Deadline:       optjson.SetString("2024-02-02"),
+	}
+	iPadOSUpdates = &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("12.12.12"),
+		Deadline:       optjson.SetString("2024-03-03"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates":  macOSUpdates,
+			"ios_updates":    iOSUpdates,
+			"ipados_updates": iPadOSUpdates,
 		},
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
+	require.Equal(t, "11.11.11", tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-02-02", tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "12.12.12", tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
+	macOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
+	iOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "11.11.11", "deadline": "2024-02-02"}`, team.ID, team.Name), 0)
+	iPadOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "12.12.12", "deadline": "2024-03-03"}`, team.ID, team.Name), 0)
 
-	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, iPadOSUpdates)
 
-	// setting the windows updates doesn't alter the macos updates
+	// setting the windows updates doesn't alter the apple updates
 	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
@@ -2277,13 +2467,21 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "11.11.11", tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-02-02", tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "12.12.12", tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
 	require.Equal(t, 10, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
-	// did not create a new activity for macos updates
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), "", lastActivity)
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), ``, 0)
+	// did not create a new activity for os updates
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), "", macOSLastActivity)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), "", iOSLastActivity)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), "", iPadOSLastActivity)
+	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), ``, 0)
 
-	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, iPadOSUpdates)
 
 	// sending a nil MDM or MacOSUpdate config doesn't modify anything
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
@@ -2296,10 +2494,16 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "11.11.11", tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-02-02", tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "12.12.12", tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
-	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, iPadOSUpdates)
 
 	// sending macos settings but no macos_updates does not change the macos updates
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
@@ -2314,12 +2518,22 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
-	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, iPadOSUpdates)
 
-	// sending empty MacOSUpdate fields empties both fields
+	// sending empty apple os updates fields empties both fields and removes the DDM profiles
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
 			"macos_updates": map[string]any{
+				"minimum_version": "",
+				"deadline":        nil,
+			},
+			"ios_updates": map[string]any{
+				"minimum_version": "",
+				"deadline":        nil,
+			},
+			"ipados_updates": map[string]any{
 				"minimum_version": "",
 				"deadline":        nil,
 			},
@@ -2327,9 +2541,17 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+	require.Empty(t, tmResp.Team.Config.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Empty(t, tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
+	require.Empty(t, tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Empty(t, tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
 
-	s.assertMacOSUpdatesDeclaration(&team.ID, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIPadOSUpdatesProfileName, nil)
 
 	// error checks:
 
@@ -2337,6 +2559,22 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
 			"macos_updates": map[string]any{
+				"minimum_version": "10.15.0",
+				"deadline":        "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ios_updates": map[string]any{
+				"minimum_version": "10.15.0",
+				"deadline":        "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ipados_updates": map[string]any{
 				"minimum_version": "10.15.0",
 				"deadline":        "2021-01-01T00:00:00Z",
 			},
@@ -2352,11 +2590,41 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ios_updates": map[string]any{
+				"minimum_version": "10.15.0 (19A583)",
+				"deadline":        "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ipados_updates": map[string]any{
+				"minimum_version": "10.15.0 (19A583)",
+				"deadline":        "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// try to set a deadline but not a minimum version
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
 			"macos_updates": map[string]any{
+				"deadline": "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ios_updates": map[string]any{
+				"deadline": "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ipados_updates": map[string]any{
 				"deadline": "2021-01-01T00:00:00Z",
 			},
 		},
@@ -2370,11 +2638,39 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ios_updates": map[string]any{
+				"deadline": "",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ipados_updates": map[string]any{
+				"deadline": "",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// try to set a minimum version but not a deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
 			"macos_updates": map[string]any{
+				"minimum_version": "10.15.0 (19A583)",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ios_updates": map[string]any{
+				"minimum_version": "10.15.0 (19A583)",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ipados_updates": map[string]any{
 				"minimum_version": "10.15.0 (19A583)",
 			},
 		},
@@ -2388,18 +2684,40 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ios_updates": map[string]any{
+				"minimum_version": "",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"ipados_updates": map[string]any{
+				"minimum_version": "",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
+	ctx := context.Background()
 
 	// set the logo via the modify appconfig endpoint, so that the cache is
 	// properly updated.
 	var acResp appConfigResponse
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{
+		"org_info":{
+			"org_logo_url": "http://example.com/logo",
+			"contact_url": "http://example.com/contact"
+		}
+	}`), http.StatusOK, &acResp)
 	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
 		ID:          51,
 		Name:        "team1-policies",
 		Description: "desc team1",
@@ -2408,10 +2726,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 
 	token := "much_valid"
 	host := createHostAndDeviceToken(t, s.ds, token)
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+	qr, err := s.ds.NewQuery(ctx, &fleet.Query{
 		Name:           "TestQueryEnterpriseGlobalPolicy",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -2430,7 +2748,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NotNil(t, gpResp.Policy)
 
 	// add a policy execution
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host,
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(ctx, host,
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
 
 	// add a policy to team
@@ -2455,7 +2773,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	}
 
 	require.NoError(t, u.SetPassword(password, 10, 10))
-	_, err = s.ds.NewUser(context.Background(), u)
+	_, err = s.ds.NewUser(ctx, u)
 	require.NoError(t, err)
 
 	s.token = s.getTestToken(email, password)
@@ -2495,7 +2813,9 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
@@ -2507,6 +2827,17 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+
+	// update the team to enable software inventory
+	team.Config.Features.EnableSoftwareInventory = true
+	_, err = s.ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+
+	getDeviceHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
@@ -2756,7 +3087,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	s.lastActivityMatches("", ``, lastActivity)
 }
 
-func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
+func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	t := s.T()
 
 	// keep the last activity, to detect newly created ones
@@ -2775,7 +3106,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.Equal(t, fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}}, acResp.MDM.MacOSUpdates)
+		require.Equal(t, fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}}, acResp.MDM.MacOSUpdates)
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
@@ -2792,6 +3123,16 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 			"deadline": "2022-01-01"
 		}
 	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ios_updates": {
+			"deadline": "2022-01-01"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ipados_updates": {
+			"deadline": "2022-01-01"
+		}
+	}}`)
 
 	// missing deadline
 	checkInvalidConfig(`{"mdm": {
@@ -2799,10 +3140,32 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 			"minimum_version": "12.1.1"
 		}
 	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ios_updates": {
+			"minimum_version": "12.1.1"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ipados_updates": {
+			"minimum_version": "12.1.1"
+		}
+	}}`)
 
 	// invalid deadline
 	checkInvalidConfig(`{"mdm": {
 		"macos_updates": {
+			"minimum_version": "12.1.1",
+			"deadline": "2022"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ios_updates": {
+			"minimum_version": "12.1.1",
+			"deadline": "2022"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ipados_updates": {
 			"minimum_version": "12.1.1",
 			"deadline": "2022"
 		}
@@ -2815,10 +3178,34 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 			"deadline": "2022-01-01T00:00:00Z"
 		}
 	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ios_updates": {
+			"minimum_version": "12.1.1",
+			"deadline": "2022-01-01T00:00:00Z"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ipados_updates": {
+			"minimum_version": "12.1.1",
+			"deadline": "2022-01-01T00:00:00Z"
+		}
+	}}`)
 
 	// minimum_version includes build info
 	checkInvalidConfig(`{"mdm": {
 		"macos_updates": {
+			"minimum_version": "12.1.1 (ABCD)",
+			"deadline": "2022-01-01"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ios_updates": {
+			"minimum_version": "12.1.1 (ABCD)",
+			"deadline": "2022-01-01"
+		}
+	}}`)
+	checkInvalidConfig(`{"mdm": {
+		"ipados_updates": {
 			"minimum_version": "12.1.1 (ABCD)",
 			"deadline": "2022-01-01"
 		}
@@ -2831,22 +3218,47 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2022-01-01"
+				},
+				"ios_updates": {
+					"minimum_version": "13.13.13",
+					"deadline": "2023-03-03"
+				},
+				"ipados_updates": {
+					"minimum_version": "14.14.14",
+					"deadline": "2024-04-04"
 				}
 			}
 		}`), http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "13.13.13", acResp.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2023-03-03", acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "14.14.14", acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-04-04", acResp.MDM.IPadOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created
-	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
-	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01")})
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2023-03-03", "minimum_version":"13.13.13", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2024-04-04", "minimum_version":"14.14.14", "team_id": null, "team_name": null}`, 0)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01"),
+	})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("13.13.13"), Deadline: optjson.SetString("2023-03-03"),
+	})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("14.14.14"), Deadline: optjson.SetString("2024-04-04"),
+	})
 
 	// get the appconfig
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "13.13.13", acResp.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2023-03-03", acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "14.14.14", acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-04-04", acResp.MDM.IPadOSUpdates.Deadline.Value)
 
 	// update the deadline
 	acResp = appConfigResponse{}
@@ -2855,16 +3267,37 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2024-01-01"
+				},
+				"ios_updates": {
+					"minimum_version": "13.13.13",
+					"deadline": "2025-05-05"
+				},
+				"ipados_updates": {
+					"minimum_version": "14.14.14",
+					"deadline": "2026-06-06"
 				}
 			}
 		}`), http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "13.13.13", acResp.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-05-05", acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "14.14.14", acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2026-06-06", acResp.MDM.IPadOSUpdates.Deadline.Value)
 
 	// another edited macos min version activity got created
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
-	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2025-05-05", "minimum_version":"13.13.13", "team_id": null, "team_name": null}`, 0)
+	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2026-06-06", "minimum_version":"14.14.14", "team_id": null, "team_name": null}`, 0)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
+	})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("13.13.13"), Deadline: optjson.SetString("2025-05-05"),
+	})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("14.14.14"), Deadline: optjson.SetString("2026-06-06"),
+	})
 
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
@@ -2874,14 +3307,29 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
-	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
+	})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("13.13.13"), Deadline: optjson.SetString("2025-05-05"),
+	})
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("14.14.14"), Deadline: optjson.SetString("2026-06-06"),
+	})
 
-	// clear the macos requirement
+	// clear the apple OS requirements
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"macos_updates": {
+					"minimum_version": "",
+					"deadline": ""
+				},
+				"ios_updates": {
+					"minimum_version": "",
+					"deadline": ""
+				},
+				"ipados_updates": {
 					"minimum_version": "",
 					"deadline": ""
 				}
@@ -2889,16 +3337,34 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		}`), http.StatusOK, &acResp)
 	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Empty(t, acResp.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Empty(t, acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.IPadOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created with empty requirement
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
-	s.assertMacOSUpdatesDeclaration(nil, nil)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
+	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
 
-	// update again with empty macos requirement
+	// check DDM profiles were removed
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, nil)
+
+	// update again with empty apple OS requirements
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"macos_updates": {
+					"minimum_version": "",
+					"deadline": ""
+				},
+				"ios_updates": {
+					"minimum_version": "",
+					"deadline": ""
+				},
+				"ipados_updates": {
 					"minimum_version": "",
 					"deadline": ""
 				}
@@ -2906,10 +3372,16 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		}`), http.StatusOK, &acResp)
 	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline.Value)
+	require.Empty(t, acResp.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.IOSUpdates.Deadline.Value)
+	require.Empty(t, acResp.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.IPadOSUpdates.Deadline.Value)
 
-	// no activity got created
+	// no activity or DDM profiles were created
 	s.lastActivityMatches("", ``, lastActivity)
-	s.assertMacOSUpdatesDeclaration(nil, nil)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIOSUpdatesProfileName, nil)
+	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, nil)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
@@ -3223,11 +3695,24 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// set disk space information for some hosts (none provided for host3)
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, 3)
+
+	allHostsLabel, err := s.ds.GetLabelSpec(context.Background(), "All hosts")
+	require.NoError(t, err)
+	for _, h := range resp.Hosts {
+		err = s.ds.RecordLabelQueryExecutions(
+			context.Background(), h.Host, map[uint]*bool{allHostsLabel.ID: ptr.Bool(true)}, time.Now(), false,
+		)
+		require.NoError(t, err)
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp, "low_disk_space", "32")
+	require.Len(t, resp.Hosts, 1)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
@@ -3278,9 +3763,38 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 
+	// Add a failing policy
+	ctx := context.Background()
+	qr, err := s.ds.NewQuery(
+		ctx, &fleet.Query{
+			Name:           "TestQueryEnterpriseTestListHosts",
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Logging:        fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	// add a global policy
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+
+	// add a failing policy execution
+	require.NoError(
+		t, s.ds.RecordPolicyQueryExecutions(
+			ctx, host1,
+			map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
+
 	// populate software for hosts
 	now := time.Now()
-
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
@@ -3298,7 +3812,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	vulnMeta := []fleet.CVEMeta{{
 		CVE:              "cve-123-123-123",
-		CVSSScore:        ptr.Float64(5.4),
+		CVSSScore:        ptr.Float64(9.8),
 		EPSSProbability:  ptr.Float64(0.5),
 		CISAKnownExploit: ptr.Bool(true),
 		Published:        &now,
@@ -3306,6 +3820,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}}
 
 	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), vulnMeta))
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	require.NoError(t, s.ds.UpdateHostIssuesVulnerabilities(ctx))
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
@@ -3321,6 +3837,13 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 			require.Equal(t, &vulnMeta[0].EPSSProbability, h.Software[0].Vulnerabilities[0].EPSSProbability)
 			require.Equal(t, &vulnMeta[0].CISAKnownExploit, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
 			require.Equal(t, &s, h.Software[0].Vulnerabilities[0].Description)
+			assert.Equal(t, uint64(1), h.HostIssues.FailingPoliciesCount)
+			assert.Equal(t, uint64(1), *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(2), h.HostIssues.TotalIssuesCount)
+		} else {
+			assert.Zero(t, h.HostIssues.FailingPoliciesCount)
+			assert.Zero(t, *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Zero(t, h.HostIssues.TotalIssuesCount)
 		}
 	}
 
@@ -3330,6 +3853,33 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
 	}
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp)
+	assert.Len(t, resp.Hosts, 3)
+	for _, h := range resp.Hosts {
+		if h.ID == host1.ID {
+			assert.Equal(t, uint64(1), h.HostIssues.FailingPoliciesCount)
+			assert.Equal(t, uint64(1), *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(2), h.HostIssues.TotalIssuesCount)
+		} else {
+			assert.Zero(t, h.HostIssues.FailingPoliciesCount)
+			assert.Zero(t, *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Zero(t, h.HostIssues.TotalIssuesCount)
+		}
+	}
+
+	// Test ordering by issues
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "issues",
+	) // defaults to ascending order (lowest issues to most issues)
+	require.Len(t, resp.Hosts, 3)
+	assert.Equal(t, host1.ID, resp.Hosts[2].ID)
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp, "order_key", "issues",
+		"order_direction", "desc",
+	)
+	require.Len(t, resp.Hosts, 3)
+	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostHealth() {
@@ -3521,7 +4071,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	}{
 		"CVE-2021-1234": {
 			HostCount:   1,
-			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
 			CVE: fleet.CVE{
 				CVE:              "CVE-2021-1234",
 				CVSSScore:        ptr.Float64Ptr(7.5),
@@ -3590,7 +4140,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
-	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
 	require.Equal(t, ptr.StringPtr("Test CVE 2021-1234"), gResp.Vulnerability.Description)
 	require.Equal(t, ptr.Float64Ptr(7.5), gResp.Vulnerability.CVSSScore)
 	require.Equal(t, ptr.BoolPtr(true), gResp.Vulnerability.CISAKnownExploit)
@@ -3672,7 +4222,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, testOS.Platform, osVersionsResp.OSVersions[0].Platform)
 	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 1)
 	require.Equal(t, "CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].CVE)
-	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].DetailsLink)
 	require.Equal(t, *vulnMeta[0].CVSSScore, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVSSScore)
 	require.Equal(t, *vulnMeta[0].EPSSProbability, **osVersionsResp.OSVersions[0].Vulnerabilities[0].EPSSProbability)
 	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
@@ -3767,6 +4317,28 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
 		"99999",
 	)
+
+	// team user doesn't have acess to "no team"
+	osVersionsResp = osVersionsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusForbidden, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 0)
+
+	// team_id=0 is supported and returns results for hosts in "no team"
+	s.token = getTestAdminToken(t, s.server)
+	// no hosts, the results are empty
+	osVersionsResp = osVersionsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 0)
+	osVersionsResp = osVersionsResponse{}
+	// move the host to "no team" and update the stats
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), nil, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", "0")
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+	require.Equal(t, 1, osVersionResp.OSVersion.HostsCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -4132,6 +4704,13 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 	return host
 }
 
+func updateDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
+	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE host_device_auth SET token = ? WHERE host_id = ?`, token, hostID)
+		return err
+	})
+}
+
 func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
 	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hostID, token)
@@ -4243,6 +4822,108 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
+
+	// vulnerable param required when using vulnerability filters
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"exploit", "true",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"min_cvss_score", "1.1",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"max_cvss_score", "10.0",
+	)
+
+	// vulnerability filters
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 0)
+	require.Nil(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"max_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 0)
+	require.Nil(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
 }
 
 // TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
@@ -5068,7 +5749,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to run an empty script
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script contents must not be empty.")
+	require.Contains(t, errMsg, "Validation Failed: One of 'script_id', 'script_contents', or 'script_name' is required.")
 
 	// attempt to run an overly long script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)}, http.StatusUnprocessableEntity)
@@ -5097,7 +5778,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// an async script doesn't care about timeouts
 	now := time.Now()
@@ -5114,7 +5795,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// Disable scripts and verify that there are no Orbit notifs
 	acr := appConfigResponse{}
@@ -5356,6 +6037,21 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+
+	// create a execution request that will return a timeout
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+
+	// simulate a host response
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": -1, "output": "script execution error: signal: killed", "timeout": 900}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Equal(t, int64(-1), *scriptResultResp.ExitCode)
+	require.Equal(t, "Timeout. Fleet stopped the script after 900 seconds to protect host performance.", scriptResultResp.Message)
+	require.Equal(t, "script execution error: signal: killed", scriptResultResp.Output)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -5420,7 +6116,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 	require.NotNil(t, scriptResultResp.ScriptID)
 	require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
 
@@ -5489,8 +6185,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
+
 	// attempt to run sync with both script id and script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
+
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
 
@@ -5499,13 +6203,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+
 	// attempt to run sync with both script id and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+
 	// attempt to run sync without script contents, script id, or script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 
@@ -5566,6 +6282,13 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 	require.NotEqual(t, savedNoTmScript2.ID, savedTmScript2.ID)
 
+	_, err = s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "f13372.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+
 	// make sure the new host is seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host2.ID}, time.Now())
 	require.NoError(t, err)
@@ -5610,6 +6333,31 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+
+	// Async Run Script by Name
+
+	// attempt to run async with a script that does not exist on the specified team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Script 'f1337.sh' doesn’t exist.`)
+
+	// attempt to run async with an existing team script that belongs to a team different from the host's team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The script does not belong to the same team`)
+
+	var runSyncResp3 runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f13372.sh"}, http.StatusAccepted, &runSyncResp3)
+	require.Equal(t, host2.ID, runSyncResp3.HostID)
+	require.NotEmpty(t, runSyncResp3.ExecutionID)
+
+	// verify pending result
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp3.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host2.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo 'ALL YOUR BASE ARE BELONG TO US'", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
@@ -6523,7 +7271,7 @@ VALUES
 				name:       "script-timeout",
 				exitCode:   ptr.Int64(-1),
 				executedAt: now.Add(-1 * time.Hour),
-				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+				expected:   fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			{
 				name:       "pending",
@@ -6902,6 +7650,46 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	ctx := context.Background()
 	t := s.T()
 
+	softwareTitleListResultsMatch := func(want, got []fleet.SoftwareTitleListResult) {
+		// compare only the fields we care about
+		for i := range got {
+			require.NotZero(t, got[i].ID)
+			got[i].ID = 0
+
+			for j := range got[i].Versions {
+				require.NotZero(t, got[i].Versions[j].ID)
+				got[i].Versions[j].ID = 0
+			}
+			// Sort versions by version
+			sort.Slice(
+				got[i].Versions, func(a, b int) bool {
+					return got[i].Versions[a].Version < got[i].Versions[b].Version
+				},
+			)
+		}
+
+		// sort and use EqualValues instead of ElementsMatch in order
+		// to do a deep comparison of nested structures
+		sort.Slice(got, func(i, j int) bool {
+			return got[i].Name < got[j].Name
+		})
+		sort.Slice(want, func(i, j int) bool {
+			return want[i].Name < want[j].Name
+		})
+		for _, v := range got {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
+		for _, v := range want {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
+
+		require.EqualValues(t, want, got)
+	}
+
 	softwareTitlesMatch := func(want, got []fleet.SoftwareTitle) {
 		// compare only the fields we care about
 		for i := range got {
@@ -6912,6 +7700,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				require.NotZero(t, got[i].Versions[j].ID)
 				got[i].Versions[j].ID = 0
 			}
+			// Sort versions by version
+			sort.Slice(
+				got[i].Versions, func(a, b int) bool {
+					return got[i].Versions[a].Version < got[i].Versions[b].Version
+				},
+			)
 		}
 
 		// sort and use EqualValues instead of ElementsMatch in order
@@ -6969,8 +7763,11 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = host.Software[1]
+	for _, item := range host.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
@@ -6980,8 +7777,11 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 	soft1 = host.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = host.Software[1]
+	for _, item := range host.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
@@ -6993,6 +7793,15 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "cve-123-123-132",
+			CVSSScore:        ptr.Float64(7.8),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+	})
+	require.NoError(t, err)
+
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
@@ -7000,10 +7809,13 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	var resp listSoftwareTitlesResponse
+	// no self-service software yet
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1")
+	require.Empty(t, resp.SoftwareTitles)
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "foo",
 			Source:        "homebrew",
@@ -7038,7 +7850,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "foo",
 			Source:        "homebrew",
@@ -7064,7 +7876,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7089,19 +7901,10 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch(nil, resp.SoftwareTitles)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
 
 	// asking for vulnerable only software returns the expected values
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"vulnerable", "true",
-	)
-	require.Equal(t, 1, resp.Count)
-	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	expectedVulnSoftware := []fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7111,7 +7914,127 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
 		},
-	}, resp.SoftwareTitles)
+	}
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	// vulnerable param required when using vulnerability filters
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"exploit", "true",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"min_cvss_score", "1",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"max_cvss_score", "10",
+	)
+
+	// vulnerability filters
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Zero(t, resp.Count)
+	require.Nil(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"max_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Zero(t, resp.Count)
+	require.Nil(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
 
 	// request titles for team1, nothing there yet
 	resp = listSoftwareTitlesResponse{}
@@ -7119,11 +8042,11 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"team_id", "1",
+		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Equal(t, 0, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch(nil, resp.SoftwareTitles)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
 
 	// add new software for tmHost
 	software = []fleet.Software{
@@ -7145,13 +8068,13 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"team_id", "1",
+		"team_id", fmt.Sprintf("%d", team1.ID),
 		"order_key", "name",
 		"order_direction", "desc",
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "baz",
 			Source:        "deb_packages",
@@ -7184,7 +8107,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 3, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "baz",
 			Source:        "deb_packages",
@@ -7224,7 +8147,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"query", "123",
 	)
 	require.Equal(t, 1, resp.Count)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7246,7 +8169,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7277,7 +8200,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7308,7 +8231,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7339,7 +8262,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7372,6 +8295,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NotEmpty(t, resp.CountsUpdatedAt)
 	fooTitle := resp.SoftwareTitles[0]
 	require.Equal(t, "foo", fooTitle.Name)
+
+	// find the ID of "baz" (team 1)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "baz",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Equal(t, 1, resp.Count)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	bazTitle := resp.SoftwareTitles[0]
+	require.Equal(t, "baz", bazTitle.Name)
 
 	// non-existent id is a 404
 	var stResp getSoftwareTitleResponse
@@ -7427,9 +8365,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "bar", barTitle.Name)
 
 	// valid title with vulnerabilities
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	expected := []fleet.SoftwareTitle{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7443,7 +8379,17 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				},
 			},
 		},
-	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+	}
+	// Global
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// No Team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", "0")
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// invalid title for team
 	stResp = getSoftwareTitleResponse{}
@@ -7451,6 +8397,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
+
+	// invalid title for no team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", bazTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", "0")
 
 	// add bar tmHost
 	software = []fleet.Software{
@@ -7500,6 +8452,118 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", "99999",
 	)
+
+	// verify that software installers contain SoftwarePackage field
+	payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		SelfService:   false,
+		TeamID:        &team1.ID,
+	}
+	s.uploadSoftwareInstaller(payloadRubyTm1, http.StatusOK, "")
+
+	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "emacs.deb",
+		SelfService:   true,
+	}
+	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
+
+	payloadVim := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "vim.deb",
+		SelfService:   true,
+		TeamID:        ptr.Uint(0),
+	}
+	s.uploadSoftwareInstaller(payloadVim, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ruby",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+
+	// Upload an installer for the same software but different arch to a different team
+	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby_arm64.deb",
+		TeamID:        &team2.ID,
+	}
+	s.uploadSoftwareInstaller(payloadRubyTm2, http.StatusOK, "")
+
+	// We should only see the one we uploaded to team 1
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ruby",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+
+	// software installer not returned with self-service only (not marked as such)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, resp.SoftwareTitles, 0)
+
+	// update it to be self-service, check that it gets returned
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payloadRubyTm1.Filename)
+		return err
+	})
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+
+	// "All teams" returns no software because the self-service software it's not installed (host_counts == 0).
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+	)
+
+	require.Empty(t, resp.SoftwareTitles, 0)
+
+	// "No team" returns the emacs software
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+		"team_id", "0",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 2)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+
+	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
+	respTitle := getSoftwareTitleResponse{}
+	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+
+	require.NotNil(t, respTitle.SoftwareTitle)
+	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
+	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -7783,7 +8847,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	var listSoftwareTitlesResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResp)
 
-	var softwareFoo, softwareBar *fleet.SoftwareTitle
+	var softwareFoo, softwareBar *fleet.SoftwareTitleListResult
 	for _, s := range listSoftwareTitlesResp.SoftwareTitles {
 		s := s
 		switch s.Name {
@@ -8009,6 +9073,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 	currentAppCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
@@ -8135,8 +9200,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team2Policy1Calendar.ID: ptr.Bool(true),
-			team2Policy2.ID:         ptr.Bool(false),
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2.ID:         ptr.Bool(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -8274,8 +9339,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team2Policy1Calendar.ID: ptr.Bool(true),
-			team2Policy2.ID:         ptr.Bool(false),
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2.ID:         ptr.Bool(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -8361,9 +9426,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	calendar.SetMockEventsToNow()
 
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		// Update updated_at so the event gets updated (the event is updated every 30 minutes)
+		// Update updated_at so the event gets updated (the event is updated regularly)
 		_, err := db.ExecContext(ctx,
-			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
+			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 25 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
 		if err != nil {
 			return err
 		}
@@ -8398,8 +9463,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team2Policy1Calendar.ID: ptr.Bool(true),
-			team2Policy2.ID:         ptr.Bool(false),
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2.ID:         ptr.Bool(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -8448,6 +9513,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 	currentAppCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
@@ -8596,6 +9662,1680 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	require.True(t, fleet.IsNotFound(err))
 }
 
+func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
+	// ensure that on exit, the admin token is used
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin")
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// move a couple hosts to tm1, one to tm2
+	err = s.ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[0].ID, hosts[1].ID})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[2].ID})
+	require.NoError(t, err)
+
+	// create new users for tm1, tm2 and one with both tm1 and tm2
+	users := []fleet.UserPayload{
+		{
+			Name:                     ptr.String("team1 user"),
+			Email:                    ptr.String("tm1user@example.com"),
+			Password:                 ptr.String(test.GoodPassword),
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleMaintainer},
+			},
+		},
+		{
+			Name:                     ptr.String("team2 user"),
+			Email:                    ptr.String("tm2user@example.com"),
+			Password:                 ptr.String(test.GoodPassword),
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleAdmin},
+			},
+		},
+		{
+			Name:                     ptr.String("team1and2 user"),
+			Email:                    ptr.String("tm1and2user@example.com"),
+			Password:                 ptr.String(test.GoodPassword),
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver},
+				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleObserverPlus},
+			},
+		},
+	}
+	for _, u := range users {
+		var createResp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users/admin", u, http.StatusOK, &createResp)
+	}
+
+	// create a manual label with hosts across no team, team1 and team2
+	var createLbl createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "manual1",
+			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID, hosts[3].UUID},
+		},
+	}, http.StatusOK, &createLbl)
+	// user is admin, count contains all hosts
+	require.Equal(t, 4, createLbl.Label.Count)
+	lblM1 := createLbl.Label.ID
+	require.NotZero(t, lblM1)
+
+	// create a dynamic label always returns a count of 0 (no members yet)
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "dynamic1",
+			Query: "select 1",
+		},
+	}, http.StatusOK, &createLbl)
+	require.Equal(t, 0, createLbl.Label.Count)
+	lblD1 := createLbl.Label.ID
+	require.NotZero(t, lblD1)
+
+	// record membership for hosts across no team, team1 and team2
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[4], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[2], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[1], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// create another dynamic label which will stay empty
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "dynamic2",
+			Query: "select 2",
+		},
+	}, http.StatusOK, &createLbl)
+	require.Equal(t, 0, createLbl.Label.Count)
+	lblD2 := createLbl.Label.ID
+	require.NotZero(t, lblD2)
+
+	// test access with each team user
+	adminUserPayload := fleet.UserPayload{
+		Name:     ptr.String("admin1"),
+		Email:    ptr.String(testUsers["admin1"].Email),
+		Password: ptr.String(testUsers["admin1"].PlaintextPassword),
+	}
+	cases := []struct {
+		desc  string
+		u     fleet.UserPayload
+		lblID uint
+		want  int
+	}{
+		{"team1 user, manual1", users[0], lblM1, 2},
+		{"team1 user, dynamic1", users[0], lblD1, 2},
+		{"team1 user, dynamic2", users[0], lblD2, 0},
+		{"team2 user, manual1", users[1], lblM1, 1},
+		{"team2 user, dynamic1", users[1], lblD1, 1},
+		{"team2 user, dynamic2", users[1], lblD2, 0},
+		{"team1 and 2 user, manual1", users[2], lblM1, 3},
+		{"team1 and 2 user, dynamic1", users[2], lblD1, 3},
+		{"team1 and 2 user, dynamic2", users[2], lblD2, 0},
+		{"admin user, manual1", adminUserPayload, lblM1, 4},
+		{"admin user, dynamic1", adminUserPayload, lblD1, 4},
+		{"admin user, dynamic2", adminUserPayload, lblD2, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			s.setTokenForTest(t, *c.u.Email, *c.u.Password)
+
+			var getLbl getLabelResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), nil, http.StatusOK, &getLbl)
+			require.Equal(t, c.want, getLbl.Label.Count)
+
+			var listLbls listLabelsResponse
+			s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listLbls)
+			var found bool
+			for _, lbl := range listLbls.Labels {
+				if lbl.ID == c.lblID {
+					found = true
+					require.Equal(t, c.want, lbl.Count)
+					break
+				}
+			}
+			require.True(t, found)
+
+			// create and update label and just not possible for non-global users
+			if c.u != adminUserPayload {
+				s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+					LabelPayload: fleet.LabelPayload{
+						Name:  "will fail",
+						Query: "select 3",
+					},
+				}, http.StatusForbidden, &createLbl)
+
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), modifyLabelRequest{
+					ModifyLabelPayload: fleet.ModifyLabelPayload{
+						Name: ptr.String("will fail"),
+					},
+				}, http.StatusForbidden, &modifyLabelResponse{})
+			}
+		})
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
+	ctx := context.Background()
+	t := s.T()
+
+	token := "good_token"
+	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	// no software yet
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 0)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 0)
+
+	var getDeviceSw getDeviceSoftwareResponse
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	err := json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 0)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 0)
+
+	// create some software for that host
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.1", Source: "apps"},
+	}
+	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	err = s.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	// Note: the ID returned by ListHostSoftware is the title ID, not the software ID. We need the
+	// software ID to assign the vulnerabilities correctly below.
+	var barSoftwareID uint
+	for _, s := range us.Inserted {
+		if s.Name == "bar" {
+			barSoftwareID = s.ID
+		}
+	}
+
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 2) // foo and bar
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+	// no package information as there is no installer
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[0].AppStoreApp)
+	require.Nil(t, getHostSw.Software[1].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[1].AppStoreApp)
+
+	// Add vulnerabilities to software to check query param filtering
+	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "vulnerable", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.NoError(t, err)
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[0].AppStoreApp)
+	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+	require.Len(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, 2)
+	require.Equal(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, []string{"CVE-bar-1234", "CVE-bar-5678"})
+
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 2) // foo and bar
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+	// no package information as there is no installer
+	require.Nil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.Nil(t, getDeviceSw.Software[1].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[1].AppStoreApp)
+
+	// create a software installer, not installed on the host
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		Version:       "1:2.5.1",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// update it to be self-service
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payload.Filename)
+		return err
+	})
+
+	// available installer is returned by user-authenticated endpoint
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, getHostSw.Software[2].Name, "ruby")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+	require.Nil(t, getHostSw.Software[2].AppStoreApp)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
+	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getHostSw.Software[2].SoftwarePackage.Version)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.Nil(t, getHostSw.Software[2].Status)
+
+	// only the installer is returned for self-service only
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+
+	// available installer is not returned by device-authenticated endpoint
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 2) // foo and bar
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+
+	// but it gets returned for self-service only
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
+
+	// request installation on the host
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d",
+		host.ID, titleID), nil, http.StatusAccepted, &installResp)
+
+	// still returned by user-authenticated endpoint, now pending
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, getHostSw.Software[2].Name, "ruby")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
+	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
+	require.NotNil(t, getHostSw.Software[2].Status)
+	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
+
+	// still returned with self-service filter
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+
+	// now returned by device-authenticated endpoint
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 3) // foo, bar and ruby
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
+	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+	require.NotNil(t, getDeviceSw.Software[2].Status)
+	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[2].SoftwarePackage.SelfService)
+
+	// still returned for self-service only too
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+
+	// test with a query
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "query", "foo")
+	require.Len(t, getHostSw.Software, 1) // foo only
+	require.Equal(t, getHostSw.Software[0].Name, "foo")
+	require.Len(t, getHostSw.Software[0].InstalledVersions, 2)
+
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?query=bar", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1) // bar only
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
+	t := s.T()
+
+	openFile := func(name string) *os.File {
+		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
+		require.NoError(t, err)
+		return f
+	}
+
+	var expectBytes []byte
+	var expectLen int
+	f := openFile("ruby.deb")
+	st, err := f.Stat()
+	require.NoError(t, err)
+	expectLen = int(st.Size())
+	require.Equal(t, expectLen, 11340)
+	expectBytes = make([]byte, expectLen)
+	n, err := f.Read(expectBytes)
+	require.NoError(t, err)
+	require.Equal(t, n, expectLen)
+	f.Close()
+
+	checkDownloadResponse := func(t *testing.T, r *http.Response, expectedFilename string) {
+		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
+		require.Equal(t, fmt.Sprintf(`attachment;filename="%s"`, expectedFilename), r.Header.Get("Content-Disposition"))
+		require.NotZero(t, r.ContentLength)
+		require.Equal(t, expectLen, int(r.ContentLength))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Equal(t, expectLen, len(b))
+		require.Equal(t, expectBytes, b)
+	}
+
+	checkSoftwareTitle := func(t *testing.T, title string, source string) uint {
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`, title, source)
+		})
+		return id
+	}
+
+	checkScriptContentsID := func(t *testing.T, id uint, expectedContents string) {
+		var contents string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &contents, `SELECT contents FROM script_contents WHERE id = ?`, id)
+		})
+		require.Equal(t, expectedContents, contents)
+	}
+
+	checkSoftwareInstaller := func(t *testing.T, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint) {
+		var tid uint
+		if payload.TeamID != nil {
+			tid = *payload.TeamID
+		}
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, tid, payload.Filename)
+		})
+		require.NotZero(t, id)
+
+		var platform string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE id = ?`, id)
+		})
+		require.Equal(t, payload.Platform, "linux")
+
+		meta, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
+		require.NoError(t, err)
+
+		if payload.TeamID != nil && *payload.TeamID > 0 {
+			require.Equal(t, *payload.TeamID, *meta.TeamID)
+		} else {
+			require.Nil(t, meta.TeamID)
+		}
+
+		checkScriptContentsID(t, meta.InstallScriptContentID, payload.InstallScript)
+
+		if payload.PostInstallScript != "" {
+			require.NotNil(t, meta.PostInstallScriptContentID)
+			checkScriptContentsID(t, *meta.PostInstallScriptContentID, payload.PostInstallScript)
+		} else {
+			require.Nil(t, meta.PostInstallScriptContentID)
+		}
+
+		require.Equal(t, payload.PreInstallQuery, meta.PreInstallQuery)
+		require.Equal(t, payload.StorageID, meta.StorageID)
+		require.Equal(t, payload.Filename, meta.Name)
+		require.Equal(t, payload.Version, meta.Version)
+		require.Equal(t, checkSoftwareTitle(t, payload.Title, "deb_packages"), *meta.TitleID)
+		require.NotZero(t, meta.UploadedAt)
+
+		return meta.InstallerID, *meta.TitleID
+	}
+
+	t.Run("upload no team software installer", func(t *testing.T) {
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "some install script",
+			PreInstallQuery:   "some pre install query",
+			PostInstallScript: "some post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:     "ruby",
+			Version:   "1:2.5.1",
+			Source:    "deb_packages",
+			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:  "linux",
+		}
+
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": false}`, 0)
+
+		// check the software installer
+		_, titleID := checkSoftwareInstaller(t, payload)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+
+		// orbit-downloading fails with invalid orbit node key
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  123,
+			OrbitNodeKey: uuid.NewString(),
+		}, http.StatusUnauthorized)
+
+		// download the installer
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
+
+		// delete the installer from nil team fails
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusBadRequest)
+
+		// delete from team 0 succeeds
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+	})
+
+	t.Run("create team software installer", func(t *testing.T) {
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+			Name: t.Name(),
+		}, http.StatusOK, &createTeamResp)
+		require.NotZero(t, createTeamResp.Team.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:            &createTeamResp.Team.ID,
+			InstallScript:     "another install script",
+			PreInstallQuery:   "another pre install query",
+			PostInstallScript: "another post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:       "ruby",
+			Version:     "1:2.5.1",
+			Source:      "deb_packages",
+			StorageID:   "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:    "linux",
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		// check the software installer
+		installerID, titleID := checkSoftwareInstaller(t, payload)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+
+		// download the installer
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// create an orbit host that is not in the team
+		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
+		// downloading installer still works because we allow it explicitly
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+
+		// create an orbit host, assign to team
+		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{hostInTeam.ID}))
+
+		// requesting download with alt != media fails
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, "only alt=media is supported")
+
+		// valid download
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
+
+	t.Run("create team 0 software installer", func(t *testing.T) {
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:            ptr.Uint(0),
+			InstallScript:     "another install script",
+			PreInstallQuery:   "another pre install query",
+			PostInstallScript: "another post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:       "ruby",
+			Version:     "1:2.5.1",
+			Source:      "deb_packages",
+			StorageID:   "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:    "linux",
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		// check the software installer
+		installerID, titleID := checkSoftwareInstaller(t, payload)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+
+		// download the installer
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// create an orbit host that is not in the team
+		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
+		// downloading installer still works because we allow it explicitly
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+
+		// create an orbit host, assign to team
+		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+
+		// requesting download with alt != media fails
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, "only alt=media is supported")
+
+		// valid download
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// apply with software
+	// must not use applyTeamSpecsRequest and marshal it as JSON, as it will set
+	// all keys to their zerovalue, and some are only valid with mdm enabled.
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"packages": []map[string]any{
+						{
+							"url":          "http://foo.com",
+							"self_service": true,
+							"install_script": map[string]string{
+								"path": "./foo/install-script.sh",
+							},
+							"post_install_script": map[string]string{
+								"path": "./foo/post-install-script.sh",
+							},
+							"pre_install_query": map[string]string{
+								"path": "./foo/query.yaml",
+							},
+						},
+						{
+							"url": "http://bar.com",
+							"install_script": map[string]string{
+								"path": "./bar/install-script.sh",
+							},
+							"post_install_script": map[string]string{
+								"path": "./bar/post-install-script.sh",
+							},
+							"pre_install_query": map[string]string{
+								"path": "./bar/query.yaml",
+							},
+						},
+					},
+					"app_store_apps": []map[string]any{
+						{
+							"app_store_id": "1234",
+						},
+						{
+							"app_store_id": "5678",
+						},
+					},
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	wantSoftwarePackages := []fleet.SoftwarePackageSpec{
+		{
+			URL:               "http://foo.com",
+			SelfService:       true,
+			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
+			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
+			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+		},
+		{
+			URL:               "http://bar.com",
+			SelfService:       false,
+			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
+			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
+			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+		},
+	}
+	wantAppStoreApps := []fleet.TeamSpecAppStoreApp{
+		{
+			AppStoreID: "1234",
+		},
+		{
+			AppStoreID: "5678",
+		},
+	}
+
+	// retrieving the team returns the software
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+
+	// apply without custom software specified, should not replace existing software
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with explicitly empty custom software would clear the existing
+	// software, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"packages": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+
+	// apply with explicitly empty custom app store apps would clear the existing
+	// software, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"app_store_apps": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with empty top-level software field, should not clear packages
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with explicitly empty software packages clears the existing software, but not apps
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"packages": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with explicitly empty software apps clears the existing apps
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"app_store_apps": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":           teamName,
+				"app_store_apps": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
+	t := s.T()
+
+	// non-existent team
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
+
+	// create a team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// software with a bad URL
+	softwareToInstall := []fleet.SoftwareInstallerPayload{
+		{URL: "."},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+
+	// create an HTTP server to host the software installer
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with a valid URL
+	softwareToInstall = []fleet.SoftwareInstallerPayload{
+		{URL: srv.URL},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+
+	// TODO(roberto): test with a variety of response codes
+
+	// check the application status
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, 1, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	// check that platform is set when the installer is created
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var platform string
+		if err := sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE title_id= ? AND team_id = ?`, titlesResp.SoftwareTitles[0].ID, tm.ID); err != nil {
+			return err
+		}
+		require.Equal(t, "linux", platform)
+		return nil
+	})
+
+	// same payload doesn't modify anything
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+	newTitlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// setting self-service to true updates the software title metadata
+	softwareToInstall[0].SelfService = true
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+	newTitlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// empty payload cleans the software items
+	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+	titlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, 0, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 0)
+
+	//////////////////////////
+	// Do a request with a valid URL with no team
+	//////////////////////////
+	softwareToInstall = []fleet.SoftwareInstallerPayload{
+		{URL: srv.URL},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+
+	// check the application status on team 0
+	titlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	require.Equal(t, 1, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	// same payload doesn't modify anything
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+	newTitlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// setting self-service to true updates the software title metadata
+	softwareToInstall[0].SelfService = true
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+	newTitlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// empty payload cleans the software items
+	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+	titlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	require.Equal(t, 0, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
+	t := s.T()
+
+	hostsByPlatform := map[string]*fleet.Host{
+		"linux": nil, "darwin": nil, "windows": nil,
+	}
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	for platform := range hostsByPlatform {
+		h, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+			NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		setOrbitEnrollment(t, h, s.ds)
+
+		err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h.ID})
+		require.NoError(t, err)
+
+		hostsByPlatform[platform] = h
+	}
+
+	softwareTitles := map[string]uint{
+		"deb": 0, "msi": 0, "exe": 0, "pkg": 0,
+	}
+
+	for kind := range softwareTitles {
+		// TODO(roberto): we need real binaries for exe, msi and pkg to
+		// perform the API calls.
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			installScript := fmt.Sprintf(`echo '%s'`, kind)
+			res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+			if err != nil {
+				return err
+			}
+			scriptContentID, _ := res.LastInsertId()
+
+			res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', ?)`, kind)
+			if err != nil {
+				return err
+			}
+			titleID, _ := res.LastInsertId()
+			softwareTitles[kind] = uint(titleID)
+
+			_, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, version, install_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
+			VALUES
+				(?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+				titleID, fmt.Sprintf("installer.%s", kind), "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
+			return err
+		})
+	}
+
+	testCases := []struct {
+		platform            string
+		supportedInstallers []string
+	}{
+		{"windows", []string{"exe", "msi"}},
+		{"darwin", []string{"pkg"}},
+		{"linux", []string{"deb"}},
+	}
+
+	for _, tc := range testCases {
+		for platform, host := range hostsByPlatform {
+			for _, kind := range tc.supportedInstallers {
+				wantStatus := http.StatusAccepted
+				if tc.platform != platform {
+					wantStatus = http.StatusBadRequest
+				}
+
+				var resp installSoftwareResponse
+				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, softwareTitles[kind]), nil, wantStatus, &resp)
+			}
+		}
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
+	t := s.T()
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name: t.Name(),
+	}, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	teamID := &createTeamResp.Team.ID
+
+	var resp installSoftwareResponse
+	// non-existent host
+	s.DoJSON("POST", "/api/latest/fleet/hosts/1/software/install/1", nil, http.StatusNotFound, &resp)
+
+	// create a host that doesn't have fleetd installed
+	h, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h.ID})
+	require.NoError(t, err)
+	h.TeamID = teamID
+
+	// request fails
+	resp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusUnprocessableEntity, &resp)
+
+	// host installs fleetd
+	setOrbitEnrollment(t, h, s.ds)
+
+	// request fails because of non-existent title
+	resp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusBadRequest, &resp)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "another install script",
+		PreInstallQuery:   "another pre install query",
+		PostInstallScript: "another post install script",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+		TeamID:            teamID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	// install script request succeeds
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+	resp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
+
+	// Get the results, should be pending
+	getHostSoftwareResp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	require.NotNil(t, getHostSoftwareResp.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSoftwareResp.Software[0].Status)
+	installUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+
+	gsirr := getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	require.NoError(t, gsirr.Err)
+	require.NotNil(t, gsirr.Results)
+	results := gsirr.Results
+	require.Equal(t, installUUID, results.InstallUUID)
+	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+
+	// create 3 more hosts, will have statuses installed, failed and one with two
+	// install requests - one failed and the latest install pending
+	h2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	h3 := createOrbitEnrolledHost(t, "linux", "host3", s.ds)
+	h4 := createOrbitEnrolledHost(t, "linux", "host4", s.ds)
+	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h2.ID, h3.ID, h4.ID})
+	require.NoError(t, err)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h2.ID, titleID), nil, http.StatusAccepted, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	installUUID2 := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "ok",
+			"install_script_exit_code": 0,
+			"install_script_output": "ok"
+		}`, *h2.OrbitNodeKey, installUUID2)), http.StatusNoContent)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h3.ID, titleID), nil, http.StatusAccepted, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	installUUID3 := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "ok",
+			"install_script_exit_code": 1,
+			"install_script_output": "failed"
+		}`, *h3.OrbitNodeKey, installUUID3)), http.StatusNoContent)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h4.ID, titleID), nil, http.StatusAccepted, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	installUUID4a := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": ""
+		}`, *h4.OrbitNodeKey, installUUID4a)), http.StatusNoContent)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h4.ID, titleID), nil, http.StatusAccepted, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	installUUID4b := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+	_ = installUUID4b
+
+	// status is reflected in software title response
+	titleResp := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", strconv.Itoa(int(*teamID)))
+	// TODO: confirm expected behavior of the title response host counts (unspecified)
+	require.Zero(t, titleResp.SoftwareTitle.HostsCount)
+	require.Nil(t, titleResp.SoftwareTitle.CountsUpdatedAt)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.Status)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		Installed: 1,
+		Pending:   2,
+		Failed:    1,
+	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
+
+	// status is reflected in list hosts responses and counts when filtering by software title and status
+	// create a label to test also the counts per label with the software install status filter
+	var labelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  "test",
+		Hosts: []string{h.Hostname, h2.Hostname, h3.Hostname, h4.Hostname},
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+
+	cases := []struct {
+		status  string
+		count   int
+		hostIDs []uint
+	}{
+		{"pending", 2, []uint{h.ID, h4.ID}},
+		{"failed", 1, []uint{h3.ID}},
+		{"installed", 1, []uint{h2.ID}},
+	}
+	for _, c := range cases {
+		t.Run(c.status, func(t *testing.T) {
+			var listResp listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", c.status, "team_id", strconv.Itoa(int(*teamID)), "software_title_id", strconv.Itoa(int(titleID)))
+			require.Len(t, listResp.Hosts, c.count)
+			gotIDs := make([]uint, 0, c.count)
+			for _, h := range listResp.Hosts {
+				gotIDs = append(gotIDs, h.ID)
+			}
+			require.ElementsMatch(t, c.hostIDs, gotIDs)
+
+			var countResp countHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", c.status, "team_id", strconv.Itoa(int(*teamID)), "software_title_id", strconv.Itoa(int(titleID)))
+			require.Equal(t, c.count, countResp.Count)
+
+			// count with label filter
+			countResp = countHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", c.status, "team_id", strconv.Itoa(int(*teamID)), "software_title_id", strconv.Itoa(int(titleID)), "label_id", strconv.Itoa(int(labelResp.Label.ID)))
+			require.Equal(t, c.count, countResp.Count)
+
+			listResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", c.status, "team_id", strconv.Itoa(int(*teamID)), "software_title_id", strconv.Itoa(int(titleID)))
+			require.Len(t, listResp.Hosts, c.count)
+			gotIDs = make([]uint, 0, c.count)
+			for _, h := range listResp.Hosts {
+				gotIDs = append(gotIDs, h.ID)
+			}
+			require.ElementsMatch(t, c.hostIDs, gotIDs)
+		})
+	}
+
+	// filter validations
+	r := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "uninstalled")
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid software_status")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "software_title_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing team_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_version_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
+
+	// Access software install result after host is deleted
+	err = s.ds.DeleteHost(context.Background(), h.ID)
+	require.NoError(t, err)
+
+	instResult, err := s.ds.GetSoftwareInstallResults(context.Background(), installUUID)
+	require.NoError(t, err)
+	require.NotNil(t, instResult.HostDeletedAt)
+
+	gsirr = getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	require.NoError(t, gsirr.Err)
+	require.NotNil(t, gsirr.Results)
+	results = gsirr.Results
+	require.Equal(t, installUUID, results.InstallUUID)
+	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
+	t := s.T()
+
+	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	token := "secret_token"
+	createDeviceTokenForHost(t, s.ds, host1.ID, token)
+
+	payloadNoSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "install",
+		PostInstallScript: "echo hi",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+		SelfService:       false,
+	}
+	s.uploadSoftwareInstaller(payloadNoSS, http.StatusOK, "")
+	titleIDNoSS := getSoftwareTitleID(t, s.ds, payloadNoSS.Title, "deb_packages")
+
+	payloadSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 2",
+		InstallScript:     "install again",
+		PostInstallScript: "echo bye",
+		Filename:          "emacs.deb",
+		Title:             "emacs",
+		SelfService:       true,
+	}
+	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
+	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
+
+	// cannot self-install if software installer does not allow it
+	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDNoSS), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available through self-service")
+
+	// request self-install of software that allows it
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDSS), nil, http.StatusAccepted)
+
+	// it shows up as "self-installed" in the upcoming activities of the host
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	require.Nil(t, listUpcomingAct.Activities[0].ActorID)
+
+	var details fleet.ActivityTypeInstalledSoftware
+	err := json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
+	require.NoError(t, err)
+	require.Equal(t, host1.ID, details.HostID)
+	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
+	require.True(t, details.SelfService)
+	require.EqualValues(t, fleet.SoftwareInstallerPending, details.Status)
+	installID := details.InstallUUID
+
+	// record the installation results
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "ok"
+		}`, *host1.OrbitNodeKey, installID)),
+		http.StatusNoContent)
+
+	// nothing in upcoming activities anymore
+	listUpcomingAct = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 0)
+
+	// installation shows up in past activities
+	var listPastAct listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &listPastAct)
+	require.Len(t, listPastAct.Activities, 1)
+	require.Nil(t, listPastAct.Activities[0].ActorID)
+
+	err = json.Unmarshal([]byte(*listPastAct.Activities[0].Details), &details)
+	require.NoError(t, err)
+	require.Equal(t, host1.ID, details.HostID)
+	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
+	require.True(t, details.SelfService)
+	require.EqualValues(t, fleet.SoftwareInstallerInstalled, details.Status)
+}
+
+func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
+	ctx := context.Background()
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+
+	// create a software installer and some host install requests
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script",
+		PreInstallQuery:   "pre install query",
+		PostInstallScript: "post install script",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+
+	latestInstallUUID := func() string {
+		var id string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+		})
+		return id
+	}
+
+	// create some install requests for the host
+	installUUIDs := make([]string, 3)
+	for i := 0; i < len(installUUIDs); i++ {
+		resp := installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, titleID), nil, http.StatusAccepted, &resp)
+		installUUIDs[i] = latestInstallUUID()
+	}
+
+	type result struct {
+		HostID                  uint
+		InstallUUID             string
+		Status                  fleet.SoftwareInstallerStatus
+		Output                  *string
+		PostInstallScriptOutput *string
+		PreInstallQueryOutput   *string
+	}
+	checkResults := func(want result) {
+		var resp getSoftwareInstallResultsResponse
+		s.DoJSON("GET", "/api/v1/fleet/software/install/results/"+want.InstallUUID, nil, http.StatusOK, &resp)
+
+		assert.Equal(t, want.HostID, resp.Results.HostID)
+		assert.Equal(t, want.InstallUUID, resp.Results.InstallUUID)
+		assert.Equal(t, want.Status, resp.Results.Status)
+		assert.Equal(t, want.PreInstallQueryOutput, resp.Results.PreInstallQueryOutput)
+		assert.Equal(t, want.Output, resp.Results.Output)
+		assert.Equal(t, want.PostInstallScriptOutput, resp.Results.PostInstallScriptOutput)
+	}
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 1,
+			"install_script_output": "failed"
+		}`, *host.OrbitNodeKey, installUUIDs[0])),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:                host.ID,
+		InstallUUID:           installUUIDs[0],
+		Status:                fleet.SoftwareInstallerFailed,
+		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
+		Output:                ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed")),
+	})
+	wantAct := fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
+		InstallUUID:     installUUIDs[0],
+		Status:          string(fleet.SoftwareInstallerFailed),
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": ""
+		}`, *host.OrbitNodeKey, installUUIDs[1])),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:                host.ID,
+		InstallUUID:           installUUIDs[1],
+		Status:                fleet.SoftwareInstallerFailed,
+		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQueryFailCopy),
+	})
+	wantAct.InstallUUID = installUUIDs[1]
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "success",
+			"post_install_script_exit_code": 0,
+			"post_install_script_output": "ok"
+		}`, *host.OrbitNodeKey, installUUIDs[2])),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:                  host.ID,
+		InstallUUID:             installUUIDs[2],
+		Status:                  fleet.SoftwareInstallerInstalled,
+		PreInstallQueryOutput:   ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
+		Output:                  ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success")),
+		PostInstallScriptOutput: ptr.String(fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok")),
+	})
+	wantAct.InstallUUID = installUUIDs[2]
+	wantAct.Status = string(fleet.SoftwareInstallerInstalled)
+	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	// non-existing installation uuid
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": "uuid-no-such",
+			"pre_install_condition_output": ""
+		}`, *host.OrbitNodeKey)),
+		http.StatusNotFound)
+	// no new activity created
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), lastActID)
+}
+
+func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host and request a script execution
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "host_soft_delete_team"})
+	require.NoError(t, err)
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// create an anonymous script execution request
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	scriptExecID := runResp.ExecutionID
+
+	// post a script result so that the (past) activity is created
+	s.Do("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptExecID)),
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), scriptExecID), 0)
+
+	// create a saved script execution request
+	var newScriptResp createScriptResponse
+	body, headers := generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {strconv.Itoa(int(tm.ID))}})
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
+	require.NoError(t, err)
+	require.NotZero(t, newScriptResp.ScriptID)
+	savedScriptID := newScriptResp.ScriptID
+
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScriptID}, http.StatusAccepted, &runResp)
+	savedScriptExecID := runResp.ExecutionID
+
+	// post a script result so that the (past) activity is created
+	s.Do("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "saved"}`, *host.OrbitNodeKey, savedScriptExecID)),
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), savedScriptExecID), 0)
+
+	// get the anoymous script result details
+	var scriptRes getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the saved script result details
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// delete the host
+	var deleteResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteResp)
+
+	// get the anonymous script result details, still works
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the saved script result details, still works
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// delete the named script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedScriptID), nil, http.StatusNoContent)
+
+	// get the saved script result details, still works because the saved script
+	// is a "soft-reference", when deleted the results become essentially results
+	// for an anonymous script (i.e. the script_id FK is "ON DELETE SET NULL").
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+}
+
+func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
+	t := s.T()
+	t.Helper()
+	openFile := func(name string) *os.File {
+		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
+		require.NoError(t, err)
+		return f
+	}
+
+	f := openFile(payload.Filename)
+	defer f.Close()
+
+	payload.InstallerFile = f
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the software field
+	fw, err := w.CreateFormFile("software", payload.Filename)
+	require.NoError(t, err)
+	n, err := io.Copy(fw, payload.InstallerFile)
+	require.NoError(t, err)
+	require.NotZero(t, n)
+
+	// add the team_id field
+	if payload.TeamID != nil {
+		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
+	}
+	// add the remaining fields
+	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
+	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
+	require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
+	if payload.SelfService {
+		require.NoError(t, w.WriteField("self_service", "true"))
+	}
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	r := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
+	if expectedError != "" {
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, expectedError)
+	}
+}
+
+func getSoftwareTitleID(t *testing.T, ds *mysql.Datastore, title, source string) uint {
+	var id uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`, title, source)
+	})
+	return id
+}
+
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 	var (
 		results  = make(map[string]json.RawMessage)
@@ -8652,4 +11392,1245 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 		case <-time.After(250 * time.Millisecond):
 		}
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) cleanupQuery(queryID uint) {
+	var delResp deleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
+	t := s.T()
+	startMockServer := func(t *testing.T) string {
+		// create a test http server
+		srv := httptest.NewServer(
+			http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != "POST" {
+						w.WriteHeader(http.StatusMethodNotAllowed)
+						return
+					}
+					switch r.URL.Path {
+					case "/ok":
+						var body map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&body)
+						if err != nil {
+							t.Log(err)
+							w.WriteHeader(http.StatusBadRequest)
+							return
+						}
+						_, _ = w.Write([]byte(`{"risks":"description", "whatWillProbablyHappenDuringMaintenance":"resolution"}`))
+					default:
+						w.WriteHeader(http.StatusNotFound)
+					}
+				},
+			),
+		)
+		t.Cleanup(srv.Close)
+		return srv.URL
+	}
+	mockUrl := startMockServer(t)
+	originalUrl := getHumanInterpretationFromOsquerySqlUrl
+	originalTimeout := getHumanInterpretationFromOsquerySqlTimeout
+	t.Cleanup(
+		func() {
+			getHumanInterpretationFromOsquerySqlUrl = originalUrl
+			getHumanInterpretationFromOsquerySqlTimeout = originalTimeout
+		},
+	)
+
+	// Create teams
+	team1, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			ID:          42,
+			Name:        "team1" + t.Name(),
+			Description: "desc team1",
+		},
+	)
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			ID:          43,
+			Name:        "team2" + t.Name(),
+			Description: "desc team2",
+		},
+	)
+	require.NoError(t, err)
+
+	oldToken := s.token
+	t.Cleanup(
+		func() {
+			s.token = oldToken
+		},
+	)
+
+	switchUser := func(t *testing.T, role string) {
+		password := test.GoodPassword
+		email := role + "-testteam@user.com"
+		u := &fleet.User{
+			Name:       "test team user",
+			Email:      email,
+			GlobalRole: nil,
+			Teams: []fleet.UserTeam{
+				{
+					Team: *team2,
+					Role: fleet.RoleObserver,
+				},
+				{
+					Team: *team1,
+					Role: role,
+				},
+			},
+		}
+		require.NoError(t, u.SetPassword(password, 10, 10))
+		_, err = s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+
+		s.token = s.getTestToken(email, password)
+	}
+
+	req := autofillPoliciesRequest{
+		SQL: "select 1",
+	}
+	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/ok"
+
+	tests := []struct {
+		role string
+		pass bool
+	}{
+		{role: fleet.RoleAdmin, pass: true},
+		{role: fleet.RoleMaintainer, pass: true},
+		{role: fleet.RoleGitOps, pass: true},
+		{role: fleet.RoleObserver, pass: false},
+		{role: fleet.RoleObserverPlus, pass: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.role, func(t *testing.T) {
+				switchUser(t, tt.role)
+				if tt.pass {
+					var res autofillPoliciesResponse
+					s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
+					assert.Equal(t, "description", res.Description)
+					assert.Equal(t, "resolution", res.Resolution)
+				} else {
+					_ = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusForbidden)
+				}
+			},
+		)
+	}
+}
+
+// 1. software title uploaded doesn't match existing title
+// 2. host reports software with the same bundle identifier
+// 3. reconciler runs, doesn't create a new title
+func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 4)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	// still one because the counts didn't update yet
+	require.Len(t, resp.SoftwareTitles, 1)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+
+	// host reports another version of dummy, but this one has a
+	// different name, but same identifier
+	software = []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "AppDummy.app", Version: "2.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 5)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// titles are the same
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+}
+
+// 1. host reports software
+// 2. reconciler runs, creates title
+// 3. installer is uploaded, matches existing software title
+func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		// note: the source is not "apps"
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 4)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+}
+
+// 1. host reports software
+// 2. installer is uploaded, matches existing software
+// 2. reconciler runs, matches existing software title
+func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		// note: the source is not "apps"
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 4)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	// only one title (the uploaded software) because the cron didn't run yet
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.ElementsMatch(
+		t,
+		[]string{"DummyApp.app"},
+		[]string{resp.SoftwareTitles[0].Name},
+	)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+}
+
+func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
+	ctx := context.Background()
+	t := s.T()
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
+
+	origRecentUpdateDuration := commonCalendar.RecentCalendarUpdateDuration
+	commonCalendar.RecentCalendarUpdateDuration = 1 * time.Millisecond
+	t.Cleanup(func() {
+		commonCalendar.RecentCalendarUpdateDuration = origRecentUpdateDuration
+	})
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1", &team1.ID)
+	host2Team1 := newHost("host2", &team1.ID)
+	_ = newHost("host5", nil) // global host
+
+	team1Policy1Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy1Calendar",
+			Query:                 "SELECT 1;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+	team1Policy2Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy2Calendar",
+			Query:                 "SELECT 2;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+	globalPolicy, err := s.ds.NewGlobalPolicy(
+		ctx, nil, fleet.PolicyPayload{
+			Name:                  "globalPolicy",
+			Query:                 "SELECT 5;",
+			CalendarEventsEnabled: false,
+		},
+	)
+	require.NoError(t, err)
+
+	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
+		var (
+			results  = make(map[string]json.RawMessage)
+			statuses = make(map[string]interface{})
+			messages = make(map[string]string)
+		)
+		for policyID, policyResult := range policyResults {
+			distributedQueryName := hostPolicyQueryPrefix + fmt.Sprint(policyID)
+			switch {
+			case policyResult == nil:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 1
+				messages[distributedQueryName] = "policy failed execution"
+			case *policyResult:
+				results[distributedQueryName] = json.RawMessage(`[{"1": "1"}]`)
+				statuses[distributedQueryName] = 0
+			case !*policyResult:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 0
+			}
+		}
+		return submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: messages,
+			Stats:    map[string]*fleet.Stats{},
+		}
+	}
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// Set global configuration for the calendar feature.
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail: calendar.MockEmail,
+			},
+		},
+	}
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second) // Wait 2 seconds for the app config cache to clear.
+
+	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: "https://example.com",
+	}
+	team1, err = s.ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	// Add email mapping for host1Team1
+	const user1Email = "user1@example.com"
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1Team1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1Team1.ID,
+			Email:  user1Email,
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled
+	// and host1Team1 has a domain email associated.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// An event should be generated for host1Team1
+	team1CalendarEvents, err := s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event := team1CalendarEvents[0]
+	require.NotZero(t, event.ID)
+	require.Equal(t, user1Email, event.Email)
+	require.NotZero(t, event.StartTime)
+	require.NotZero(t, event.EndTime)
+	require.NotEmpty(t, event.UUID)
+	bodyTag := event.GetBodyTag()
+	assert.NotEmpty(t, bodyTag)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	// Get channel ID
+	type eventDetails struct {
+		ChannelID string `json:"channel_id"`
+		BodyTag   string `json:"body_tag"`
+		ETag      string `json:"etag"`
+	}
+	var details eventDetails
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Send a sync command
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "sync",
+	})
+
+	// Send a regular callback with bad channel ID
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusForbidden, map[string]string{
+		"X-Goog-Channel-Id":     "bad",
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Grab the distributed lock for this event
+	distributedLock := redis_lock.NewLock(s.redisPool)
+	lockValue := uuid.New().String()
+	result, err := distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	// This callback should put the event processing in a queue for async processing. It does not start async
+	// processing because it assumes another server is handling this webhook, and that server will start
+	// async processing.
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	uuids, err := distributedLock.GetSet(ctx, commonCalendar.QueueKey)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{event.UUID}, uuids)
+	// The calendar should still be empty since event hasn't processed yet
+	assert.Zero(t, len(calendar.ListGoogleMockEvents()))
+	// We clear the queue
+	assert.NoError(t, distributedLock.RemoveFromSet(ctx, commonCalendar.QueueKey, event.UUID))
+
+	// We release the normal lock, but grab the reserve lock instead
+	ok, err := distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	result, err = distributedLock.AcquireLock(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	// This callback should put the event processing in a queue for async processing, AND start the async processing
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	uuids, err = distributedLock.GetSet(ctx, commonCalendar.QueueKey)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{event.UUID}, uuids)
+	// The calendar should still be empty since event hasn't processed yet
+	assert.Zero(t, len(calendar.ListGoogleMockEvents()))
+
+	// We grab the normal lock again.
+	lockValue2 := uuid.New().String()
+	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+	// We release the reserve lock.
+	ok, err = distributedLock.ReleaseLock(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	// We release the normal lock.
+	ok, err = distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	done := make(chan struct{})
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+			require.NoError(t, err)
+			// Event should be rescheduled on a future date/time
+			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
+				team1CalendarEvents[0].StartTime.After(event.StartTime) {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done: // All good
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for calendar event processing")
+	}
+
+	eventRecreated := team1CalendarEvents[0]
+	assert.NotZero(t, eventRecreated.ID)
+	assert.Equal(t, user1Email, eventRecreated.Email)
+	assert.NotZero(t, eventRecreated.StartTime)
+	assert.NotZero(t, eventRecreated.EndTime)
+	assert.NotEmpty(t, eventRecreated.UUID)
+	assert.NotEqual(t, event.StartTime, eventRecreated.StartTime)
+	assert.NotEqual(t, event.EndTime, eventRecreated.EndTime)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+	assert.Equal(t, 1, len(calendar.ListGoogleMockEvents()))
+
+	// The previous event UUID should not work anymore, but API returns OK because this is a common occurrence.
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	err = json.Unmarshal(eventRecreated.Data, &details)
+	require.NoError(t, err)
+	assert.NotEmpty(t, details.BodyTag)
+	bodyTag = details.BodyTag
+
+	// New event callback should work
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+
+	// Update the time of the event
+	events := calendar.ListGoogleMockEvents()
+	require.Len(t, events, 1)
+	for _, e := range events {
+		st, err := time.Parse(time.RFC3339, e.Start.DateTime)
+		require.NoError(t, err)
+		newStartTime := st.Add(5 * time.Minute).Format(time.RFC3339)
+		e.Start.DateTime = newStartTime
+	}
+
+	// New event callback should cause the time to be updated in the DB
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+
+	// Check that the time was updated in the DB
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	eventUpdated := team1CalendarEvents[0]
+	assert.NotZero(t, eventUpdated.ID)
+	assert.Equal(t, user1Email, eventUpdated.Email)
+	assert.Equal(t, eventRecreated.UUID, eventUpdated.UUID)
+	assert.Greater(t, eventUpdated.StartTime, eventRecreated.StartTime)
+	assert.Equal(t, eventRecreated.EndTime, eventUpdated.EndTime)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+	assert.Equal(t, bodyTag, eventRecreated.GetBodyTag())
+
+	// Change the body contents of event.
+	events = calendar.ListGoogleMockEvents()
+	require.Len(t, events, 1)
+	eTag := "description change etag"
+	for _, e := range events {
+		e.Etag = eTag
+		e.Description = "new description"
+	}
+	// New event callback should cause Etag to update but Body tag to remain the same
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	eventDescUpdated := team1CalendarEvents[0]
+	err = json.Unmarshal(eventDescUpdated.Data, &details)
+	require.NoError(t, err)
+	assert.Equal(t, bodyTag, details.BodyTag)
+	assert.Equal(t, eTag, details.ETag)
+
+	// Update the time of the event again
+	events = calendar.ListGoogleMockEvents()
+	require.Len(t, events, 1)
+	for _, e := range events {
+		st, err := time.Parse(time.RFC3339, e.Start.DateTime)
+		require.NoError(t, err)
+		newStartTime := st.Add(5 * time.Minute).Format(time.RFC3339)
+		e.Start.DateTime = newStartTime
+		e.Etag = e.Etag + "1"
+	}
+
+	// Grab the lock
+	event = eventUpdated
+	lockValue = uuid.New().String()
+	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		// Update updated_at so the event gets updated (the event is updated regularly)
+		_, err := db.ExecContext(ctx,
+			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 25 HOUR) WHERE id = ?`, event.ID)
+		return err
+	})
+
+	// Trigger the calendar cron async. It should wait for the lock and set reserve lock.
+	go triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 10*time.Second)
+	done = make(chan struct{})
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			reserveLock, err := distributedLock.Get(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID)
+			require.NoError(t, err)
+			if reserveLock != nil {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done: // All good
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for cron to set reserve lock")
+	}
+
+	// Release the normal lock
+	ok, err = distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	// Wait for the event to update
+	done = make(chan struct{})
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+			require.NoError(t, err)
+			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
+				team1CalendarEvents[0].StartTime.After(event.StartTime) {
+				err = json.Unmarshal(team1CalendarEvents[0].Data, &details)
+				require.NoError(t, err)
+				assert.NotEqual(t, eTag, details.ETag, "ETag should have updated")
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done: // All good
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for event to update during cron")
+	}
+
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Make host1Team1 pass all policies.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// We set a flag that event was updated recently. Callback shouldn't do anything since event was updated recently
+	_, err = distributedLock.AcquireLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue,
+		1000)
+	require.NoError(t, err)
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	// Callback should work, but only clear the callback channel. Event in DB will be deleted on the next cron run.
+	_, err = distributedLock.ReleaseLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue)
+	require.NoError(t, err)
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	assert.Equal(t, 0, calendar.MockChannelsCount())
+
+	previousEvent := team1CalendarEvents[0]
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	assert.Equal(t, previousEvent, team1CalendarEvents[0])
+
+	// Trigger calendar should cleanup the events
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
+
+	// Event should be cleaned up from our database.
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	assert.Empty(t, team1CalendarEvents)
+}
+
+func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
+	ctx := context.Background()
+	t := s.T()
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
+	origRecentUpdateDuration := commonCalendar.RecentCalendarUpdateDuration
+	commonCalendar.RecentCalendarUpdateDuration = 1 * time.Millisecond
+	t.Cleanup(func() {
+		commonCalendar.RecentCalendarUpdateDuration = origRecentUpdateDuration
+	})
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1", &team1.ID)
+	host2Team1 := newHost("host2", &team1.ID)
+	_ = newHost("host5", nil) // global host
+
+	team1Policy1Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy1Calendar",
+			Query:                 "SELECT 1;",
+			CalendarEventsEnabled: true,
+			Description:           "team1Policy1CalendarDescription",
+			Resolution:            "team1Policy1CalendarResolution",
+		},
+	)
+	require.NoError(t, err)
+	team1Policy2Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy2Calendar",
+			Query:                 "SELECT 2;",
+			CalendarEventsEnabled: true,
+			Description:           "team1Policy2CalendarDescription",
+			Resolution:            "team1Policy2CalendarResolution",
+		},
+	)
+	require.NoError(t, err)
+	globalPolicy, err := s.ds.NewGlobalPolicy(
+		ctx, nil, fleet.PolicyPayload{
+			Name:                  "globalPolicy",
+			Query:                 "SELECT 5;",
+			CalendarEventsEnabled: false,
+			Description:           "globalPolicyDescription",
+			Resolution:            "globalPolicyResolution",
+		},
+	)
+	require.NoError(t, err)
+
+	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
+		var (
+			results  = make(map[string]json.RawMessage)
+			statuses = make(map[string]interface{})
+			messages = make(map[string]string)
+		)
+		for policyID, policyResult := range policyResults {
+			distributedQueryName := hostPolicyQueryPrefix + fmt.Sprint(policyID)
+			switch {
+			case policyResult == nil:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 1
+				messages[distributedQueryName] = "policy failed execution"
+			case *policyResult:
+				results[distributedQueryName] = json.RawMessage(`[{"1": "1"}]`)
+				statuses[distributedQueryName] = 0
+			case !*policyResult:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 0
+			}
+		}
+		return submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: messages,
+			Stats:    map[string]*fleet.Stats{},
+		}
+	}
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// Set global configuration for the calendar feature.
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail: calendar.MockEmail,
+			},
+		},
+	}
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second) // Wait 2 seconds for the app config cache to clear.
+
+	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: "https://example.com",
+	}
+	team1, err = s.ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	// Add email mapping for host1Team1
+	const user1Email = "user1@example.com"
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1Team1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1Team1.ID,
+			Email:  user1Email,
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled
+	// and host1Team1 has a domain email associated.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// An event should be generated for host1Team1
+	team1CalendarEvents, err := s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event := team1CalendarEvents[0]
+	require.NotZero(t, event.ID)
+	require.Equal(t, user1Email, event.Email)
+	require.NotZero(t, event.StartTime)
+	require.NotZero(t, event.EndTime)
+	require.NotEmpty(t, event.UUID)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	getEvents := func() []*googleCalendar.Event {
+		calEvents := calendar.ListGoogleMockEvents()
+		calEventValues := make([]*googleCalendar.Event, 0, len(calEvents))
+		for _, v := range calEvents {
+			calEventValues = append(calEventValues, v)
+		}
+		return calEventValues
+	}
+
+	calEvents := getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Remove resolution from policy
+	team1Policy1Calendar.Resolution = nil
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+	// Put resolution back
+	team1Policy1Calendar.Resolution = ptr.String("putResolutionBack")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Change resolution
+	team1Policy1Calendar.Resolution = ptr.String("changeResolution")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Cause another policy to fail
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+	// Cause the other policy to pass
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Get channel ID
+	type eventDetails struct {
+		ChannelID string `json:"channel_id"`
+	}
+	var details eventDetails
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Make sure event body is correct after event was recreated
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Get the new event
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event = team1CalendarEvents[0]
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Remove description from policy
+	team1Policy1Calendar.Description = " "
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Make sure event body is correct after event was recreated
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+}
+
+func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create host
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+
+	// Create team and add host to team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// Add an app so that we don't get a not found error
+	app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "App " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}, &team.ID)
+	require.NoError(t, err)
+
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, app.TitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps.")
 }

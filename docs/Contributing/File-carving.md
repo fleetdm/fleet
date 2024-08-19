@@ -1,12 +1,12 @@
 ## File carving
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd) returning the full contents to Fleet.
 
 File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://fleetdm.com/docs/deploying/configuration#s-3-file-carving-backend).
 
 ### Configuration
 
-Given a working flagfile for connecting osquery agents to Fleet, add the following flags to enable carving:
+Given a working flagfile for connecting fleetd to Fleet, add the following flags to enable carving:
 
 ```sh
 --disable_carver=false
@@ -16,15 +16,14 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 --carver_block_size=8000000
 ```
 
-The default flagfile provided in the "Add New Host" dialog also includes this configuration.
+The default flagfile provided in the "Add new host" dialog also includes this configuration.
 
 #### Carver block size
 
 The `carver_block_size` flag should be configured in osquery.
 
 For the (default) MySQL Backend, the configured value must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 5.7](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet)
-is 4MB and for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
+`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
 
 For the S3/Minio backend, this value must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart

@@ -1,1 +1,0 @@
-* Made block_id mismatch errors more informative as 400s instead of 500s.

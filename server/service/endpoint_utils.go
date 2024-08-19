@@ -20,8 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
 	"github.com/gorilla/mux"
 )
 
@@ -273,6 +273,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						return nil, badRequestErr("parsing uint from query", err)
 					}
 					field.SetUint(uint64(queryValUint))
+				case reflect.Float64:
+					queryValFloat, err := strconv.ParseFloat(queryVal, 64)
+					if err != nil {
+						return nil, badRequestErr("parsing float from query", err)
+					}
+					field.SetFloat(queryValFloat)
 				case reflect.Bool:
 					field.SetBool(queryVal == "1" || queryVal == "true")
 				case reflect.Int:

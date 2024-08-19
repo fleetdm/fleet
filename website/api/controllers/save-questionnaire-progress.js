@@ -26,6 +26,9 @@ module.exports = {
         'deploy-fleet-in-your-environment',
         'managed-cloud-for-growing-deployments',
         'self-hosted-deploy',
+        'whats-left-to-get-you-set-up',
+        'how-was-your-deployment',
+        'thanks-for-checking-out-fleet',
       ]
     },
     formData: {
@@ -63,22 +66,6 @@ module.exports = {
       .set({
         primaryBuyingSituation: primaryBuyingSituation
       });
-      // Send a POST request to Zapier
-      await sails.helpers.http.post.with({
-        url: 'https://hooks.zapier.com/hooks/catch/3627242/3pl7yt1/',
-        data: {
-          primaryBuyingSituation,
-          emailAddress: this.req.me.emailAddress,
-          webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
-        }
-      })
-      .timeout(5000)
-      .tolerate(['non200Response', 'requestFailed'], (err)=>{
-        // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-        sails.log.warn(`When a user completed the 'What are you using Fleet for' questionnaire step, a lead/contact could not be updated in the CRM for this email address: ${this.req.me.emailAddress}. Raw error: ${err}`);
-        return;
-      });
-
       // Set the primary buying situation in the user's session.
       this.req.session.primaryBuyingSituation = primaryBuyingSituation;
     }//ﬁ
@@ -92,39 +79,56 @@ module.exports = {
     //  - (any option) = stage 2
     // 'have-you-ever-used-fleet':
     //  - yes-deployed: » Stage 6
-    //  - yes-recently-deployed: » Stage 6
+    //  - yes-recently-deployed: » Stage 5
     //  - yes-deployed-local: » Stage 3 (Tried Fleet but might not have a use case)
     //  - yes-deployed-long-time: Stage 2 (Tried Fleet long ago but might not fully grasp)
     //  - no: Stage 2 (Never tried Fleet and might not fully grasp)
-    // 'how-many-hosts': No change // TODO (see above -- instead of no change there should be a change)
-    // 'will-you-be-self-hosting': No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    // 'how-many-hosts': Stage 4/5/6
+    // 'will-you-be-self-hosting': Stage 5/6
     // 'what-are-you-working-on-eo-security'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-eo-it'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-vm'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-do-you-manage-mdm'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
-    // 'is-it-any-good':  // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    // 'is-it-any-good': Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
-    //  - deploy-fleet-in-environment » Stage 5
-    //  - let-me-think-about-it »  // TODO (see above -- instead of no change there should maybe be a change, sometimes)
-    //  - host-fleet-for-me » N/A (currently not selectable, but should set the user's psychologicalStage to stage 5)
+    //  - host-fleet-for-me » Stage 4
+    //  - deploy-fleet-in-environment » Stage 4
+    //  - let-me-think-about-it »  Stage 2
+    // FUTURE: Should the step about deploying fleet in your env be here?  (For same reason is-it-any-good is here: when navigating back then forwards?)
+    // 'how-was-your-deployment'
+    //  - up-and-running »  Stage 5
+    //  - kinda-stuck »  Stage 4 (...at best!  Still got the use case.)
+    //  - havent-gotten-to-it » Stage 4 (same as above)
+    //  - changed-mind-want-managed-deployment » Stage 4 (same as above)
+    //  - decided-to-not-use-fleet » Stage 2
+    // 'whats-left-to-get-you-set-up'
+    //  - need-premium-license-key » No change (Stage ??)
+    //  - help-show-fleet-to-my-team » No change (Stage ??)
+    //  - procurement-wants-some-stuff » No change (Stage ??)
+    //  - nothing » No change (Stage ??)
 
     let psychologicalStage = userRecord.psychologicalStage;
+    let psychologicalStageLastChangedAt = userRecord.psychologicalStageLastChangedAt;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
-    if(currentStep === 'what-are-you-using-fleet-for') {
+    if(currentStep === 'start') {
+      // There is change when the user completes the start step.
+    } else if(currentStep === 'what-are-you-using-fleet-for') {
       psychologicalStage = '2 - Aware';
     } else if(currentStep === 'have-you-ever-used-fleet') {
-      if(['yes-deployed', 'yes-recently-deployed'].includes(valueFromFormData)) {
+      if(['yes-deployed'].includes(valueFromFormData)) {
         // If the user has Fleet deployed, set their stage to 6.
         psychologicalStage = '6 - Has team buy-in';
+      } else if(valueFromFormData === 'yes-recently-deployed'){
+        psychologicalStage = '5 - Personally confident';
       } else if(valueFromFormData === 'yes-deployed-local'){
         // If they've tried Fleet locally, set their stage to 3.
         psychologicalStage = '3 - Intrigued';
@@ -132,41 +136,100 @@ module.exports = {
         // Otherwise, we'll just assume liu're only aware.  Maybe liu don't fully grasp what Fleet can do.
         psychologicalStage = '2 - Aware';
       }
-    } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
-      if(valueFromFormData === 'no-use-case-yet') {
-        // If this user doe not have a use case for Fleet yet, set their psyStage to 3
-        psychologicalStage = '3 - Intrigued';
-      } else {// Otherwise, they have a use case and will be set to stage 4.
-        psychologicalStage = '4 - Has use case';
-      }
-    } else if(currentStep === 'what-did-you-think') {
-      // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
-      if(valueFromFormData === 'deploy-fleet-in-environment') {
-        psychologicalStage = '5 - Personally confident';
-      }
-      // If the user selects let me think about it, their stage will not change.
+    } else {
+      // If the user submitted any other step, we'll set variables using the answers to the previous questions.
+      // Get the user's selected primaryBuyingSiutation.
+      let currentSelectedBuyingSituation = questionnaireProgress['what-are-you-using-fleet-for'].primaryBuyingSituation;
+      // Get the user's answer to the "Have you ever used Fleet?" question.
+      let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
+      if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
+        if(valueFromFormData === 'no-use-case-yet') {
+          // Check the user's answer to the previous question
+          if(hasUsedFleetAnswer === 'yes-deployed-local'){
+            // If they've tried Fleet locally, set their stage to 3.
+            psychologicalStage = '3 - Intrigued';
+          } else {
+            psychologicalStage = '2 - Aware';
+          }
+        } else {// Otherwise, they have a use case and will be set to stage 4.
+          psychologicalStage = '4 - Has use case';
+        }
+      } else if(currentStep === 'is-it-any-good') {
+        if(currentSelectedBuyingSituation === 'mdm') {
+          // Since the mdm use case question is the only buying situation-specific question where a use case can't
+          // be selected,  we'll check the user's previous answers before changing their psyStage
+          if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
+            // Check the user's answer to the have-you-ever-used-fleet question.
+            if(hasUsedFleetAnswer === 'yes-deployed-local') {
+              // If they've tried Fleet locally, set their stage to 3.
+              psychologicalStage = '3 - Intrigued';
+            } else {
+              psychologicalStage = '2 - Aware';
+            }
+          } else {
+            psychologicalStage = '4 - Has use case';
+          }
+        } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
+          psychologicalStage = '4 - Has use case';
+          // FUTURE: check previous answers for other selected buying situations.
+        }
+      } else if(currentStep === 'what-did-you-think') {// (what did you think about [presumably after you actually did...] trying it locally)
+        // If the user selects "Let me think about it", set their psyStage to 2.
+        if(valueFromFormData === 'let-me-think-about-it') {
+          psychologicalStage = '2 - Aware';
+        } else if (['deploy-fleet-in-environment','host-fleet-for-me'].includes(valueFromFormData)) {
+          psychologicalStage = '4 - Has use case';
+        } else { require('assert')(false,'This should never happen.'); }
+      } else if(currentStep === 'how-was-your-deployment') {
+        if(valueFromFormData === 'decided-to-not-use-fleet') {
+          psychologicalStage = '2 - Aware';
+        } else if(valueFromFormData === 'up-and-running'){
+          psychologicalStage = '5 - Personally confident';
+        } else if(['kinda-stuck', 'havent-gotten-to-it', 'changed-mind-want-managed-deployment'].includes(valueFromFormData)){
+          psychologicalStage = '4 - Has use case';
+        } else { require('assert')(false,'This should never happen.'); }
+      } else if (currentStep === 'whats-left-to-get-you-set-up') {
+        // FUTURE: do more stuff (for now this always acts like 'no change')
+      } else if(currentStep === 'how-many-hosts') {
+        if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
+          psychologicalStage = '6 - Has team buy-in';
+        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
+          psychologicalStage = '5 - Personally confident';
+        } else {
+          // IWMIH then we want Fleet to host for us (either because we wanted that from the get-go, or we backtracked because deploying looked too time-consuming)
+          psychologicalStage = '4 - Has use case';
+        }
+      } else if(currentStep === 'will-you-be-self-hosting') {
+        if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
+          psychologicalStage = '6 - Has team buy-in';
+        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
+          psychologicalStage = '5 - Personally confident';
+        } else { require('assert')(false, 'This should never happen.'); }
+      } else if(currentStep === 'thanks-for-checking-out-fleet') {
+        psychologicalStage = '2 - Aware';
+      }//ﬁ
     }//ﬁ
 
-    // Send a POST request to Zapier
-    await sails.helpers.http.post.with({
-      url: 'https://hooks.zapier.com/hooks/catch/3627242/3nltwbg/',
-      data: {
+    // Only update CRM records if the user's psychological stage changes.
+    if(psychologicalStage !== userRecord.psychologicalStage) {
+      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
+      psychologicalStageLastChangedAt = Date.now();
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
         lastName: this.req.me.lastName,
-        primaryBuyingSituation: primaryBuyingSituation,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         organization: this.req.me.organization,
         psychologicalStage,
-        currentStep,
-        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
-      }
-    })
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user completed a questionnaire step, a lead/contact could not be updated in the CRM for this email address: ${this.req.me.emailAddress}. Raw error: ${err}`);
-      return;
-    });
+        leadSource: 'Website - Sign up',
+      }).exec((err)=>{
+        if(err){
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
+        }
+        return;
+      });
+    }//ﬁ
+    // TODO: send all other answers to Salesforce (when there are fields for them)
     // Set the user's answer to the current step.
     questionnaireProgress[currentStep] = formData;
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
@@ -176,7 +239,8 @@ module.exports = {
     .set({
       getStartedQuestionnaireAnswers: questionnaireProgress,
       lastSubmittedGetStartedQuestionnaireStep: currentStep,
-      psychologicalStage
+      psychologicalStage,
+      psychologicalStageLastChangedAt,
     });
     // Return the JSON dictionary of form data submitted by this user.
     return getStartedProgress;

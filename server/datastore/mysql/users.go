@@ -276,13 +276,13 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 
-func amountUsersDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
-	var amount int
-	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM users`)
+func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, db, &count, fmt.Sprintf(`SELECT count(*) FROM %s`, tableName))
 	if err != nil {
 		return 0, err
 	}
-	return amount, nil
+	return count, nil
 }
 
 func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since time.Time) (int, error) {

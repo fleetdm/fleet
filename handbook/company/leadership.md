@@ -2,6 +2,9 @@
 
 This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/06da9dde-c6f8-4f4d-952f-26d6ad7d3aa0">
+
+
 
 ## CEO flaws
 [Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. 
@@ -31,7 +34,6 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
-
 ## Contact the CEO
 **Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
 
@@ -39,11 +41,9 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 ## CEO responsibilities
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
-
-
-
-
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1301303a-cb80-4925-806b-aace10a47047">
 
 
 ## Outline of departmental page structure
@@ -91,6 +91,8 @@ Departmental page structure:
 
 
 - `## Rituals`
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/61d6503c-8ef7-4199-a946-8472f443f649">
 
 
 ## Key reviews
@@ -142,7 +144,7 @@ Core team members:
 - must be offboarded
 - get an email address
 - have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
-- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0)
+- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) (private Google Doc)
 - are paid as part of the standard payroll ritual for the place they work and their employment classification.
 
 Consultants aren't required to do any of those things.
@@ -165,6 +167,9 @@ If the consultant is international, you will also provide:
 
 
 > To update a consultant's fee, [submit an issue to BizOps](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/e9d36657-fab9-44c1-9162-7bc640e2f3a0">
+
 
 ### Adding an advisor
 
@@ -245,10 +250,11 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. **Budget compensation:** Ballpark and document compensation research for the role based on 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
+4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
+   - _Update financial model:_ Update ["¶ Financial model"](https://docs.google.com/spreadsheets/d/1tIcuwhmOKolnwNJqQ0zH5rWCqjawYzySDsKTb98RvxI/edit?gid=1184088923#gid=1184088923)
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Business Operations.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
@@ -264,15 +270,14 @@ Fleet accepts job applications, but the company does not list positions on gener
 
 This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/ea3d3470-575d-4516-a19e-02abec3e1285">
+
+
 #### Receiving job applications
-Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
-
-> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
-
-When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
+Every job description page ends with a "call to action", including a link to the hiring manager's LinkedIn to apply for the job directly with the hiring manager.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise. Hiring managers are encouraged to use [email/message templates](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates) for consistency and efficiency.
 
 #### Candidate correspondence email templates
-Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
+Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8o7_vH7lV9nM1wQCM4Vc3GxBRBDPK-mKO9HNk/edit?usp=sharing) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
 
 ### Hiring restrictions
 
@@ -368,13 +373,28 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
      
      -Joanne
      ```
-2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
+2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Remove open position:** The hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
-4. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** Ensure the hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
+4. **Create 30-60-90 day plan:** 🧑‍🚀 Hiring manager creates a 30-60-90 day plan outlining key role objectives. The plan is reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. To create the 30-60-90 day plan, hiring manager will:
+    - Create a copy of the [30-60-90 day plan template](https://docs.google.com/document/d/1EztmPBuMFXbVoy4ZToXcxasNO38ooOh8Gh5hPXFvJhI/copy) and rename the copied file using the naming convention `[start date] - 30-60-90 day plan - [teammate full name]` and move it to the [30-60-90 day plan folder](https://drive.google.com/drive/u/0/folders/1QWiAbgBFuuofT_3M8oIoBsbEBmubQAj7) in Google Drive.
+    - Follow the prompts in the template to fill out the 30-60-90 day plan for the new teammate before they start.
+5. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
+
+## CEO shadow program
+
+The CEO shadow program is a three-day temporary assignment (usually completed during onboarding) in which team members will shadow all relevant meetings on the CEO's calendar. This gives team members an overview of all aspects of the company and provides high context and in turn, high-output contributors. The program also creates opportunities for the CEO to build relationships with team members across the company and to identify challenges and opportunities earlier. 
+ 
+> **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
+
+There are many short-term tasks you'll be asked to perform as a shadow. Here are some examples:
+- Prepare for, participate in, take notes during, and follow up on meetings.
+- Make handbook updates and shadow PR reviews.
+- Solve urgent issues. For example, help solve a complaint from a customer or coordinate the response to a technical issue.
+- Create and/or complete GitHub issues involving multiple departments at Fleet, and work towards closing or creating pull requests to complete issues.
 
 
 ## Tracking hours
@@ -400,6 +420,9 @@ From time to time, someone's job title changes.  To do this, Business Operations
 1. Change "Fleeties" to reflect the new job title, manager, and/or department.
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1e59ac8f-26d8-4f2f-9ff4-2e303753c910">
+
 
 ## Delivering performance feedback
 When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.

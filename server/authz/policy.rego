@@ -643,6 +643,76 @@ allow {
   action == read
 }
 
+# Global admins and maintainers can read any installable entity (software installer or VPP app)
+allow {
+  object.type == "installable_entity"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write any installable entity (software installer or VPP app)
+allow {
+  object.type == "installable_entity"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins and maintainers can read any installable entity (software installer or VPP app) in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "installable_entity"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write any installable entity (software installer or VPP app) in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "installable_entity"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# Host software installs
+##
+
+# Global admins and maintainers can write (install) software on hosts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admin and maintainers can write (install) software on hosts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  not is_null(object.host_team_id)
+  team_role(subject, object.host_team_id) == [admin, maintainer][_]
+  action == write
+}
+
+
+# Global admins and maintainers can read software install results on hosts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admin and maintainers can read software install results on hosts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  not is_null(object.host_team_id)
+  team_role(subject, object.host_team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+
 ##
 # Apple and Windows MDM
 ##
@@ -859,22 +929,11 @@ allow {
 # Host Script Result (script execution and output)
 ##
 
-# Global admins and maintainers can write (execute) anonymous scripts (not
+# Global admins and maintainers can write (execute) scripts (not
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   subject.global_role == [admin, maintainer][_]
-  action == write
-}
-
-# Global admins, maintainers, observer_plus and observers can write (execute)
-# saved scripts (not gitops as this is not something that relates to fleetctl
-# apply).
-allow {
-  object.type == "host_script_result"
-  not is_null(object.script_id)
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == write
 }
 
@@ -885,24 +944,12 @@ allow {
   action == read
 }
 
-# Team admin and maintainers can write (execute) anonymous scripts for their
+# Team admin and maintainers can write (execute) scripts for their
 # teams (not gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   not is_null(object.team_id)
   team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == write
-}
-
-# Team admins, maintainers, observer_plus and observers can write (execute)
-# saved scripts for their teams (not gitops as this is not something that
-# relates to fleetctl apply).
-allow {
-  object.type == "host_script_result"
-  not is_null(object.script_id)
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == write
 }
 

@@ -1,0 +1,12 @@
+.activity-feed-automations-modal {
+  .form-fields {
+    &--disabled {
+      @include disabled;
+    }
+  }
+
+  pre {
+    box-sizing: border-box;
+    margin: 0;
+  }
+}

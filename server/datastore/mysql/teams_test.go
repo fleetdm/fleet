@@ -591,9 +591,17 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			Name: "team1",
 			Config: fleet.TeamConfig{
 				MDM: fleet.TeamMDM{
-					MacOSUpdates: fleet.MacOSUpdates{
+					MacOSUpdates: fleet.AppleOSUpdateSettings{
 						MinimumVersion: optjson.SetString("10.15.0"),
 						Deadline:       optjson.SetString("2025-10-01"),
+					},
+					IOSUpdates: fleet.AppleOSUpdateSettings{
+						MinimumVersion: optjson.SetString("11.11.11"),
+						Deadline:       optjson.SetString("2024-04-04"),
+					},
+					IPadOSUpdates: fleet.AppleOSUpdateSettings{
+						MinimumVersion: optjson.SetString("12.12.12"),
+						Deadline:       optjson.SetString("2023-03-03"),
 					},
 					WindowsUpdates: fleet.WindowsUpdates{
 						DeadlineDays:    optjson.SetInt(7),
@@ -614,9 +622,17 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		assert.Equal(t, &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("11.11.11"),
+				Deadline:       optjson.SetString("2024-04-04"),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("12.12.12"),
+				Deadline:       optjson.SetString("2023-03-03"),
 			},
 			WindowsUpdates: fleet.WindowsUpdates{
 				DeadlineDays:    optjson.SetInt(7),
@@ -648,13 +664,13 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 
 	// Try to create team with equivalent name
 	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to update a different team with equivalent name -- not allowed
 	teamEmoji, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "💻"})
 	require.NoError(t, err)
 	_, err = ds.SaveTeam(context.Background(), &fleet.Team{ID: teamEmoji.ID, Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to find team with equivalent name
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
@@ -695,7 +711,6 @@ func testTeamsNameEmoji(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, emoji1, results[0].Name)
-
 }
 
 // Ensure case-insensitive sort order for ames
@@ -717,5 +732,4 @@ func testTeamsNameSort(t *testing.T, ds *Datastore) {
 	for i, item := range teams {
 		assert.Equal(t, item.Name, results[i].Name)
 	}
-
 }

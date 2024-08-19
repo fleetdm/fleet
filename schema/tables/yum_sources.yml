@@ -1,13 +1,11 @@
 name: yum_sources
-examples: >-
+examples: |-
   Find yum repositories on Linux servers for which cryptographic verification
   via GPG is disabled. This could allow untrusted packages to be injected into a
   repository that could then be installed.
 
   ```
-
   SELECT * FROM yum_sources WHERE gpgcheck='0'; 
-
   ```
 columns:
   - name: pid_with_namespace

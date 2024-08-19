@@ -42,9 +42,11 @@ jobs:
   test-go:
     strategy:
       matrix:
+        suite: ["integration", "core"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
-        mysql: ["mysql:5.7.21", "mysql:8.0.28"]
+        mysql: ["mysql:8.0.36", "mysql:8.4.2"]
+    continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 
     env:
@@ -68,7 +70,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
     - name: Add TLS certificate for SMTP Tests
       run: |
@@ -78,6 +80,9 @@ jobs:
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
       run: make deps-go
+
+    - name: Install ZSH
+      run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
       run: |
@@ -93,25 +98,42 @@ jobs:
     - name: Wait for mysql
       run: |
         echo "waiting for mysql..."
-        until docker-compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
             echo "."
             sleep 1
         done
         echo "mysql is ready"
+        echo "waiting for mysql replica..."
+        until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql replica is ready"
 
     - name: Run Go Tests
       run: |
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+        if [[ "${{ matrix.suite }}" == "core" ]]; then
+          RUN_TESTS_ARG='-skip=^TestIntegrations'
+        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
+          RUN_TESTS_ARG='-run=^TestIntegrations'
+        else
+          RUN_TESTS_ARG=''
+        fi
+
+        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
+          MYSQL_REPLICA_TEST=1 \
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 
+    # note: it's fine to upload multiple reports (one per matrix combination)
+    # for the same run, see https://docs.codecov.com/docs/merging-reports
     - name: Upload to Codecov
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
@@ -119,12 +141,14 @@ jobs:
         flags: backend
 
     - name: Generate summary of errors
-      if: github.event.schedule == '0 4 * * *' && failure()
+      if: failure()
       run: |
         c1grep() { grep "$@" || test $? = 1; }
         c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
         c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
         c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
+        c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
+        c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
         GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
         echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
         if [[ -z "$GO_FAIL_SUMMARY" ]]; then

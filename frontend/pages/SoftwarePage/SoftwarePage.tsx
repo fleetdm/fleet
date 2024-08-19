@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -28,6 +28,8 @@ import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
+import AddSoftwareModal from "./components/AddSoftwareModal";
+import { getSoftwareFilterFromQueryParams } from "./SoftwareTitles/SoftwareTable/helpers";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -92,6 +94,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
+      available_for_install?: string;
       exploit?: string;
       page?: string;
       query?: string;
@@ -110,8 +113,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
     isPremiumTier,
-    isSandboxMode,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -132,20 +136,28 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       : DEFAULT_PAGE;
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
-  const showVulnerableSoftware =
-    queryParams !== undefined && queryParams.vulnerable === "true";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
+
+  // TODO: there should be better validation of the params depending on the route (e.g., self_service
+  // and available_for_install don't apply to versions, os, or vulnerabilities routes) and some
+  // defined redirect behavior if the params are invalid
+  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
+  const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
+    null
+  );
 
   const {
     currentTeamId,
-    isAnyTeamSelected,
+    isAllTeamsSelected,
     isRouteOk,
     teamIdForApi,
     userTeams,
@@ -154,7 +166,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   // softwareConfig is either the global config or the team config of the
@@ -218,12 +230,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
-  const canManageAutomations =
-    isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
-
   const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
+
+  const toggleAddSoftwareModal = useCallback(() => {
+    setShowAddSoftwareModal(!showAddSoftwareModal);
+  }, [showAddSoftwareModal]);
 
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
@@ -256,23 +269,32 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams, page]);
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      // TODO: reset page to 0 when changing teams
+      // NOTE: used to reset page number to 0 when modifying filters
+      setResetPageIndex(true);
     },
     [handleTeamChange]
   );
 
   const navigateToNav = useCallback(
     (i: number): void => {
+      setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
+
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
         team_id: location?.query.team_id,
+        page: 0, // Fixes flakey page reset in API call when switching between tabs
       });
 
       const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
-
       router.replace(navPath);
     },
     [location, router]
@@ -288,25 +310,46 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             currentTeamId={currentTeamId}
             userTeams={userTeams}
             onTeamChange={onTeamChange}
-            isSandboxMode={isSandboxMode}
           />
         )}
       </>
     );
   };
 
+  const renderPageActions = () => {
+    const canManageAutomations =
+      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
+
+    const canAddSoftware =
+      isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+    if (!isSoftwareConfigLoaded) return null;
+
+    return (
+      <div className={`${baseClass}__action-buttons`}>
+        {canManageAutomations && (
+          <Button
+            onClick={toggleManageAutomationsModal}
+            className={`${baseClass}__manage-automations`}
+            variant="inverse"
+          >
+            Manage automations
+          </Button>
+        )}
+        {canAddSoftware && (
+          <Button onClick={toggleAddSoftwareModal} variant="brand">
+            <span>Add software</span>
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   const renderHeaderDescription = () => {
     return (
       <p>
-        Search for installed software{" "}
-        {(isGlobalAdmin || isGlobalMaintainer) &&
-          (!isPremiumTier || !isAnyTeamSelected) &&
-          "and manage automations for detected vulnerabilities (CVEs)"}{" "}
-        on{" "}
-        {isPremiumTier && isAnyTeamSelected
-          ? "all hosts assigned to this team"
-          : "all of your hosts"}
-        .
+        Manage software and search for installed software, OS, and
+        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
       </p>
     );
   };
@@ -342,8 +385,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           teamId: teamIdForApi,
           // TODO: move down into the Software Titles component
           query,
-          showVulnerableSoftware,
           showExploitedVulnerabilitiesOnly,
+          softwareFilter,
+          resetPageIndex,
+          addedSoftwareToken,
         })}
       </div>
     );
@@ -358,15 +403,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
               <div className={`${baseClass}__title`}>{renderTitle()}</div>
             </div>
           </div>
-          {canManageAutomations && isSoftwareConfigLoaded && (
-            <Button
-              onClick={toggleManageAutomationsModal}
-              className={`${baseClass}__manage-automations button`}
-              variant="brand"
-            >
-              <span>Manage automations</span>
-            </Button>
-          )}
+          {renderPageActions()}
         </div>
         <div className={`${baseClass}__description`}>
           {renderHeaderDescription()}
@@ -384,6 +421,15 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
             currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
             recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
+          />
+        )}
+        {showAddSoftwareModal && (
+          <AddSoftwareModal
+            teamId={currentTeamId ?? 0}
+            router={router}
+            onExit={toggleAddSoftwareModal}
+            setAddedSoftwareToken={setAddedSoftwareToken}
+            isFreeTier={isFreeTier}
           />
         )}
       </div>

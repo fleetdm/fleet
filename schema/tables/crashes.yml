@@ -1,9 +1,7 @@
 name: crashes
-examples: >-
+examples: |-
   ```
-
   SELECT * FROM users CROSS JOIN crashes USING (uid);
-
   ```
 notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 columns:

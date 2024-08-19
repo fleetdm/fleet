@@ -12,7 +12,6 @@ import Icon from "components/Icon/Icon";
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
-import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
@@ -21,10 +20,6 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-  /**  Only used for showing inherited policies table */
-  showInheritedTable?: boolean;
-  /** Only used for sort/query changes to inherited policies table */
-  editingInheritedTable?: boolean;
 }
 interface IRowProps extends Row {
   original: {
@@ -48,8 +43,8 @@ interface ITableContainerProps<T = any> {
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
-  resultsTitle: string;
-  resultsHtml?: JSX.Element;
+  /** resultsTitle used in DataTable for matching results text */
+  resultsTitle?: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
@@ -68,9 +63,10 @@ interface ITableContainerProps<T = any> {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
-  filteredCount?: number;
   searchToolTipText?: string;
+  // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
+  // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   /** Used to set URL to correct path and include page query param */
@@ -98,6 +94,8 @@ interface ITableContainerProps<T = any> {
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  /** Use for serverside filtering: Set to true when filters change in URL
+   * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
 }
@@ -120,7 +118,6 @@ const TableContainer = <T,>({
   inputPlaceHolder = "Search",
   additionalQueries,
   resultsTitle,
-  resultsHtml,
   emptyComponent,
   className,
   disableActionButton,
@@ -136,7 +133,6 @@ const TableContainer = <T,>({
   disableCount,
   primarySelectAction,
   secondarySelectActions,
-  filteredCount,
   searchToolTipText,
   isClientSidePagination,
   onClientSidePaginationChange,
@@ -214,10 +210,6 @@ const TableContainer = <T,>({
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
-  const onResultsCountChange = useCallback((resultsCount: number) => {
-    setClientFilterCount(resultsCount);
-  }, []);
-
   useDeepEffect(() => {
     if (!onQueryChange) {
       return;
@@ -250,16 +242,6 @@ const TableContainer = <T,>({
     pageIndex,
     additionalQueries,
   ]);
-
-  // TODO: refactor existing components relying on displayCount to use renderCount pattern
-  const displayCount = useCallback((): any => {
-    if (typeof filteredCount === "number") {
-      return filteredCount;
-    } else if (typeof clientFilterCount === "number") {
-      return clientFilterCount;
-    }
-    return data?.length || 0;
-  }, [filteredCount, clientFilterCount, data]);
 
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
@@ -308,36 +290,16 @@ const TableContainer = <T,>({
               stackControls ? "stack-table-controls" : ""
             }`}
           >
-            <span className="results-count">
-              {renderCount && (
-                <div
-                  className={`${baseClass}__results-count ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
-                  style={opacity}
-                >
-                  {renderCount()}
-                </div>
-              )}
-              {!renderCount &&
-              !disableCount &&
-              (isMultiColumnFilter || displayCount()) ? (
-                <div
-                  className={`${baseClass}__results-count ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
-                  style={opacity}
-                >
-                  {TableContainerUtils.generateResultsCountText(
-                    resultsTitle,
-                    displayCount()
-                  )}
-                  {resultsHtml}
-                </div>
-              ) : (
-                <div />
-              )}
-            </span>
+            {renderCount && !disableCount && (
+              <div
+                className={`${baseClass}__results-count ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                style={opacity}
+              >
+                {renderCount()}
+              </div>
+            )}
             <span className="controls">
               {actionButton && !actionButton.hideButton && (
                 <Button
@@ -445,7 +407,7 @@ const TableContainer = <T,>({
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onClickRow={onClickRow}
-                onResultsCountChange={onResultsCountChange}
+                onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}

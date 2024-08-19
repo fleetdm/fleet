@@ -12,16 +12,18 @@ type CronScheduleName string
 
 // List of recognized cron schedule names.
 const (
-	CronAppleMDMDEPProfileAssigner CronScheduleName = "apple_mdm_dep_profile_assigner"
-	CronCleanupsThenAggregation    CronScheduleName = "cleanups_then_aggregation"
-	CronFrequentCleanups           CronScheduleName = "frequent_cleanups"
-	CronUsageStatistics            CronScheduleName = "usage_statistics"
-	CronVulnerabilities            CronScheduleName = "vulnerabilities"
-	CronAutomations                CronScheduleName = "automations"
-	CronWorkerIntegrations         CronScheduleName = "integrations"
-	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
-	CronMDMAppleProfileManager     CronScheduleName = "mdm_apple_profile_manager"
-	CronCalendar                   CronScheduleName = "calendar"
+	CronAppleMDMDEPProfileAssigner  CronScheduleName = "apple_mdm_dep_profile_assigner"
+	CronCleanupsThenAggregation     CronScheduleName = "cleanups_then_aggregation"
+	CronFrequentCleanups            CronScheduleName = "frequent_cleanups"
+	CronUsageStatistics             CronScheduleName = "usage_statistics"
+	CronVulnerabilities             CronScheduleName = "vulnerabilities"
+	CronAutomations                 CronScheduleName = "automations"
+	CronWorkerIntegrations          CronScheduleName = "integrations"
+	CronActivitiesStreaming         CronScheduleName = "activities_streaming"
+	CronMDMAppleProfileManager      CronScheduleName = "mdm_apple_profile_manager"
+	CronAppleMDMIPhoneIPadRefetcher CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
+	CronAppleMDMAPNsPusher          CronScheduleName = "apple_mdm_apns_pusher"
+	CronCalendar                    CronScheduleName = "calendar"
 )
 
 type CronSchedulesService interface {

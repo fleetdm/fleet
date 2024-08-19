@@ -1,9 +1,9 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
+import classNames from "classnames";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { RouteProps } from "react-router";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
@@ -13,8 +13,8 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
-  IPastActivitiesResponse,
-  IUpcomingActivitiesResponse,
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
@@ -31,7 +31,7 @@ import {
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { ISoftware } from "interfaces/software";
+import { IHostSoftware } from "interfaces/software";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
@@ -53,11 +53,21 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
+import { isIPadOrIPhone, Platform } from "interfaces/platform";
+
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import {
+  AppInstallDetailsModal,
+  IAppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -76,7 +86,7 @@ import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
-import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import RunScriptModal from "./modals/RunScriptModal";
@@ -91,16 +101,16 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
     query: {
-      vulnerable?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -128,14 +138,11 @@ interface IHostDetailsSubNavItem {
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
 
 const HostDetailsPage = ({
-  route,
   router,
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const routeTemplate = route?.path ?? "";
-  const queryParams = location.query;
 
   const {
     config,
@@ -143,7 +150,6 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalObserver,
     isPremiumTier = false,
-    isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
@@ -171,19 +177,30 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    appInstallDetails,
+    setAppInstallDetails,
+  ] = useState<IAppInstallDetails | null>(null);
+
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [packsState, setPackState] = useState<IPackStats[]>();
-  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
-  const [pathname, setPathname] = useState("");
   const [
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -298,7 +315,10 @@ const HostDetailsPage = ({
             // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
             // the first page loads), we start it now if the host is online. If the host is offline,
             // we skip the refetch on page load.
-            if (returnedHost.status === "online") {
+            if (
+              returnedHost.status === "online" ||
+              isIPadOrIPhone(returnedHost.platform)
+            ) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -308,9 +328,13 @@ const HostDetailsPage = ({
               setShowRefetchSpinner(false);
             }
           } else {
+            // !!refetchStartTime
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
-              if (returnedHost.status === "online") {
+              if (
+                returnedHost.status === "online" ||
+                isIPadOrIPhone(returnedHost.platform)
+              ) {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -323,6 +347,7 @@ const HostDetailsPage = ({
                 setShowRefetchSpinner(false);
               }
             } else {
+              // totalElapsedTime > 60000
               renderFlash(
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
@@ -332,7 +357,6 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
@@ -369,9 +393,9 @@ const HostDetailsPage = ({
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
-    IPastActivitiesResponse,
+    IHostPastActivitiesResponse,
     Error,
-    IPastActivitiesResponse,
+    IHostPastActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -387,8 +411,12 @@ const HostDetailsPage = ({
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
-      return activitiesAPI.getHostPastActivities(hostIdFromURL, page, perPage);
+    ({ queryKey: [{ pageIndex, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(
+        hostIdFromURL,
+        pageIndex,
+        perPage
+      );
     },
     {
       keepPreviousData: true,
@@ -403,9 +431,9 @@ const HostDetailsPage = ({
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
-    IUpcomingActivitiesResponse,
+    IHostUpcomingActivitiesResponse,
     Error,
-    IUpcomingActivitiesResponse,
+    IHostUpcomingActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -421,10 +449,10 @@ const HostDetailsPage = ({
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+    ({ queryKey: [{ pageIndex, perPage }] }) => {
       return activitiesAPI.getHostUpcomingActivities(
         hostIdFromURL,
-        page,
+        pageIndex,
         perPage
       );
     },
@@ -437,6 +465,23 @@ const HostDetailsPage = ({
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
+
+  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
+    const mdmConfig = host?.team_id
+      ? teams?.find((t) => t.id === host.team_id)?.mdm
+      : config?.mdm;
+
+    switch (hostPlatform) {
+      case "darwin":
+        return mdmConfig?.macos_updates;
+      case "ipados":
+        return mdmConfig?.ipados_updates;
+      case "ios":
+        return mdmConfig?.ios_updates;
+      default:
+        null;
+    }
+  };
 
   useEffect(() => {
     setUsersState(() => {
@@ -459,11 +504,6 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
-
-  // Used for back to software pathname
-  useEffect(() => {
-    setPathname(location.pathname + location.search);
-  }, [location]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -552,10 +592,30 @@ const HostDetailsPage = ({
         case "ran_script":
           setScriptDetailsId(details?.script_execution_id || "");
           break;
+        case "installed_software":
+          setPackageInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case "installed_app_store_app":
+          setAppInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
         default: // do nothing
       }
     },
-    []
+    [host?.display_name]
   );
 
   const onLabelClick = (label: ILabel) => {
@@ -582,7 +642,18 @@ const HostDetailsPage = ({
 
   const onCancelScriptDetailsModal = useCallback(() => {
     setScriptDetailsId("");
-  }, [setScriptDetailsId]);
+    // refetch activities to make sure they up-to-date with what was displayed in the modal
+    refetchPastActivities();
+    refetchUpcomingActivities();
+  }, [refetchPastActivities, refetchUpcomingActivities]);
+
+  const onCancelSoftwareInstallDetailsModal = useCallback(() => {
+    setPackageInstallDetails(null);
+  }, []);
+
+  const onCancelAppInstallDetailsModal = useCallback(() => {
+    setAppInstallDetails(null);
+  }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
@@ -660,13 +731,13 @@ const HostDetailsPage = ({
   //   host.mdm.pending_action
   // );
 
-  const renderActionButtons = () => {
+  const renderActionDropdown = () => {
     if (!host) {
       return null;
     }
 
     return (
-      <HostActionDropdown
+      <HostActionsDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
@@ -674,7 +745,7 @@ const HostDetailsPage = ({
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
-        mdmName={mdm?.name}
+        isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
     );
@@ -755,14 +826,21 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const isIosOrIpadosHost =
+    host.platform === "ios" || host.platform === "ipados";
+
+  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
+    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+  });
+
   return (
     <MainContent className={baseClass}>
       <>
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
-          mdmName={host?.mdm.name}
           diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+          connectedToFleetMdm={host?.mdm.connected_to_fleet}
         />
         <div className={`${baseClass}__header-links`}>
           <BackLink
@@ -774,15 +852,17 @@ const HostDetailsPage = ({
           summaryData={summaryData}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
-          isSandboxMode={isSandboxMode}
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
-          mdmName={mdm?.name}
+          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
-          renderActionButtons={renderActionButtons}
+          renderActionDropdown={renderActionDropdown}
           osSettings={host?.mdm.os_settings}
+          osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+            host.platform
+          )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
@@ -797,7 +877,7 @@ const HostDetailsPage = ({
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
               })}
             </TabList>
-            <TabPanel className={`${baseClass}__details-panel`}>
+            <TabPanel className={detailsPanelClass}>
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
@@ -827,34 +907,41 @@ const HostDetailsPage = ({
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
                 onShowDetails={onShowActivityDetails}
               />
-              <AgentOptionsCard
-                osqueryData={osqueryData}
-                wrapFleetHelper={wrapFleetHelper}
-                isChromeOS={host?.platform === "chrome"}
-              />
+              {!isIosOrIpadosHost && (
+                <AgentOptionsCard
+                  osqueryData={osqueryData}
+                  wrapFleetHelper={wrapFleetHelper}
+                  isChromeOS={host?.platform === "chrome"}
+                />
+              )}
               <LabelsCard
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              <UsersCard
-                users={host?.users || []}
-                usersState={usersState}
-                isLoading={isLoadingHost}
-                onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={featuresConfig?.enable_host_users}
-              />
+              {!isIosOrIpadosHost && (
+                <UsersCard
+                  users={host?.users || []}
+                  usersState={usersState}
+                  isLoading={isLoadingHost}
+                  onUsersTableSearchChange={onUsersTableSearchChange}
+                  hostUsersEnabled={featuresConfig?.enable_host_users}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
-                isLoading={isLoadingHost}
-                software={hostSoftware}
+                id={host.id}
+                platform={host.platform}
+                softwareUpdatedAt={host.software_updated_at}
+                hostCanInstallSoftware={
+                  !!host.orbit_version || isIosOrIpadosHost
+                }
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
-                queryParams={queryParams}
-                routeTemplate={routeTemplate}
-                pathname={pathname}
-                pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
+                queryParams={parseHostSoftwareQueryParams(location.query)}
+                pathname={location.pathname}
+                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                hostTeamId={host.team_id || 0}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -868,7 +955,7 @@ const HostDetailsPage = ({
               <QueriesCard
                 hostId={host.id}
                 router={router}
-                isChromeOSHost={host.platform === "chrome"}
+                hostPlatform={host.platform}
                 schedule={schedule}
                 queryReportsDisabled={
                   config?.server_settings?.query_reports_disabled
@@ -883,6 +970,9 @@ const HostDetailsPage = ({
                 policies={host?.policies || []}
                 isLoading={isLoadingHost}
                 togglePolicyDetailsModal={togglePolicyDetailsModal}
+                hostPlatform={host.platform}
+                router={router}
+                currentTeamId={currentTeam?.id}
               />
             </TabPanel>
           </Tabs>
@@ -906,15 +996,17 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
-        {showRunScriptModal && (
-          <RunScriptModal
-            host={host}
-            currentUser={currentUser}
-            scriptDetailsId={scriptDetailsId}
-            setScriptDetailsId={setScriptDetailsId}
-            onClose={onCloseRunScriptModal}
-          />
-        )}
+        {showRunScriptModal &&
+          // force run script modal to unmount when script details modal is shown;
+          // it will be remounted when script details modal is closed
+          !scriptDetailsId && (
+            <RunScriptModal
+              host={host}
+              currentUser={currentUser}
+              setScriptDetailsId={setScriptDetailsId}
+              onClose={onCloseRunScriptModal}
+            />
+          )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -967,6 +1059,18 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
+        {!!packageInstallDetails && (
+          <SoftwareInstallDetailsModal
+            details={packageInstallDetails}
+            onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
+        {!!appInstallDetails && (
+          <AppInstallDetailsModal
+            details={appInstallDetails}
+            onCancel={onCancelAppInstallDetailsModal}
+          />
+        )}
         {showLockHostModal && (
           <LockModal
             id={host.id}
@@ -993,6 +1097,13 @@ const HostDetailsPage = ({
             hostName={host.display_name}
             onSuccess={() => setHostMdmDeviceState("wiping")}
             onClose={() => setShowWipeModal(false)}
+          />
+        )}
+        {selectedSoftwareDetails && (
+          <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
       </>

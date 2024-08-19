@@ -1,12 +1,10 @@
 name: shared_resources
-examples: >-
+examples: |-
   Network shares with loose access controls are common places that leak sensitive information. This query looks for shared drives on Windows systems that likely contain sensitive data, by listing all shared folders that have the word `backup` in their name. This does not include `ADMIN$` type shares.
   
   ```
-  
   SELECT description,name,path FROM shared_resources WHERE type = 0 and name like '%backup%';
-  
   ```
   
-notes: >-
+notes: |-
   * `type_name` is a human readable value of the type column. These values can include: "Disk Drive Admin", "IPC Admin", "Disk Drive"

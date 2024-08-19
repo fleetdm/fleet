@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -42,7 +41,7 @@ func mdmRunCommand() *cli.Command {
 			debugFlag(),
 			&cli.StringSliceFlag{
 				Name:     "hosts",
-				Usage:    "Hosts specified by hostname, serial number, uuid, osquery_host_id or node_key that you want to target.",
+				Usage:    "Comma-separated hosts to target. Hosts can be specified by hostname, UUID, or serial number.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -90,7 +89,7 @@ func mdmRunCommand() *cli.Command {
 			var (
 				hostUUIDs     []string
 				notFoundCount int
-				platform      string
+				mdmPlatform   string // "darwin" or "windows"
 			)
 			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
@@ -110,39 +109,33 @@ func mdmRunCommand() *cli.Command {
 					return err
 				}
 
-				if host.Platform != platform && platform != "" {
+				mdmHostPlatform := fleet.MDMPlatform(host.Platform)
+				if mdmHostPlatform != mdmPlatform && mdmPlatform != "" {
 					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS or all Windows hosts.`)
 				}
-				platform = host.Platform
+				mdmPlatform = mdmHostPlatform
 
-				// TODO(mna): this "On" check is brittle, but looks like it's the only
-				// enrollment indication we have right now...
-				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-					host.MDM.Name != fleet.WellKnownMDMFleet {
+				if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 					return errors.New(`Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.`)
 				}
 
 				hostUUIDs = append(hostUUIDs, host.UUID)
 			}
 
-			if len(hostUUIDs) == 0 {
-				// all hosts were not found
-				return errors.New("No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.")
-			}
-			if notFoundCount > 0 {
-				// at least one was not found
-				return errors.New("One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.")
+			if len(hostUUIDs) == 0 || notFoundCount > 0 {
+				// Either no hosts were targeted, or at least one targeted host was not found
+				return errors.New(fleet.TargetedHostsDontExistErrMsg)
 			}
 
-			result, err := client.RunMDMCommand(hostUUIDs, payload, platform)
+			result, err := client.RunMDMCommand(hostUUIDs, payload, mdmPlatform)
 			if err != nil {
-				if errors.Is(err, service.ErrMissingLicense) && platform == "windows" {
+				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "windows" {
 					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
 				}
 
 				var sce kithttp.StatusCoder
 				if errors.As(err, &sce) {
-					if sce.StatusCode() == http.StatusUnsupportedMediaType && platform == "darwin" {
+					if sce.StatusCode() == http.StatusUnsupportedMediaType && mdmPlatform == "darwin" {
 						return fmt.Errorf("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file: %w", err)
 					}
 					// this condition needs to be repeated here: maybe the user has
@@ -174,7 +167,7 @@ func mdmLockCommand() *cli.Command {
 		Usage: "Lock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by identifier, that you want to lock.",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -213,7 +206,7 @@ func mdmUnlockCommand() *cli.Command {
 		Usage: "Unlock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by identifier, that you want to unlock.",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -229,7 +222,7 @@ func mdmUnlockCommand() *cli.Command {
 				return fmt.Errorf("Failed to unlock host: %w", err)
 			}
 
-			if host.Platform == "darwin" {
+			if fleet.MDMPlatform(host.Platform) == "darwin" {
 				fmt.Fprintf(c.App.Writer, `
 Use this 6 digit PIN to unlock the host:
 
@@ -315,8 +308,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if err != nil {
 		var nfe service.NotFoundErr
 		if errors.As(err, &nfe) {
-			fmt.Println(hostIdent)
-			return nil, nil, errors.New("The host doesn't exist. Please provide a valid host identifier.")
+			return nil, nil, errors.New(fleet.HostNotFoundErrMsg)
 		}
 
 		var sce kithttp.StatusCoder
@@ -329,9 +321,8 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	}
 
 	// check mdm is on for the host
-	if host.Platform == "windows" || host.Platform == "darwin" {
-		if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-			host.MDM.Name != fleet.WellKnownMDMFleet {
+	if fleet.MDMSupported(host.Platform) {
+		if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}
 	}

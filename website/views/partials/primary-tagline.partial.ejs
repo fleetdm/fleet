@@ -1,1 +1,7 @@
-<%= primaryBuyingSituation === 'mdm' ? 'Your last MDM migration' : primaryBuyingSituation ? 'Focus on data, not vendors' : 'Untangle your endpoints' %>
+<%=
+  typeof primaryBuyingSituation === 'undefined' ? 'Open-source device management for everyone' // Default (no buying situation)
+  : primaryBuyingSituation === 'vm' ? 'Focus on vulnerabilities, not vendors' // vm
+  : primaryBuyingSituation === 'eo-security' ? 'Light in every corner'// eo-security
+  : primaryBuyingSituation === 'eo-it' ? 'Untangle your endpoints' : // eo-it
+  'Open-source device management for everyone'// mdm
+%>

@@ -1,10 +1,21 @@
 name: cpu_time
-examples: >-
-  Identify overworked CPUs using a ratio of system to user CPU usage. Here, a
-  ratio of 2 was arbitrarily chosen.
+description: The `cpu_time` table displays data from the `/proc/stat` file which records how the Central Processing Unit (CPU) in a computer or mobile device allocates time to processing workloads.
+examples: |-
+  This query identifies Hosts on which the ratio of CPU time spent processing System workloads compared to User workloads is 2:1. This could be evidence of a corrupted operating system or malicious activity:
 
   ```
+  SELECT * FROM cpu_time WHERE user/system > 2;
+  ```
 
-  SELECT * FROM cpu_time WHERE user/system>2;
+  This query duplicates the macOS Activity Monitor.app GUI which shows the percentage of CPU time spent on System, User and Idle workloads:
 
   ```
+    SELECT printf(ROUND((CAST(SUM(system) AS FLOAT)/(SUM(idle)+SUM(system)+SUM(user)))*100,2)) AS system_pct,
+  printf(ROUND((CAST(SUM(user) AS FLOAT)/(SUM(idle)+SUM(system)+SUM(user)))*100,2)) AS user_pct,
+  printf(ROUND((CAST(SUM(idle) AS FLOAT)/(SUM(idle)+SUM(system)+SUM(user)))*100,2)) AS idle_pct
+  FROM cpu_time;
+  ```
+notes: |-
+  [CPU time](https://en.wikipedia.org/wiki/CPU_time)
+
+  [Benchmarking code by referencing CPU time](https://dev.to/satrobit/cpu-time-how-to-accurately-benchmark-your-code-572p)

@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
-	"go.mozilla.org/pkcs7"
+
+	// we are using this package as we were having issues with pasrsing signed apple
+	// mobileconfig profiles with the pcks7 package we were using before.
+	cms "github.com/github/smimesign/ietf-cms"
 	"howett.net/plist"
 )
 
@@ -81,6 +82,24 @@ type Parsed struct {
 	PayloadType        string
 }
 
+func (mc Mobileconfig) isSignedProfile() bool {
+	return !bytes.HasPrefix(bytes.TrimSpace(mc), []byte("<?xml"))
+}
+
+// getSignedProfileData attempts to parse the signed mobileconfig and extract the
+// profile byte data from it.
+func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
+	signedData, err := cms.ParseSignedData(mc)
+	if err != nil {
+		return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
+	}
+	data, err := signedData.GetData()
+	if err != nil {
+		return nil, fmt.Errorf("could not get profile data from the signed mobileconfig: %w", err)
+	}
+	return Mobileconfig(data), nil
+}
+
 // ParseConfigProfile attempts to parse the Mobileconfig byte slice as a Fleet MDMAppleConfigProfile.
 //
 // The byte slice must be XML or PKCS7 parseable. Fleet also requires that it contains both
@@ -89,16 +108,12 @@ type Parsed struct {
 // Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
-	if !bytes.HasPrefix(bytes.TrimSpace(mcBytes), []byte("<?xml")) {
-		p7, err := pkcs7.Parse(mcBytes)
-		if err != nil {
-			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-		}
-		err = p7.Verify()
+	if mc.isSignedProfile() {
+		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
-		mcBytes = Mobileconfig(p7.Content)
+		mcBytes = profileData
 	}
 	var p Parsed
 	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
@@ -129,16 +144,12 @@ type payloadSummary struct {
 // See also https://developer.apple.com/documentation/devicemanagement/toplevel
 func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
-	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(mcBytes)
-		if err != nil {
-			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-		}
-		err = p7.Verify()
+	if mc.isSignedProfile() {
+		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
-		mcBytes = Mobileconfig(p7.Content)
+		mcBytes = profileData
 	}
 
 	// unmarshal the values we need from the top-level object
@@ -253,23 +264,3 @@ var (
 	ErrEmptyPayloadContent     = errors.New("empty PayloadContent")
 	ErrEncryptedPayloadContent = errors.New("encrypted PayloadContent")
 )
-
-// Sign signs an enrollment profile using the SCEP certificate from the
-// provided MDM config.
-func Sign(profile []byte, cfg config.MDMConfig) ([]byte, error) {
-	if !cfg.IsAppleSCEPSet() {
-		return nil, errors.New("SCEP configuration is required")
-	}
-
-	cert, _, _, err := cfg.AppleSCEP()
-	if err != nil {
-		return nil, fmt.Errorf("retrieving SCEP certificate from config: %w", err)
-	}
-
-	signed, err := profileutil.Sign(cert.PrivateKey, cert.Leaf, profile)
-	if err != nil {
-		return nil, fmt.Errorf("signing profile with the specified key: %w", err)
-	}
-
-	return signed, nil
-}

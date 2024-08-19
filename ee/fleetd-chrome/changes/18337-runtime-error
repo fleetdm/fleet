@@ -1,1 +1,0 @@
-Reinitialize DB and recover after a rare RuntimeError coming from sqlite web assembly code.

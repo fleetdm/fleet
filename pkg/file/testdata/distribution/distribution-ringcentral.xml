@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+    <pkg-ref id="com.ringcentral.glip">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="24.1.32.9774" CFBundleVersion="24.1.32.9774" id="com.ringcentral.glip" path="RingCentral.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <product id="com.ringcentral.glip" version="24.1.32.9774"/>
+    <title>RingCentral</title>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="10.13"/>
+        </allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.ringcentral.glip"/>
+        </line>
+    </choices-outline>
+    <choice id="default" title="RingCentral" versStr="24.1.32.9774"/>
+    <choice id="com.ringcentral.glip" title="RingCentral" visible="false">
+        <pkg-ref id="com.ringcentral.glip"/>
+    </choice>
+    <pkg-ref id="com.ringcentral.glip" version="24.1.32" onConclusion="none" installKBytes="802573">#com.ringcentral.glip.pkg</pkg-ref>
+    <domains enable_anywhere="true" enable_currentUserHome="true" enable_localSystem="true"/>
+</installer-gui-script>

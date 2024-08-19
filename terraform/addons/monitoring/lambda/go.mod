@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/terraform/addons/monitoring/lambda
 
-go 1.21.7
+go 1.22.4
 
 require (
 	github.com/aws/aws-lambda-go v1.41.0

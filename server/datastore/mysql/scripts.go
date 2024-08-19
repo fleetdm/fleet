@@ -24,7 +24,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 		var err error
 		if request.ScriptContentID == 0 {
 			// then we are doing a sync execution, so create the contents first
-			scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+			scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 			if err != nil {
 				return err
 			}
@@ -32,12 +32,12 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id)
 		}
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		return err
 	})
 }
 
-func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
+func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
@@ -66,6 +66,20 @@ func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScrip
 	return &script, nil
 }
 
+func truncateScriptResult(output string) string {
+	const maxOutputRuneLen = 10000
+	if len(output) > utf8.UTFMax*maxOutputRuneLen {
+		// truncate the bytes as we know the output is too long, no point
+		// converting more bytes than needed to runes.
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
+	}
+	if utf8.RuneCountInString(output) > maxOutputRuneLen {
+		outputRunes := []rune(output)
+		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
+	}
+	return output
+}
+
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
 	const resultExistsStmt = `
 	SELECT
@@ -82,7 +96,8 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
   UPDATE host_script_results SET
     output = ?,
     runtime = ?,
-    exit_code = ?
+    exit_code = ?,
+    timeout = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
@@ -101,17 +116,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ?
 `
 
-	const maxOutputRuneLen = 10000
-	output := result.Output
-	if len(output) > utf8.UTFMax*maxOutputRuneLen {
-		// truncate the bytes as we know the output is too long, no point
-		// converting more bytes than needed to runes.
-		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
-	}
-	if utf8.RuneCountInString(output) > maxOutputRuneLen {
-		outputRunes := []rune(output)
-		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
-	}
+	output := truncateScriptResult(result.Output)
 
 	var hsr *fleet.HostScriptResult
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -134,6 +139,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// it to a 32-bit signed integer.
 			// See /orbit/pkg/scripts/exec_windows.go
 			int32(result.ExitCode),
+			result.Timeout,
 			result.HostID,
 			result.ExecutionID,
 		)
@@ -232,9 +238,11 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.output,
     hsr.runtime,
     hsr.exit_code,
+    hsr.timeout,
     hsr.created_at,
     hsr.user_id,
-    hsr.sync_request
+    hsr.sync_request,
+    hsr.host_deleted_at
   FROM
     host_script_results hsr
   JOIN
@@ -261,14 +269,14 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 		var err error
 
 		// first insert script contents
-		scRes, err := insertScriptContents(ctx, script.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, script.ScriptContents)
 		if err != nil {
 			return err
 		}
 		id, _ := scRes.LastInsertId()
 
 		// then create the script entity
-		res, err = insertScript(ctx, script, uint(id), tx)
+		res, err = insertScript(ctx, tx, script, uint(id))
 		return err
 	})
 	if err != nil {
@@ -278,7 +286,7 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
 }
 
-func insertScript(ctx context.Context, script *fleet.Script, scriptContentsID uint, tx sqlx.ExtContext) (sql.Result, error) {
+func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
 	const insertStmt = `
 INSERT INTO
   scripts (
@@ -294,7 +302,7 @@ VALUES
 	res, err := tx.ExecContext(ctx, insertStmt,
 		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			// name already exists for this team/global
 			err = alreadyExists("Script", script.Name)
 		} else if isChildForeignKeyError(err) {
@@ -306,7 +314,7 @@ VALUES
 	return res, nil
 }
 
-func insertScriptContents(ctx context.Context, contents string, tx sqlx.ExtContext) (sql.Result, error) {
+func insertScriptContents(ctx context.Context, tx sqlx.ExtContext, contents string) (sql.Result, error) {
 	const insertStmt = `
 INSERT INTO
   script_contents (
@@ -327,7 +335,11 @@ ON DUPLICATE KEY UPDATE
 }
 
 func md5ChecksumScriptContent(s string) string {
-	rawChecksum := md5.Sum([]byte(s)) //nolint:gosec
+	return md5ChecksumBytes([]byte(s))
+}
+
+func md5ChecksumBytes(b []byte) string {
+	rawChecksum := md5.Sum(b) //nolint:gosec
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
@@ -645,7 +657,7 @@ ON DUPLICATE KEY UPDATE
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
-			scRes, err := insertScriptContents(ctx, s.ScriptContents, tx)
+			scRes, err := insertScriptContents(ctx, tx, s.ScriptContents)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
@@ -702,7 +714,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	}
 
 	switch fleetPlatform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		if mdmActions.UnlockPIN != nil {
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
@@ -845,7 +857,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 		if err != nil {
 			return err
 		}
@@ -853,7 +865,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id)
 
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
@@ -895,7 +907,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 		if err != nil {
 			return err
 		}
@@ -903,7 +915,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id)
 
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
@@ -946,7 +958,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, tx, request.ScriptContents)
 		if err != nil {
 			return err
 		}
@@ -954,7 +966,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id)
 
-		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
 		}
@@ -1014,7 +1026,7 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFl
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
 
-func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart string) string {
+func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart string, setUnlockRef bool) string {
 	var alias string
 
 	stmt := `UPDATE host_mdm_actions `
@@ -1030,7 +1042,14 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 			// Note that this must not clear the unlock_pin, because recording the
 			// lock request does generate the PIN and store it there to be used by an
 			// eventual unlock.
-			stmt += fmt.Sprintf("%sunlock_ref = NULL, %[1]swipe_ref = NULL", alias)
+			if !setUnlockRef {
+				stmt += fmt.Sprintf("%sunlock_ref = NULL, %[1]swipe_ref = NULL", alias)
+			} else {
+				// Currently only used for Apple MDM devices.
+				// We set the unlock_ref to current time since the device can be unlocked any time after the lock.
+				// Apple MDM does not have a concept of unlock pending.
+				stmt += fmt.Sprintf("%sunlock_ref = '%s', %[1]swipe_ref = NULL", alias, time.Now().Format(time.DateTime))
+			}
 		case "unlock_ref":
 			// a successful unlock clears itself as well as the lock ref, because
 			// unlock is the default state so we don't need to keep its unlock_ref
@@ -1052,26 +1071,30 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	// a bit of MDM protocol leaking in the mysql layer, but it's either that or
 	// the other way around (MDM protocol would translate to database column)
 	var refCol string
+	var setUnlockRef bool
 	switch requestType {
 	case "EraseDevice":
 		refCol = "wipe_ref"
 	case "DeviceLock":
 		refCol = "lock_ref"
+		setUnlockRef = true
 	default:
 		return nil
 	}
-	return updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded)
+	return updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded, setUnlockRef)
 }
 
-func updateHostLockWipeStatusFromResultAndHostUUID(ctx context.Context, tx sqlx.ExtContext, hostUUID, refCol, cmdUUID string, succeeded bool) error {
-	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`)
+func updateHostLockWipeStatusFromResultAndHostUUID(
+	ctx context.Context, tx sqlx.ExtContext, hostUUID, refCol, cmdUUID string, succeeded bool, setUnlockRef bool,
+) error {
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`, setUnlockRef)
 	stmt += ` WHERE h.uuid = ? AND hma.` + refCol + ` = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostUUID, cmdUUID)
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result via host uuid")
 }
 
 func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
-	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, "")
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, "", false)
 	stmt += ` WHERE host_id = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
@@ -1086,10 +1109,32 @@ WHERE
     SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
   AND NOT EXISTS (
     SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM software_installers si
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id)
+  )
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up unused script contents")
 	}
 	return nil
+}
+
+func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents string) (uint, error) {
+	csum := md5ChecksumScriptContent(contents)
+	scriptContentsID, err := ds.optimisticGetOrInsert(ctx,
+		&parameterizedStmt{
+			Statement: `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)`,
+			Args:      []interface{}{csum},
+		},
+		&parameterizedStmt{
+			Statement: `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(?), ?)`,
+			Args:      []interface{}{csum, contents},
+		},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return scriptContentsID, nil
 }

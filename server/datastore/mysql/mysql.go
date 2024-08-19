@@ -28,8 +28,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
@@ -104,6 +104,10 @@ type Datastore struct {
 	//
 	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
 	testBatchSetMDMWindowsProfilesErr string
+
+	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
+	// certificates and keys.
+	serverPrivateKey string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -156,10 +160,26 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
+func (ds *Datastore) deleteCachedStmt(query string) {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+	stmt, ok := ds.stmtCache[query]
+	if ok {
+		if err := stmt.Close(); err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to close prepared statement before deleting it",
+				"query", query,
+				"err", err,
+			)
+		}
+		delete(ds.stmtCache, query)
+	}
+}
+
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
-	return newSCEPDepot(ds.primary.DB, caCertPEM, caKeyPEM)
+func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
+	return newSCEPDepot(ds.primary.DB, ds)
 }
 
 type txFn func(tx sqlx.ExtContext) error
@@ -335,6 +355,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
+		serverPrivateKey:    options.privateKey,
 	}
 
 	go ds.writeChanLoop()
@@ -792,6 +813,13 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fl
 		}
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
+		if opts.TestSecondaryOrderKey != "" {
+			direction := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				direction = "DESC"
+			}
+			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
+		}
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
 	// that an unbounded query with many results doesn't consume too much memory
@@ -889,7 +917,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
-	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
 }
@@ -971,7 +999,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -988,6 +1016,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
@@ -1015,6 +1044,17 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
+}
+
+func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
+	if identifier == "" {
+		return stmt, params
+	}
+
+	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
+	params = append(params, identifier)
+
+	return stmt, params
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.
@@ -1258,6 +1298,13 @@ type parameterizedStmt struct {
 //
 // The read statement must only SELECT the id column.
 func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insertStmt *parameterizedStmt) (id uint, err error) {
+	return ds.optimisticGetOrInsertWithWriter(ctx, ds.writer(ctx), readStmt, insertStmt)
+}
+
+// optimisticGetOrInsertWithWriter is the same as optimisticGetOrInsert but it
+// uses the provided writer to perform the insert or second read operations.
+// This makes it possible to use this from inside a transaction.
+func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer sqlx.ExtContext, readStmt, insertStmt *parameterizedStmt) (id uint, err error) { //nolint: gocritic // it's ok in this case to use ds.reader even if we receive an ExtContext
 	readID := func(q sqlx.QueryerContext) (uint, error) {
 		var id uint
 		err := sqlx.GetContext(ctx, q, &id, readStmt.Statement, readStmt.Args...)
@@ -1269,12 +1316,12 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// this does not exist yet, try to insert it
-			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			res, err := writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
-				if isDuplicate(err) {
+				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
-					id, err := readID(ds.writer(ctx))
+					id, err := readID(writer)
 					if err != nil {
 						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
 					}

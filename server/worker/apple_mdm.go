@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -50,13 +51,16 @@ type appleMDMArgs struct {
 	TeamID             *uint        `json:"team_id,omitempty"`
 	EnrollReference    string       `json:"enroll_reference,omitempty"`
 	EnrollmentCommands []string     `json:"enrollment_commands,omitempty"`
+	Platform           string       `json:"platform,omitempty"`
 }
 
 // Run executes the apple_mdm job.
 func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
-	// if Commander is nil, then mdm is not enabled, so just return without
-	// error so we clean up any pending jobs.
-	if a.Commander == nil {
+	appCfg, err := a.Datastore.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	if !appCfg.MDM.EnabledAndConfigured || a.Commander == nil {
 		return nil
 	}
 
@@ -83,9 +87,17 @@ func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	}
 }
 
+func isMacOS(platform string) bool {
+	// For backwards compatibility, we assume empty platform in job arguments is macOS.
+	return platform == "" ||
+		platform == "darwin"
+}
+
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
-	if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+	if isMacOS(args.Platform) {
+		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
 	}
 
 	return nil
@@ -94,18 +106,20 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
 	var awaitCmdUUIDs []string
 
-	fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-	}
-	awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
+	if isMacOS(args.Platform) {
+		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 
-	bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-	}
-	if bootstrapCmdUUID != "" {
-		awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+		bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+		if bootstrapCmdUUID != "" {
+			awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+		}
 	}
 
 	if ref := args.EnrollReference; ref != "" {
@@ -166,7 +180,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		// be final and same for MDM profiles of that host; it means the DEP
 		// enrollment process is done and the device can be released.
 		if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
-			args.HostUUID, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
+			args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 		}
 	}
@@ -266,8 +280,9 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, error) {
+	manifestURL := fleetdbase.GetPKGManifestURL()
 	cmdUUID := uuid.New().String()
-	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
+	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err
 	}
 	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)
@@ -323,6 +338,7 @@ func QueueAppleMDMJob(
 	logger kitlog.Logger,
 	task AppleMDMTask,
 	hostUUID string,
+	platform string,
 	teamID *uint,
 	enrollReference string,
 	enrollmentCommandUUIDs ...string,
@@ -331,13 +347,14 @@ func QueueAppleMDMJob(
 		"enabled", "true",
 		appleMDMJobName, task,
 		"host_uuid", hostUUID,
+		"platform", platform,
 		"with_enroll_reference", enrollReference != "",
 	}
 	if teamID != nil {
 		attrs = append(attrs, "team_id", *teamID)
 	}
 	if len(enrollmentCommandUUIDs) > 0 {
-		attrs = append(attrs, "enrollment_commands", enrollmentCommandUUIDs)
+		attrs = append(attrs, "enrollment_commands", fmt.Sprintf("%v", enrollmentCommandUUIDs))
 	}
 	level.Info(logger).Log(attrs...)
 
@@ -347,6 +364,7 @@ func QueueAppleMDMJob(
 		TeamID:             teamID,
 		EnrollReference:    enrollReference,
 		EnrollmentCommands: enrollmentCommandUUIDs,
+		Platform:           platform,
 	}
 
 	// the release device task is always added with a delay
