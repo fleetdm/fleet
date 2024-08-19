@@ -4819,7 +4819,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	}
 
 	var tokRaw fleet.VPPTokenRaw
-	if err := json.Unmarshal([]byte(tokRawBytes), &tokRaw); err != nil {
+	if err := json.Unmarshal(tokRawBytes, &tokRaw); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshalling raw vpp token")
 	}
 
