@@ -443,7 +443,7 @@ const DataTable = ({
 
   const tableStyles = classnames({
     "data-table__table": true,
-    "data-table__table-loading": isLoading,
+    "data-table__no-data-table-loading": isLoading && rows.length === 0,
     "is-observer": isOnlyObserver,
   });
 
