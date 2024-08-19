@@ -661,7 +661,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 ```json
-{
+"abm_token": {
   "id": 1,
   "apple_id": "apple@example.com",
   "org_name": "Fleet Device Management Inc.",
