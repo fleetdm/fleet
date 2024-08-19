@@ -440,6 +440,9 @@ The on-call developer is responsible for:
 3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
+### 
+The process below ensures that QA is done before any code is effective and running.
+
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345.
 2. Merge the PR into fleet main branch after review and approval.
