@@ -451,6 +451,7 @@ module.exports.routes = {
     }
   },
   'GET /docs/using-fleet/fleet-ui': (req,res)=> { return res.redirect(301, '/guides/queries');},
+  'GET /docs/using-fleet/learn-how-to-use-fleet': (req,res)=> { return res.redirect(301, '/guides/queries');},
   'GET /docs/using-fleet/fleetctl-cli': (req,res)=> { return res.redirect(301, '/guides/fleetctl');},
   'GET /docs/using-fleet/fleet-desktop': (req,res)=> { return res.redirect(301, '/guides/fleet-desktop');},
   'GET /docs/using-fleet/enroll-hosts': (req,res)=> { return res.redirect(301, '/guides/enroll-hosts');},
