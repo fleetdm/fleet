@@ -313,7 +313,8 @@ const SoftwareTable = ({
     );
   };
 
-  const renderTableFooter = () => {
+  const renderTableHelpText = () => {
+    if (isLoading) return null;
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
@@ -361,7 +362,7 @@ const SoftwareTable = ({
         customControl={searchable ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}
-        renderTableHelpText={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}

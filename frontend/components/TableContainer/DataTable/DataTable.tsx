@@ -555,7 +555,7 @@ const DataTable = ({
         </table>
       </div>
       <div className={`${baseClass}__footer`}>
-        {renderTableHelpText && !isLoading && (
+        {renderTableHelpText && (
           <div className={`${baseClass}__footer-text`}>
             {renderTableHelpText()}
           </div>

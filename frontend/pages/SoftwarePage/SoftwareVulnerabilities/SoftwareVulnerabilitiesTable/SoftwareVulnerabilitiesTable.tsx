@@ -202,7 +202,8 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
-  const renderTableFooter = () => {
+  const renderTableHelpText = () => {
+    if (isLoading) return null;
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
@@ -283,7 +284,7 @@ const SoftwareVulnerabilitiesTable = ({
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
         renderCount={renderVulnerabilityCount}
-        renderTableHelpText={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}
