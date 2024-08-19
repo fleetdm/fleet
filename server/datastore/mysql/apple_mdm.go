@@ -5018,6 +5018,82 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 	return tokens, nil
 }
 
+func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+	stmtTeam := `
+	SELECT
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+	WHERE
+		team_id = ?
+`
+	stmtNullTeam := `
+	SELECT
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+	WHERE
+		team_id IS NULL
+    AND
+        null_team_type = ?
+`
+
+	var tokEnc struct {
+		ID        uint               `db:"id"`
+		OrgName   string             `db:"organization_name"`
+		Location  string             `db:"location"`
+		RenewDate time.Time          `db:"renew_at"`
+		Token     []byte             `db:"token"`
+		TeamID    *uint              `db:"team_id"`
+		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+	}
+
+	var err error
+	if teamID != nil {
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtTeam, teamID)
+	} else {
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamNoTeam)
+	}
+	if err != nil {
+		if errors.Is(sql.ErrNoRows, err) {
+			if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamAllTeams); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+			}
+		} else {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+		}
+	}
+
+	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+	}
+
+	tok := &fleet.VPPTokenDB{
+		ID:        tokEnc.ID,
+		OrgName:   tokEnc.OrgName,
+		Location:  tokEnc.Location,
+		RenewDate: tokEnc.RenewDate.Format(fleet.VPPTimeFormat),
+		Token:     string(tokDec),
+		TeamID:    tokEnc.TeamID,
+		NullTeam:  tokEnc.NullTeam,
+	}
+
+	return tok, nil
+}
+
 func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, nullTeam fleet.NullTeamType) error {
 	nullTeamStmt := `SELECT id FROM vpp_tokens WHERE null_team_type = ?`
 

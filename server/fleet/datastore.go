@@ -1330,6 +1330,7 @@ type Datastore interface {
 	UpdateVPPToken(ctx context.Context, tok *VPPTokenDB) error
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 	ListVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
+	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
