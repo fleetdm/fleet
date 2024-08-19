@@ -1338,6 +1338,12 @@ type Datastore interface {
 	// DeleteABMToken deletes the given ABM token from the datastore.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
 
+	// GetABMTokenByID retrieves the ABM token with the given ID.
+	GetABMTokenByID(ctx context.Context, tokenID uint) (*ABMToken, error)
+
+	// GetABMTokenCount returns the number of ABM tokens in the DB.
+	GetABMTokenCount(ctx context.Context) (int, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

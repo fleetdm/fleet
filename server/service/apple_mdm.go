@@ -3981,29 +3981,27 @@ func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
 		return err
 	}
 
-	// TODO(JVE): should we ever delete these? if so, probably if no more tokens exist.
-	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMTokenDeprecated,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "disabling ABM config")
-	}
-
 	if err := svc.ds.DeleteABMToken(ctx, tokenID); err != nil {
 		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
 
-	// TODO(JVE): only flip if no more tokens?
-	// flip the app config flag
-	appCfg, err := svc.ds.AppConfig(ctx)
+	count, err := svc.ds.GetABMTokenCount(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving app config")
+		return ctxerr.Wrap(ctx, err, "getting ABM token count")
 	}
 
-	appCfg.MDM.AppleBMEnabledAndConfigured = false
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	if count == 0 {
+		// flip the app config flag
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving app config")
+		}
+
+		appCfg.MDM.AppleBMEnabledAndConfigured = false
+		return svc.ds.SaveAppConfig(ctx, appCfg)
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4051,7 +4049,8 @@ type updateABMTokenTeamsRequest struct {
 }
 
 type updateABMTokenTeamsResponse struct {
-	Err error `json:"error,omitempty"`
+	ABMToken *fleet.ABMToken `json:"abm_token"`
+	Err      error           `json:"error,omitempty"`
 }
 
 func (r updateABMTokenTeamsResponse) error() error { return r.Err }
@@ -4059,40 +4058,82 @@ func (r updateABMTokenTeamsResponse) error() error { return r.Err }
 func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateABMTokenTeamsRequest)
 
-	if err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID); err != nil {
+	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID)
+	if err != nil {
 		return &updateABMTokenTeamsResponse{Err: err}, nil
 	}
 
-	return &updateABMTokenTeamsResponse{}, nil
+	return &updateABMTokenTeamsResponse{ABMToken: tok}, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
-	return ctxerr.Wrap(ctx, svc.ds.UpdateABMTokenTeams(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID), "updating token teams")
-}
+	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token to update teams")
+	}
 
-type renewABMTokenResponse struct {
-	Err error `json:"error,omitempty"`
-}
+	// validate the team IDs
+	var macOSTeamName, iOSTeamName, iPadOSTeamName string
+	if macOSTeamID != nil {
+		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking existence of macOS team")
+		}
 
-func (r renewABMTokenResponse) error() error { return r.Err }
+		macOSTeamName = macOSTeam.Name
+	}
+
+	if iOSTeamID != nil {
+		iOSTeam, err := svc.ds.Team(ctx, *iOSTeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking existence of iOS team")
+		}
+		iOSTeamName = iOSTeam.Name
+	}
+
+	if iPadOSTeamID != nil {
+		iPadOSTeam, err := svc.ds.Team(ctx, *iPadOSTeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking existence of iPadOS team")
+		}
+		iPadOSTeamName = iPadOSTeam.Name
+	}
+
+	token.MacOSDefaultTeamID = macOSTeamID
+	token.IOSDefaultTeamID = iOSTeamID
+	token.IPadOSDefaultTeamID = iPadOSTeamID
+
+	if err := ctxerr.Wrap(ctx, svc.ds.SaveABMToken(ctx, token), "updating token teams"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
+	}
+
+	token.MacOSTeam = macOSTeamName
+	token.IOSTeam = iOSTeamName
+	token.IPadOSTeam = iPadOSTeamName
+
+	return token, nil
+}
 
 func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadABMTokenRequest)
 	ff, err := req.Token.Open()
 	if err != nil {
-		return renewABMTokenResponse{Err: err}, nil
+		return uploadABMTokenResponse{Err: err}, nil
 	}
 	defer ff.Close()
 
-	if _, err = svc.SaveABMToken(ctx, ff); err != nil {
-		return renewABMTokenResponse{
-			Err: err,
-		}, nil
+	tok, err := svc.SaveABMToken(ctx, ff)
+	if err != nil {
+		return uploadABMTokenResponse{Err: err}, nil
 	}
 
-	return renewABMTokenResponse{}, nil
+	return uploadABMTokenResponse{Token: tok}, nil
 }
+
+// func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) {
+
+// }

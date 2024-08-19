@@ -4888,3 +4888,52 @@ WHERE ID = ?
 
 	return ctxerr.Wrap(ctx, err, "deleting ABM token")
 }
+
+func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+	const stmt = `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.token,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+WHERE abt.id = ?
+	`
+
+	var token fleet.ABMToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, tokenID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
+	}
+
+	return &token, nil
+}
+
+func (ds *Datastore) GetABMTokenCount(ctx context.Context) (int, error) {
+	var count int
+	const countStmt = `SELECT COUNT(*) FROM abm_tokens`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting existing ABM tokens")
+	}
+
+	return count, nil
+}
