@@ -40,6 +40,7 @@ func (d *DiskEncryptionRunner) Run(cfg *fleet.OrbitConfig) error {
 
 	if d.capabilitiesFetcher().Has(fleet.CapabilityEscrowBuddy) {
 		d.triggerOrbitRestart("server has Escrow Buddy capability but old disk encryption fetcher was running")
+		return nil
 	}
 
 	if cfg.Notifications.RotateDiskEncryptionKey && !d.isRunning.Swap(true) {
