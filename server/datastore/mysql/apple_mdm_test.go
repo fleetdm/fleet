@@ -6567,6 +6567,10 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPToken(ctx, dataToken3, nil, fleet.NullTeamNoTeam)
 	assert.NoError(t, err)
 
+	toknone, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, dataToken3.Token, toknone.Token)
+
 	// Only one no team allowed
 	_, err = ds.InsertVPPToken(ctx, dataToken4, nil, fleet.NullTeamNoTeam)
 	assert.Error(t, err)
@@ -6579,8 +6583,8 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	err = ds.UpdateVPPToken(ctx, tok2Copy)
 	assert.Error(t, err)
 
-	// tokall, err := ds.InsertVPPToken(ctx, dataToken5, nil, fleet.NullTeamAllTeams)
-	// require.NoError(t, err)
+	tokall, err := ds.InsertVPPToken(ctx, dataToken5, nil, fleet.NullTeamAllTeams)
+	require.NoError(t, err)
 
 	byteam, err := ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
 	require.NoError(t, err)
@@ -6591,6 +6595,43 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, tok2.Location, byteam.Location)
 	assert.Equal(t, tok2.OrgName, byteam.OrgName)
 	assert.Equal(t, tok2.RenewDate, byteam.RenewDate)
+
+	err = ds.DeleteVPPToken(ctx, tok2.ID)
+	require.NoError(t, err)
+
+	// Fall back to all team token
+	byteam, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
+	require.NoError(t, err)
+	assert.Equal(t, tokall.ID, byteam.ID)
+	assert.Equal(t, tokall.TeamID, byteam.TeamID)
+	assert.Equal(t, tokall.NullTeam, byteam.NullTeam)
+	assert.Equal(t, tokall.Token, byteam.Token)
+	assert.Equal(t, tokall.Location, byteam.Location)
+	assert.Equal(t, tokall.OrgName, byteam.OrgName)
+	assert.Equal(t, tokall.RenewDate, byteam.RenewDate)
+
+	err = ds.DeleteVPPToken(ctx, toknone.ID)
+	require.NoError(t, err)
+
+	bynone, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokall.ID, bynone.ID)
+	assert.Equal(t, tokall.TeamID, bynone.TeamID)
+	assert.Equal(t, tokall.NullTeam, bynone.NullTeam)
+	assert.Equal(t, tokall.Token, bynone.Token)
+	assert.Equal(t, tokall.Location, bynone.Location)
+	assert.Equal(t, tokall.OrgName, bynone.OrgName)
+	assert.Equal(t, tokall.RenewDate, bynone.RenewDate)
+
+	// Removing the all teams token means error
+	err = ds.DeleteVPPToken(ctx, tokall.ID)
+	require.NoError(t, err)
+	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	_, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
