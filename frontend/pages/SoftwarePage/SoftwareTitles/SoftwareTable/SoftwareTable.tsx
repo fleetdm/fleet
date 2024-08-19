@@ -314,9 +314,6 @@ const SoftwareTable = ({
   };
 
   const renderTableFooter = () => {
-    if (isLoading) {
-      return null;
-    }
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}

@@ -443,6 +443,7 @@ const DataTable = ({
 
   const tableStyles = classnames({
     "data-table__table": true,
+    "data-table__table-loading": isLoading,
     "is-observer": isOnlyObserver,
   });
 
@@ -513,7 +514,7 @@ const DataTable = ({
               </tr>
             ))}
           </thead>
-          <tbody>
+          <tbody className={`${isLoading ? "table-loading-skeleton" : ""}`}>
             {pageOrRows.map((row: Row) => {
               prepareRow(row);
 
@@ -554,7 +555,7 @@ const DataTable = ({
         </table>
       </div>
       <div className={`${baseClass}__footer`}>
-        {renderFooter && (
+        {renderFooter && !isLoading && (
           <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
         )}
         {isClientSidePagination ? (

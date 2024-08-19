@@ -37,6 +37,11 @@ $shadow-transition-width: 10px;
       background-attachment: local, local, scroll, scroll;
       // End shadow
     }
+    
+    // applied to same element as data-table__table while loading
+    &__table-loading {
+      min-height: 272px;
+    }
 
     &__table {
       position: relative;
@@ -202,7 +207,7 @@ $shadow-transition-width: 10px;
           background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
         }
       }
-      
+
       td {
         height: 40px;
         padding: 0 $pad-large;
