@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -443,7 +444,8 @@ func TranslateSoftwareToCPE(
 	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
-			ExcludedSources: oval.SupportedSoftwareSources,
+			// Also exclude iOS and iPadOS apps until we enable vulnerabilities support for them.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps"),
 		},
 	)
 	if err != nil {
@@ -566,9 +568,14 @@ func translateSoftwareToCPEWithIterator(
 	return nil
 }
 
+var allowedNonASCII = []int32{
+	'–', // en dash
+	'—', // em dash
+}
+
 func containsNonASCII(s string) bool {
 	for _, char := range s {
-		if char > unicode.MaxASCII {
+		if char > unicode.MaxASCII && !slices.Contains(allowedNonASCII, char) {
 			return true
 		}
 	}

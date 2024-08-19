@@ -17,7 +17,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -41,7 +41,7 @@ Each PR to the website is manually checked for quality and tested before going l
 
 ### Update the host count of a premium subscription
 
-When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
 
 To update the host count on a user's subscription:
 
@@ -123,7 +123,7 @@ In Figma:
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
-
+<!-- Commenting this out as we don't have any planned landing pages in the future see: https://github.com/fleetdm/fleet/issues/21117
 ### Generate a new landing page
 
 Experimental pages are short-lived, temporary landing pages intended for a small audience. All experiments and landing pages need to go through the standard [drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes) before they are created.
@@ -160,7 +160,7 @@ To generate a new page, you'll need:
 5. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be availible at `http://localhost:1337/imagine/{page-name}`.
 
 6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
-
+-->
 
 ### Restart Algolia manually
 
@@ -246,7 +246,7 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 
 ### Schedule press release
 
-Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
+Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. Use the following steps to schedule a press release:  
 
 1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
 2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
@@ -281,12 +281,18 @@ Follow these steps to archive any document:
 
 ### Schedule CEO interview
 
-From time to time, you will need to schedule an interview between a candidate and the CEO:
-1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
-2. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
+Use the following steps to schedule an interview between a candidate and the CEO:
+1. Reach out to the candidate via email to find a time when the CEO and the canidate are both available.
+   > This entire process takes an hour for the CEO. A 30 minute interview followed by a 30 minute "¶¶ Postgame". Be sure to offer times that accommodate for this.
+3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc).
+4. Move the document to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
+5. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
-3. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
+6. Create a Google Calendar event at a time when the CEO and the canidate are both available.
+   - Create a Google Calendar event matching the title of the interview doc.
+   - Add the interveiw doc to the calendar event desription as the agenda (i.e. `Agenda: INTERVIEW_DOC_FULL_URL`) and save the calendar event.
+7. Schedule a 30 minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
 
 
 ### Program the CEO to do something
@@ -516,6 +522,12 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 - `Delete recording`
 - Search for the title of the meeting Google Drive and delete the auto-generated Google Doc containing the transcript. 
 - Always check back to ensure the recording **and** transcript were both deleted.
+
+### Update a company brand front
+
+Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
+- The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
+- The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
 
 
 ## Rituals

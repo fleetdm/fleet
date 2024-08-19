@@ -1,7 +1,10 @@
+<<<<<<< HEAD
 ## Orbit 1.31.0 (Aug 19, 2024)
 
 * Fixed an issue that would display a disk encryption modal with MDM configured and FileVault enabled if the user hadn't escrowed the key in the past.
 
+=======
+>>>>>>> origin/main
 ## Orbit 1.30.0 (Aug 05, 2024)
 
 * Use Escrow Buddy to rotate FileVault keys on macOS

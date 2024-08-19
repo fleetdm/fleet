@@ -222,6 +222,8 @@ func targetSW(s *fleet.Software) string {
 	switch s.Source {
 	case "apps":
 		return "macos"
+	case "homebrew_packages":
+		return "macos" // osquery homebrew_packages table is currently only for macOS (2024/08/12)
 	case "python_packages":
 		return "python"
 	case "chrome_extensions":

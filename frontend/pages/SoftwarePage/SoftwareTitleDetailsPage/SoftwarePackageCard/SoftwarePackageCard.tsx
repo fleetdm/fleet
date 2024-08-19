@@ -5,6 +5,7 @@ import React, {
   useState,
 } from "react";
 import FileSaver from "file-saver";
+import { parse } from "content-disposition";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -76,7 +77,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
-  tooltip: string;
+  tooltip: React.ReactNode;
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
@@ -86,7 +87,12 @@ const STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     displayName: "Installed",
     iconName: "success",
-    tooltip: "Fleet installed software on these hosts.",
+    tooltip: (
+      <>
+        Fleet installed software on these hosts. Currently, if the software is
+        uninstalled, the &quot;Installed&quot; status won&apos;t be updated.
+      </>
+    ),
   },
   pending: {
     displayName: "Pending",
@@ -258,7 +264,21 @@ const SoftwarePackageCard = ({
           `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
         );
       }
-      const filename = name;
+
+      let filename = name;
+      try {
+        const cd = parse(resp.headers["content-disposition"]);
+        if (cd.parameters.filename) {
+          filename = cd.parameters.filename;
+        }
+      } catch (e) {
+        // TODO: Refactor this component's props so we can derive a file extension from the `source`
+        // property from title detail response.
+        //
+        // For now, we'll just use the software name prop as the filename if we can't parse the
+        // content-disposition header.
+      }
+
       const file = new File([resp.data], filename, {
         type: "application/octet-stream",
       });

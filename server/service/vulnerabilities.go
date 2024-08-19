@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -22,12 +23,16 @@ type listVulnerabilitiesRequest struct {
 }
 
 type listVulnerabilitiesResponse struct {
-	Vulnerabilities []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
-	Count           uint                              `json:"count"`
-	CountsUpdatedAt time.Time                         `json:"counts_updated_at"`
-	Meta            *fleet.PaginationMetadata         `json:"meta,omitempty"`
-	Err             error                             `json:"error,omitempty"`
+	Vulnerabilities    []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
+	Count              uint                              `json:"count"`
+	CountsUpdatedAt    time.Time                         `json:"counts_updated_at"`
+	Meta               *fleet.PaginationMetadata         `json:"meta,omitempty"`
+	Err                error                             `json:"error,omitempty"`
+	KnownVulnerability *bool                             `json:"known_vulnerability,omitempty"`
 }
+
+// Allow formats like: CVE-2017-12345, cve-2017-12345 or 2017-12345
+var cveRegex = regexp.MustCompile(`(?i)^(CVE-)?\d{4}-\d{4}\d*$`)
 
 func (r listVulnerabilitiesResponse) error() error { return r.Err }
 
@@ -50,11 +55,42 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		}
 	}
 
+	// Check whether the query was for a vulnerability known to fleet
+	var knownVulnerability *bool
+	if len(request.ListOptions.MatchQuery) > 0 {
+		query := request.ListOptions.MatchQuery
+		matches := cveRegex.FindStringSubmatch(query)
+		if matches != nil {
+			const cvePrefix = "CVE-"
+			if len(matches) > 1 && matches[1] == "" {
+				// If CVE prefix was missing, we add it
+				query = cvePrefix + query
+			}
+			// As an optimization, we first check if the CVE was one of the ones returned
+			// by the query. If it was, we already know it's known to Fleet.
+			var known bool
+			for _, vuln := range vulns {
+				if vuln.CVE.CVE == query {
+					known = true
+					break
+				}
+			}
+			if !known {
+				known, err = svc.IsCVEKnownToFleet(ctx, query)
+				if err != nil {
+					return listVulnerabilitiesResponse{Err: err}, nil
+				}
+			}
+			knownVulnerability = &known
+		}
+	}
+
 	return listVulnerabilitiesResponse{
-		Vulnerabilities: vulns,
-		Meta:            meta,
-		Count:           count,
-		CountsUpdatedAt: updatedAt,
+		Vulnerabilities:    vulns,
+		Meta:               meta,
+		Count:              count,
+		CountsUpdatedAt:    updatedAt,
+		KnownVulnerability: knownVulnerability,
 	}, nil
 }
 
@@ -97,6 +133,10 @@ func (svc *Service) CountVulnerabilities(ctx context.Context, opts fleet.VulnLis
 	}
 
 	return svc.ds.CountVulnerabilities(ctx, opts)
+}
+
+func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
+	return svc.ds.IsCVEKnownToFleet(ctx, cve)
 }
 
 type getVulnerabilityRequest struct {

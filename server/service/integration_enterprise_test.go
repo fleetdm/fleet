@@ -4704,6 +4704,13 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 	return host
 }
 
+func updateDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
+	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE host_device_auth SET token = ? WHERE host_id = ?`, token, hostID)
+		return err
+	})
+}
+
 func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
 	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hostID, token)
@@ -4815,6 +4822,108 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
+
+	// vulnerable param required when using vulnerability filters
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"exploit", "true",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"min_cvss_score", "1.1",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"max_cvss_score", "10.0",
+	)
+
+	// vulnerability filters
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 0)
+	require.Nil(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"max_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 0)
+	require.Nil(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
 }
 
 // TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
@@ -7684,6 +7793,15 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "cve-123-123-132",
+			CVSSScore:        ptr.Float64(7.8),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+	})
+	require.NoError(t, err)
+
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
@@ -7786,16 +7904,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
 
 	// asking for vulnerable only software returns the expected values
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"vulnerable", "true",
-	)
-	require.Equal(t, 1, resp.Count)
-	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
+	expectedVulnSoftware := []fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7805,7 +7914,127 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
 		},
-	}, resp.SoftwareTitles)
+	}
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	// vulnerable param required when using vulnerability filters
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"exploit", "true",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"min_cvss_score", "1",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"max_cvss_score", "10",
+	)
+
+	// vulnerability filters
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Zero(t, resp.Count)
+	require.Nil(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"max_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Zero(t, resp.Count)
+	require.Nil(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
 
 	// request titles for team1, nothing there yet
 	resp = listSoftwareTitlesResponse{}
@@ -8299,7 +8528,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
-	// no team but self-service returns the emacs software (technically impossible via the UI)
+	// "All teams" returns no software because the self-service software it's not installed (host_counts == 0).
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -8308,15 +8537,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 2)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.Empty(t, resp.SoftwareTitles, 0)
 
-	// team 0 returns the emacs software
+	// "No team" returns the emacs software
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -12399,9 +12622,11 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
-		VPPAppID: fleet.VPPAppID{
-			AdamID:   "adam_" + t.Name(),
-			Platform: fleet.MacOSPlatform,
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
 		},
 	}, &team.ID)
 	require.NoError(t, err)

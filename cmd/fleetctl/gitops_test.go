@@ -269,7 +269,7 @@ func TestBasicTeamGitOps(t *testing.T) {
 
 	const secret = "TestSecret"
 
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -665,6 +665,9 @@ func TestFullTeamGitOps(t *testing.T) {
 	// Team
 	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Conflict" {
+			return &fleet.Team{}, nil
+		}
 		if savedTeam != nil && savedTeam.Name == name {
 			return savedTeam, nil
 		}
@@ -763,7 +766,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -825,7 +828,15 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Equal(t, newTeamName, savedTeam.Name)
 	assert.Equal(t, baseFilename, *savedTeam.Filename)
 
+	// Try to change team name again, but this time the new name conflicts with an existing team
+	t.Setenv("TEST_TEAM_NAME", "Conflict")
+	_, err = runAppNoChecks([]string{"gitops", "-f", file, "--dry-run"})
+	assert.ErrorContains(t, err, "team name already exists")
+	_, err = runAppNoChecks([]string{"gitops", "-f", file})
+	assert.ErrorContains(t, err, "team name already exists")
+
 	// Now clear the settings
+	t.Setenv("TEST_TEAM_NAME", newTeamName)
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	secret := "TestSecret"
@@ -889,7 +900,7 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		return nil
 	}
 
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1181,7 +1192,7 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		}, nil
 	}
 
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1348,11 +1359,12 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 		tokenExpiration time.Time
 	}{
 		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour)},
 	}
 
 	for _, c := range cases {
@@ -1361,7 +1373,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
 
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1452,7 +1464,7 @@ func TestCustomSettingsGitOps(t *testing.T) {
 				}
 				return ret, nil
 			}
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1671,7 +1683,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		savedAppConfig = &appConfigCopy
 		return nil
 	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {

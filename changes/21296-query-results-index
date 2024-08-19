@@ -1,0 +1,1 @@
+Added index to query_results DB table to speed up finding last query timestamp for a given query and host.
