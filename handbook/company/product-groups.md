@@ -122,7 +122,7 @@ They run code that is managed in two places:
 
 The process below ensures that QA is done before any code is effective and running.
 
-#### How do nvd and vulnerabilities repositories take code from fleet repo
+##### How do nvd and vulnerabilities repositories take code from fleet repo
 The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch, not the latest one. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories use an environment parameter to configure their respective tag (changing the tag for any of the repos requires a PR).
 
 ### Drafting
