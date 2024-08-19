@@ -54,30 +54,6 @@
   //   margin: 0 0 $pad-large;
   // }
 
-  &__setup-list {
-    font-size: $x-small;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-    padding: 0;
-    margin: 0;
-    max-width: 660px;
-    list-style: none;
-
-    li {
-      display: flex;
-      flex-direction: row;
-      gap: $pad-small;
-
-      p {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        margin: 0;
-      }
-    }
-  }
-
   &__url-inputs-wrapper {
     display: flex;
     flex-direction: column;
@@ -110,26 +86,6 @@
     }
   }
 
-  &__file-uploader {
-    margin-top: $pad-medium;
-    margin-left: $pad-medium;
-    border-radius: 6px;
-
-    .file-uploader__message {
-      color: $ui-fleet-black-75;
-      margin: 0;
-    }
-
-    button {
-      margin-top: 0;
-    }
-
-    &--loading {
-      label {
-        opacity: 0.5;
-      }
-    }
-  }
   &__button-wrap {
     display: flex;
     gap: $pad-medium;

@@ -22,6 +22,7 @@ import Spinner from "components/Spinner";
 import DisableAutomaticEnrollmentModal from "./modals/DisableAutomaticEnrollmentModal";
 import RenewTokenModal from "./modals/RenewTokenModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
+import AddAbmModal from "./components/AddAbmModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -238,12 +239,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business Manager (ABM)</h1>
             {abmTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
-              <Button
-                variant="brand"
-                onClick={() => {
-                  console.log("click add abm");
-                }}
-              >
+              <Button variant="brand" onClick={() => setShowAddAbmModal(true)}>
                 Add ABM
               </Button>
             )}
@@ -251,6 +247,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <>{renderContent()}</>
         </div>
       </>
+      {true && <AddAbmModal onExit={() => setShowAddAbmModal(false)} />}
       {showDisableModal && (
         <DisableAutomaticEnrollmentModal
           onCancel={onCancelDisable}
