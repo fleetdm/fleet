@@ -8,7 +8,7 @@ An application penetration test captures a point-in-time assessment of vulnerabi
 
 Latacora identified a few medium and low severity risks, and Fleet is prioritizing and responding to those within SLAs. Once all action has been taken, a summary will be provided.
 
-You can find the full report here: 2024-06-14-fleet-penetration-test.pdf
+You can find the full report here: [2024-06-14-fleet-penetration-test.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2024-06-14-fleet-penetration-test.pdf).
 
 ## June 2023 penetration testing of Fleet 4.32 
 In June 2023, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
