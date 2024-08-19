@@ -47,7 +47,7 @@ export default {
     return sendRequest("GET", MDM_APPLE_ABM_PUBLIC_KEY);
   },
 
-  uploadToken: (token: File) => {
+  uploadToken: (token: File): Promise<IMdmAbmToken> => {
     const { MDM_ABM_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
