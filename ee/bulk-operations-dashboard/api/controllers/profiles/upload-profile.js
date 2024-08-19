@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Add profile',// TODO: rename to upload profile
+  friendlyName: 'Upload profile',
 
 
   description: '',
@@ -46,7 +46,7 @@ module.exports = {
       maxBytes: 3000000
     })
     .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
-    .intercept((err)=>new Error('The photo upload failed: '+util.inspect(err)));
+    .intercept((err)=>new Error('The configuration profile upload failed. '+util.inspect(err)));
     if(!profile) {
       throw 'noFileAttached';
     }

@@ -14,7 +14,6 @@ parasails.registerPage('scripts', {
     selectedTeam: {},
     modal: '',
     syncing: false,
-    profiles: [],
     formData: {},
     formErrors: {},
     addScriptFormRules: {
@@ -23,9 +22,7 @@ parasails.registerPage('scripts', {
       },
       teams: {required: true},
     },
-    editScriptFormRules: {
-      // no form rules, for this form.
-    },
+    editScriptFormRules: {},
     profileToEdit: {},
     cloudError: '',
     newScript: undefined,
@@ -56,10 +53,8 @@ parasails.registerPage('scripts', {
       await this.forceRender();
     },
     changeTeamFilter: async function() {
-      console.log(this.teamFilter);
       if(this.teamFilter !== undefined){
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
-        console.log(this.selectedTeam);
         let scriptsOnThisTeam = _.filter(this.scripts, (script)=>{
           return _.where(script.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
         });
@@ -110,7 +105,7 @@ parasails.registerPage('scripts', {
     },
     handleSubmittingAddScriptForm: async function() {
       let argins = _.clone(this.formData);
-      await Cloud.addScript.with({newScript: argins.newScript, teams: argins.teams});
+      await Cloud.uploadScript.with({newScript: argins.newScript, teams: argins.teams});
       await this._getScripts();
     },
     _getScripts: async function() {

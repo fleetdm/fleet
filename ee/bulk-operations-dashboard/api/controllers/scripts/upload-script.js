@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Add script',
+  friendlyName: 'Upload script',
 
 
-  description: '',
+  description: 'Uploads a script to the connected Fleet instance',
 
   files: ['newScript'],
 
@@ -17,7 +17,7 @@ module.exports = {
     },
 
     teams: {
-      type: ['ref'],
+      type: ['string'],
       required: true,
       description: 'An array of team IDs that this profile will be added to'
     }
@@ -25,31 +25,45 @@ module.exports = {
 
 
   exits: {
+    success: {
+      outputDescription: 'The new script has been uploaded',
+      outputType: {},
+    },
+
     scriptWithThisNameAlreadyExists: {
       description: 'A script with this name already exists on the Fleet Instance',
       statusCode: 409,
+    },
+
+    noFileAttached: {
+      description: 'No file was attached.',
+      responseType: 'badRequest'
+    },
+
+    tooBig: {
+      description: 'The file is too big.',
+      responseType: 'badRequest'
     },
   },
 
 
   fn: async function ({newScript, teams}) {
 
-    let path = require('path');
-    let fileStream = newScript._files[0].stream;
-    let scriptFilename = fileStream.filename;
-    // Strip out any automatically added date prefixes from uploaded scritps.
+    let util = require('util');
+    let script = await sails.reservoir(newScript, {
+      maxBytes: 3000000
+    })
+    .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
+    .intercept((err)=>new Error('The script upload failed. '+util.inspect(err)));
+    if(!script) {
+      throw 'noFileAttached';
+    }
+    // Get the file contents and filename.
+    let scriptContents = script[0].contentBytes;
+    let scriptFilename = script[0].name;
+    // Strip out any automatically added date prefixes from uploaded scripts.
     let datelessExtensionlessFilename = scriptFilename.replace(/^\d{4}-\d{2}-\d{2}\s/, '').replace(/\.[^/.]+$/, '');
     let extension = '.'+scriptFilename.split('.').pop();
-    // Write the filestream to a temporary file to get the contents as text, and delete the temporary file.
-    let tempFilePath = `.tmp/${scriptFilename}`;
-    await sails.helpers.fs.writeStream.with({
-      sourceStream: newScript._files[0].stream,
-      destination: tempFilePath,
-      force: true,
-    });
-    let profileContents = await sails.helpers.fs.read(tempFilePath);
-    await sails.helpers.fs.rmrf(path.join(sails.config.appPath, tempFilePath));
-
     // Build a dictonary of information about this script to return to the scripts page.
     let newScriptInfo = {
       name: datelessExtensionlessFilename,
@@ -66,7 +80,7 @@ module.exports = {
             filename: datelessExtensionlessFilename + extension,
             contentType: 'application/octet-stream'
           },
-          value: profileContents,
+          value: scriptContents,
         }
       };
       let addScriptUrl;

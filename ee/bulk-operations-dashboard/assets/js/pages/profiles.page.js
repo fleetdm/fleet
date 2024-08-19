@@ -14,15 +14,12 @@ parasails.registerPage('profiles', {
     selectedTeam: {},
     modal: '',
     syncing: false,
-    profiles: [],
     formData: {},
     formErrors: {},
     addProfileFormRules: {
       newProfile: {required: true}
     },
-    editProfileFormRules: {
-      // no form rules, for this form.
-    },
+    editProfileFormRules: {},
     profileToEdit: {},
     cloudError: '',
     newProfile: undefined,
@@ -52,7 +49,7 @@ parasails.registerPage('profiles', {
       }
       await this.forceRender();
     },
-    changeTeamFilter: async function() {
+    changeTeamFilter: async function() {// Used by the team picker dropdown.
       if(this.teamFilter !== undefined){
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
         let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
@@ -64,7 +61,7 @@ parasails.registerPage('profiles', {
         this.profilesToDisplay = this.profiles;
       }
     },
-    clickChangeTeamFilter: async function(teamApid) {
+    clickChangeTeamFilter: async function(teamApid) {// Used by the tooltip links.
       this.teamFilter = teamApid;
       this.selectedTeam = _.find(this.teams, {'fleetApid': teamApid});
       let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
@@ -109,7 +106,7 @@ parasails.registerPage('profiles', {
     },
     handleSubmittingAddProfileForm: async function() {
       let argins = _.clone(this.formData);
-      await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
+      await Cloud.uploadProfile.with({newProfile: argins.newProfile, teams: argins.teams});
       await this._getProfiles();
     },
     handleSubmittingEditProfileForm: async function() {
