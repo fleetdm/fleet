@@ -18,7 +18,7 @@ module.exports = {
 
   fn: async function () {
 
-
+    // Get all teams on the Fleet instance.
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
       baseUrl: sails.config.custom.fleetBaseUrl,
@@ -31,7 +31,6 @@ module.exports = {
 
     let allTeams = teamsResponseData.teams;
 
-    let teamApids = _.pluck(allTeams, 'id');
     let teams = [];
     for(let team of allTeams) {
       teams.push({
@@ -45,8 +44,10 @@ module.exports = {
       teamName: 'No team',
     });
 
-    let allProfiles = [];
 
+    let allProfiles = [];
+    let teamApids = _.pluck(allTeams, 'id');
+    // Get all of the configuration profiles on the Fleet instance.
     for(let teamApid of teamApids){
       let configurationProfilesResponseData = await sails.helpers.http.get.with({
         url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
@@ -60,8 +61,7 @@ module.exports = {
       let profilesForThisTeam = configurationProfilesResponseData.profiles;
       allProfiles = allProfiles.concat(profilesForThisTeam);
     }
-
-    // Grab all of the configuration profiles on the Fleet instance.
+    // Add the configurations profiles that are assigned to the "no team" team.
     let noTeamConfigurationProfilesResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/configuration_profiles',
       baseUrl: sails.config.custom.fleetBaseUrl,
@@ -73,15 +73,14 @@ module.exports = {
     .retry(['requestFailed', {name: 'TimeoutError'}]);
     let profilesForThisTeam = noTeamConfigurationProfilesResponseData.profiles;
     allProfiles = allProfiles.concat(profilesForThisTeam);
-
     let profilesInformation = [];
-
+    // Group configuration profiles by their identifier.
     let allProfilesByIdentifier = _.groupBy(allProfiles, 'identifier');
-
     for(let profileIdentifier in allProfilesByIdentifier) {
+      // Iterate through the arrays of profiles with the same unique identifier.
       let teamsForThisProfile = [];
-      // let platforms = _.uniq(_.pluck(allProfilesByIdentifier[profileIdentifier], 'platform'));
-      for(let profile of allProfilesByIdentifier[profileIdentifier]){
+      // Add the profile's UUID and information about the team this profile is assigned to the teams array for profiles.
+      for(let profile of allProfilesByIdentifier[profileIdentifier]) {
         let informationAboutThisProfile = {
           uuid: profile.profile_uuid,
           fleetApid: profile.team_id,
@@ -99,10 +98,12 @@ module.exports = {
       };
       profilesInformation.push(profileInformation);
     }
-    profilesInformation = _.sortByOrder(profilesInformation, 'name', 'asc');
+    // Get the undeployed profiles from the app's database.
     let undeployedProfiles = await UndeployedProfile.find();
-
     profilesInformation = _.union(profilesInformation, undeployedProfiles);
+
+    // Sort profiles by their name.
+    profilesInformation = _.sortByOrder(profilesInformation, 'name', 'asc');
 
     // Respond with view.
     return {profiles: profilesInformation, teams};

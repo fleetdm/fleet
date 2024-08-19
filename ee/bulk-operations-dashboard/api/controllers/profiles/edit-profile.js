@@ -61,7 +61,7 @@ module.exports = {
       filename = filenameMatch[1];
       extension = '.'+filename.split('.').pop();
       profileContents = profileDownloadResponse.body;
-    } else if(newProfile) {
+    } else if(newProfile) {// Otherwise, if there is a new profile file uploaded, check that the payload identifier maches the existing profile on the Fleet instance.
       // console.log('Replacing an existing(/undeployed) profile!');
       let file = await sails.reservoir(newProfile);
       profileContents = file[0].contentBytes;

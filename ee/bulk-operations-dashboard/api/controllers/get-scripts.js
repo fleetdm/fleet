@@ -18,7 +18,7 @@ module.exports = {
 
 
   fn: async function () {
-
+    // Get all teams on the Fleet instance.
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
       baseUrl: sails.config.custom.fleetBaseUrl,
@@ -47,7 +47,7 @@ module.exports = {
 
 
     let allScripts = [];
-
+    // Get all of the scripts on a Fleet instance.
     for(let teamApid of teamApids){
       let scriptsResponseData = await sails.helpers.http.get.with({
         url: `/api/v1/fleet/scripts?team_id=${teamApid}`,
@@ -80,6 +80,7 @@ module.exports = {
       allScripts = allScripts.concat(scriptsForThisTeam);
     }
 
+    // If there are no scripts on the Fleet instance, return an empty array and the teams information.
     if(allScripts === [ null ]){
       return {scripts: [], teams};
     }
@@ -109,6 +110,7 @@ module.exports = {
       };
       scriptsOnThisFleetInstance.push(scriptInformation);
     }
+    // Sort scripts by their name.
     scriptsOnThisFleetInstance = _.sortByOrder(scriptsOnThisFleetInstance, 'name', 'asc');
     return scriptsOnThisFleetInstance;
 
