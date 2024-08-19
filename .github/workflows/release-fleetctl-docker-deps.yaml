@@ -36,6 +36,11 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ vars.GO_VERSION }}
+
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -49,10 +54,31 @@ jobs:
         run: make wix-docker
 
       - name: Build fleetdm/bomutils
-        run: make bomutils-docker 
+        run: make bomutils-docker
 
-      - name: Push fleetdm/bomutils
+      #
+      # After fleetdm/wix and fleetdm/bomutils are built,
+      # let's smoke test pkg/msi generation before pushing.
+      #
+
+      - name: Install Go Dependencies
+        run: make deps-go
+
+      - name: Build fleetctl
+        run: make fleetctl
+
+      - name: Build MSI
+        run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+
+      - name: Build PKG
+        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+
+      #
+      # Now push to production
+      #
+
+      - name: Push fleetdm/bomutils to docker hub
         run: docker push fleetdm/bomutils:latest
 
-      - name: Push fleetdm/wix
+      - name: Push fleetdm/wix to docker hub
         run: docker push fleetdm/wix:latest
