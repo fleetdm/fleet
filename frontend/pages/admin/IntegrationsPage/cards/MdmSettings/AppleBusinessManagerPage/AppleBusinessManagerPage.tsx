@@ -11,7 +11,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
-import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
 
 import BackLink from "components/BackLink";
 import Button from "components/buttons/Button";
@@ -73,9 +73,7 @@ const AddAbmMessage = () => {
 
 const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const { config } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
-  const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
@@ -90,7 +88,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     refetch,
   } = useQuery<IMdmAbmToken[], AxiosError>(
     ["abmTokens"],
-    () => mdmAppleBmAPI.getTokens(),
+    () => mdmAbmAPI.getTokens(),
     {
       refetchOnWindowFocus: false,
       retry: (tries, error) =>
@@ -113,15 +111,16 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowDeleteModal(true);
   };
 
-  const onRenewed = useCallback(() => {
-    refetch();
-    setShowRenewModal(false);
-  }, [refetch]);
-
   const onCancelRenewToken = useCallback(() => {
     selectedToken.current = null;
     setShowRenewModal(false);
   }, []);
+
+  const onRenewed = useCallback(() => {
+    selectedToken.current = null;
+    refetch();
+    setShowRenewModal(false);
+  }, [refetch]);
 
   const onCancelDeleteToken = useCallback(() => {
     selectedToken.current = null;
@@ -130,8 +129,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
   const onDeleted = useCallback(() => {
     selectedToken.current = null;
+    refetch();
     setShowDeleteModal(false);
-  }, []);
+  }, [refetch]);
 
   if (isLoading || isRefetching) {
     return <Spinner />;

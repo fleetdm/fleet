@@ -1,9 +1,11 @@
 import React, { useCallback, useContext, useState } from "react";
 
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import { IMdmAbmToken } from "interfaces/mdm";
+import { NotificationContext } from "context/notification";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { NotificationContext } from "context/notification";
-import { IMdmAbmToken } from "interfaces/mdm";
 
 const baseClass = "delete-abm-modal";
 
@@ -24,12 +26,29 @@ const DeleteAbmModal = ({
 
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const onClickConfirm = useCallback(() => {
+  const onDeleteToken = useCallback(async () => {
     setIsDeleting(true);
-  }, []);
+
+    try {
+      await mdmAbmAPI.deleteToken(tokenId);
+      renderFlash("success", "Deleted successfully.");
+    } catch (e) {
+      // TODO: Check API sends back correct error messages
+      renderFlash(
+        "error",
+        "Couldn’t disable automatic enrollment. Please try again."
+      );
+    }
+    onDeletedToken();
+  }, [onDeletedToken, renderFlash, tokenId]);
 
   return (
-    <Modal title="Delete ABM" className={baseClass} onExit={onCancel}>
+    <Modal
+      title="Delete ABM"
+      className={baseClass}
+      onExit={onCancel}
+      isContentDisabled={isDeleting}
+    >
       <>
         <p>
           New hosts purchased in the <b>{tokenOrgName}</b> won&apos;t
@@ -44,11 +63,11 @@ const DeleteAbmModal = ({
           <Button
             type="button"
             variant="alert"
-            onClick={onClickConfirm}
+            onClick={onDeleteToken}
             disabled={isDeleting}
             isLoading={isDeleting}
           >
-            Disable
+            Delete
           </Button>
           <Button
             onClick={onCancel}
