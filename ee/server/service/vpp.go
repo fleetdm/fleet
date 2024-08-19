@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,32 +24,17 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
-	var vppTokenData fleet.VPPTokenData
-	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPTokenDeprecated].Value, &vppTokenData); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
-	}
-
-	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
+	vppTok := &fleet.VPPToken{Token: configMap[fleet.MDMAssetVPPTokenDeprecated].Value}
+	appleTok, _, err := vppTok.ExtractToken(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
+		return "", ctxerr.Wrap(ctx, err, "get metadata from vpp token")
 	}
 
-	var vppTokenRaw fleet.VPPTokenRaw
-
-	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token data")
-	}
-
-	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
-	}
-
-	if time.Now().After(exp) {
+	if time.Now().UTC().After(vppTok.RenewAt) {
 		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
-	return vppTokenData.Token, nil
+	return appleTok, nil
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {

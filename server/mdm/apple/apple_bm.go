@@ -58,6 +58,6 @@ func SetABMTokenMetadata(
 
 	abmToken.OrganizationName = res.OrgName
 	abmToken.AppleID = res.AdminID
-	abmToken.RenewAt = decryptedToken.AccessTokenExpiry
+	abmToken.RenewAt = decryptedToken.AccessTokenExpiry.UTC()
 	return nil
 }

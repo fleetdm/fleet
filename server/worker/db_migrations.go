@@ -60,5 +60,30 @@ func (m *DBMigration) Run(ctx context.Context, argsJSON json.RawMessage) error {
 }
 
 func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
-	panic("unimplemented")
+	// get the VPP token with an empty location, this is the one to migrate
+	tok, err := m.Datastore.GetVPPTokenByLocation(ctx, "")
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// nothing to migrate, exit successfully
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get VPP token to migrate")
+	}
+
+	_, didUpdate, err := tok.ExtractToken(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "extract VPP token metadata")
+	}
+	if !didUpdate {
+		// it should've updated, as the location, org name and renew data were all
+		// dummy values after the DB migration. Log something, but otherwise
+		// continue as retrying won't change the result.
+		m.Log.Log("info", "VPP token metadata was not updated")
+	}
+
+	// TODO(mna): update the token in the DB, to integrate with Dante's work in
+	// https://github.com/fleetdm/fleet/pull/21355
+	//err = m.Datastore.SaveVPPToken(ctx, tok)
+	//return ctxerr.Wrap(ctx, err, "save VPP token")
+	return nil
 }
