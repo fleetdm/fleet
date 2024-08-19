@@ -70,7 +70,7 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "get VPP token to migrate")
 	}
 
-	_, didUpdate, err := tok.ExtractToken(ctx)
+	_, didUpdate, err := tok.ExtractToken()
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "extract VPP token metadata")
 	}

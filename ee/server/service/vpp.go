@@ -25,7 +25,7 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 	}
 
 	vppTok := &fleet.VPPToken{Token: configMap[fleet.MDMAssetVPPTokenDeprecated].Value}
-	appleTok, _, err := vppTok.ExtractToken(ctx)
+	appleTok, _, err := vppTok.ExtractToken()
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get metadata from vpp token")
 	}

@@ -1,12 +1,10 @@
 package fleet
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 type VPPAppID struct {
@@ -94,25 +92,25 @@ type VPPToken struct {
 // while extracting the token it notices that the metadata has changed, it will
 // update t and return true as second return value, indicating that it changed
 // and should be saved.
-func (t *VPPToken) ExtractToken(ctx context.Context) (rawAppleToken string, didUpdateMetadata bool, err error) {
+func (t *VPPToken) ExtractToken() (rawAppleToken string, didUpdateMetadata bool, err error) {
 	var vppTokenData VPPTokenData
 	if err := json.Unmarshal(t.Token, &vppTokenData); err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
+		return "", false, fmt.Errorf("unmarshaling VPP token data: %w", err)
 	}
 
 	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
+		return "", false, fmt.Errorf("decoding raw vpp token data: %w", err)
 	}
 
 	var vppTokenRaw VPPTokenRaw
 	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token data")
+		return "", false, fmt.Errorf("unmarshaling raw vpp token data: %w", err)
 	}
 
 	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
+		return "", false, fmt.Errorf("parsing vpp token expiration date: %w", err)
 	}
 
 	if vppTokenData.Location != t.Location {
