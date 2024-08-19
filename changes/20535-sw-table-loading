@@ -1,1 +1,1 @@
-* Fix a bug with the software table loading state
+* Improve loading state for DataTables when no data is present yet
