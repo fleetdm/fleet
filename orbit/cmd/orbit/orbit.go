@@ -1224,7 +1224,12 @@ func main() {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
 				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
 			} else {
-				orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
+				orbitClient.RegisterConfigReceiver(
+					update.ApplyDiskEncryptionRunnerMiddleware(
+						orbitClient.GetServerCapabilities,
+						orbitClient.TriggerOrbitRestart,
+					),
+				)
 			}
 		}
 
