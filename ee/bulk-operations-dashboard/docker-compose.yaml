@@ -1,0 +1,28 @@
+version: '3'
+services:
+  bulk-operations-dashboard:
+    build: .
+    ports:
+      - "1337:1337"
+    depends_on:
+      - postgres
+    environment:
+      sails_datastores__default__url: postgres://user:password@postgres:5432/dbname
+      sails_datastores__default__adapter: sails-postgresql
+      sails_sockets__url: redis://redis:6379
+      sails_session__url: redis://redis:6379
+      sails_models__migrate: safe
+      sails_custom__fleetBaseUrl: 'https://d18a-136-62-108-65.ngrok-free.app' #Add the base url of your Fleet instance: ex: https://fleet.example.com
+      sails_custom__fleetApiToken: '2oadQ6UdK7OUnTBNq9NdU+QV79fVWq8bH1u80ry9ayo/wNzYU5tNatHMpL5gbtgK6y3yUN5PR//3CSenCnSZyg==' # Add the API token of an API-only user [?] Here's how you get one: https://fleetdm.com/docs/using-fleet/fleetctl-cli#get-the-api-token-of-an-api-only-user
+
+  postgres:
+    image: "postgres:alpine"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

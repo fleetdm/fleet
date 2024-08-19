@@ -42,9 +42,7 @@ module.exports = {
 
   fn: async function ({newProfile, teams}) {
     let util = require('util');
-    let profile = await sails.reservoir(newProfile, {
-      maxBytes: 3000000
-    })
+    let profile = await sails.reservoir(newProfile)
     .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
     .intercept((err)=>new Error('The configuration profile upload failed. '+util.inspect(err)));
     if(!profile) {

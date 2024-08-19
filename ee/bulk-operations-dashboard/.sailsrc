@@ -1,4 +1,7 @@
 {
+  "hooks": {
+    "sockets": false
+  },
   "generators": {
     "modules": {}
   },

@@ -50,9 +50,7 @@ module.exports = {
   fn: async function ({newScript, teams}) {
 
     let util = require('util');
-    let script = await sails.reservoir(newScript, {
-      maxBytes: 3000000
-    })
+    let script = await sails.reservoir(newScript)
     .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
     .intercept((err)=>new Error('The script upload failed. '+util.inspect(err)));
     if(!script) {
