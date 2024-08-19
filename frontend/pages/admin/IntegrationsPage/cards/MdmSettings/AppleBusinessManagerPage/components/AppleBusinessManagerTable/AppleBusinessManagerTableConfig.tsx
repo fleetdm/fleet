@@ -38,13 +38,19 @@ export const generateTableConfig = (
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} className={"org-name-cell"} />
+      ),
     },
     {
       accessor: "renew_date",
       Header: "Renew date",
       disableSortBy: true,
       Cell: (cellProps: IRenewDateCellProps) => (
-        <RenewDateCell value={cellProps.cell.value} />
+        <RenewDateCell
+          value={cellProps.cell.value}
+          className="abm-renew-date-cell"
+        />
       ),
     },
     {
