@@ -31,30 +31,26 @@ const AddAbmModal = ({ onCancel }: IAddAbmModalProps) => {
     }
   }, []);
 
-  const uploadAbmToken = useCallback(
-    async (data: FileList | null) => {
-      setIsUploading(true);
-      const token = data?.[0];
-      if (!token) {
-        setIsUploading(false);
-        renderFlash("error", "No token selected.");
-        return;
-      }
+  const uploadAbmToken = useCallback(async () => {
+    setIsUploading(true);
+    if (!tokenFile) {
+      setIsUploading(false);
+      renderFlash("error", "No token selected.");
+      return;
+    }
 
-      try {
-        await mdmAbmAPI.uploadToken(token);
-        renderFlash("success", "Added successfully.");
-        onCancel();
-      } catch (e) {
-        // TODO: ensure API is sending back the correct err messages
-        const msg = getErrorReason(e);
-        renderFlash("error", msg);
-      } finally {
-        setIsUploading(false);
-      }
-    },
-    [renderFlash, onCancel]
-  );
+    try {
+      await mdmAbmAPI.uploadToken(tokenFile);
+      renderFlash("success", "Added successfully.");
+      onCancel();
+    } catch (e) {
+      // TODO: ensure API is sending back the correct err messages
+      const msg = getErrorReason(e);
+      renderFlash("error", msg);
+    } finally {
+      setIsUploading(false);
+    }
+  }, [tokenFile, renderFlash, onCancel]);
 
   return (
     <Modal
