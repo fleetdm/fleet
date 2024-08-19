@@ -440,21 +440,6 @@ The on-call developer is responsible for:
 3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
-### Make changes to the vulnerabilities and nvd repositories
-The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers' Fleet servers. 
-They run code that is managed in two places: 
-1. The code and workflows in their respective repository.
-2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo, which are copied and run by them. This code starts with the four files below but is not limited to them since other code could be called from them. The process will cover all fleet code using tagging.
-   - cmd/cve/generate.go
-   - cmd/cpe/generate.go
-   - cmd/msrc/generate.go
-   - cmd/macoffice/generate.go
-
-The process below ensures that QA is done before any code is effective and running.
-
-#### How do nvd and vulnerabilities repositories take code from fleet repo
-The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch, not the latest one. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories use an environment parameter to configure their respective tag (changing the tag for any of the repos requires a PR).
-
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345.
 2. Merge the PR into fleet main branch after review and approval.

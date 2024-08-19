@@ -110,6 +110,21 @@ cd website
 
 > If a table is added to our ChromeOS extension but it does not exist in osquery or if it is a table added by fleetd, add a note that mentions it, as in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
 
+### Changes to the vulnerabilities and nvd repositories
+The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers' Fleet servers. 
+They run code that is managed in two places: 
+1. The code and workflows in their respective repository.
+2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo, which are copied and run by them. This code starts with the four files below but is not limited to them since other code could be called from them. The process will cover all fleet code using tagging.
+   - cmd/cve/generate.go
+   - cmd/cpe/generate.go
+   - cmd/msrc/generate.go
+   - cmd/macoffice/generate.go
+
+The process below ensures that QA is done before any code is effective and running.
+
+#### How do nvd and vulnerabilities repositories take code from fleet repo
+The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch, not the latest one. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories use an environment parameter to configure their respective tag (changing the tag for any of the repos requires a PR).
+
 ### Drafting
 "Drafting" is the art of defining a change, designing and shepherding it through the drafting process until it is ready for implementation.
 
