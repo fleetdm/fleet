@@ -4827,6 +4827,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
 	}
+	exp = exp.UTC()
 
 	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
 	if err != nil {
@@ -4836,7 +4837,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	vppTokenDB := &fleet.VPPTokenDB{
 		OrgName:   tokRaw.OrgName,
 		Location:  tok.Location,
-		RenewDate: tokRaw.ExpDate,
+		RenewDate: exp,
 		Token:     tok.Token,
 		TeamID:    teamID,
 		NullTeam:  nullTeam,
@@ -4905,7 +4906,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		ID:        tokEnc.ID,
 		OrgName:   tokEnc.OrgName,
 		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate.Format(fleet.VPPTimeFormat),
+		RenewDate: tokEnc.RenewDate,
 		Token:     string(tokDec),
 		TeamID:    tokEnc.TeamID,
 		NullTeam:  tokEnc.NullTeam,
@@ -5008,7 +5009,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 			ID:        tokEnc.ID,
 			OrgName:   tokEnc.OrgName,
 			Location:  tokEnc.Location,
-			RenewDate: tokEnc.RenewDate.Format(fleet.VPPTimeFormat),
+			RenewDate: tokEnc.RenewDate,
 			Token:     string(tokDec),
 			TeamID:    tokEnc.TeamID,
 			NullTeam:  tokEnc.NullTeam,
@@ -5085,7 +5086,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		ID:        tokEnc.ID,
 		OrgName:   tokEnc.OrgName,
 		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate.Format(fleet.VPPTimeFormat),
+		RenewDate: tokEnc.RenewDate,
 		Token:     string(tokDec),
 		TeamID:    tokEnc.TeamID,
 		NullTeam:  tokEnc.NullTeam,

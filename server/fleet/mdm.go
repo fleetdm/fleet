@@ -760,10 +760,10 @@ const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
 
 // VPPTokenDB represents a VPP token record in the DB
 type VPPTokenDB struct {
-	ID        uint   `json:"id"`
-	OrgName   string `json:"org_name"`
-	Location  string `json:"location"`
-	RenewDate string `json:"renew_date"`
+	ID        uint      `json:"id"`
+	OrgName   string    `json:"org_name"`
+	Location  string    `json:"location"`
+	RenewDate time.Time `json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
 	Token    string       `json:"-"`

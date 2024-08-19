@@ -6572,10 +6572,25 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 
 	// Try to update to duplicate no team
-	tok2.TeamID = nil
-	tok2.NullTeam = fleet.NullTeamNoTeam
-	err = ds.UpdateVPPToken(ctx, tok2)
+	tok2Copy := &fleet.VPPTokenDB{}
+	*tok2Copy = *tok2
+	tok2Copy.TeamID = nil
+	tok2Copy.NullTeam = fleet.NullTeamNoTeam
+	err = ds.UpdateVPPToken(ctx, tok2Copy)
 	assert.Error(t, err)
+
+	// tokall, err := ds.InsertVPPToken(ctx, dataToken5, nil, fleet.NullTeamAllTeams)
+	// require.NoError(t, err)
+
+	byteam, err := ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
+	require.NoError(t, err)
+	assert.Equal(t, tok2.ID, byteam.ID)
+	assert.Equal(t, tok2.TeamID, byteam.TeamID)
+	assert.Equal(t, tok2.NullTeam, byteam.NullTeam)
+	assert.Equal(t, tok2.Token, byteam.Token)
+	assert.Equal(t, tok2.Location, byteam.Location)
+	assert.Equal(t, tok2.OrgName, byteam.OrgName)
+	assert.Equal(t, tok2.RenewDate, byteam.RenewDate)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
