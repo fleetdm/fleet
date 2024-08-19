@@ -23,6 +23,7 @@ import DisableAutomaticEnrollmentModal from "./modals/DisableAutomaticEnrollment
 import RenewTokenModal from "./modals/RenewTokenModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
+import DeleteAbmModal from "./components/DeleteAbmModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -76,6 +77,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
 
   const selectedToken = useRef<IMdmAbmToken | null>(null);
@@ -108,33 +110,27 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
   const onDeleteToken = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
+    setShowDeleteModal(true);
   };
 
-  const disableAutomaticEnrollment = useCallback(async () => {
-    try {
-      await mdmAppleBmAPI.disableAutomaticEnrollment();
-      renderFlash("success", "Automatic enrollment disabled successfully.");
-      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-    } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn’t disable automatic enrollment. Please try again."
-      );
-      setShowDisableModal(false);
-    }
-  }, [renderFlash, router]);
-
-  const onCancelDisable = useCallback(() => {
-    setShowDisableModal(false);
-  }, []);
-
-  const onRenew = useCallback(() => {
+  const onRenewed = useCallback(() => {
     refetch();
     setShowRenewModal(false);
   }, [refetch]);
 
-  const onCancelRenew = useCallback(() => {
+  const onCancelRenewToken = useCallback(() => {
+    selectedToken.current = null;
     setShowRenewModal(false);
+  }, []);
+
+  const onCancelDeleteToken = useCallback(() => {
+    selectedToken.current = null;
+    setShowDeleteModal(false);
+  }, []);
+
+  const onDeleted = useCallback(() => {
+    selectedToken.current = null;
+    setShowDeleteModal(false);
   }, []);
 
   if (isLoading || isRefetching) {
@@ -209,17 +205,19 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       {showAddAbmModal && (
         <AddAbmModal onCancel={() => setShowAddAbmModal(false)} />
       )}
-      {showDisableModal && (
-        <DisableAutomaticEnrollmentModal
-          onCancel={onCancelDisable}
-          onConfirm={disableAutomaticEnrollment}
-        />
-      )}
       {showRenewModal && selectedToken.current && (
         <RenewTokenModal
           tokenId={selectedToken.current.id}
-          onCancel={onCancelRenew}
-          onRenew={onRenew}
+          onCancel={onCancelRenewToken}
+          onRenewedToken={onRenewed}
+        />
+      )}
+      {showDeleteModal && selectedToken.current && (
+        <DeleteAbmModal
+          tokenOrgName={selectedToken.current.org_name}
+          tokenId={selectedToken.current.id}
+          onCancel={onCancelDeleteToken}
+          onDeletedToken={onDeleted}
         />
       )}
     </MainContent>

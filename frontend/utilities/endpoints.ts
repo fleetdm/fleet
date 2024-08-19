@@ -82,8 +82,8 @@ export default {
 
   // Apple Business Manager (ABM) endpoints
   MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
-  MDM_APPLE_ABM_TOKEN: `/${API_VERSION}/fleet/mdm/apple/abm_token`,
-  MDM_APPLE_BM_TOKEN_RENEW: (id: number) =>
+  MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
+  MDM_ABM_TOKEN_RENEW: (id: number) =>
     `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
   MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,

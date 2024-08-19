@@ -48,16 +48,16 @@ export default {
   },
 
   uploadToken: (token: File) => {
-    const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
+    const { MDM_ABM_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
 
-    return sendRequest("POST", MDM_APPLE_BM_TOKEN, formData);
+    return sendRequest("POST", MDM_ABM_TOKENS, formData);
   },
 
-  renewToken(id: number, token: File): Promise<void> {
-    const { MDM_APPLE_BM_TOKEN_RENEW } = endpoints;
-    const path = MDM_APPLE_BM_TOKEN_RENEW(id);
+  renewToken: (id: number, token: File): Promise<void> => {
+    const { MDM_ABM_TOKEN_RENEW } = endpoints;
+    const path = MDM_ABM_TOKEN_RENEW(id);
 
     const formData = new FormData();
     formData.append("token", token);
@@ -65,9 +65,10 @@ export default {
     return sendRequest("PATCH", path, formData);
   },
 
-  disableAutomaticEnrollment: () => {
-    const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
-    return sendRequest("DELETE", MDM_APPLE_BM_TOKEN);
+  deleteToken: (id: number): Promise<void> => {
+    const { MDM_ABM_TOKEN } = endpoints;
+    const path = MDM_ABM_TOKEN(id);
+    return sendRequest("DELETE", path);
   },
 
   getTokens: (): Promise<IMdmAbmToken[]> => {

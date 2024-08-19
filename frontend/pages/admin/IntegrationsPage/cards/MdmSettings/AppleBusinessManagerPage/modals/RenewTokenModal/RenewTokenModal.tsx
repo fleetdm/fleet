@@ -19,13 +19,13 @@ const baseClass = "modal renew-token-modal";
 interface IRenewCertModalProps {
   tokenId: number;
   onCancel: () => void;
-  onRenew: () => void;
+  onRenewedToken: () => void;
 }
 
 const RenewCertModal = ({
   tokenId,
   onCancel,
-  onRenew,
+  onRenewedToken,
 }: IRenewCertModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -50,7 +50,7 @@ const RenewCertModal = ({
       await mdmAppleBmAPI.renewToken(tokenId, tokenFile);
       renderFlash("success", "Renewed successfully.");
       setIsUploading(false);
-      onRenew();
+      onRenewedToken();
     } catch (e) {
       // TODO: figure out what error message will be sent from API.
       const msg = getErrorReason(e);
@@ -61,7 +61,7 @@ const RenewCertModal = ({
       }
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, tokenId, onRenew]);
+  }, [tokenFile, renderFlash, tokenId, onRenewedToken]);
 
   return (
     <Modal
