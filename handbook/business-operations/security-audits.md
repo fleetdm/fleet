@@ -1,6 +1,15 @@
 # Security audits
 This page contains explanations of the latest external security audits performed on Fleet software.
 
+## June 2024 penetration testing of Fleet 4.50.1
+In June 2024, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
+
+An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
+
+Latacora identified a few medium and low severity risks, and Fleet is prioritizing and responding to those within SLAs. Once all action has been taken, a summary will be provided.
+
+You can find the full report here: 2024-06-14-fleet-penetration-test.pdf
+
 ## June 2023 penetration testing of Fleet 4.32 
 In June 2023, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
 
