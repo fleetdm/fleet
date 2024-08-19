@@ -1,4 +1,18 @@
 .add-abm-modal {
+
+  &__request-button {
+    display: flex;
+    gap: $pad-small;
+    align-items: center;
+    margin-top: $pad-small;
+
+    label {
+      display: flex;
+      gap: $pad-small;
+      cursor: pointer;
+    }
+  }
+
   &__setup-list {
     font-size: $x-small;
     display: flex;

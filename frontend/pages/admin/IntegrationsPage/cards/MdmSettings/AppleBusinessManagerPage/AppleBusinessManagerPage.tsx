@@ -70,30 +70,10 @@ const AddAbmMessage = () => {
   );
 };
 
-const ButtonWrap = ({
-  onClickDisable,
-  onClickRenew,
-}: {
-  onClickDisable: () => void;
-  onClickRenew: () => void;
-}) => {
-  return (
-    <div className={`${baseClass}__button-wrap`}>
-      <Button variant="inverse" onClick={onClickDisable}>
-        Disable automatic enrollment
-      </Button>
-      <Button variant="brand" onClick={onClickRenew}>
-        Renew token
-      </Button>
-    </div>
-  );
-};
-
 const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isUploading, setIsUploading] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
@@ -112,37 +92,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
     }
-  );
-
-  const uploadToken = useCallback(
-    async (data: FileList | null) => {
-      setIsUploading(true);
-      const token = data?.[0];
-      if (!token) {
-        setIsUploading(false);
-        renderFlash("error", "No token selected.");
-        return;
-      }
-
-      try {
-        await mdmAppleBmAPI.uploadToken(token);
-        renderFlash(
-          "success",
-          "Automatic enrollment for macOS hosts is enabled."
-        );
-        router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-      } catch (e) {
-        const msg = getErrorReason(e);
-        if (msg.toLowerCase().includes("valid token")) {
-          renderFlash("error", msg);
-        } else {
-          renderFlash("error", "Couldn’t enable. Please try again.");
-        }
-      } finally {
-        setIsUploading(false);
-      }
-    },
-    [renderFlash, router]
   );
 
   const onClickDisable = useCallback(() => {
@@ -196,14 +145,11 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return <Spinner />;
     }
 
+    // TODO: error UI
     if (showDataError) {
       return (
         <div>
           <DataError />
-          <ButtonWrap
-            onClickDisable={onClickDisable}
-            onClickRenew={onClickRenew}
-          />
         </div>
       );
     }
@@ -247,7 +193,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <>{renderContent()}</>
         </div>
       </>
-      {true && <AddAbmModal onExit={() => setShowAddAbmModal(false)} />}
+      {showAddAbmModal && (
+        <AddAbmModal onExit={() => setShowAddAbmModal(false)} />
+      )}
       {showDisableModal && (
         <DisableAutomaticEnrollmentModal
           onCancel={onCancelDisable}

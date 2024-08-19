@@ -1,8 +1,15 @@
-import React from "react";
+import React, { useCallback, useContext, useState } from "react";
+
+import { NotificationContext } from "context/notification";
+import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
+import { getErrorReason } from "interfaces/errors";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
 import CustomLink from "components/CustomLink";
+import { FileDetails } from "components/FileUploader/FileUploader";
 import DownloadABMKey from "pages/admin/components/DownloadFileButtons/DownloadABMKey";
 
 const baseClass = "add-abm-modal";
@@ -12,13 +19,42 @@ interface IAddAbmModalProps {
 }
 
 const AddAbmModal = ({ onExit }: IAddAbmModalProps) => {
-  const [isTokenSelected, setIsTokenSelected] = React.useState(false);
-  const [isUploading, setIsUploading] = React.useState(false);
+  const { renderFlash } = useContext(NotificationContext);
 
-  const uploadAbmToken = () => {
-    console.log("upload abm token");
-    setIsUploading(true);
-  };
+  const [tokenFile, setTokenFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const onSelectFile = useCallback((files: FileList | null) => {
+    const file = files?.[0];
+    if (file) {
+      setTokenFile(file);
+    }
+  }, []);
+
+  const uploadAbmToken = useCallback(
+    async (data: FileList | null) => {
+      setIsUploading(true);
+      const token = data?.[0];
+      if (!token) {
+        setIsUploading(false);
+        renderFlash("error", "No token selected.");
+        return;
+      }
+
+      try {
+        await mdmAbmAPI.uploadToken(token);
+        renderFlash("success", "Added successfully.");
+        onExit();
+      } catch (e) {
+        // TODO: ensure API is sending back the correct err messages
+        const msg = getErrorReason(e);
+        renderFlash("error", msg);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [renderFlash, onExit]
+  );
 
   return (
     <Modal className={baseClass} title="Add ABM" onExit={onExit} width="large">
@@ -99,13 +135,22 @@ const AddAbmModal = ({ onExit }: IAddAbmModalProps) => {
           graphicName={"file-p7m"}
           buttonType="link"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          onFileUpload={() => setIsTokenSelected(true)}
+          filePreview={
+            tokenFile && (
+              <FileDetails
+                details={{ name: tokenFile.name }}
+                graphicName="file-p7m"
+              />
+            )
+          }
+          onFileUpload={onSelectFile}
         />
         <div className="modal-cta-wrap">
           <Button
             variant="brand"
             onClick={uploadAbmToken}
-            disabled={!isTokenSelected}
+            isLoading={isUploading}
+            disabled={!tokenFile || isUploading}
           >
             Add ABM
           </Button>
