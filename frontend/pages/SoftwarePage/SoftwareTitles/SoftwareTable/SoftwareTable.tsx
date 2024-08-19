@@ -182,9 +182,6 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  if (isLoading) {
-    return <Spinner />;
-  }
   // determines if a user should be able to search in the table
   const searchable = isSoftwareEnabled;
 
@@ -317,6 +314,9 @@ const SoftwareTable = ({
   };
 
   const renderTableFooter = () => {
+    if (isLoading) {
+      return null;
+    }
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
