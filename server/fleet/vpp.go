@@ -126,5 +126,5 @@ func (t *VPPToken) ExtractToken() (rawAppleToken string, didUpdateMetadata bool,
 		didUpdateMetadata = true
 	}
 
-	return vppTokenRaw.Token, false, nil
+	return vppTokenRaw.Token, didUpdateMetadata, nil
 }

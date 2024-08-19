@@ -20,7 +20,7 @@ type DBMigrationTask string
 
 // List of supported tasks.
 const (
-	DBMigrateVPPTokenTask DBMigrationTask = "migrate_vpp_token"
+	DBMigrateVPPTokenTask DBMigrationTask = "migrate_vpp_token" //nolint: gosec
 )
 
 // DBMigration is the job processor for the db_migration job.
