@@ -110,7 +110,7 @@ cd website
 
 > If a table is added to our ChromeOS extension but it does not exist in osquery or if it is a table added by fleetd, add a note that mentions it, as in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
 
-### Changes to the vulnerabilities and nvd repositories
+#### Changes to the vulnerabilities and nvd repositories
 The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers' Fleet servers. 
 They run code that is managed in two places: 
 1. The code and workflows in their respective repository.
