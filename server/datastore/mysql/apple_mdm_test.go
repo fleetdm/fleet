@@ -6626,9 +6626,11 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	// Removing the all teams token means error
 	err = ds.DeleteVPPToken(ctx, tokall.ID)
 	require.NoError(t, err)
+
 	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	require.Error(t, err)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+
 	_, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
 	require.Error(t, err)
 	require.ErrorIs(t, err, sql.ErrNoRows)
