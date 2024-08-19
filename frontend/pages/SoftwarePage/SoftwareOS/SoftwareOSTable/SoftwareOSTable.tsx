@@ -189,7 +189,7 @@ const SoftwareOSTable = ({
         onQueryChange={onQueryChange}
         stackControls
         renderCount={renderSoftwareCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}

@@ -58,7 +58,7 @@ interface IDataTableProps {
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
-  renderFooter?: () => JSX.Element | null;
+  renderTableHelpText?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
 }
@@ -100,7 +100,7 @@ const DataTable = ({
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
-  renderFooter,
+  renderTableHelpText,
   renderPagination,
   setExportRows,
 }: IDataTableProps): JSX.Element => {
@@ -555,8 +555,10 @@ const DataTable = ({
         </table>
       </div>
       <div className={`${baseClass}__footer`}>
-        {renderFooter && !isLoading && (
-          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        {renderTableHelpText && !isLoading && (
+          <div className={`${baseClass}__footer-text`}>
+            {renderTableHelpText()}
+          </div>
         )}
         {isClientSidePagination ? (
           <div className={`${baseClass}__pagination`}>

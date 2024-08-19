@@ -92,7 +92,8 @@ interface ITableContainerProps<T = any> {
    * key */
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
-  renderFooter?: () => JSX.Element | null;
+  /** Text to render on the bottom left of the table */
+  renderTableHelpText?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   /** Use for serverside filtering: Set to true when filters change in URL
    * bar and API call so TableContainer will reset its page state to 0  */
@@ -148,7 +149,7 @@ const TableContainer = <T,>({
   onSelectSingleRow,
   onClickRow,
   renderCount,
-  renderFooter,
+  renderTableHelpText,
   setExportRows,
   resetPageIndex,
   disableTableHeader,
@@ -415,7 +416,7 @@ const TableContainer = <T,>({
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
-                renderFooter={renderFooter}
+                renderTableHelpText={renderTableHelpText}
                 renderPagination={
                   isClientSidePagination ? undefined : renderPagination
                 }

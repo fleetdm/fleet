@@ -283,7 +283,7 @@ const SoftwareVulnerabilitiesTable = ({
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
         renderCount={renderVulnerabilityCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}
