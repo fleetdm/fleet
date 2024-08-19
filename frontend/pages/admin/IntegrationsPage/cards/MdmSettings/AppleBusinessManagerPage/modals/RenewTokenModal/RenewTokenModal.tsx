@@ -64,7 +64,12 @@ const RenewCertModal = ({
   }, [tokenFile, renderFlash, tokenId, onRenew]);
 
   return (
-    <Modal title="Renew token" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Renew token"
+      onExit={onCancel}
+      className={baseClass}
+      isContentDisabled={isUploading}
+    >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
