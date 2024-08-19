@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -30,6 +29,8 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
+
+var GetABMDeprecatedError = errors.New("This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
@@ -45,39 +46,20 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
-	// TODO: to be addressed in the ABM API implementation, this endpoint is now only
-	// supported if a single ABM token exists:
-	// https://github.com/fleetdm/fleet/pull/21043/files#r1706095564
-	// It has NOT been updated to the new abm tokens storage yet.
-
-	abmAssets, err := svc.ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMTokenDeprecated,
-	})
+	tokens, err := svc.ds.ListABMTokens(ctx)
 	if err != nil {
-		if errors.Is(err, mysql.ErrPartialResult) {
-			_, hasABMKey := abmAssets[fleet.MDMAssetABMKey]
-			_, hasABMCert := abmAssets[fleet.MDMAssetABMCert]
-			_, hasABMToken := abmAssets[fleet.MDMAssetABMTokenDeprecated]
-
-			// to preserve existing behavior, if the ABM setup is
-			// incomplete, return a not found error
-			if hasABMKey && hasABMCert && !hasABMToken {
-				return nil, notFoundError{}
-			}
-		}
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "GetAppleBM: listing ABM tokens")
 	}
 
-	// this is temporary just to fit the refactored call, this whole endpoint
-	// will have to be adapted to the new ABM storage.
-	abmToken := &fleet.ABMToken{
-		OrganizationName: apple_mdm.DEPName,
+	if len(tokens) == 0 {
+		return nil, notFoundError{}
 	}
-	if err := apple_mdm.SetABMTokenMetadata(ctx, abmToken, svc.depStorage, svc.ds, svc.logger); err != nil {
-		return nil, err
+
+	if len(tokens) > 1 {
+		return nil, GetABMDeprecatedError
 	}
+
+	abmToken := tokens[0]
 
 	var appleBM fleet.AppleBM
 	// transfer the abmToken metadata info to the appleBM struct
