@@ -2,7 +2,9 @@ package tables
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -30,8 +32,8 @@ CREATE TABLE vpp_tokens (
 	-- global_or_team_id NOT NULL to be able to enforce it along with the enum, and even
 	-- then we want to allow multiple entries for a NULL team id with the enum set to 'none'
 	-- (inactive tokens), and we need to handle the team deletion which only sets team_id
-	-- automatically via the FK ON DELETE clause. We thought about using a trigger but 
-	-- decided against it given the impacts [2]. We'll instead enforce the constraint in 
+	-- automatically via the FK ON DELETE clause. We thought about using a trigger but
+	-- decided against it given the impacts [2]. We'll instead enforce the constraint in
 	-- the Go code.
 	-- [1]: https://fleetdm.slack.com/archives/C03C41L5YEL/p1724073772972669
 	-- [2]: https://www.percona.com/blog/how-triggers-may-significantly-affect-the-amount-of-memory-allocated-to-your-mysql-server/
@@ -88,14 +90,6 @@ WHERE
 		return fmt.Errorf("selecting existing VPP token: %w", err)
 	}
 
-	// TODO(mna): implement migration of existing VPP token... We'll have the
-	// same issue as for ABM tokens - we can't add metadata during migration
-	// because we don't have the Server.PrivateKey value to decrypt the data from
-	// mdm_config_assets (the VPP token, once decrypted, contains the metadata we
-	// need). However, unlike ABM tokens, we don't have a handy cron job to do
-	// the update soon after Fleet restarts... We may have to create a worker job
-	// for this one.
-
 	// insert the token in the new table, defaulting to "all teams"
 	const insVPP = `
 INSERT INTO vpp_tokens
@@ -140,6 +134,43 @@ SET
 `
 	if _, err = tx.Exec(updHost, tokenID); err != nil {
 		return fmt.Errorf("update VPP token link in host_vpp_software_installs: %w", err)
+	}
+
+	// NOTE: we can't add the token's metadata during migration because we don't
+	// have the Server.PrivateKey value to decrypt the data from
+	// mdm_config_assets (the VPP token, once decrypted, contains the metadata we
+	// need). Enqueue a worker job to complete the migration, back-filling the
+	// metadata for the migrated token.
+	const (
+		jobName        = "db_migration"
+		taskName       = "migrate_vpp_token"
+		jobStateQueued = "queued"
+	)
+
+	type migrateArgs struct {
+		Task string `json:"task"`
+	}
+	argsJSON, err := json.Marshal(migrateArgs{Task: taskName})
+	if err != nil {
+		return fmt.Errorf("failed to JSON marshal the job arguments: %w", err)
+	}
+
+	// hard-coded timestamps are used so that schema.sql is stable
+	const query = `
+INSERT INTO jobs (
+    name,
+    args,
+    state,
+		error,
+    not_before,
+		created_at,
+		updated_at
+)
+VALUES (?, ?, ?, '', ?, ?, ?)
+`
+	ts := time.Date(2024, 8, 19, 0, 0, 0, 0, time.UTC)
+	if _, err := tx.Exec(query, jobName, argsJSON, jobStateQueued, ts, ts, ts); err != nil {
+		return fmt.Errorf("failed to insert worker job: %w", err)
 	}
 	return nil
 }
