@@ -17,11 +17,13 @@ import Modal from "components/Modal";
 const baseClass = "modal renew-token-modal";
 
 interface IRenewCertModalProps {
+  tokenId: number;
   onCancel: () => void;
   onRenew: () => void;
 }
 
 const RenewCertModal = ({
+  tokenId,
   onCancel,
   onRenew,
 }: IRenewCertModalProps): JSX.Element => {
@@ -37,7 +39,7 @@ const RenewCertModal = ({
     }
   }, []);
 
-  const onRenewClick = useCallback(async () => {
+  const onRenewToken = useCallback(async () => {
     if (!tokenFile) {
       // this shouldn'r happen, but just in case
       renderFlash("error", "Please provide a token file.");
@@ -45,11 +47,12 @@ const RenewCertModal = ({
     }
     setIsUploading(true);
     try {
-      await mdmAppleBmAPI.uploadToken(tokenFile);
-      renderFlash("success", "ABM token renewed successfully.");
+      await mdmAppleBmAPI.renewToken(tokenId, tokenFile);
+      renderFlash("success", "Renewed successfully.");
       setIsUploading(false);
       onRenew();
     } catch (e) {
+      // TODO: figure out what error message will be sent from API.
       const msg = getErrorReason(e);
       if (msg.toLowerCase().includes("valid token")) {
         renderFlash("error", msg);
@@ -58,7 +61,7 @@ const RenewCertModal = ({
       }
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, onRenew]);
+  }, [tokenFile, renderFlash, tokenId, onRenew]);
 
   return (
     <Modal title="Renew token" onExit={onCancel} className={baseClass}>
@@ -118,9 +121,9 @@ const RenewCertModal = ({
             disabled={!tokenFile || isUploading}
             isLoading={isUploading}
             type="button"
-            onClick={onRenewClick}
+            onClick={onRenewToken}
           >
-            Renew token
+            Renew ABM
           </Button>
         </div>
       </div>

@@ -55,6 +55,16 @@ export default {
     return sendRequest("POST", MDM_APPLE_BM_TOKEN, formData);
   },
 
+  renewToken(id: number, token: File): Promise<void> {
+    const { MDM_APPLE_BM_TOKEN_RENEW } = endpoints;
+    const path = MDM_APPLE_BM_TOKEN_RENEW(id);
+
+    const formData = new FormData();
+    formData.append("token", token);
+
+    return sendRequest("PATCH", path, formData);
+  },
+
   disableAutomaticEnrollment: () => {
     const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
     return sendRequest("DELETE", MDM_APPLE_BM_TOKEN);

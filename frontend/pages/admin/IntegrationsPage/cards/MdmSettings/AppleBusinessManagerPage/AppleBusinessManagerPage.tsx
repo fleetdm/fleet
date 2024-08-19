@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useRef, useState } from "react";
 
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -78,6 +78,8 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
 
+  const selectedToken = useRef<IMdmAbmToken | null>(null);
+
   const {
     data: abmTokens,
     error: errorAbmTokens,
@@ -94,13 +96,19 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     }
   );
 
-  const onClickDisable = useCallback(() => {
-    setShowDisableModal(true);
-  }, []);
+  const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
+    selectedToken.current = abmToken;
+    // TODO: Show edit team modal
+  };
 
-  const onClickRenew = useCallback(() => {
+  const onRenewToken = (abmToken: IMdmAbmToken) => {
+    selectedToken.current = abmToken;
     setShowRenewModal(true);
-  }, []);
+  };
+
+  const onDeleteToken = (abmToken: IMdmAbmToken) => {
+    selectedToken.current = abmToken;
+  };
 
   const disableAutomaticEnrollment = useCallback(async () => {
     try {
@@ -165,7 +173,12 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
             Add your ABM to automatically enroll newly purchased Apple hosts
             when they&apos;re first unboxed and set up by your end users.
           </p>
-          <AppleBusinessManagerTable abmTokens={abmTokens} />
+          <AppleBusinessManagerTable
+            abmTokens={abmTokens}
+            onEditTokenTeam={onEditTokenTeam}
+            onRenewToken={onRenewToken}
+            onDeleteToken={onDeleteToken}
+          />
         </>
       );
     }
@@ -194,7 +207,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         </div>
       </>
       {showAddAbmModal && (
-        <AddAbmModal onExit={() => setShowAddAbmModal(false)} />
+        <AddAbmModal onCancel={() => setShowAddAbmModal(false)} />
       )}
       {showDisableModal && (
         <DisableAutomaticEnrollmentModal
@@ -202,8 +215,12 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           onConfirm={disableAutomaticEnrollment}
         />
       )}
-      {showRenewModal && (
-        <RenewTokenModal onCancel={onCancelRenew} onRenew={onRenew} />
+      {showRenewModal && selectedToken.current && (
+        <RenewTokenModal
+          tokenId={selectedToken.current.id}
+          onCancel={onCancelRenew}
+          onRenew={onRenew}
+        />
       )}
     </MainContent>
   );

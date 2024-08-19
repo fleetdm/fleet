@@ -15,10 +15,10 @@ import DownloadABMKey from "pages/admin/components/DownloadFileButtons/DownloadA
 const baseClass = "add-abm-modal";
 
 interface IAddAbmModalProps {
-  onExit: () => void;
+  onCancel: () => void;
 }
 
-const AddAbmModal = ({ onExit }: IAddAbmModalProps) => {
+const AddAbmModal = ({ onCancel }: IAddAbmModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [tokenFile, setTokenFile] = useState<File | null>(null);
@@ -44,7 +44,7 @@ const AddAbmModal = ({ onExit }: IAddAbmModalProps) => {
       try {
         await mdmAbmAPI.uploadToken(token);
         renderFlash("success", "Added successfully.");
-        onExit();
+        onCancel();
       } catch (e) {
         // TODO: ensure API is sending back the correct err messages
         const msg = getErrorReason(e);
@@ -53,11 +53,16 @@ const AddAbmModal = ({ onExit }: IAddAbmModalProps) => {
         setIsUploading(false);
       }
     },
-    [renderFlash, onExit]
+    [renderFlash, onCancel]
   );
 
   return (
-    <Modal className={baseClass} title="Add ABM" onExit={onExit} width="large">
+    <Modal
+      className={baseClass}
+      title="Add ABM"
+      onExit={onCancel}
+      width="large"
+    >
       <>
         <ol className={`${baseClass}__setup-list`}>
           <li>
