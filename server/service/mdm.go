@@ -2806,7 +2806,7 @@ type getVPPTokensResponse struct {
 func (r getVPPTokensResponse) error() error { return r.Err }
 
 func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
-	req := request.(getVPPTokensRequest)
+	req := request.(*getVPPTokensRequest)
 	_ = req
 
 	tokens, err := svc.GetVPPTokens(ctx)
@@ -2836,7 +2836,7 @@ type deleteVPPTokenResponse struct {
 func (r deleteVPPTokenResponse) error() error { return r.Err }
 
 func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
-	req := request.(deleteVPPTokenRequest)
+	req := request.(*deleteVPPTokenRequest)
 
 	err := svc.DeleteVPPToken(ctx, req.ID)
 	if err != nil {
