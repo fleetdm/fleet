@@ -32,6 +32,7 @@ const DeleteAbmModal = ({
     try {
       await mdmAbmAPI.deleteToken(tokenId);
       renderFlash("success", "Deleted successfully.");
+      onDeletedToken();
     } catch (e) {
       // TODO: Check API sends back correct error messages
       renderFlash(
@@ -39,7 +40,6 @@ const DeleteAbmModal = ({
         "Couldn’t disable automatic enrollment. Please try again."
       );
     }
-    onDeletedToken();
   }, [onDeletedToken, renderFlash, tokenId]);
 
   return (
