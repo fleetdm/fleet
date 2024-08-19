@@ -666,7 +666,7 @@ Content-Type: application/octet-stream
   "apple_id": "apple@example.com",
   "org_name": "Fleet Device Management Inc.",
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-11-29T00:00:00Z",
+  "renew_date": "2024-10-20T00:00:00Z",
   "terms_expired": false,
   "macos_team": "",
   "ios_team": "",
@@ -758,6 +758,20 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2025-10-20T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": "",
+  "ios_team": "",
+  "ipados_team": ""
+}
+```
+
 ### Delete ABM token
 
 `DELETE /api/v1/fleet/abm_tokens/:id`
@@ -810,6 +824,17 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "terms_expired": false,
+  "teams": null
+}
+```
 
 ### Update VPP token's teams
 
