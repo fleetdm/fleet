@@ -25,6 +25,16 @@ CREATE TABLE vpp_tokens (
 	-- encrypted token, encrypted with the FleetConfig.Server.PrivateKey value
 	token                  blob NOT NULL,
 
+	-- Note that as per a Slack discussion [1], we opted not to enforce the constraint
+	-- of team uniqueness in the DB as it quickly got hairy - we'd need a distinct
+	-- global_or_team_id NOT NULL to be able to enforce it along with the enum, and even
+	-- then we want to allow multiple entries for a NULL team id with the enum set to 'none'
+	-- (inactive tokens), and we need to handle the team deletion which only sets team_id
+	-- automatically via the FK ON DELETE clause. We thought about using a trigger but 
+	-- decided against it given the impacts [2]. We'll instead enforce the constraint in 
+	-- the Go code.
+	-- [1]: https://fleetdm.slack.com/archives/C03C41L5YEL/p1724073772972669
+	-- [2]: https://www.percona.com/blog/how-triggers-may-significantly-affect-the-amount-of-memory-allocated-to-your-mysql-server/
 	team_id                int(10) UNSIGNED DEFAULT NULL,
 
 	-- null_team_type indicates the special team represented when team_id is NULL,

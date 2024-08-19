@@ -138,9 +138,7 @@ LIMIT 1
 	// filled.
 	// https://github.com/fleetdm/fleet/pull/21287#discussion_r1715891448
 
-	// insert the token in the new table - note that as per [1], only the macos
-	// default team is set by migrating the AppConfig's apple_bm_default_team.
-	// [1]: https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
+	// insert the token in the new table
 	const insABM = `
 INSERT INTO abm_tokens
 	(
@@ -154,9 +152,9 @@ INSERT INTO abm_tokens
 		ipados_default_team_id
 	)
 VALUES
-	('', '', ?, DATE('2000-01-01'), ?, ?, NULL, NULL)
+	('', '', ?, DATE('2000-01-01'), ?, ?, ?, ?)
 `
-	res, err := tx.Exec(insABM, abmTermsExpired, token, defaultTeamID)
+	res, err := tx.Exec(insABM, abmTermsExpired, token, defaultTeamID, defaultTeamID, defaultTeamID)
 	if err != nil {
 		return fmt.Errorf("insert existing ABM token into abm_tokens: %w", err)
 	}

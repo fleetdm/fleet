@@ -72,8 +72,10 @@ LIMIT 1`)
 	// all platform default teams are set to the configured team
 	require.NotNil(t, storedToken.MacOSDefaultTeamID)
 	require.EqualValues(t, tmID, *storedToken.MacOSDefaultTeamID)
-	require.Nil(t, storedToken.IOSDefaultTeamID)
-	require.Nil(t, storedToken.IPadOSDefaultTeamID)
+	require.NotNil(t, storedToken.IOSDefaultTeamID)
+	require.EqualValues(t, tmID, *storedToken.IOSDefaultTeamID)
+	require.NotNil(t, storedToken.IPadOSDefaultTeamID)
+	require.EqualValues(t, tmID, *storedToken.IPadOSDefaultTeamID)
 
 	// the existing host DEP assignment is linked to the token
 	var hostTokenID *uint
