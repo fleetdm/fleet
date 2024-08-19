@@ -2774,7 +2774,7 @@ func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (e
 
 	// req := request.(patchVPPTokensTeamsRequest)
 	// svc.UpdateVPPTokenTeams(ctx, req.TeamID, req.)
-	return nil, nil
+	return patchVPPTokensTeamsResponse{}, nil
 }
 
 func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamID *uint, nullTeam fleet.NullTeamType) error {
