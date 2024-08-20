@@ -64,7 +64,7 @@ module.exports = {
     // Build a dictonary of information about this script to return to the scripts page.
     let newScriptInfo = {
       name: datelessExtensionlessFilename,
-      platform: _.endsWith(scriptFilename, '.ps1') ? 'Windows' : 'macOS and Linux',
+      platform: _.endsWith(scriptFilename, '.ps1') ? 'Windows' : 'macOS & Linux',
       scriptType: extension,
       createdAt: Date.now()
     };

@@ -2,7 +2,7 @@
 
   <div purpose="page-content" class="container-fluid">
     <div class="d-flex flex-column">
-      <div class="pb-0 pb-sm-4 d-flex flex-row justify-content-between">
+      <div class="pb-4 d-flex flex-row justify-content-between">
         <div>
         <h3 purpose="page-heading">Configuration profiles</h3>
         </div>
@@ -23,7 +23,7 @@
         <p style="color: #6A67FE; cursor: pointer;" @click="clickOpenAddProfileModal()">+ Add profile</p>
       </div>
     </div>
-    <div style="overflow: visible;" class="mb-4 border rounded table-responsive" v-if="profilesToDisplay.length > 0">
+    <div style="overflow: visible;" class="mb-4 border rounded table-responsive-md" v-if="profilesToDisplay.length > 0">
       <table class="table my-0">
         <thead>
           <tr>
