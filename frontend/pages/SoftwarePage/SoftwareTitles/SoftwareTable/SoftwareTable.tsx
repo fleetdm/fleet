@@ -41,8 +41,8 @@ import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
-  getSoftwareFilterForQueryKey,
-  getSoftwareVulnFiltersForQueryKey,
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
 } from "./helpers";
 
@@ -133,6 +133,7 @@ const SoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       if (softwareFilter === "installableSoftware") {
         newQueryParam.available_for_install = true.toString();
@@ -141,7 +142,7 @@ const SoftwareTable = ({
         newQueryParam.self_service = true.toString();
       }
 
-      return { ...newQueryParam, ...vulnFilters };
+      return newQueryParam;
     },
     [softwareFilter, teamId, vulnFilters]
   );
@@ -197,7 +198,6 @@ const SoftwareTable = ({
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  console.log("vulnFilterDetails", vulnFilterDetails);
   const showFilterHeaders =
     isSoftwareEnabled &&
     (hasData ||
@@ -213,8 +213,8 @@ const SoftwareTable = ({
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
-      ...getSoftwareFilterForQueryKey("allSoftware"), // Reset to all software
-      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
+      ...buildSoftwareFilterQueryParams("allSoftware"), // Reset to all software
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
     router.replace(
@@ -237,8 +237,8 @@ const SoftwareTable = ({
       orderDirection,
       orderKey,
       page: 0, // resets page index
-      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
-      ...getSoftwareFilterForQueryKey(value),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFilterQueryParams(value),
     };
 
     router.replace(

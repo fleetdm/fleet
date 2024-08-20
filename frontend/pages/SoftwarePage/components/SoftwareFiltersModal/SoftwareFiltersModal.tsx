@@ -19,26 +19,24 @@ const baseClass = "software-filters-modal";
 interface ISoftwareFiltersModalProps {
   onExit: () => void;
   onSubmit: (vulnFilters: ISoftwareVulnFilters) => void;
-  vulnFiltersQueryParams: ISoftwareVulnFiltersParams;
+  vulnFilters: ISoftwareVulnFiltersParams;
 }
 
 const SoftwareFiltersModal = ({
   onExit,
   onSubmit,
-  vulnFiltersQueryParams,
+  vulnFilters,
 }: ISoftwareFiltersModalProps) => {
   const [vulnSoftwareFilterEnabled, setVulnSoftwareFilterEnabled] = useState(
-    vulnFiltersQueryParams.vulnerable || false
+    vulnFilters.vulnerable || false
   );
   const [severity, setSeverity] = useState(
     findOptionBySeverityRange(
-      vulnFiltersQueryParams.minCvssScore,
-      vulnFiltersQueryParams.maxCvssScore
+      vulnFilters.minCvssScore,
+      vulnFilters.maxCvssScore
     )
   );
-  const [hasKnownExploit, setHasKnownExploit] = useState(
-    vulnFiltersQueryParams.exploit
-  );
+  const [hasKnownExploit, setHasKnownExploit] = useState(vulnFilters.exploit);
 
   const onChangeSeverity = (value: string) => {
     const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(

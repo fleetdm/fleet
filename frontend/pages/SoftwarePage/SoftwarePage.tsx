@@ -35,9 +35,9 @@ import TabsWrapper from "components/TabsWrapper";
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
 import {
-  getSoftwareFilterForQueryKey,
+  buildSoftwareFilterQueryParams,
   getSoftwareFilterFromQueryParams,
-  getSoftwareVulnFiltersForQueryKey,
+  buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFilters,
 } from "./SoftwareTitles/SoftwareTable/helpers";
@@ -157,6 +157,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // and available_for_install don't apply to versions, os, or vulnerabilities routes) and some
   // defined redirect behavior if the params are invalid
   const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
+
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -312,8 +316,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...getSoftwareFilterForQueryKey(softwareFilter),
-      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...vulnFilters,
     };
 
     router.replace(
@@ -429,7 +433,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
-          vulnFilters: getSoftwareVulnFiltersFromQueryParams(queryParams),
+          vulnFilters: softwareVulnFilters,
           resetPageIndex,
           addedSoftwareToken,
           onAddFilterClick: toggleAddFilterModal,
@@ -480,9 +484,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           <SoftwareFiltersModal
             onExit={toggleAddFilterModal}
             onSubmit={onApplyVulnFilters}
-            vulnFiltersQueryParams={getSoftwareVulnFiltersFromQueryParams(
-              queryParams
-            )}
+            vulnFilters={softwareVulnFilters}
           />
         )}
       </div>

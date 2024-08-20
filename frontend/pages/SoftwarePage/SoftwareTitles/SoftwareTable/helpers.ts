@@ -75,7 +75,7 @@ export const SEVERITY_DROPDOWN_OPTIONS = [
   },
 ];
 
-export const getSoftwareFilterForQueryKey = (
+export const buildSoftwareFilterQueryParams = (
   val: ISoftwareDropdownFilterVal
 ) => {
   switch (val) {
@@ -106,8 +106,8 @@ export const getSoftwareVulnFiltersFromQueryParams = (
   const { vulnerable, exploit, min_cvss_score, max_cvss_score } = queryParams;
 
   return {
-    vulnerable: Boolean(vulnerable),
-    exploit: Boolean(exploit),
+    vulnerable: stringUtils.strToBool(vulnerable as string),
+    exploit: stringUtils.strToBool(exploit as string),
     minCvssScore: parseQueryValueToNumberOrUndefined(min_cvss_score, 0, 10),
     maxCvssScore: parseQueryValueToNumberOrUndefined(max_cvss_score, 0, 10),
   };
@@ -127,23 +127,39 @@ export type ISoftwareVulnFiltersParams = {
   maxCvssScore?: number;
 };
 
-export const getSoftwareVulnFiltersForQueryKey = (
-  vulnFilters: ISoftwareVulnFilters
+const isValidNumber = (
+  value: any,
+  min?: number,
+  max?: number
+): value is number => {
+  // Check if the value is a number and not NaN
+  const isNumber = typeof value === "number" && !isNaN(value);
+
+  // If min or max is provided, check if the number is within the range
+  const withinRange =
+    (min === undefined || value >= min) && (max === undefined || value <= max);
+
+  return isNumber && withinRange;
+};
+
+export const buildSoftwareVulnFiltersQueryParams = (
+  vulnFilters: ISoftwareVulnFiltersParams
 ) => {
-  const { vulnerable, exploit, min_cvss_score, max_cvss_score } = vulnFilters;
+  const { vulnerable, exploit, minCvssScore, maxCvssScore } = vulnFilters;
 
   if (!vulnerable) {
     return {};
   }
 
-  const isValidNumber = (value: any): value is number =>
-    value !== null && value !== undefined && !isNaN(value);
-
   return {
     vulnerable: true,
     ...(exploit && { exploit: true }),
-    ...(isValidNumber(min_cvss_score) && { min_cvss_score }),
-    ...(isValidNumber(max_cvss_score) && { max_cvss_score }),
+    ...(isValidNumber(minCvssScore, 0, maxCvssScore || 10) && {
+      min_cvss_score: minCvssScore.toString(),
+    }),
+    ...(isValidNumber(maxCvssScore, minCvssScore || 0, 10) && {
+      max_cvss_score: maxCvssScore.toString(),
+    }),
   };
 };
 

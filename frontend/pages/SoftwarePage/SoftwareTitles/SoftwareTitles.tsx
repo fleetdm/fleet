@@ -22,7 +22,7 @@ import SoftwareTable from "./SoftwareTable";
 import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFilters,
-  getSoftwareFilterForQueryKey,
+  buildSoftwareFilterQueryParams,
 } from "./SoftwareTable/helpers";
 
 const baseClass = "software-titles";
@@ -89,7 +89,7 @@ const SoftwareTitles = ({
         teamId,
         addedSoftwareToken,
         ...vulnFilters,
-        ...getSoftwareFilterForQueryKey(softwareFilter),
+        ...buildSoftwareFilterQueryParams(softwareFilter),
       },
     ],
     ({ queryKey: [queryKey] }) =>
