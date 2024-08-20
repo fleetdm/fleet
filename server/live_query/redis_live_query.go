@@ -339,13 +339,16 @@ func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 func (r *redisLiveQuery) loadCache() (memCache, error) {
 	expiredQueries := make(map[string]struct{})
 	sqlCache := make(map[string]string)
-	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	names, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
 	if err != nil {
 		return memCache{}, fmt.Errorf("get active queries: %w", err)
 	}
+
+	conn = redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
 
 	for _, name := range names {
 		_, sqlKey := generateKeys(name)
