@@ -22,6 +22,9 @@ export interface ISoftwareApiParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  max_cvss_score?: number;
+  min_cvss_score?: number;
+  exploit?: boolean;
   availableForInstall?: boolean;
   selfService?: boolean;
   teamId?: number;
