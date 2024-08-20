@@ -1333,6 +1333,15 @@ type Datastore interface {
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
 	UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam NullTeamType) error
 
+	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
+	// terms_expired flag of the ABM token identified by the organization name.
+	// It returns whether that flag was previously set for this token.
+	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+
+	// CountABMTokensWithTermsExpired returns a count of ABM tokens that are
+	// flagged with the Apple BM terms expired.
+	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
+
 	// InsertABMToken inserts a new ABM token into the datastore.
 	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
 
