@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -894,6 +895,9 @@ func newCleanupsAndAggregationSchedule(
 			// in use.
 			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
 		}),
+		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
+			return ds.CleanupHostMDMCommands(ctx)
+		}),
 	)
 
 	return s, nil
@@ -1306,22 +1310,55 @@ func newIPhoneIPadRefetcher(
 			}
 
 			start := time.Now()
-			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+			devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
 			}
-			if len(uuids) == 0 {
+			if len(devices) == 0 {
 				return nil
 			}
-			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
-			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
-			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
+			commandUUID := uuid.NewString()
+
+			hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2*len(devices))
+			installedAppsUUIDs := make([]string, 0, len(devices))
+			for _, device := range devices {
+				if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
+					installedAppsUUIDs = append(installedAppsUUIDs, device.UUID)
+					hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+						HostID:      device.HostID,
+						CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+					})
+				}
 			}
+			if len(installedAppsUUIDs) > 0 {
+				err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+				}
+			}
+
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			if err := commander.DeviceInformation(ctx, uuids, fleet.RefetchCommandUUIDPrefix+commandUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+			deviceInfoUUIDs := make([]string, 0, len(devices))
+			for _, device := range devices {
+				if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
+					deviceInfoUUIDs = append(deviceInfoUUIDs, device.UUID)
+					hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+						HostID:      device.HostID,
+						CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+					})
+				}
+			}
+			if len(deviceInfoUUIDs) > 0 {
+				if err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+				}
+			}
+
+			// Add commands to the database to track the commands sent
+			err = ds.AddHostMDMCommands(ctx, hostMDMCommands)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "add host mdm commands")
 			}
 			return nil
 		}),

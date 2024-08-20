@@ -9806,6 +9806,17 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.Equal(t, host.ID, hostResp.Host.ID)
 	assert.True(t, hostResp.Host.RefetchRequested)
 
+	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Len(t, commands, commandsSent)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	}, commands)
+
+	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
+
 	// Check the MDM commands and send response
 	cmd, err := mdmClient.Idle()
 	require.NoError(t, err)
@@ -9829,6 +9840,10 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
 	require.NoError(t, err)
+
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Empty(t, commands)
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)

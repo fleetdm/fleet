@@ -87,6 +87,7 @@ func TestMDMApple(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 
@@ -5695,9 +5696,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	}
 
 	// Test with no hosts.
-	uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Create a placeholder macOS host.
 	_ = newHost("darwin")
@@ -5712,9 +5713,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(2), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Now simulate the initial MDM checkin of the devices.
 	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
@@ -5741,13 +5742,16 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, iPadOS0, false)
 
 	// Test with hosts but empty state in nanomdm command tables.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 2)
+	require.Len(t, devices, 2)
+	uuids := []string{devices[0].UUID, devices[1].UUID}
 	sort.Slice(uuids, func(i, j int) bool {
 		return uuids[i] < uuids[j]
 	})
-	require.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Empty(t, devices[0].CommandsAlreadySent)
+	assert.Empty(t, devices[1].CommandsAlreadySent)
 
 	// Set iOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5756,10 +5760,10 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device should not be returned because it was refetched recently
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iPadOS0_UUID")
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
 
 	// Set iPadOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5768,9 +5772,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// Both devices are up-to-date thus none should be returned.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Set iOS detail_updated_at as 2 hours in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5779,10 +5783,24 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device be returned because it is out of date.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iOS0_UUID")
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iOS0_UUID")
+	assert.Empty(t, devices[0].CommandsAlreadySent)
+
+	// Update commands already sent to the devices and check that they are returned.
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+		HostID:      iOS0.ID,
+		CommandType: "my-command",
+	}}))
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iOS0_UUID")
+	require.Len(t, devices[0].CommandsAlreadySent, 1)
+	assert.Equal(t, "my-command", devices[0].CommandsAlreadySent[0])
+
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
