@@ -5092,7 +5092,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 	if err != nil {
 		if errors.Is(sql.ErrNoRows, err) {
 			if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamAllTeams); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+				return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
 			}
 		} else {
 			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
