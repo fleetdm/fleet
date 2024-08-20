@@ -3086,7 +3086,7 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
 
 The returned token is a one-time use token that expires after 10 minutes.
 
@@ -3100,7 +3100,7 @@ The returned token is a one-time use token that expires after 10 minutes.
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
 
 ##### Default response
 
