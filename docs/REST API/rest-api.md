@@ -6760,7 +6760,7 @@ Team policies work the same as policies, but at the team level.
     {
       "id": 3,
       "name": "macOS - install/update Adobe Acrobat",
-      "query": "SELECT 1 FROM apps WHERE name = "Adobe Acrobat.app" AND bundle_short_version != "24.002.21005",
+      "query": "SELECT 1 FROM apps WHERE name = \"Adobe Acrobat.app\" AND bundle_short_version != \"24.002.21005\";",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "critical": false,
       "author_id": 43,
