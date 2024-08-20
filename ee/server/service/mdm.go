@@ -32,8 +32,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var GetABMDeprecatedError = errors.New("This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
-
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -58,7 +56,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	if len(tokens) > 1 {
-		return nil, GetABMDeprecatedError
+		return nil, errors.New("This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
 	}
 
 	abmToken := tokens[0]
