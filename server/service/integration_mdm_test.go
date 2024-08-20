@@ -9605,7 +9605,12 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	expDate := "2025-06-24T15:50:50+0000"
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", nil)
+	var vppRes uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &vppRes)
+	// HACK Waiting for team update shape
+	err = s.ds.UpdateVPPTokenTeam(context.Background(), vppRes.Token.ID, nil, fleet.NullTeamAllTeams)
+	require.NoError(t, err)
+
 	// Remove all vpp associations from team with no members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
