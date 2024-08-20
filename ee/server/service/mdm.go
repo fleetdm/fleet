@@ -1206,7 +1206,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.A
 
 	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
 	if derCert == nil {
-		return nil, ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
+		return nil, ctxerr.New(ctx, "ABM certificate in the database cannot be parsed")
 	}
 
 	cert, err := x509.ParseCertificate(derCert.Bytes)
@@ -1310,7 +1310,10 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	if macOSTeamID != nil {
 		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking existence of macOS team")
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of macOS team"),
+			}
 		}
 
 		macOSTeamName = macOSTeam.Name
@@ -1319,7 +1322,10 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	if iOSTeamID != nil {
 		iOSTeam, err := svc.ds.Team(ctx, *iOSTeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking existence of iOS team")
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
+			}
 		}
 		iOSTeamName = iOSTeam.Name
 	}
@@ -1327,7 +1333,10 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	if iPadOSTeamID != nil {
 		iPadOSTeam, err := svc.ds.Team(ctx, *iPadOSTeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking existence of iPadOS team")
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
+			}
 		}
 		iPadOSTeamName = iPadOSTeam.Name
 	}
@@ -1336,7 +1345,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	token.IOSDefaultTeamID = iOSTeamID
 	token.IPadOSDefaultTeamID = iPadOSTeamID
 
-	if err := ctxerr.Wrap(ctx, svc.ds.SaveABMToken(ctx, token), "updating token teams"); err != nil {
+	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
 	}
 
