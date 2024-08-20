@@ -333,7 +333,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
     - Single doc URL: TODO
      ```
      
-5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Business Operations via Google Drive.  
    - _Share_ this single document with the Head of Business Operations via email.
    - When the Head of Business Operations receives this shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
 
