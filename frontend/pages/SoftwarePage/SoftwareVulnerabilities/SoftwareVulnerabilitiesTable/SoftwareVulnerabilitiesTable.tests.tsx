@@ -1,6 +1,5 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { noop } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
 
 import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
