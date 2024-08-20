@@ -203,7 +203,6 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const renderTableHelpText = () => {
-    if (isLoading && !data?.vulnerabilities?.length) return null;
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}

@@ -151,7 +151,6 @@ const SoftwareOSTable = ({
   };
 
   const renderTableHelpText = () => {
-    if (isLoading && !data?.os_versions?.length) return null;
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}

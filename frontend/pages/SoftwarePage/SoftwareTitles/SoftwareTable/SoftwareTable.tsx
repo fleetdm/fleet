@@ -314,7 +314,6 @@ const SoftwareTable = ({
   };
 
   const renderTableHelpText = () => {
-    if (isLoading && !tableData?.length) return null;
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
