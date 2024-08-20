@@ -5585,6 +5585,7 @@ func (s *DataStore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uin
 	s.UpdateVPPTokenTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVPPTokenTeamFunc(ctx, id, teamID, nullTeam)
+}
 
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
 	s.mu.Lock()
