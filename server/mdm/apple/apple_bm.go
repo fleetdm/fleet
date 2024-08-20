@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -12,8 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	kitlog "github.com/go-kit/log"
 )
-
-const ABMTokenContextKey = fleet.ContextKey("ABMTokenKey")
 
 // SetABMTokenMetadata uses the provided ABM token to fetch the associated
 // metadata and use it to update the rest of the abmToken fields (org name,
@@ -49,7 +48,7 @@ func SetDecryptedABMTokenMetadata(
 		// Then this is a newly uploaded token, which will not be found in the datastore when
 		// RetrieveAuthTokens tries to find it. Set the token in the context so that downstream we
 		// know it's not in the datastore.
-		ctx = context.WithValue(ctx, ABMTokenContextKey, decryptedToken)
+		ctx = abmctx.NewContext(ctx, decryptedToken)
 		// We don't have an org name, but the depClient expects an org name, so we set this fake one.
 		orgName = "new_abm_token"
 	}
