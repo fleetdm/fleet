@@ -6356,8 +6356,10 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	encTok := uuid.NewString()
 
 	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
 	require.NotEmpty(t, t1.ID)
 	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
 	require.NotEmpty(t, t2.ID)
 
 	toks, err := ds.ListABMTokens(ctx)
