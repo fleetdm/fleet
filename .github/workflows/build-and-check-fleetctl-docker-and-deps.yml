@@ -62,7 +62,7 @@ jobs:
         run: make fleetctl-docker
 
       - name: Run Trivy vulnerability scanner on fleetdm/wix
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         with:
           image-ref: "fleetdm/wix"
           format: "table"
@@ -72,7 +72,7 @@ jobs:
           severity: "CRITICAL"
 
       - name: Run Trivy vulnerability scanner on fleetdm/bomutils
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         with:
           image-ref: "fleetdm/bomutils"
           format: "table"
@@ -82,7 +82,7 @@ jobs:
           severity: "CRITICAL"
 
       - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         with:
           image-ref: "fleetdm/fleetctl"
           format: "table"
