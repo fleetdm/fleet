@@ -25,7 +25,7 @@ module.exports = {
 
     profileType: {
       type: 'string',
-      description: 'The filestype of the profile',
+      description: 'The file extension of the profile',
       isIn: [
         '.mobileconfig',
         '.xml',

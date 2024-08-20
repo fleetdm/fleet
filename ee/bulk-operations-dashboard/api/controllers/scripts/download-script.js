@@ -34,13 +34,17 @@ module.exports = {
 
 
   fn: async function ({fleetApid, id}) {
+    if(!fleetApid && !id){
+      return this.res.badRequest();
+    }
     let filename;
     let download;
     if(id){
+      let datePrefix = new Date().toISOString();
+      datePrefix = datePrefix.split('T')[0] +'_';
       let scriptToDownload = await UndeployedScript.findOne({id: id});
-
-      filename = datePrefix + scriptToDownload.name + scriptToDownload.scriptType;
-      scriptContents = scriptToDownload.scriptContents;
+      filename = datePrefix + scriptToDownload.name;
+      let scriptContents = scriptToDownload.scriptContents;
       if(scriptToDownload.scriptType === '.sh'){
         this.res.type('application/x-apple-aspen-config');
       } else {
@@ -55,15 +59,14 @@ module.exports = {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
         }
       });
-      console.log(scriptDownloadResponse.headers);
       let contentDispositionHeader = scriptDownloadResponse.headers['content-disposition'];
       let filenameMatch = contentDispositionHeader.replace(/^attachment;filename="(.+?)"$/, '$1');
       filename = filenameMatch;
       let contentType = scriptDownloadResponse.headers['content-type'];
       download = scriptDownloadResponse.body;
       this.res.type(contentType);
-      this.res.attachment(filename);
     }
+    this.res.attachment(filename);
     // All done.
     return download;
 

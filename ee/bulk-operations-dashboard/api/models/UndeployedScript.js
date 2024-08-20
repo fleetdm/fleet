@@ -27,18 +27,18 @@ module.exports = {
       ],
     },
 
-    scriptType: {// ∆: Do we need this attribute?
+    scriptType: {
       type: 'string',
-      description: 'The filestype of the script',
+      description: 'The file extension of the script',
       isIn: [
         '.sh',
         '.ps1',
       ],
     },
 
-    scriptContents: {// ∆: This may
+    scriptContents: {
       type: 'string',
-      description: 'The contents of the script.', // ∆: improve description
+      description: 'The contents of the script stored as a string.',
       extendedDescription: 'This attribute will only be present on undeployed profiles.'
     },
 

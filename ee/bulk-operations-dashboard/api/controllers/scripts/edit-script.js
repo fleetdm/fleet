@@ -95,7 +95,7 @@ module.exports = {
         let requestBodyForThisTeam = {
           script: {
             options: {
-              filename: filename+extension,
+              filename: filename,
               contentType: 'application/octet-stream'
             },
             value: scriptContents,
@@ -137,7 +137,7 @@ module.exports = {
         let requestBodyForThisTeam = {
           script: {
             options: {
-              filename: filename+extension,
+              filename: filename,
               contentType: 'application/octet-stream'
             },
             value: scriptContents,

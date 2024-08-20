@@ -17,10 +17,7 @@ parasails.registerPage('scripts', {
     formData: {},
     formErrors: {},
     addScriptFormRules: {
-      newScript: {
-        required: true,
-      },
-      teams: {required: true},
+      newScript: {required: true},
     },
     editScriptFormRules: {},
     profileToEdit: {},

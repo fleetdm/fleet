@@ -104,7 +104,7 @@
             </div>
           </div>
           <file-upload id="edit-file-upload" mode="scripts" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newScript"></file-upload>
-          <div purpose="teams-picker">
+          <div purpose="teams-picker" class="mt-4">
             <p class="mb-2"><strong>Teams</strong></p>
             <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
           </div>
@@ -126,7 +126,7 @@
       </div>
       <p>Delete this script from all teams.</p>
       <p>This will cancel the script from running.</p>
-      <ajax-form :handle-submitting="handleSubmittingDeleteScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptsFormRules" @submitted="submittedForm()">
+      <ajax-form :handle-submitting="handleSubmittingDeleteScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptFormRules" @submitted="submittedForm()">
         <cloud-error v-if="cloudError"></cloud-error>
       <div class="d-flex flex-row justify-content-end align-items-center">
         <a class="text-danger mr-3" @click="closeModal()">Cancel</a>
@@ -146,7 +146,7 @@
         <ajax-form :handle-submitting="handleSubmittingAddScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addScriptFormRules" @submitted="submittedForm()">
           <file-upload id="file-upload" :class="[formErrors.newScript ? 'is-invalid' : '']"  mode="scripts" :disabled="syncing" v-model="formData.newScript"></file-upload>
           <div class="invalid-feedback text-center" v-if="formErrors.newScript">Please upload a new script.</div>
-          <div purpose="teams-picker" class="mt-4" :class="[formErrors.teams ? 'is-invalid' : '']">
+          <div purpose="teams-picker" class="mt-4">
             <p class="mb-2"><strong>Teams</strong></p>
             <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
           </div>
