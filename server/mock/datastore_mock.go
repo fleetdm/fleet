@@ -876,6 +876,8 @@ type ListVPPTokensFunc func(ctx context.Context) ([]fleet.VPPTokenDB, error)
 
 type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
 
+type UpdateVPPTokenTeamFunc func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2314,6 +2316,9 @@ type DataStore struct {
 
 	GetVPPTokenByTeamIDFunc        GetVPPTokenByTeamIDFunc
 	GetVPPTokenByTeamIDFuncInvoked bool
+
+	UpdateVPPTokenTeamFunc        UpdateVPPTokenTeamFunc
+	UpdateVPPTokenTeamFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5543,6 +5548,13 @@ func (s *DataStore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fle
 	s.GetVPPTokenByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByTeamIDFunc(ctx, teamID)
+}
+
+func (s *DataStore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenTeamFunc(ctx, id, teamID, nullTeam)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

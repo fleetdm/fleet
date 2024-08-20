@@ -6508,7 +6508,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	// Switch teams
 	tok.TeamID = &team2.ID
-	err = ds.UpdateVPPToken(ctx, tok)
+	err = ds.UpdateVPPTokenTeam(ctx, tok.ID, &team2.ID, fleet.NullTeamNone)
 	assert.NoError(t, err)
 
 	tokens, err = ds.ListVPPTokens(ctx)
@@ -6581,6 +6581,9 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	tok2Copy.TeamID = nil
 	tok2Copy.NullTeam = fleet.NullTeamNoTeam
 	err = ds.UpdateVPPToken(ctx, tok2Copy)
+	assert.Error(t, err)
+
+	err = ds.UpdateVPPTokenTeam(ctx, tok2.ID, nil, fleet.NullTeamNoTeam)
 	assert.Error(t, err)
 
 	tokall, err := ds.InsertVPPToken(ctx, dataToken5, nil, fleet.NullTeamAllTeams)

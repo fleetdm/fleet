@@ -2772,8 +2772,11 @@ func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
 func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	// TODO Waiting for spec on how to handle no-team/all-teams
 
-	// req := request.(patchVPPTokensTeamsRequest)
-	// svc.UpdateVPPTokenTeams(ctx, req.TeamID, req.)
+	req := request.(*patchVPPTokensTeamsRequest)
+	// NullTeam argument needs to be spec'd
+	if err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamID, fleet.NullTeamNone); err != nil {
+		return patchVPPTokensTeamsResponse{Err: err}, nil
+	}
 	return patchVPPTokensTeamsResponse{}, nil
 }
 
