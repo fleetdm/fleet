@@ -518,6 +518,23 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure the Time Service Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS 10.14, Apple replace ntp with timed for time services, and is used to ensure correct time is kept. Correct date and time settings are required for authentication protocols, file creation, modification dates and log entries. 
+  resolution: |
+        Ask your system administrator to deploy a script that will configure:
+        /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.timed.plist
+  query: |
+    SELECT 1 WHERE  EXISTS(SELECT * FROM processes WHERE path = '/usr/libexec/timed');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure DVD or CD Sharing Is Disabled
   platforms: macOS
   platform: darwin
