@@ -2679,12 +2679,16 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 	var nullTeam fleet.NullTeamType
 	var teamID *uint
 	if teamIDs == nil {
-		nullTeam = fleet.NullTeamNoTeam
+		// Null -> disabled token
+		nullTeam = fleet.NullTeamNone
 	} else if len(teamIDs) == 0 {
+		// Empty -> All teams
 		nullTeam = fleet.NullTeamAllTeams
 	} else if teamIDs[0] == 0 {
-		nullTeam = fleet.NullTeamNone
+		// 0 -> NoTeam team
+		nullTeam = fleet.NullTeamNoTeam
 	} else {
+		// Regular team assignment
 		nullTeam = fleet.NullTeamNone
 		teamID = &teamIDs[0]
 	}
