@@ -6768,11 +6768,11 @@ Team policies work the same as policies, but at the team level.
       "author_email": "alice@example.com",
       "team_id": 1,
       "resolution": "Resolution steps",
-      "platform": "windows",
+      "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "install_software" {
