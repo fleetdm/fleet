@@ -244,7 +244,7 @@ module.exports = {
       psychologicalStageLastChangedAt,
     });
     // Return the JSON dictionary of form data submitted by this user.
-    return getStartedProgress;
+    return {getStartedProgress, psychologicalStage};
   }
 
 

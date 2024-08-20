@@ -35,7 +35,7 @@
     }
   }
   [purpose='form-container'] {
-    min-width: 632px;
+    width: 632px;
     padding-left: 64px;
     padding-right: 64px;
     padding-top: 64px;
@@ -64,6 +64,9 @@
     background-position: center;
     background-repeat: no-repeat;
     border-radius: 16px;
+    animation: fadeIn 1s forwards;
+    animation-property: background-image;
+    opacity: 0;
     &.stage-two {
       background-image: url('/images/psystage-2-aware-508x784@2x.png');
     }
@@ -73,6 +76,20 @@
     &.stage-four {
       background-image: url('/images/psystage-4-has-use-case-508x784@2x.png');
     }
+    &.stage-five {
+      background-image: url('https://my.feralgoblin.com/cass/508/784?text=Stage+5+Personally+confident');
+    }
+    &.stage-six {
+      background-image: url('https://my.feralgoblin.com/cass/508/784?text=Stage+6+Has+team+buy-in');
+    }
+    &.stage-null {
+      background-image: url('https://my.feralgoblin.com/cass/508/784?text=Stage+?????');
+    }
+
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   [purpose='page-container'] {
     padding-top: 20px;

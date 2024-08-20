@@ -26,6 +26,8 @@ parasails.registerPage('start', {
       'how-was-your-deployment': {},
       'whats-left-to-get-you-set-up': {},
     },
+
+    psychologicalStage: '2 - Aware',
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
@@ -90,6 +92,9 @@ parasails.registerPage('start', {
         this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
       }
     }
+    if(this.me.psychologicalStage){
+      this.psychologicalStage = this.me.psychologicalStage;
+    }
     if(window.location.hash) {
       if(typeof analytics !== 'undefined') {
         if(window.location.hash === '#signup') {
@@ -127,11 +132,13 @@ parasails.registerPage('start', {
     handleSubmittingForm: async function(argins) {
       let formDataForThisStep = _.clone(argins);
       let nextStep = this.getNextStep();
-      let getStartedProgress = await Cloud.saveQuestionnaireProgress.with({
+      let newInformation = await Cloud.saveQuestionnaireProgress.with({
         currentStep: this.currentStep,
         formData: formDataForThisStep,
       });
-      this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
+
+      this.previouslyAnsweredQuestions[this.currentStep] = newInformation.getStartedProgress[this.currentStep];
+      this.psychologicalStage = newInformation.psychologicalStage;
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {
