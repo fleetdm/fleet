@@ -89,7 +89,7 @@
     <modal v-if="modal === 'edit-script'" hide-close-button="true" @close="closeModal()">
       <div>
         <div class="d-flex flex-row justify-content-between">
-          <h3>Edit script</h3>
+          <h3 class="mb-4">Edit script</h3>
           <div class="pointer" @click="closeModal()">&times;</div>
         </div>
         <ajax-form action="editScript" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptFormRules" @submitted="submittedForm()">
@@ -121,7 +121,7 @@
       //  ═╩╝╚═╝╩═╝╚═╝ ╩ ╚═╝  ╚═╝╚═╝╩╚═╩╩   ╩ %>
     <modal v-if="modal === 'delete-script'" hide-close-button="true" @close="closeModal()">
       <div class="d-flex flex-row justify-content-between">
-        <h3>Delete script</h3>
+        <h3 class="mb-4">Delete script</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <p>Delete this script from all teams.</p>
@@ -140,7 +140,7 @@
     <modal v-if="modal === 'add-script'" hide-close-button="true" @close="closeModal()">
       <div>
         <div class="d-flex flex-row justify-content-between">
-          <h3>Add script</h3>
+          <h3 class="mb-4">Add script</h3>
           <div class="pointer" @click="closeModal()">&times;</div>
         </div>
         <ajax-form :handle-submitting="handleSubmittingAddScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addScriptFormRules" @submitted="submittedForm()">

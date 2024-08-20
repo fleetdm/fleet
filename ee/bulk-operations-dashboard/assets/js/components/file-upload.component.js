@@ -123,7 +123,7 @@ parasails.registerComponent('fileUpload', {
           <p style="color: #8B8FA2" class="muted">By default, scripts will run with “#!/bin/sh” on macOS and Linux. </p>
           <div class="btn-and-tips-if-relevant">
             <label purpose="file-upload" for="file-upload-input">
-              <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose File
+              <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose file
             </label>
             <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" accept=".sh,.ps1" @change="changeFileInput($event)"/>
           </div>

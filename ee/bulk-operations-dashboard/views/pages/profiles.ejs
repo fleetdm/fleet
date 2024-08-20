@@ -81,7 +81,7 @@
   <modal v-if="modal === 'edit-profile'" hide-close-button="true" @close="closeModal()">
     <div>
       <div class="d-flex flex-row justify-content-between">
-        <h3>Edit profile</h3>
+        <h3 class="mb-4">Edit profile</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
@@ -112,7 +112,7 @@
     //  ═╩╝╚═╝╩═╝╚═╝ ╩ ╚═╝  ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝%>
   <modal v-if="modal === 'delete-profile'" hide-close-button="true" @close="closeModal()">
     <div class="d-flex flex-row justify-content-between">
-      <h3>Delete profile</h3>
+      <h3 class="mb-4">Delete profile</h3>
       <div class="pointer" @click="closeModal()">&times;</div>
     </div>
     <p>Delete this profile from all teams</p>
@@ -130,7 +130,7 @@
   <modal v-if="modal === 'add-profile'" hide-close-button="true" @close="closeModal()">
     <div>
       <div class="d-flex flex-row justify-content-between">
-        <h3>Add profile</h3>
+        <h3 class="mb-4">Add profile</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
