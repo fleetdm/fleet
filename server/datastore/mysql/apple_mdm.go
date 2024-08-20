@@ -4857,10 +4857,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last inserted row from db")
-	}
+	id, _ := res.LastInsertId()
 
 	vppTokenDB.ID = uint(id)
 
