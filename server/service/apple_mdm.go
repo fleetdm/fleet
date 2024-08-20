@@ -39,7 +39,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -2870,7 +2869,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 	}); err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
 	}
-	if host.MDM.EnrollmentStatus == ptr.String("Pending") {
+
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {
 		// Since the device has been refetched, we can assume it's enrolled.
 		err = svc.ds.UpdateMDMData(ctx, host.ID, true)
 		if err != nil {
