@@ -1,13 +1,14 @@
-name: Build and push fleetdm/fleetctl Docker image
+name: Build fleetctl docker dependencies and check vulnerabilities
 
-# Manually trigger this workflow for now
 on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Docker image tag'
+        description: "Docker image tag"
         required: true
         type: string
+  schedule:
+    - cron: "0 6 * * *"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -23,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  docker-push:
+  build-and-check:
     runs-on: ubuntu-latest
     environment: Docker Hub
     permissions:
@@ -51,20 +52,41 @@ jobs:
       - name: Install Go Dependencies
         run: make deps-go
 
+      - name: Build fleetdm/wix
+        run: make wix-docker
+
+      - name: Build fleetdm/bomutils
+        run: make bomutils-docker
+
       - name: Build fleetdm/fleetctl
         run: make fleetctl-docker
 
-      - name: Push to Docker
-        run: |
-          docker tag fleetdm/fleetctl fleetdm/fleetctl:${{ inputs.image_tag }}
-          docker push fleetdm/fleetctl:${{ inputs.image_tag }}
-
-      - name: Push To quay.io
-        id: push-to-quay
-        uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2.7.1
+      - name: Run Trivy vulnerability scanner on fleetdm/wix
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         with:
-          image: fleetdm/fleetctl
-          tags: ${{ inputs.image_tag }}
-          registry: quay.io/
-          username: fleetdm+fleetreleaser
-          password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
+          image-ref: "fleetdm/wix"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
+      - name: Run Trivy vulnerability scanner on fleetdm/bomutils
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
+        with:
+          image-ref: "fleetdm/bomutils"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
+      - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
+        with:
+          image-ref: "fleetdm/fleetctl"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
