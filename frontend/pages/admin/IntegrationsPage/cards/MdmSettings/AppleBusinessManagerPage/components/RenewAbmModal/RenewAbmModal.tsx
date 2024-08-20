@@ -57,9 +57,10 @@ const RenewAbmModal = ({
       } else {
         renderFlash("error", "Couldn’t renew. Please try again.");
       }
+      onCancel();
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, tokenId, onRenewedToken]);
+  }, [tokenFile, renderFlash, tokenId, onRenewedToken, onCancel]);
 
   return (
     <Modal
