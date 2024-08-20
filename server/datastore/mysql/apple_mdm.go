@@ -4803,9 +4803,9 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		Token:     tok.Token,
 		TeamID:    teamID,
 		NullTeam:  nullTeam,
-  }
+	}
 
-  res, err := ds.writer(ctx).ExecContext(
+	res, err := ds.writer(ctx).ExecContext(
 		ctx,
 		insertStmt,
 		vppTokenDB.OrgName,
@@ -4884,9 +4884,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
-  }
-  
-  res, err := ds.writer(ctx).ExecContext(
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
 		tok.OrganizationName,
@@ -4917,8 +4917,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	}
 
 	tok.MDMServerURL = url
- 
-  return tok, nil
+
+	return tok, nil
 }
 
 func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
