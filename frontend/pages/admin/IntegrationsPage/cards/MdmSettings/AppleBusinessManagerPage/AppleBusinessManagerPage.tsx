@@ -8,9 +8,7 @@ import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
-import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
+import { IMdmAbmToken } from "interfaces/mdm";
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
 
 import BackLink from "components/BackLink";
@@ -19,10 +17,9 @@ import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 
-import DisableAutomaticEnrollmentModal from "./modals/DisableAutomaticEnrollmentModal";
-import RenewTokenModal from "./modals/RenewTokenModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
+import RenewAbmModal from "./components/RenewAbmModal";
 import DeleteAbmModal from "./components/DeleteAbmModal";
 
 const baseClass = "apple-business-manager-page";
@@ -101,14 +98,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     // TODO: Show edit team modal
   };
 
+  const onAdded = () => {
+    refetch();
+    setShowAddAbmModal(false);
+  };
+
   const onRenewToken = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
     setShowRenewModal(true);
-  };
-
-  const onDeleteToken = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
-    setShowDeleteModal(true);
   };
 
   const onCancelRenewToken = useCallback(() => {
@@ -121,6 +118,11 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     refetch();
     setShowRenewModal(false);
   }, [refetch]);
+
+  const onDeleteToken = (abmToken: IMdmAbmToken) => {
+    selectedToken.current = abmToken;
+    setShowDeleteModal(true);
+  };
 
   const onCancelDeleteToken = useCallback(() => {
     selectedToken.current = null;
@@ -138,7 +140,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   }
 
   const showDataError = errorAbmTokens && errorAbmTokens.status !== 404;
-  const showConnectAbm = !abmTokens;
 
   const renderContent = () => {
     if (!config?.mdm.enabled_and_configured) {
@@ -203,10 +204,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         </div>
       </>
       {showAddAbmModal && (
-        <AddAbmModal onCancel={() => setShowAddAbmModal(false)} />
+        <AddAbmModal
+          onAdded={onAdded}
+          onCancel={() => setShowAddAbmModal(false)}
+        />
       )}
       {showRenewModal && selectedToken.current && (
-        <RenewTokenModal
+        <RenewAbmModal
           tokenId={selectedToken.current.id}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}

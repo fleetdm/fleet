@@ -1,9 +1,7 @@
 import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
-
 import { getErrorReason } from "interfaces/errors";
-
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 
 import Button from "components/buttons/Button";
@@ -16,17 +14,17 @@ import Modal from "components/Modal";
 
 const baseClass = "modal renew-token-modal";
 
-interface IRenewCertModalProps {
+interface IRenewAbmModalProps {
   tokenId: number;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
-const RenewCertModal = ({
+const RenewAbmModal = ({
   tokenId,
   onCancel,
   onRenewedToken,
-}: IRenewCertModalProps): JSX.Element => {
+}: IRenewAbmModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUploading, setIsUploading] = useState(false);
@@ -136,4 +134,4 @@ const RenewCertModal = ({
   );
 };
 
-export default RenewCertModal;
+export default RenewAbmModal;
