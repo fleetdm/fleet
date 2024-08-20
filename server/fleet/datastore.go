@@ -1333,6 +1333,21 @@ type Datastore interface {
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
 	UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam NullTeamType) error
 
+	// InsertABMToken inserts a new ABM token into the datastore.
+	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
+
+	// ListABMTokens lists all of the ABM tokens.
+	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
+	// DeleteABMToken deletes the given ABM token from the datastore.
+	DeleteABMToken(ctx context.Context, tokenID uint) error
+
+	// GetABMTokenByID retrieves the ABM token with the given ID.
+	GetABMTokenByID(ctx context.Context, tokenID uint) (*ABMToken, error)
+
+	// GetABMTokenCount returns the number of ABM tokens in the DB.
+	GetABMTokenCount(ctx context.Context) (int, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

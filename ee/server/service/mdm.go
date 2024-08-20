@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -19,12 +21,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
@@ -45,39 +47,20 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
-	// TODO: to be addressed in the ABM API implementation, this endpoint is now only
-	// supported if a single ABM token exists:
-	// https://github.com/fleetdm/fleet/pull/21043/files#r1706095564
-	// It has NOT been updated to the new abm tokens storage yet.
-
-	abmAssets, err := svc.ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMTokenDeprecated,
-	})
+	tokens, err := svc.ds.ListABMTokens(ctx)
 	if err != nil {
-		if errors.Is(err, mysql.ErrPartialResult) {
-			_, hasABMKey := abmAssets[fleet.MDMAssetABMKey]
-			_, hasABMCert := abmAssets[fleet.MDMAssetABMCert]
-			_, hasABMToken := abmAssets[fleet.MDMAssetABMTokenDeprecated]
-
-			// to preserve existing behavior, if the ABM setup is
-			// incomplete, return a not found error
-			if hasABMKey && hasABMCert && !hasABMToken {
-				return nil, notFoundError{}
-			}
-		}
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "GetAppleBM: listing ABM tokens")
 	}
 
-	// this is temporary just to fit the refactored call, this whole endpoint
-	// will have to be adapted to the new ABM storage.
-	abmToken := &fleet.ABMToken{
-		OrganizationName: apple_mdm.DEPName,
+	if len(tokens) == 0 {
+		return nil, notFoundError{}
 	}
-	if err := apple_mdm.SetABMTokenMetadata(ctx, abmToken, svc.depStorage, svc.ds, svc.logger); err != nil {
-		return nil, err
+
+	if len(tokens) > 1 {
+		return nil, errors.New("This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
 	}
+
+	abmToken := tokens[0]
 
 	var appleBM fleet.AppleBM
 	// transfer the abmToken metadata info to the appleBM struct
@@ -1194,4 +1177,216 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 	// Per @marko-lisica, we can add a parameter like `signed=true` if the
 	// need arises.
 	return mobileConfig, nil
+}
+
+func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
+	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting uploaded ABM token")
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	tok := &fleet.ABMToken{
+		EncryptedToken: encryptedToken,
+	}
+
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
+	}
+
+	tok, err = svc.ds.InsertABMToken(ctx, tok)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "save ABM token")
+	}
+
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
+
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM enablement")
+	}
+
+	return tok, nil
+}
+
+func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.DeleteABMToken(ctx, tokenID); err != nil {
+		return ctxerr.Wrap(ctx, err, "removing ABM token")
+	}
+
+	count, err := svc.ds.GetABMTokenCount(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting ABM token count")
+	}
+
+	if count == 0 {
+		// flip the app config flag
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving app config")
+		}
+
+		appCfg.MDM.AppleBMEnabledAndConfigured = false
+		return svc.ds.SaveAppConfig(ctx, appCfg)
+	}
+
+	return nil
+}
+
+func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	tokens, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
+	}
+
+	return tokens, nil
+}
+
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token to update teams")
+	}
+
+	// validate the team IDs
+	var macOSTeamName, iOSTeamName, iPadOSTeamName string
+	if macOSTeamID != nil {
+		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of macOS team"),
+			}
+		}
+
+		macOSTeamName = macOSTeam.Name
+	}
+
+	if iOSTeamID != nil {
+		iOSTeam, err := svc.ds.Team(ctx, *iOSTeamID)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
+			}
+		}
+		iOSTeamName = iOSTeam.Name
+	}
+
+	if iPadOSTeamID != nil {
+		iPadOSTeam, err := svc.ds.Team(ctx, *iPadOSTeamID)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
+			}
+		}
+		iPadOSTeamName = iPadOSTeam.Name
+	}
+
+	token.MacOSDefaultTeamID = macOSTeamID
+	token.IOSDefaultTeamID = iOSTeamID
+	token.IPadOSDefaultTeamID = iPadOSTeamID
+
+	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
+	}
+
+	token.MacOSTeam = macOSTeamName
+	token.IOSTeam = iOSTeamName
+	token.IPadOSTeam = iPadOSTeamName
+
+	return token, nil
+}
+
+func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	oldTok, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
+	}
+
+	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
+	}
+
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
+	}
+
+	oldTok.EncryptedToken = encryptedToken
+
+	if err := svc.ds.SaveABMToken(ctx, oldTok); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "renewing ABM token")
+	}
+
+	return oldTok, nil
+}
+
+func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader) (encryptedToken []byte, decryptedToken *client.OAuth1Tokens, err error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMKey,
+	})
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Please generate a keypair first.",
+			}, "renewing ABM token")
+		}
+
+		return nil, nil, ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
+	}
+
+	encryptedToken, err = io.ReadAll(token)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "reading token bytes")
+	}
+
+	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
+	if derCert == nil {
+		return nil, nil, ctxerr.New(ctx, "ABM certificate in the database cannot be parsed")
+	}
+
+	cert, err := x509.ParseCertificate(derCert.Bytes)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
+	}
+
+	decryptedToken, err = assets.DecryptRawABMToken(encryptedToken, cert, pair[fleet.MDMAssetABMKey].Value)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
+			InternalErr: err,
+		}, "validating ABM token")
+	}
+	return encryptedToken, decryptedToken, nil
 }
