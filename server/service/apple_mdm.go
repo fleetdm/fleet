@@ -3852,7 +3852,7 @@ func (uploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 }
 
 type uploadABMTokenResponse struct {
-	Token *fleet.ABMToken `json:"token,omitempty"`
+	Token *fleet.ABMToken `json:"abm_token,omitempty"`
 	Err   error           `json:"error,omitempty"`
 }
 
