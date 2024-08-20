@@ -818,8 +818,8 @@ type Service interface {
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
 
-	// DisableABM deletes the given ABM token.
-	DisableABM(ctx context.Context, tokenID uint) error
+	// DeleteABMToken deletes the given ABM token.
+	DeleteABMToken(ctx context.Context, tokenID uint) error
 
 	// RenewABMToken replaces the contents of the given ABM token with the given bytes.
 	RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*ABMToken, error)

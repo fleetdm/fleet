@@ -3901,14 +3901,14 @@ func (r deleteABMTokenResponse) Status() int  { return http.StatusNoContent }
 
 func deleteABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteABMTokenRequest)
-	if err := svc.DisableABM(ctx, req.TokenID); err != nil {
+	if err := svc.DeleteABMToken(ctx, req.TokenID); err != nil {
 		return deleteABMTokenResponse{Err: err}, nil
 	}
 
 	return deleteABMTokenResponse{}, nil
 }
 
-func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
+func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

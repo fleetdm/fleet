@@ -1217,7 +1217,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 	return tok, nil
 }
 
-func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
+func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return err
 	}
