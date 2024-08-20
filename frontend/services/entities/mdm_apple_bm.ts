@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { IMdmAbmToken } from "interfaces/mdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -57,5 +58,35 @@ export default {
   disableAutomaticEnrollment: () => {
     const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
     return sendRequest("DELETE", MDM_APPLE_BM_TOKEN);
+  },
+
+  getTokens: (): Promise<IMdmAbmToken[]> => {
+    const { MDM_ABM_TOKENS } = endpoints;
+    console.log("Fetching ABM tokens from:", MDM_ABM_TOKENS);
+    // return sendRequest("GET", MDM_ABM_TOKENS);
+    return Promise.resolve([
+      {
+        id: 1,
+        apple_id: "apple@example.com",
+        org_name: "Fleet Device Management Inc.",
+        mdm_server_url: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-11-29T00:00:00Z", // TODO: test coverage for invalid dates
+        terms_expired: false,
+        macos_team: "💻 Workstations",
+        ios_team: "📱🏢 Company-owned iPhones",
+        ipados_team: "🔳🏢 Company-owned iPads",
+      },
+      {
+        id: 2,
+        apple_id: "apple@example.com",
+        org_name: "Fleet Device Management Inc.",
+        mdm_server_url: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-11-29T00:00:00Z",
+        terms_expired: false,
+        macos_team: "💻 Workstations",
+        ios_team: "📱🏢 Company-owned iPhones",
+        ipados_team: "🔳🏢 Company-owned iPads",
+      },
+    ]); // TODO: remove when API is ready
   },
 };

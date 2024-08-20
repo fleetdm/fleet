@@ -64,9 +64,9 @@ import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExper
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/AppleAutomaticEnrollmentPage";
-import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
-import VppSetupPage from "pages/admin/IntegrationsPage/cards/Vpp/VppSetupPage";
+import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleAutomaticEnrollmentPage";
+import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
+import VppSetupPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppSetupPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
@@ -168,6 +168,13 @@ const routes = (
                   component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
+                {/* This redirect is used to handle the old URL for these two
+                pages */}
+                <Redirect
+                  from="integrations/automatic-enrollment"
+                  to="integrations/mdm"
+                />
+                <Redirect from="integrations/vpp" to="integrations/mdm" />
                 <Route
                   path="integrations/:section"
                   component={AdminIntegrationsPage}

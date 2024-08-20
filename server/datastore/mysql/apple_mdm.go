@@ -4782,7 +4782,7 @@ WHERE
 		tok.OrganizationName,
 		tok.AppleID,
 		tok.TermsExpired,
-		tok.RenewAt,
+		tok.RenewAt.UTC(),
 		doubleEncTok,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
