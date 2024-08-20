@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import classnames from "classnames";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -19,7 +19,7 @@ interface IStatusIndicatorProps {
    */
   indicator?: IIndicatorValue;
   tooltip?: {
-    tooltipText: string | JSX.Element;
+    tooltipText: ReactNode;
     position?: "top" | "bottom";
   };
   /**

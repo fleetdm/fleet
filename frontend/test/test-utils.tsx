@@ -171,3 +171,17 @@ export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
     ...overrides,
   };
 };
+
+/** helper method to generate a date "x" days ago. */
+export const daysAgo = (days: number) => {
+  const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() - days);
+  return currentDate.toISOString();
+};
+
+/** helper method to generate a date "x" days from now */
+export const daysFromNow = (days: number) => {
+  const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() + days);
+  return currentDate.toISOString();
+};

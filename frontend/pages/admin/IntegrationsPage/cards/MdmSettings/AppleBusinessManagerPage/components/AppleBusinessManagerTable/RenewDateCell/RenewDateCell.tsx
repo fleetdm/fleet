@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import classnames from "classnames";
 
 import StatusIndicator from "components/StatusIndicator";
@@ -25,18 +25,33 @@ const RenewDateCell = ({ value, className }: IRenewDateCellProps) => {
   const classNames = classnames(baseClass, className, "w250");
 
   let indicatorStatus: Exclude<IIndicatorValue, "indeterminate"> = "success";
+  let tooltipText: ReactNode = null;
 
   if (willExpireWithinXDays(value, 30)) {
     indicatorStatus = "warning";
+    tooltipText = (
+      <>
+        ABM server token is less than 30 days from expiration. To renew, go to{" "}
+        <b>Actions {">"} Renew.</b>
+      </>
+    );
   } else if (hasLicenseExpired(value)) {
     indicatorStatus = "error";
+    tooltipText = (
+      <>
+        ABM server token is expired. To renew, go to <b>Actions {">"} Renew</b>.
+      </>
+    );
   }
+
+  const tooltipProp = tooltipText ? { tooltipText } : undefined;
 
   return (
     <StatusIndicator
       className={classNames}
       value={formattedDate}
       indicator={indicatorStatus}
+      tooltip={tooltipProp}
     />
   );
 };
