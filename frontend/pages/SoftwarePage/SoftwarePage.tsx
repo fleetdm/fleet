@@ -164,7 +164,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
-  const [showAddFilterModal, setShowAddFilterModal] = useState(false);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
     null
@@ -262,8 +264,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   }, [setShowPreviewTicketModal, showPreviewTicketModal]);
 
   const toggleAddFilterModal = useCallback(() => {
-    setShowAddFilterModal(!showAddFilterModal);
-  }, [setShowAddFilterModal, showAddFilterModal]);
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
   // TODO: move into manage automations modal
   const onCreateWebhookSubmit = async (
@@ -474,8 +476,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             isFreeTier={isFreeTier}
           />
         )}
-
-        {showAddFilterModal && (
+        {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
             onExit={toggleAddFilterModal}
             onSubmit={onApplyVulnFilters}

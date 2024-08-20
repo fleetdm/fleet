@@ -83,6 +83,7 @@ interface ITableContainerProps<T = any> {
   customControl?: () => JSX.Element;
   /** Filter button right of the search rendering alternative responsive design */
   customFilters?: () => JSX.Element;
+  includeFilterSelectorButton?: boolean;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
   /** This is called when you click on a row. This was added as `onSelectSingleRow`
@@ -147,6 +148,7 @@ const TableContainer = <T,>({
   onQueryChange,
   customControl,
   customFilters,
+  includeFilterSelectorButton = false,
   stackControls,
   onSelectSingleRow,
   onClickRow,
@@ -269,11 +271,11 @@ const TableContainer = <T,>({
     onPaginationChange,
   ]);
 
-  const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
+  const renderFilters = useCallback(() => {
+    const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
-  return (
-    <div className={wrapperClasses}>
-      {customFilters ? (
+    if (includeFilterSelectorButton) {
+      return (
         <div className="container">
           <div className="box">
             {renderCount && !disableCount && (
@@ -333,92 +335,98 @@ const TableContainer = <T,>({
           </div>
           {customFilters && <div className="box"> {customFilters()} </div>}
         </div>
-      ) : (
-        <>
-          {wideSearch && searchable && (
-            <div className={`${baseClass}__search-input wide-search`}>
-              <SearchField
-                placeholder={inputPlaceHolder}
-                defaultValue={searchQuery}
-                onChange={onSearchQueryChange}
-              />
-            </div>
-          )}
-          {!disableTableHeader && (
+      );
+    }
+    return (
+      <>
+        {wideSearch && searchable && (
+          <div className={`${baseClass}__search-input wide-search`}>
+            <SearchField
+              placeholder={inputPlaceHolder}
+              defaultValue={searchQuery}
+              onChange={onSearchQueryChange}
+            />
+          </div>
+        )}
+        {!disableTableHeader && (
+          <div
+            className={`${baseClass}__header ${
+              stackControls ? "stack-table-controls" : ""
+            }`}
+          >
             <div
-              className={`${baseClass}__header ${
+              className={`${baseClass}__header-left ${
                 stackControls ? "stack-table-controls" : ""
               }`}
             >
-              <div
-                className={`${baseClass}__header-left ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-              >
-                {renderCount && !disableCount && (
-                  <div
-                    className={`${baseClass}__results-count ${
-                      stackControls ? "stack-table-controls" : ""
-                    }`}
-                    style={opacity}
-                  >
-                    {renderCount()}
-                  </div>
-                )}
-                <span className="controls">
-                  {actionButton && !actionButton.hideButton && (
-                    <Button
-                      disabled={disableActionButton}
-                      onClick={actionButton.onActionButtonClick}
-                      variant={actionButton.variant || "brand"}
-                      className={`${baseClass}__table-action-button`}
-                    >
-                      <>
-                        {actionButton.buttonText}
-                        {actionButton.iconSvg && (
-                          <Icon name={actionButton.iconSvg} />
-                        )}
-                      </>
-                    </Button>
-                  )}
-                  {customControl && customControl()}
-                </span>
-              </div>
-
-              {/* Render search bar only if not empty component */}
-              {searchable && !wideSearch && (
-                <div className={`${baseClass}__search`}>
-                  <div
-                    className={`${baseClass}__search-input ${
-                      stackControls ? "stack-table-controls" : ""
-                    }`}
-                    data-tip
-                    data-for="search-tooltip"
-                    data-tip-disable={!searchToolTipText}
-                  >
-                    <SearchField
-                      placeholder={inputPlaceHolder}
-                      defaultValue={searchQuery}
-                      onChange={onSearchQueryChange}
-                    />
-                  </div>
-                  <ReactTooltip
-                    effect="solid"
-                    backgroundColor={COLORS["tooltip-bg"]}
-                    id="search-tooltip"
-                    data-html
-                  >
-                    <span className={`tooltip ${baseClass}__tooltip-text`}>
-                      {searchToolTipText}
-                    </span>
-                  </ReactTooltip>
+              {renderCount && !disableCount && (
+                <div
+                  className={`${baseClass}__results-count ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  style={opacity}
+                >
+                  {renderCount()}
                 </div>
               )}
+              <span className="controls">
+                {actionButton && !actionButton.hideButton && (
+                  <Button
+                    disabled={disableActionButton}
+                    onClick={actionButton.onActionButtonClick}
+                    variant={actionButton.variant || "brand"}
+                    className={`${baseClass}__table-action-button`}
+                  >
+                    <>
+                      {actionButton.buttonText}
+                      {actionButton.iconSvg && (
+                        <Icon name={actionButton.iconSvg} />
+                      )}
+                    </>
+                  </Button>
+                )}
+                {customControl && customControl()}
+              </span>
             </div>
-          )}
-        </>
-      )}
 
+            {/* Render search bar only if not empty component */}
+            {searchable && !wideSearch && (
+              <div className={`${baseClass}__search`}>
+                <div
+                  className={`${baseClass}__search-input ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  data-tip
+                  data-for="search-tooltip"
+                  data-tip-disable={!searchToolTipText}
+                >
+                  <SearchField
+                    placeholder={inputPlaceHolder}
+                    defaultValue={searchQuery}
+                    onChange={onSearchQueryChange}
+                  />
+                </div>
+                <ReactTooltip
+                  effect="solid"
+                  backgroundColor={COLORS["tooltip-bg"]}
+                  id="search-tooltip"
+                  data-html
+                >
+                  <span className={`tooltip ${baseClass}__tooltip-text`}>
+                    {searchToolTipText}
+                  </span>
+                </ReactTooltip>
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  }, []);
+
+  return (
+    <div className={wrapperClasses}>
+      {renderFilters()}
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
         {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||

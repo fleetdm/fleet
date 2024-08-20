@@ -41,10 +41,9 @@ import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
-  SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
   getSoftwareFilterForQueryKey,
   getSoftwareVulnFiltersForQueryKey,
-  getVulnFilterDetails,
+  getVulnFilterRenderDetails,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -195,7 +194,8 @@ const SoftwareTable = ({
   const hasQuery = query !== "";
   const hasSoftwareFilter = softwareFilter !== "allSoftware";
   const hasVersionFilter = showVersions;
-  const hasVulnFilters = getVulnFilterDetails(vulnFilters).filterCount > 0;
+  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
+  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   const showFilterHeaders =
     isSoftwareEnabled &&
@@ -290,17 +290,13 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    const options = showVersions
-      ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
-      : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
-
     return (
       <div className={`${baseClass}__filter-controls`}>
         {!showVersions && ( // Hidden when viewing versions table
           <Dropdown
             value={softwareFilter}
             className={`${baseClass}__vuln_dropdown`}
-            options={options}
+            options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
             searchable={false}
             onChange={handleCustomFilterDropdownChange}
             tableFilterDropdown
@@ -317,8 +313,6 @@ const SoftwareTable = ({
   };
 
   const renderCustomFilters = () => {
-    const vulnFilterDetails = getVulnFilterDetails(vulnFilters);
-
     return (
       <TooltipWrapper
         className={`${baseClass}__filters`}
@@ -327,7 +321,7 @@ const SoftwareTable = ({
         showArrow
         tipOffset={12}
         tipContent={vulnFilterDetails.tooltipText}
-        disableTooltip={vulnFilterDetails.filterCount === 0}
+        disableTooltip={!hasVulnFilters}
       >
         <Button variant="text-link" onClick={onAddFilterClick}>
           <Icon name="filter" color="core-fleet-blue" />

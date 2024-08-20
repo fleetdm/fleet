@@ -11,6 +11,7 @@ import {
   trim,
   trimEnd,
   union,
+  uniqueId,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -824,7 +825,7 @@ export const syntaxHighlight = (json: any): string => {
 export const tooltipTextWithLineBreaks = (lines: string[]) => {
   return lines.map((line) => {
     return (
-      <span key={Math.random().toString().slice(2)}>
+      <span key={uniqueId()}>
         {line}
         <br />
       </span>

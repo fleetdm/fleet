@@ -11,33 +11,25 @@ export type IHostSoftwareDropdownFilterVal =
   | ISoftwareDropdownFilterVal
   | "vulnerableSoftware";
 
-const ALL_SOFTWARE_OPTION = {
-  disabled: false,
-  label: "All software",
-  value: "allSoftware",
-  helpText: "All software installed on your hosts.",
-};
-
-const INSTALLABLE_SOFTWARE_OPTION = {
-  disabled: false,
-  label: "Available for install",
-  value: "installableSoftware",
-  helpText: "Software that can be installed on your hosts.",
-};
-
-const SELF_SERVICE_SOFTWARE_OPTION = {
-  disabled: false,
-  label: "Self-service",
-  value: "selfServiceSoftware",
-  helpText: "Software that end users can install from Fleet Desktop.",
-};
-
-export const SOFTWARE_VERSIONS_DROPDOWN_OPTIONS = [ALL_SOFTWARE_OPTION];
-
 export const SOFTWARE_TITLES_DROPDOWN_OPTIONS = [
-  ALL_SOFTWARE_OPTION,
-  INSTALLABLE_SOFTWARE_OPTION,
-  SELF_SERVICE_SOFTWARE_OPTION,
+  {
+    disabled: false,
+    label: "All software",
+    value: "allSoftware",
+    helpText: "All software installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Available for install",
+    value: "installableSoftware",
+    helpText: "Software that can be installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Self-service",
+    value: "selfServiceSoftware",
+    helpText: "Software that end users can install from Fleet Desktop.",
+  },
 ];
 
 export const SEVERITY_DROPDOWN_OPTIONS = [
@@ -175,7 +167,7 @@ export const findOptionBySeverityRange = (
   return severityOption;
 };
 
-export const getVulnFilterDetails = (
+export const getVulnFilterRenderDetails = (
   vulnFilters?: ISoftwareVulnFiltersParams
 ) => {
   let filterCount = 0;
