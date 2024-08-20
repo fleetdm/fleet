@@ -3888,24 +3888,24 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.A
 // Disable ABM endpoint
 ////////////////////////////////////////////////////////////////////////////////
 
-type disableABMRequest struct {
+type deleteABMTokenRequest struct {
 	TokenID uint `url:"id"`
 }
 
-type disableABMResponse struct {
+type deleteABMTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r disableABMResponse) error() error { return r.Err }
-func (r disableABMResponse) Status() int  { return http.StatusNoContent }
+func (r deleteABMTokenResponse) error() error { return r.Err }
+func (r deleteABMTokenResponse) Status() int  { return http.StatusNoContent }
 
-func disableABMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*disableABMRequest)
+func deleteABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteABMTokenRequest)
 	if err := svc.DisableABM(ctx, req.TokenID); err != nil {
-		return disableABMResponse{Err: err}, nil
+		return deleteABMTokenResponse{Err: err}, nil
 	}
 
-	return disableABMResponse{}, nil
+	return deleteABMTokenResponse{}, nil
 }
 
 func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
