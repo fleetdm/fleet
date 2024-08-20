@@ -172,16 +172,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const selectedMdmSolutionName = useRef<string>("");
 
-  const [munkiIssuesData, setMunkiIssuesData] = useState<
-    IMunkiIssuesAggregate[]
-  >([]);
-  const [munkiVersionsData, setMunkiVersionsData] = useState<
-    IMunkiVersionsAggregate[]
-  >([]);
   const [mdmTitleDetail, setMdmTitleDetail] = useState<
-    JSX.Element | string | null
-  >();
-  const [munkiTitleDetail, setMunkiTitleDetail] = useState<
     JSX.Element | string | null
   >();
 
@@ -423,26 +414,24 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
   );
 
-  const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
-    IMacadminAggregate,
-    Error
-  >(["macAdmins", teamIdForApi], () => macadminsAPI.loadAll(teamIdForApi), {
-    keepPreviousData: true,
-    enabled: isRouteOk && selectedPlatform === "darwin",
-    onSuccess: ({
-      macadmins: { munki_issues, munki_versions, counts_updated_at },
-    }) => {
-      setMunkiVersionsData(munki_versions);
-      setMunkiIssuesData(munki_issues);
-      setShowMunkiCard(!!munki_versions);
-      setMunkiTitleDetail(
-        <LastUpdatedText
-          lastUpdatedAt={counts_updated_at}
-          whatToRetrieve="Munki"
-        />
-      );
-    },
-  });
+  const {
+    data: macAdminsData,
+    isFetching: isMacAdminsFetching,
+    error: errorMacAdmins,
+  } = useQuery<IMacadminAggregate, Error, IMacadminAggregate["macadmins"]>(
+    ["macAdmins", teamIdForApi],
+    () => macadminsAPI.loadAll(teamIdForApi),
+    {
+      select: (data) => data.macadmins,
+      keepPreviousData: true,
+      enabled: isRouteOk && selectedPlatform === "darwin",
+    }
+  );
+  const {
+    munki_issues: munkiIssues,
+    munki_versions: munkiVersions,
+    counts_updated_at: munkiCountsUpdatedAt,
+  } = macAdminsData || {};
 
   useEffect(() => {
     softwareCount && softwareCount > 0
@@ -670,7 +659,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const MunkiCard = useInfoCard({
     title: "Munki",
-    titleDetail: munkiTitleDetail,
+    titleDetail: (
+      <LastUpdatedText
+        lastUpdatedAt={munkiCountsUpdatedAt}
+        whatToRetrieve="Munki"
+      />
+    ),
     showTitle: !isMacAdminsFetching,
     description: (
       <p>
@@ -686,8 +680,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <Munki
         errorMacAdmins={errorMacAdmins}
         isMacAdminsFetching={isMacAdminsFetching}
-        munkiIssuesData={munkiIssuesData}
-        munkiVersionsData={munkiVersionsData}
+        munkiIssuesData={munkiIssues || []}
+        munkiVersionsData={munkiVersions || []}
         selectedTeamId={currentTeamId}
       />
     ),
@@ -752,7 +746,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
-      {showMunkiCard && (
+      {!!munkiVersions && (
         <div className={`${baseClass}__section`}>{MunkiCard}</div>
       )}
     </>
