@@ -4708,50 +4708,12 @@ LIMIT 500
 }
 
 func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
-	const stmt = `
-SELECT
-	abt.id,
-	abt.organization_name,
-	abt.apple_id,
-	abt.terms_expired,
-	abt.renew_at,
-	abt.token,
-	abt.macos_default_team_id,
-	abt.ios_default_team_id,
-	abt.ipados_default_team_id,
-	COALESCE(t1.name, '') as macos_team,
-	COALESCE(t2.name, '') as ios_team,
-	COALESCE(t3.name, '') as ipados_team
-FROM
-	abm_tokens abt
-LEFT OUTER JOIN
-	teams t1 ON t1.id = abt.macos_default_team_id
-LEFT OUTER JOIN
-	teams t2 ON t2.id = abt.ios_default_team_id
-LEFT OUTER JOIN
-	teams t3 ON t3.id = abt.ipados_default_team_id
-WHERE
-	abt.organization_name = ?`
-
-	var abmTok fleet.ABMToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &abmTok, stmt, orgName); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("ABMToken").WithName(orgName))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get abm token by org name")
-	}
-
-	// decrypt the token with the serverPrivateKey, the resulting value will be
-	// the token still encrypted, but just with the ABM cert and key (it is that
-	// encrypted value that is stored with another layer of encryption with the
-	// serverPrivateKey).
-	decrypted, err := decrypt(abmTok.EncryptedToken, ds.serverPrivateKey)
+	tok, err := ds.getABMToken(ctx, 0, orgName)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by org name")
 	}
-	abmTok.EncryptedToken = decrypted
 
-	return &abmTok, nil
+	return tok, nil
 }
 
 func (ds *Datastore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
@@ -4788,4 +4750,199 @@ WHERE
 		tok.IPadOSDefaultTeamID,
 		tok.ID)
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
+}
+
+func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	const stmt = `
+INSERT INTO
+	abm_tokens
+	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`
+	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrganizationName,
+		tok.AppleID,
+		tok.TermsExpired,
+		tok.RenewAt,
+		doubleEncTok,
+		tok.MacOSDefaultTeamID,
+		tok.IOSDefaultTeamID,
+		tok.IPadOSDefaultTeamID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token")
+	}
+
+	tokenID, _ := res.LastInsertId()
+
+	tok.ID = uint(tokenID)
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	return tok, nil
+}
+
+func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	const stmt = `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+
+	`
+
+	var tokens []*fleet.ABMToken
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokens, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
+	}
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	for _, tok := range tokens {
+		tok.MDMServerURL = url
+	}
+
+	return tokens, nil
+}
+
+func (ds *Datastore) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	const stmt = `
+DELETE FROM
+	abm_tokens
+WHERE ID = ?
+		`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, tokenID)
+
+	return ctxerr.Wrap(ctx, err, "deleting ABM token")
+}
+
+func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+	tok, err := ds.getABMToken(ctx, tokenID, "")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string) (*fleet.ABMToken, error) {
+	stmt := `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.token,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+%s
+	`
+
+	var ident any = orgName
+	clause := "WHERE abt.organization_name = ?"
+	if tokenID != 0 {
+		clause = "WHERE abt.id = ?"
+		ident = tokenID
+	}
+
+	stmt = fmt.Sprintf(stmt, clause)
+
+	var tok fleet.ABMToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tok, stmt, ident); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token")
+	}
+
+	// decrypt the token with the serverPrivateKey, the resulting value will be
+	// the token still encrypted, but just with the ABM cert and key (it is that
+	// encrypted value that is stored with another layer of encryption with the
+	// serverPrivateKey).
+	decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+	}
+	tok.EncryptedToken = decrypted
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	return &tok, nil
+}
+
+func (ds *Datastore) GetABMTokenCount(ctx context.Context) (int, error) {
+	var count int
+	const countStmt = `SELECT COUNT(*) FROM abm_tokens`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting existing ABM tokens")
+	}
+
+	return count, nil
 }

@@ -864,6 +864,16 @@ type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.
 
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
+type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
+
+type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
+
+type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
+
+type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error)
+
+type GetABMTokenCountFunc func(ctx context.Context) (int, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2286,6 +2296,21 @@ type DataStore struct {
 
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
+
+	InsertABMTokenFunc        InsertABMTokenFunc
+	InsertABMTokenFuncInvoked bool
+
+	ListABMTokensFunc        ListABMTokensFunc
+	ListABMTokensFuncInvoked bool
+
+	DeleteABMTokenFunc        DeleteABMTokenFunc
+	DeleteABMTokenFuncInvoked bool
+
+	GetABMTokenByIDFunc        GetABMTokenByIDFunc
+	GetABMTokenByIDFuncInvoked bool
+
+	GetABMTokenCountFunc        GetABMTokenCountFunc
+	GetABMTokenCountFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5476,6 +5501,41 @@ func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error
 	s.SaveABMTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveABMTokenFunc(ctx, tok)
+}
+
+func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.InsertABMTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertABMTokenFunc(ctx, tok)
+}
+
+func (s *DataStore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.ListABMTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListABMTokensFunc(ctx)
+}
+
+func (s *DataStore) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.DeleteABMTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteABMTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByIDFunc(ctx, tokenID)
+}
+
+func (s *DataStore) GetABMTokenCount(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.GetABMTokenCountFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenCountFunc(ctx)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

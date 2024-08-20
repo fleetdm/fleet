@@ -6354,16 +6354,17 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 
 	// create a token with an empty name and no team set, and another that will be unused
 	encTok := uuid.NewString()
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		doubleEncTok, err := encrypt([]byte(encTok), ds.serverPrivateKey)
-		require.NoError(t, err)
 
-		_, err = q.ExecContext(ctx, `
-			INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token)
-			VALUES ('', '', ?, ?), ('unused', '', ?, ?)
-			`, time.Now(), doubleEncTok, time.Now(), uuid.NewString())
-		return err
-	})
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t2.ID)
+
+	toks, err := ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	require.Len(t, toks, 2)
 
 	// get that token
 	tok, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -6431,4 +6432,17 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Empty(t, tokReload.MacOSTeam)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+
+	// Remove unused token
+	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
+
+	toks, err = ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	require.Len(t, toks, 1)
+	expTok := toks[0]
+	require.Equal(t, "org-name", expTok.OrganizationName)
+	require.Equal(t, "name@example.com", expTok.AppleID)
+	require.Empty(t, expTok.MacOSTeam)
+	require.Equal(t, tm2.Name, expTok.IOSTeam)
+	require.Equal(t, tm3.Name, expTok.IPadOSTeam)
 }
