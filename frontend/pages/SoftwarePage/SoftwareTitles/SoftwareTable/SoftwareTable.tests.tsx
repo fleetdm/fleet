@@ -60,7 +60,7 @@ describe("Software table", () => {
         teamId={1}
         isLoading={false}
         resetPageIndex={false}
-        onAddFilterClick={noop}
+        onAddFiltersClick={noop}
       />
     );
 
@@ -103,7 +103,7 @@ describe("Software table", () => {
         teamId={1}
         isLoading={false}
         resetPageIndex={false}
-        onAddFilterClick={noop}
+        onAddFiltersClick={noop}
       />
     );
 
@@ -150,7 +150,7 @@ describe("Software table", () => {
         teamId={1}
         isLoading={false}
         resetPageIndex={false}
-        onAddFilterClick={noop}
+        onAddFiltersClick={noop}
       />
     );
 
@@ -195,7 +195,7 @@ describe("Software table", () => {
         teamId={1}
         isLoading={false}
         resetPageIndex={false}
-        onAddFilterClick={noop}
+        onAddFiltersClick={noop}
       />
     );
 
@@ -244,7 +244,7 @@ describe("Software table", () => {
         teamId={1}
         isLoading={false}
         resetPageIndex={false}
-        onAddFilterClick={noop}
+        onAddFiltersClick={noop}
       />
     );
 
