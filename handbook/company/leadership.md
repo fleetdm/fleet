@@ -310,19 +310,33 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 1. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
 2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
+
 > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
+
    - First and last name
    - Preferred pronoun _("them", "her", or "him")_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - Location of candidate
-3. **Schedule CEO interview:** [Book a quick chat](https://fleetdm.com/handbook/digital-experience#contact-us) so our CEO can get to know the future Fleetie.  (Please take care of all of the previous steps first.)
-   - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions. Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
+
+3. **Compile feedback into a single doc:** In the "interview packet", include feedback from interviews, reference checks, and challenge submissions. Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - Name the doc with a short, formulaic name that's easy to understand in an instant from just an email subject line (e.g. "_Why hire Jane Doe ("Train Conductor") - 2023-03-21_").
    - _Share_ this single document with the CEO.
-   - Link the single doc in the issue (this is so the CEO can review before the interview). 
-4. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
+4. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
+
+     ```
+    *CEO interview request:*
+    Hi @Savannah Friend, the following candidate is ready for a CEO interview. cc: @Sam Pfluger
+    - Name: TODO
+    - Position: TODO
+    - LinkedIn: TODO
+    - Email: TODO
+    - Single doc URL: TODO
+     ```
+     
+5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Share_ this single document with the Head of Business Operations via email.
-   - When the Head of Business Operations receives this doc shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
+   - When the Head of Business Operations receives this shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
+
 
 ### Making an offer
 After receiving the interview packet, the Head of Business Operations uses the following steps to make an offer:
