@@ -164,6 +164,12 @@ const EditTeamsAbmModal = ({
             value={selectedTeamNames.macos_team}
             label="macOS team"
             wrapperClassName={`${baseClass}__form-field form-field--macos`}
+            tooltip={
+              <>
+                macOS hosts are automatically added to this team in Fleet when
+                they appear in Apple Business Manager.
+              </>
+            }
           />
           <Dropdown
             searchable={false}
@@ -174,6 +180,12 @@ const EditTeamsAbmModal = ({
             value={selectedTeamNames.ios_team}
             label="iOS team"
             wrapperClassName={`${baseClass}__form-field form-field--ios`}
+            tooltip={
+              <>
+                macOS hosts are automatically added to this team in Fleet when
+                they appear in Apple Business Manager.
+              </>
+            }
           />
           <Dropdown
             searchable={false}
@@ -184,6 +196,12 @@ const EditTeamsAbmModal = ({
             value={selectedTeamNames.ipados_team}
             label="iPadOS team"
             wrapperClassName={`${baseClass}__form-field form-field--ipados`}
+            tooltip={
+              <>
+                macOS hosts are automatically added to this team in Fleet when
+                they appear in Apple Business Manager.
+              </>
+            }
           />
           <div className="modal-cta-wrap">
             <Button
