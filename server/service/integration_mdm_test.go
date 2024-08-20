@@ -9974,20 +9974,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, location, resp.Tokens[0].Location)
 	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
 
-	// Simulate renewal flow
-	// orgName = "Fleet Device Management Inc. New Org Name"
-	// token = "myothercooltoken"
-	// expDate = "2026-06-24T15:50:50+0000"
-	// tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	// s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
-
-	// resp = getMDMAppleVPPTokenResponse{}
-	// s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
-	// require.NoError(t, resp.Err)
-	// require.Equal(t, orgName, resp.OrgName)
-	// require.Equal(t, location, resp.Location)
-	// require.Equal(t, expDate, resp.RenewDate)
-
 	// Create a team
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
