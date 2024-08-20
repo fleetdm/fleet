@@ -2772,42 +2772,35 @@ func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
 func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*patchVPPTokensTeamsRequest)
 
-	if req.TeamIDs != nil && len(*req.TeamIDs) != 1 {
-		return nil, fleet.NewUserMessageError(errors.New("A VPP token can only belong to one team"), http.StatusBadRequest)
-	}
-
-	var teamID *uint
-	var nullTeam fleet.NullTeamType
-	if req.TeamIDs == nil {
-		nullTeam = fleet.NullTeamNoTeam
-	} else if len(*req.TeamIDs) == 0 {
-		nullTeam = fleet.NullTeamAllTeams
-	} else if (*req.TeamIDs)[0] == 0 {
-		nullTeam = fleet.NullTeamNone
-	} else {
-		nullTeam = fleet.NullTeamNone
-		teamID = &(*req.TeamIDs)[0]
-	}
-
-	if err := svc.UpdateVPPTokenTeams(ctx, req.ID, teamID, nullTeam); err != nil {
+	if err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamIDs); err != nil {
 		return patchVPPTokensTeamsResponse{Err: err}, nil
 	}
 	return patchVPPTokensTeamsResponse{}, nil
 }
 
-func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs *[]uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving vpp token")
+	if teamIDs != nil && len(*teamIDs) > 1 {
+		return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New("A VPP token can only belong to one team"), http.StatusBadRequest))
 	}
 
-	tok.TeamID = teamID
-	tok.NullTeam = nullTeam
-	if err := svc.ds.UpdateVPPToken(ctx, tok); err != nil {
+	var nullTeam fleet.NullTeamType
+	var teamID *uint
+	if teamIDs == nil {
+		nullTeam = fleet.NullTeamNoTeam
+	} else if len(*teamIDs) == 0 {
+		nullTeam = fleet.NullTeamAllTeams
+	} else if (*teamIDs)[0] == 0 {
+		nullTeam = fleet.NullTeamNone
+	} else {
+		nullTeam = fleet.NullTeamNone
+		teamID = &(*teamIDs)[0]
+	}
+
+	if err := svc.ds.UpdateVPPTokenTeam(ctx, tokenID, teamID, nullTeam); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
 
