@@ -23,7 +23,7 @@ const AppleBusinessManagerTable = ({
 }: IAppleBusinessManagerTableProps) => {
   const onSelectAction = (action: string, abmToken: IMdmAbmToken) => {
     switch (action) {
-      case "editTeam":
+      case "editTeams":
         console.log(action, abmToken);
         onEditTokenTeam(abmToken);
         break;

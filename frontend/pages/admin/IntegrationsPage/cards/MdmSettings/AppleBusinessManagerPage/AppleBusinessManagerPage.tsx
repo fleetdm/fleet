@@ -24,6 +24,7 @@ import RenewTokenModal from "./modals/RenewTokenModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
 import DeleteAbmModal from "./components/DeleteAbmModal";
+import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -77,6 +78,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
   const selectedToken = useRef<IMdmAbmToken | null>(null);
 
@@ -98,8 +100,19 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
   const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
-    // TODO: Show edit team modal
+    setShowEditTeamModal(true);
   };
+
+  const onCancelEditTeam = useCallback(() => {
+    selectedToken.current = null;
+    setShowEditTeamModal(false);
+  }, []);
+
+  const onEditedTeam = useCallback(() => {
+    selectedToken.current = null;
+    refetch();
+    setShowEditTeamModal(false);
+  }, [refetch]);
 
   const onRenewToken = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
@@ -218,6 +231,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           tokenId={selectedToken.current.id}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
+        />
+      )}
+      {showEditTeamModal && selectedToken.current && (
+        <EditTeamsAbmModal
+          token={{ ...selectedToken.current }}
+          onCancel={onCancelEditTeam}
+          onSuccess={onEditedTeam}
         />
       )}
     </MainContent>

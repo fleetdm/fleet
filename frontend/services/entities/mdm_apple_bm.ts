@@ -81,7 +81,7 @@ export default {
         apple_id: "apple@example.com",
         org_name: "Fleet Device Management Inc.",
         mdm_server_url: "https://example.com/mdm/apple/mdm",
-        renew_date: "2022-11-29T00:00:00Z", // TODO: test coverage for invalid dates
+        renew_date: "2022-11-27T00:00:00Z", // TODO: test coverage for invalid dates
         terms_expired: false,
         macos_team: "💻 Workstations",
         ios_team: "📱🏢 Company-owned iPhones",
@@ -94,10 +94,34 @@ export default {
         mdm_server_url: "https://example.com/mdm/apple/mdm",
         renew_date: "2024-11-29T00:00:00Z",
         terms_expired: false,
-        macos_team: "💻 Workstations",
+        macos_team: "No team",
         ios_team: "📱🏢 Company-owned iPhones",
-        ipados_team: "🔳🏢 Company-owned iPads",
+        ipados_team: "No team",
       },
     ]); // TODO: remove when API is ready
+  },
+
+  editTeams: async (params: {
+    tokenId: number;
+    teams: {
+      ios_team_id: number;
+      ipados_team_id: number;
+      macos_team_id: number;
+    };
+  }) => {
+    const { MDM_ABM_TOKEN_TEAMS } = endpoints;
+    const path = MDM_ABM_TOKEN_TEAMS(params.tokenId);
+    console.log(
+      "Editing teams for token id",
+      params.tokenId,
+      "with data:",
+      params.teams
+    );
+    // promisify a mock response with a timeout
+    await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
+      console.log("done")
+    );
+    console.log("Teams edited successfully");
+    return Promise.resolve();
   },
 };
