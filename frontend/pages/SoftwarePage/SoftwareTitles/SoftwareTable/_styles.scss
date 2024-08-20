@@ -25,9 +25,15 @@
     gap: $pad-medium;
   }
 
-  // Fix dropdown form bug
-  &__version-slider {
-    width: 210px;
+  &__filters {
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
+
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
 
   .table-container {
@@ -46,6 +52,9 @@
         .form-field--dropdown {
           margin: 0;
         }
+        .form-field {
+          width: initial; // Fix styling bugs of slider having form-field class on it
+        }
       }
     }
 
@@ -61,7 +70,7 @@
         width: auto;
 
         .input-icon-field__input {
-          width: 375px;
+          width: 310px; // Any wider would run up against time ago header
         }
       }
     }
