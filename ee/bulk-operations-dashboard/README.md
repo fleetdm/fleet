@@ -8,6 +8,8 @@ A dashboard to easily manage profiles and scripts across multiple teams on a Fle
 
 - A datastore, this app was built using Postgres, but you can use a database of your choice.
 
+- A Redis database - For session storage.
+
 
 ## Configuration
 
