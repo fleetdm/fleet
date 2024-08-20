@@ -3957,7 +3957,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.A
 ////////////////////////////////////////////////////////////////////////////////
 
 type disableABMRequest struct {
-	TokenID uint `url:"token_id"`
+	TokenID uint `url:"id"`
 }
 
 type disableABMResponse struct {
@@ -4042,14 +4042,14 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateABMTokenTeamsRequest struct {
-	TokenID      uint  `url:"token_id"`
+	TokenID      uint  `url:"id"`
 	MacOSTeamID  *uint `json:"macos_team_id"`
 	IOSTeamID    *uint `json:"ios_team_id"`
 	IPadOSTeamID *uint `json:"ipados_team_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
-	ABMToken *fleet.ABMToken `json:"abm_token"`
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty"`
 	Err      error           `json:"error,omitempty"`
 }
 
@@ -4118,22 +4118,85 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	return token, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Renew ABM token endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type renewABMTokenRequest struct {
+	TokenID uint `url:"id"`
+	Token   *multipart.FileHeader
+}
+
+func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	token, ok := r.MultipartForm.File["token"]
+	if !ok || len(token) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for token"}
+	}
+
+	// because we are in this method, we know that the path has 6 parts, e.g:
+	// /api/latest/fleet/abm_tokens/19/renew
+
+	pathParts := strings.Split(r.URL.Path, "/")
+	id, err := strconv.Atoi(pathParts[5])
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to parse abm token id")
+	}
+
+	return &renewABMTokenRequest{
+		Token:   token[0],
+		TokenID: uint(id),
+	}, nil
+}
+
+type renewABMTokenResponse struct {
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty"`
+	Err      error           `json:"error,omitempty"`
+}
+
+func (r renewABMTokenResponse) error() error { return r.Err }
+
 func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*uploadABMTokenRequest)
+	req := request.(*renewABMTokenRequest)
 	ff, err := req.Token.Open()
 	if err != nil {
-		return uploadABMTokenResponse{Err: err}, nil
+		return &renewABMTokenResponse{Err: err}, nil
 	}
 	defer ff.Close()
 
-	tok, err := svc.SaveABMToken(ctx, ff)
+	tok, err := svc.RenewABMToken(ctx, ff, req.TokenID)
 	if err != nil {
-		return uploadABMTokenResponse{Err: err}, nil
+		return &renewABMTokenResponse{Err: err}, nil
 	}
 
-	return uploadABMTokenResponse{Token: tok}, nil
+	return &renewABMTokenResponse{ABMToken: tok}, nil
 }
 
-// func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) {
+func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 
-// }
+	oldTok, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
+	}
+
+	tok, err := svc.SaveABMToken(ctx, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving ABM token on renew")
+	}
+
+	tok.MacOSTeam = oldTok.MacOSTeam
+	tok.IOSTeam = oldTok.IOSTeam
+	tok.IPadOSTeam = oldTok.IPadOSTeam
+
+	return tok, nil
+}
