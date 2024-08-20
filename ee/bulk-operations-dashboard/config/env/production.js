@@ -49,6 +49,10 @@ module.exports = {
     default: {
       adapter: 'sails-postgresql',
       url: process.env.DATABASE_URL,
+      ssl: {
+        sslmode: 'require',
+        rejectUnauthorized: false,
+      }
       //--------------------------------------------------------------------------
       //  /\   To avoid checking it in to version control, you might opt to set
       //  ||   sensitive credentials like `url` using an environment variable.
@@ -184,8 +188,11 @@ module.exports = {
     * > (For a full list, see https://sailsjs.com/plugins/sessions)            *
     *                                                                          *
     ***************************************************************************/
-    // adapter: '@sailshq/connect-redis',
-    // url: 'redis://user:password@localhost:6379/databasenumber',
+    adapter: '@sailshq/connect-redis',
+    url: process.env.REDIS_TLS_URL,
+    tls: {
+      rejectUnauthorized: false
+    },
     //--------------------------------------------------------------------------
     // /\   OR, to avoid checking it in to version control, you might opt to
     // ||   set sensitive credentials like this using an environment variable.
