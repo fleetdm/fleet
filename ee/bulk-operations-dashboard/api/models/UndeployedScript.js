@@ -15,7 +15,7 @@ module.exports = {
     name: {
       type: 'string',
       required: true,
-      description: 'The name of the script on the Fleet instance',
+      description: 'The name of the script on the Fleet instance.',
     },
 
     platform: {
@@ -30,7 +30,7 @@ module.exports = {
 
     scriptType: {
       type: 'string',
-      description: 'The file extension of the script',
+      description: 'The file extension of the script.',
       required: true,
       isIn: [
         '.sh',

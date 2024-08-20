@@ -15,7 +15,7 @@ module.exports = {
     name: {
       type: 'string',
       required: true,
-      description: 'The name of the profile on the Fleet instance',
+      description: 'The name of the configuration profile on the Fleet instance.',
     },
 
     platform: {
@@ -30,7 +30,7 @@ module.exports = {
 
     profileType: {
       type: 'string',
-      description: 'The file extension of the profile',
+      description: 'The file extension of the configuration profile.',
       required: true,
       isIn: [
         '.mobileconfig',
@@ -41,7 +41,7 @@ module.exports = {
     profileContents: {
       type: 'string',
       required: true,
-      description: 'The contents of the profile.',
+      description: 'The contents of the configuration profile.',
     },
 
 
