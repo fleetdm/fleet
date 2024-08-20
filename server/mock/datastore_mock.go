@@ -1018,6 +1018,8 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, use
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
+type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPToken, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2515,6 +2517,9 @@ type DataStore struct {
 
 	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
 	GetPastActivityDataForVPPAppInstallFuncInvoked bool
+
+	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
+	GetVPPTokenByLocationFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6010,4 +6015,11 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
+}
+
+func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPToken, error) {
+	s.mu.Lock()
+	s.GetVPPTokenByLocationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenByLocationFunc(ctx, loc)
 }

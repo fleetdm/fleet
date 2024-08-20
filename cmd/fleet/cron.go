@@ -625,7 +625,11 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 		Commander: commander,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM)
+	dbMigrate := &worker.DBMigration{
+		Datastore: ds,
+		Log:       logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL

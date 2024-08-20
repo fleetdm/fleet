@@ -542,3 +542,46 @@ WHERE
 
 	return user, act, nil
 }
+
+func (ds *Datastore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPToken, error) {
+	const stmt = `
+SELECT
+	vpt.id,
+	vpt.organization_name,
+	vpt.location,
+	vpt.renew_at,
+	vpt.token,
+	vpt.team_id,
+	vpt.null_team_type,
+	COALESCE(tm.name, CASE
+		WHEN vpt.null_team_type = 'noteam' THEN 'No team'
+		WHEN vpt.null_team_type = 'appteams' THEN 'All teams'
+		ELSE ''
+	END) as team_name
+FROM
+	vpp_tokens vpt
+LEFT OUTER JOIN
+	teams tm ON tm.id = vpt.team_id
+WHERE
+	vpt.location = ?`
+
+	var vppTok fleet.VPPToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &vppTok, stmt, loc); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPToken").WithName(loc))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get abm token by location")
+	}
+
+	// decrypt the token with the serverPrivateKey
+	decrypted, err := decrypt(vppTok.Token, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting vpp token with datastore.serverPrivateKey")
+	}
+	vppTok.Token = decrypted
+	if vppTok.TeamName != "" {
+		vppTok.Teams = []string{vppTok.TeamName}
+	}
+
+	return &vppTok, nil
+}
