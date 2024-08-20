@@ -84,6 +84,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
+		{"HostMDMCommands", testHostMDMCommands},
 	}
 
 	for _, c := range cases {
@@ -6350,4 +6351,75 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bpContent)
+}
+
+func testHostMDMCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	addHostMDMCommandsBatchSizeOrig := addHostMDMCommandsBatchSize
+	addHostMDMCommandsBatchSize = 2
+	t.Cleanup(func() {
+		addHostMDMCommandsBatchSize = addHostMDMCommandsBatchSizeOrig
+	})
+
+	// create a host
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	hostCommands := []fleet.HostMDMCommand{
+		{
+			HostID:      h.ID,
+			CommandType: "command-1",
+		},
+		{
+			HostID:      h.ID,
+			CommandType: "command-2",
+		},
+		{
+			HostID:      h.ID,
+			CommandType: "command-3",
+		},
+	}
+
+	badHostID := h.ID + 1
+	allCommands := append(hostCommands, fleet.HostMDMCommand{
+		HostID:      badHostID,
+		CommandType: "command-1",
+	})
+	err = ds.AddHostMDMCommands(ctx, allCommands)
+	require.NoError(t, err)
+
+	commands, err := ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands, commands)
+
+	// Remove a command
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, hostCommands[0]))
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	// Clean up commands, and make sure badHost commands have been removed, but others remain.
+	commands, err = ds.GetHostMDMCommands(ctx, badHostID)
+	require.NoError(t, err)
+	assert.Len(t, commands, 1)
+
+	require.NoError(t, ds.CleanupHostMDMCommands(ctx))
+	commands, err = ds.GetHostMDMCommands(ctx, badHostID)
+	require.NoError(t, err)
+	assert.Empty(t, commands)
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
 }
