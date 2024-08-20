@@ -82,7 +82,7 @@ interface ITableContainerProps<T = any> {
     | ((queryData: ITableQueryData) => number);
   customControl?: () => JSX.Element;
   /** Filter button right of the search rendering alternative responsive design */
-  customFilters?: () => JSX.Element;
+  customFiltersButton?: () => JSX.Element;
   /** Uses a different responsive design where search bar moves to new line but filter button remains inline with other table headers */
   includeFilterSelectorButton?: boolean;
   stackControls?: boolean;
@@ -148,8 +148,7 @@ const TableContainer = <T,>({
   searchQueryColumn,
   onQueryChange,
   customControl,
-  customFilters,
-  includeFilterSelectorButton = false,
+  customFiltersButton,
   stackControls,
   onSelectSingleRow,
   onClickRow,
@@ -275,7 +274,9 @@ const TableContainer = <T,>({
   const renderFilters = useCallback(() => {
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
-    if (includeFilterSelectorButton) {
+    // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
+    // e.g. At low widths, search bar (3rd div of 4) moves above other 3 divs
+    if (customFiltersButton) {
       return (
         <div className="container">
           <div className="box">
@@ -334,7 +335,7 @@ const TableContainer = <T,>({
               </div>
             )}
           </div>
-          {customFilters && <div className="box"> {customFilters()} </div>}
+          <div className="box"> {customFiltersButton()} </div>
         </div>
       );
     }
@@ -423,7 +424,7 @@ const TableContainer = <T,>({
         )}
       </>
     );
-  }, []);
+  }, [customFiltersButton]);
 
   return (
     <div className={wrapperClasses}>

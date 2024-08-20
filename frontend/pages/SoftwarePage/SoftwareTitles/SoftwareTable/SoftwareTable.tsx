@@ -197,6 +197,7 @@ const SoftwareTable = ({
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
+  console.log("vulnFilterDetails", vulnFilterDetails);
   const showFilterHeaders =
     isSoftwareEnabled &&
     (hasData ||
@@ -312,7 +313,7 @@ const SoftwareTable = ({
     );
   };
 
-  const renderCustomFilters = () => {
+  const renderCustomFiltersButton = () => {
     return (
       <TooltipWrapper
         className={`${baseClass}__filters`}
@@ -378,8 +379,9 @@ const SoftwareTable = ({
         // the TableContainer.
         // additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
-        customFilters={showFilterHeaders ? renderCustomFilters : undefined}
-        includeFilterSelectorButton
+        customFiltersButton={
+          showFilterHeaders ? renderCustomFiltersButton : undefined
+        }
         stackControls
         renderCount={renderSoftwareCount}
         renderFooter={renderTableFooter}
