@@ -808,9 +808,9 @@ type Service interface {
 	// private keys to use in ABM to generate an encrypted auth token.
 	GenerateABMKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// SaveABMToken reads and validates if the provided token can be
+	// UploadABMToken reads and validates if the provided token can be
 	// decrypted using the keys stored in the database, then saves the token.
-	SaveABMToken(ctx context.Context, token io.Reader) (*ABMToken, error)
+	UploadABMToken(ctx context.Context, token io.Reader) (*ABMToken, error)
 
 	// ListABMTokens lists all the ABM tokens in Fleet.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)

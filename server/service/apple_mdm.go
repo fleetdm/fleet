@@ -3866,7 +3866,7 @@ func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}
 	defer ff.Close()
 
-	token, err := svc.SaveABMToken(ctx, ff)
+	token, err := svc.UploadABMToken(ctx, ff)
 	if err != nil {
 		return uploadABMTokenResponse{
 			Err: err,
@@ -3876,7 +3876,7 @@ func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return uploadABMTokenResponse{Token: token}, nil
 }
 
-func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
+func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

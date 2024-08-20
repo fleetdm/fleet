@@ -76,20 +76,15 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMTokenDeprecated,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("loading ABM assets from the database: %w", err)
 	}
 
-	// TODO(mna): this is what it should now use, but if I change it immediately,
-	// everything else breaks. This should be changed only after the ABM API work
-	// (and then fleet.MDMAssetABMTokenDeprecated will have to be removed from
-	// the call to GetAllMDMConfigAssetsByName above).
-	//abmTok, err := ds.GetABMTokenByOrgName(ctx, abmOrgName)
-	//if err != nil {
-	//	return nil, fmt.Errorf("get ABM token by name: %w", err)
-	//}
+	abmTok, err := ds.GetABMTokenByOrgName(ctx, abmOrgName)
+	if err != nil {
+		return nil, fmt.Errorf("get ABM token by name: %w", err)
+	}
 
 	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)
 	if err != nil {
@@ -101,8 +96,8 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string
 		return nil, fmt.Errorf("parsing ABM certificate: %w", err)
 	}
 
-	oAuthTok, _, err := DecryptRawABMToken(
-		assets[fleet.MDMAssetABMTokenDeprecated].Value, // abmTok.EncryptedToken,
+	oAuthTok, err := DecryptRawABMToken(
+		abmTok.EncryptedToken,
 		leaf,
 		assets[fleet.MDMAssetABMKey].Value,
 	)
@@ -113,18 +108,18 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string
 	return oAuthTok, nil
 }
 
-func DecryptRawABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, []byte, error) {
+func DecryptRawABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
 	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse private key: %w", err)
+		return nil, fmt.Errorf("parse private key: %w", err)
 	}
 	token, err := tokenpki.DecryptTokenJSON(tokenBytes, cert, bmKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("decrypt token: %w", err)
+		return nil, fmt.Errorf("decrypt token: %w", err)
 	}
 	var jsonTok nanodep_client.OAuth1Tokens
 	if err := json.Unmarshal(token, &jsonTok); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal JSON token: %w", err)
+		return nil, fmt.Errorf("unmarshal JSON token: %w", err)
 	}
-	return &jsonTok, token, nil
+	return &jsonTok, nil
 }

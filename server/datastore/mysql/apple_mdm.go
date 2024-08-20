@@ -4758,10 +4758,7 @@ INSERT INTO
 	abm_tokens
 	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-	token = VALUES(token),
-	renew_at = VALUES(renew_at)
-	`
+`
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
@@ -4810,7 +4807,6 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.renew_at,
-	abt.token,
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,

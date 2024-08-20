@@ -26,6 +26,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
@@ -1178,48 +1179,10 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 	return mobileConfig, nil
 }
 
-func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
-	// first check for reads as we need to load the cert/key from the db. We will
-	// do another write check below.
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-	})
+func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
+	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "Please generate a keypair first.",
-			}, "saving ABM token")
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
-	}
-
-	tokenBytes, err := io.ReadAll(token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading token bytes")
-	}
-
-	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
-	if derCert == nil {
-		return nil, ctxerr.New(ctx, "ABM certificate in the database cannot be parsed")
-	}
-
-	cert, err := x509.ParseCertificate(derCert.Bytes)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
-	}
-
-	decryptedToken, _, err := assets.DecryptRawABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
-			InternalErr: err,
-		}, "validating ABM token")
+		return nil, ctxerr.Wrap(ctx, err, "decrypting uploaded ABM token")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
@@ -1227,7 +1190,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.A
 	}
 
 	tok := &fleet.ABMToken{
-		EncryptedToken: tokenBytes,
+		EncryptedToken: encryptedToken,
 	}
 
 	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger); err != nil {
@@ -1366,14 +1329,64 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
 	}
 
-	tok, err := svc.SaveABMToken(ctx, token)
+	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving ABM token on renew")
+		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
 
-	tok.MacOSTeam = oldTok.MacOSTeam
-	tok.IOSTeam = oldTok.IOSTeam
-	tok.IPadOSTeam = oldTok.IPadOSTeam
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
+	}
 
-	return tok, nil
+	oldTok.EncryptedToken = encryptedToken
+
+	if err := svc.ds.SaveABMToken(ctx, oldTok); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "renewing ABM token")
+	}
+
+	return oldTok, nil
+}
+
+func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader) (encryptedToken []byte, decryptedToken *client.OAuth1Tokens, err error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMKey,
+	})
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Please generate a keypair first.",
+			}, "renewing ABM token")
+		}
+
+		return nil, nil, ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
+	}
+
+	encryptedToken, err = io.ReadAll(token)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "reading token bytes")
+	}
+
+	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
+	if derCert == nil {
+		return nil, nil, ctxerr.New(ctx, "ABM certificate in the database cannot be parsed")
+	}
+
+	cert, err := x509.ParseCertificate(derCert.Bytes)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
+	}
+
+	decryptedToken, err = assets.DecryptRawABMToken(encryptedToken, cert, pair[fleet.MDMAssetABMKey].Value)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
+			InternalErr: err,
+		}, "validating ABM token")
+	}
+	return encryptedToken, decryptedToken, nil
 }
