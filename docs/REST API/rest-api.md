@@ -6736,7 +6736,7 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
     },
     {
       "id": 2,
@@ -6756,6 +6756,29 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false
+    },
+    {
+      "id": 3,
+      "name": "macOS - install/update Adobe Acrobat",
+      "query": "SELECT 1 FROM apps WHERE name = "Adobe Acrobat.app" AND bundle_short_version != "24.002.21005",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": false,
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
+      "team_id": 1,
+      "resolution": "Resolution steps",
+      "platform": "windows",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
+      "passing_host_count": 2300,
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "install_software" {
+        "name": "Adobe Acrobat.app",
+        "software_title_id": 1234
+      }
     }
   ],
   "inherited_policies": [
