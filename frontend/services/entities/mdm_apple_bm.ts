@@ -82,7 +82,7 @@ export default {
         org_name: "Fleet Device Management Inc.",
         mdm_server_url: "https://example.com/mdm/apple/mdm",
         renew_date: "2024-08-29T00:00:00Z", // TODO: test coverage for invalid dates
-        terms_expired: false,
+        terms_expired: true,
         macos_team: "💻 Workstations",
         ios_team: "📱🏢 Company-owned iPhones",
         ipados_team: "🔳🏢 Company-owned iPads",
@@ -93,7 +93,7 @@ export default {
         org_name: "Fleet Device Management Inc.",
         mdm_server_url: "https://example.com/mdm/apple/mdm",
         renew_date: "2024-11-29T00:00:00Z",
-        terms_expired: false,
+        terms_expired: true,
         macos_team: "💻 Workstations",
         ios_team: "📱🏢 Company-owned iPhones",
         ipados_team: "🔳🏢 Company-owned iPads",

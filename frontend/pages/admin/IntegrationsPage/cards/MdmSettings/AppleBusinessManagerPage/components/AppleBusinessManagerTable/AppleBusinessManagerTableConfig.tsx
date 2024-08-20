@@ -9,8 +9,10 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
 
 import RenewDateCell from "./RenewDateCell";
+import OrgNameCell from "./OrgNameCell";
 
 type IAbmTableConfig = Column<IMdmAbmToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
@@ -40,9 +42,10 @@ export const generateTableConfig = (
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} className={"org-name-cell"} />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { terms_expired, org_name } = cellProps.cell.row.original;
+        return <OrgNameCell orgName={org_name} termsExpired={terms_expired} />;
+      },
     },
     {
       accessor: "renew_date",
