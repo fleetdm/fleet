@@ -10277,7 +10277,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
 
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_token/%d", vppRes.Token.ID), &deleteVPPTokenRequest{}, http.StatusOK)
+	// Disable the token
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
 	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
@@ -10286,6 +10287,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_token/%d", vppRes.Token.ID), &deleteVPPTokenRequest{}, http.StatusOK)
 
 	// Check if the host is listed as pending
 	var listResp listHostsResponse
