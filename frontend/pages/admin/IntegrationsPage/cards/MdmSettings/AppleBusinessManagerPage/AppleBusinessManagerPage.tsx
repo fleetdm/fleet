@@ -48,7 +48,11 @@ const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
   );
 };
 
-const AddAbmMessage = () => {
+interface IAddAbmMessageProps {
+  onAddAbm: () => void;
+}
+
+const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
   return (
     <div className={`${baseClass}__add-adm-message`}>
       <h2>Add your ABM</h2>
@@ -56,12 +60,7 @@ const AddAbmMessage = () => {
         Automatically enroll newly purchased Apple hosts when they&apos;re first
         unboxed and set up by your end users.
       </p>
-      <Button
-        variant="brand"
-        onClick={() => {
-          console.log("click add abm");
-        }}
-      >
+      <Button variant="brand" onClick={onAddAbm}>
         Add ABM
       </Button>
     </div>
@@ -96,6 +95,10 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
     // TODO: Show edit team modal
+  };
+
+  const onAddAbm = () => {
+    setShowAddAbmModal(true);
   };
 
   const onAdded = () => {
@@ -160,7 +163,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     }
 
     if (abmTokens?.length === 0) {
-      return <AddAbmMessage />;
+      return <AddAbmMessage onAddAbm={onAddAbm} />;
     }
 
     if (abmTokens) {
@@ -195,7 +198,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business Manager (ABM)</h1>
             {abmTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
-              <Button variant="brand" onClick={() => setShowAddAbmModal(true)}>
+              <Button variant="brand" onClick={onAddAbm}>
                 Add ABM
               </Button>
             )}
