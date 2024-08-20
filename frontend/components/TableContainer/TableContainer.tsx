@@ -94,7 +94,8 @@ interface ITableContainerProps<T = any> {
    * key */
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
-  /** Text to render on the bottom left of the table */
+  /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
+   * rows of data are present. */
   renderTableHelpText?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   /** Use for serverside filtering: Set to true when filters change in URL

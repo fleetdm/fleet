@@ -516,7 +516,7 @@ const DataTable = ({
               </tr>
             ))}
           </thead>
-          <tbody className={`${isLoading ? "table-loading-skeleton" : ""}`}>
+          <tbody>
             {pageOrRows.map((row: Row) => {
               prepareRow(row);
 
@@ -558,7 +558,7 @@ const DataTable = ({
       </div>
       <div className={`${baseClass}__footer`}>
         {renderTableHelpText && !!rows?.length && (
-          <div className={`${baseClass}__footer-text`}>
+          <div className={`${baseClass}__table-help-text`}>
             {renderTableHelpText()}
           </div>
         )}
