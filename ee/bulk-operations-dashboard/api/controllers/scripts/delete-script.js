@@ -10,7 +10,8 @@ module.exports = {
   inputs: {
     script: {
       type: {},
-      description: 'The script that will be deleted.'
+      description: 'The script that will be deleted.',
+      required: true,
     }
   },
 

@@ -10,7 +10,8 @@ module.exports = {
   inputs: {
     profile: {
       type: {},
-      description: 'The profile that will be deleted.'
+      description: 'The configuration profile that will be deleted.',
+      required: true,
     }
   },
 
