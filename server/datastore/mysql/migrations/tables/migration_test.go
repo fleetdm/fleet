@@ -56,8 +56,14 @@ func newDBConnForTests(t *testing.T) *sqlx.DB {
 func getMigrationVersion(t *testing.T) int64 {
 	// Migration test functions look like this:
 	//   func TestUp_20231109115838(t *testing.T)
+	// and multiple unit tests for the same migration version can be done by
+	// following this naming pattern:
+	//   func TestUp_20231109115838_scenario1(t *testing.T)
+	//   func TestUp_20231109115838_scenario2(t *testing.T)
 	// so this extracts the timestamp part only.
-	v, err := strconv.Atoi(strings.TrimPrefix(t.Name(), "TestUp_"))
+	withoutPrefix := strings.TrimPrefix(t.Name(), "TestUp_")
+	timestampPart, _, _ := strings.Cut(withoutPrefix, "_")
+	v, err := strconv.Atoi(timestampPart)
 	require.NoError(t, err)
 	return int64(v)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240813103800(t *testing.T) {
+func TestUp_20240813103800_ExistingWithTeamTermsNotExpired(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	existingToken := uuid.NewString()
