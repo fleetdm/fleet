@@ -77,7 +77,7 @@ interface ISoftwareTableProps {
   teamId?: number;
   isLoading: boolean;
   resetPageIndex: boolean;
-  onAddFilterClick: () => void;
+  onAddFiltersClick: () => void;
 }
 
 const baseClass = "software-table";
@@ -98,7 +98,7 @@ const SoftwareTable = ({
   teamId,
   isLoading,
   resetPageIndex,
-  onAddFilterClick,
+  onAddFiltersClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
@@ -324,7 +324,7 @@ const SoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFilterClick}>
+        <Button variant="text-link" onClick={onAddFiltersClick}>
           <Icon name="filter" color="core-fleet-blue" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>

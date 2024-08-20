@@ -46,7 +46,7 @@ interface ISoftwareTitlesProps {
   teamId?: number;
   resetPageIndex: boolean;
   addedSoftwareToken: string | null;
-  onAddFilterClick: () => void;
+  onAddFiltersClick: () => void;
 }
 
 const SoftwareTitles = ({
@@ -62,7 +62,7 @@ const SoftwareTitles = ({
   teamId,
   resetPageIndex,
   addedSoftwareToken,
-  onAddFilterClick,
+  onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -197,7 +197,7 @@ const SoftwareTitles = ({
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
         resetPageIndex={resetPageIndex}
-        onAddFilterClick={onAddFilterClick}
+        onAddFiltersClick={onAddFiltersClick}
         vulnFilters={vulnFilters}
       />
     </div>

@@ -81,10 +81,8 @@ interface ITableContainerProps<T = any> {
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
   customControl?: () => JSX.Element;
-  /** Filter button right of the search rendering alternative responsive design */
+  /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
   customFiltersButton?: () => JSX.Element;
-  /** Uses a different responsive design where search bar moves to new line but filter button remains inline with other table headers */
-  includeFilterSelectorButton?: boolean;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
   /** This is called when you click on a row. This was added as `onSelectSingleRow`
@@ -275,7 +273,7 @@ const TableContainer = <T,>({
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
     // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
-    // e.g. At low widths, search bar (3rd div of 4) moves above other 3 divs
+    // At low widths, search bar (3rd div of 4) moves above other 3 divs
     if (customFiltersButton) {
       return (
         <div className="container">

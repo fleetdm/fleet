@@ -267,7 +267,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     setShowPreviewTicketModal(!showPreviewTicketModal);
   }, [setShowPreviewTicketModal, showPreviewTicketModal]);
 
-  const toggleAddFilterModal = useCallback(() => {
+  const toggleSoftwareFiltersModal = useCallback(() => {
     setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
   }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
@@ -327,7 +327,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         queryParams: convertParamsToSnakeCase(newQueryParams),
       })
     );
-    toggleAddFilterModal();
+    toggleSoftwareFiltersModal();
   };
 
   const navigateToNav = useCallback(
@@ -436,7 +436,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           vulnFilters: softwareVulnFilters,
           resetPageIndex,
           addedSoftwareToken,
-          onAddFilterClick: toggleAddFilterModal,
+          onAddFiltersClick: toggleSoftwareFiltersModal,
         })}
       </div>
     );
@@ -482,7 +482,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         )}
         {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
-            onExit={toggleAddFilterModal}
+            onExit={toggleSoftwareFiltersModal}
             onSubmit={onApplyVulnFilters}
             vulnFilters={softwareVulnFilters}
           />
