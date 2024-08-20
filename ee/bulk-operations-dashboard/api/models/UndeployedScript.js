@@ -39,7 +39,6 @@ module.exports = {
     scriptContents: {
       type: 'string',
       description: 'The contents of the script stored as a string.',
-      extendedDescription: 'This attribute will only be present on undeployed profiles.'
     },
 
 

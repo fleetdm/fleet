@@ -256,7 +256,6 @@ parasails.registerComponent('fileUpload', {
         this.selectedFileName = undefined;
         this.selectedFileMimeType = undefined;
         this.selectedFileSize = undefined;
-        console.log(newFile);
       } else if (_.isObject(newFile) && newFile.name) {
         // Duck-type File instance
 

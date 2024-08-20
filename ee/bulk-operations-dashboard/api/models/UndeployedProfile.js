@@ -35,7 +35,6 @@ module.exports = {
     profileContents: {
       type: 'string',
       description: 'The contents of the profile.',
-      extendedDescription: 'This attribute will only be present on undeployed profiles.'
     },
 
 
