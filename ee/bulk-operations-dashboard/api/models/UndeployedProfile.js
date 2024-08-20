@@ -21,11 +21,17 @@ module.exports = {
     platform: {
       type: 'string',
       description: 'The type of operating system this profile is for.',
+      required: true,
+      isIn: [
+        'darwin',
+        'windows'
+      ]
     },
 
     profileType: {
       type: 'string',
       description: 'The file extension of the profile',
+      required: true,
       isIn: [
         '.mobileconfig',
         '.xml',
@@ -34,6 +40,7 @@ module.exports = {
 
     profileContents: {
       type: 'string',
+      required: true,
       description: 'The contents of the profile.',
     },
 

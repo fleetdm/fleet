@@ -21,6 +21,7 @@ module.exports = {
     platform: {
       type: 'string',
       description: 'The type of operating system this script is for.',
+      required: true,
       isIn: [
         'macOS & Linux',
         'Windows'
@@ -30,6 +31,7 @@ module.exports = {
     scriptType: {
       type: 'string',
       description: 'The file extension of the script',
+      required: true,
       isIn: [
         '.sh',
         '.ps1',
@@ -38,6 +40,7 @@ module.exports = {
 
     scriptContents: {
       type: 'string',
+      required: true,
       description: 'The contents of the script stored as a string.',
     },
 
