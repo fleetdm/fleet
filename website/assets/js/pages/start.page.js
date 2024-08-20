@@ -132,13 +132,13 @@ parasails.registerPage('start', {
     handleSubmittingForm: async function(argins) {
       let formDataForThisStep = _.clone(argins);
       let nextStep = this.getNextStep();
-      let newInformation = await Cloud.saveQuestionnaireProgress.with({
+      let questionanireProgress = await Cloud.saveQuestionnaireProgress.with({
         currentStep: this.currentStep,
         formData: formDataForThisStep,
       });
 
-      this.previouslyAnsweredQuestions[this.currentStep] = newInformation.getStartedProgress[this.currentStep];
-      this.psychologicalStage = newInformation.psychologicalStage;
+      this.previouslyAnsweredQuestions[this.currentStep] = questionanireProgress.getStartedProgress[this.currentStep];
+      this.psychologicalStage = questionanireProgress.psychologicalStage;
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {
