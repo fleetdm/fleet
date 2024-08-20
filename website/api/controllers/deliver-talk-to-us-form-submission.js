@@ -82,7 +82,7 @@ module.exports = {
         organization: organization,
         numberOfHosts: numberOfHosts,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        leadSource: 'Website - Contact forms',
+        contactSource: 'Website - Contact forms',
         leadDescription: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
       }).exec((err)=>{
         if(err) {
@@ -96,7 +96,7 @@ module.exports = {
         lastName: lastName,
         organization: organization,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        leadSource: 'Website - Contact forms',
+        contactSource: 'Website - Contact forms',
         description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event.`,
       }).exec((err)=>{
         if(err) {

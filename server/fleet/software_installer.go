@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -19,7 +20,7 @@ type SoftwareInstallerStore interface {
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
-	Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error)
+	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
@@ -39,7 +40,7 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 	return false, errors.New("software installer store not properly configured")
 }
 
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
 	// do not fail for the failing store's cleanup, as unlike the other store
 	// methods, this will be called even if software installers are otherwise not
 	// used (by the cron job).
@@ -332,6 +333,19 @@ type SoftwarePackageOrApp struct {
 	SelfService *bool                `json:"self_service,omitempty"`
 	IconURL     *string              `json:"icon_url"`
 	LastInstall *HostSoftwareInstall `json:"last_install"`
+}
+
+type SoftwarePackageSpec struct {
+	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+}
+
+type SoftwareSpec struct {
+	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

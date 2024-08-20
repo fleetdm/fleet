@@ -203,8 +203,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.RenewEnrollmentProfile = true
 		}
 
+		manualMigrationEligible, err := fleet.IsEligibleForManualMigration(host, mdmInfo, isConnectedToFleetMDM)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking manual migration eligibility")
+		}
+
 		if appConfig.MDM.MacOSMigration.Enable &&
-			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
+			(fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) || manualMigrationEligible) {
 			notifs.NeedsMDMMigration = true
 		}
 

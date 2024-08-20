@@ -38,6 +38,7 @@ export interface IVulnerabilitiesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  known_vulnerability?: boolean;
 }
 
 export interface IVulnerabilityResponse {

@@ -174,7 +174,7 @@ const SoftwareOSTable = ({
           <EmptySoftwareTable
             tableName="operating systems"
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware // non-searchable table renders not detecting by default
+            noSearchQuery // non-searchable table renders not detecting by default
           />
         )}
         defaultSortHeader={orderKey}
