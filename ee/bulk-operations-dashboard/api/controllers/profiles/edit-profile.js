@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Edit profile',
 
 
-  description: '',
+  description: 'Edits the teams a profile is assigned to and/or replaces the file on the Fleet instance if the new file\'s profile identifier matches',
 
   files: ['newProfile'],
 
