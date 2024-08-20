@@ -189,13 +189,6 @@ type downloadSoftwareInstallerRequest struct {
 	Token   string `url:"token"`
 }
 
-type getSoftwareInstallerResponse struct {
-	// meta *fleet.SoftwareInstaller // NOTE: API design currently only supports downloading the
-	Err error `json:"error,omitempty"`
-}
-
-func (r getSoftwareInstallerResponse) error() error { return r.Err }
-
 func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
@@ -222,7 +215,7 @@ func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{},
 
 	meta, err := svc.GetSoftwareInstallerTokenMetadata(ctx, req.Token, req.TitleID)
 	if err != nil {
-		return getSoftwareInstallerResponse{Err: err}, nil
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
 
 	payload, err := svc.DownloadSoftwareInstaller(ctx, true, "media", meta.TitleID, &meta.TeamID)

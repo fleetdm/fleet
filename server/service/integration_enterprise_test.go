@@ -10219,7 +10219,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// download the installer by getting token first
 		tokenResp := getSoftwareInstallerTokenResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil, http.StatusOK,
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil, http.StatusOK,
 			&tokenResp, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 		require.NotEmpty(t, tokenResp.Token)
 		r = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", titleID, tokenResp.Token), nil,
@@ -10231,12 +10231,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			http.StatusForbidden)
 
 		// alt != media should fail
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=bozo", titleID), nil,
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=bozo", titleID), nil,
 			http.StatusUnprocessableEntity,
 			&tokenResp, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// missing team_id should fail
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil,
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil,
 			http.StatusBadRequest,
 			&tokenResp)
 

@@ -249,7 +249,7 @@ export default {
       softwareTitleId
     )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
-    return sendRequest("GET", path);
+    return sendRequest("POST", path);
   },
 
   getSoftwareInstallResult: (installUuid: string) => {
