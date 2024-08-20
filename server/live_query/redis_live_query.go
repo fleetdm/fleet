@@ -118,7 +118,20 @@ func generateKeys(name string) (targetsKey, sqlKey string) {
 //	baseName := extractTargetKeyName(tkey)
 //	baseName == name
 func extractTargetKeyName(key string) string {
-	name := strings.TrimPrefix(key, queryKeyPrefix)
+	return extractKeyName(key, queryKeyPrefix)
+}
+
+// returns the base name part of a sql key, i.e. so that this is true:
+//
+//	_, skey := generateKeys(name)
+//	baseName := extractSQLKeyName(skey, sqlKeyPrefix)
+//	baseName == name
+func extractSQLKeyName(key string) string {
+	return extractKeyName(key, sqlKeyPrefix+queryKeyPrefix)
+}
+
+func extractKeyName(key, prefix string) string {
+	name := strings.TrimPrefix(key, prefix)
 	if len(name) > 0 && name[0] == '{' {
 		name = name[1:]
 	}
@@ -342,56 +355,67 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	names, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	activeIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
 	if err != nil {
 		return memCache{}, fmt.Errorf("get active queries: %w", err)
+	}
+
+	keyNames := make([]string, 0, len(activeIDs))
+	for _, id := range activeIDs {
+		_, sqlKeys := generateKeys(id)
+		keyNames = append(keyNames, sqlKeys)
 	}
 
 	conn = redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	for _, name := range names {
-		_, sqlKey := generateKeys(name)
-		if err := conn.Send("GET", sqlKey); err != nil {
-			return memCache{}, fmt.Errorf("get query sql: %w", err)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, keyNames...)
+	for _, keys := range keysBySlot {
+		for _, key := range keys {
+			if err := conn.Send("GET", key); err != nil {
+				return memCache{}, fmt.Errorf("get query sql: %w", err)
+			}
 		}
-	}
 
-	if err := conn.Flush(); err != nil {
-		return memCache{}, fmt.Errorf("flush pipeline: %w", err)
-	}
+		if err := conn.Flush(); err != nil {
+			return memCache{}, fmt.Errorf("flush pipeline: %w", err)
+		}
 
-	for _, name := range names {
-		sql, err := redigo.String(conn.Receive())
-		if err != nil {
-			if err != redigo.ErrNil {
-				return memCache{}, fmt.Errorf("receive query sql: %w", err)
+		for _, key := range keys {
+			sql, err := redigo.String(conn.Receive())
+			if err != nil {
+				if err != redigo.ErrNil {
+					return memCache{}, fmt.Errorf("receive query sql: %w", err)
+				}
+
+				// It is possible the livequery key has expired but was still in the set
+				// - handle this gracefully by collecting the keys to remove them from
+				// the set and keep going.
+				name := extractSQLKeyName(key)
+				expiredQueries[name] = struct{}{}
+				continue
 			}
 
-			// It is possible the livequery key has expired but was still in the set
-			// - handle this gracefully by collecting the keys to remove them from
-			// the set and keep going.
-			expiredQueries[name] = struct{}{}
-			continue
+			// extract the name from the key
+			name := extractSQLKeyName(key)
+			sqlCache[name] = sql
 		}
-
-		sqlCache[name] = sql
 	}
 
 	// remove expired queries from the names list
 	if len(expiredQueries) > 0 {
-		newNames := make([]string, 0, len(names)-len(expiredQueries))
-		for _, name := range names {
+		trimmedIDs := make([]string, 0, len(activeIDs)-len(expiredQueries))
+		for _, name := range activeIDs {
 			if _, found := expiredQueries[name]; !found {
-				newNames = append(newNames, name)
+				trimmedIDs = append(trimmedIDs, name)
 			}
 		}
-		names = newNames
+		activeIDs = trimmedIDs
 	}
 
 	r.cache.mu.Lock()
 	r.cache.sqlCache = sqlCache
-	r.cache.activeQueriesCache = names
+	r.cache.activeQueriesCache = activeIDs
 	r.cache.cacheExp = time.Now().Add(r.cacheExpiration)
 	r.cache.mu.Unlock()
 
@@ -416,7 +440,7 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 
 	return memCache{
 		sqlCache:           sqlCache,
-		activeQueriesCache: names,
+		activeQueriesCache: activeIDs,
 	}, nil
 }
 
