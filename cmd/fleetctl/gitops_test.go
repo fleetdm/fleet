@@ -1380,14 +1380,16 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 				return nil
 			}
 
-			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-				asset := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-					fleet.MDMAssetVPPTokenDeprecated: {
-						Name:  fleet.MDMAssetVPPTokenDeprecated,
-						Value: token,
-					},
-				}
-				return asset, nil
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: c.tokenExpiration,
+					Token:     string(token),
+					TeamID:    teamID,
+					NullTeam:  fleet.NullTeamNoTeam,
+				}, nil
 			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
@@ -1787,6 +1789,25 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return declaration, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+
+	ds.InsertVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{}, nil
+	}
+	ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{}, err
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
+	ds.UpdateVPPTokenTeamFunc = func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+		return nil
+	}
+	ds.UpdateVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenDB) error {
 		return nil
 	}
 
