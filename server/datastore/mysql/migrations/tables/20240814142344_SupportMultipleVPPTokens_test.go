@@ -10,16 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240814142344_a(t *testing.T) {
-	db := applyUpToPrev(t)
-
-	// TODO(mna): test migration
-
-	// Apply current migration.
-	applyNext(t, db)
-}
-
-func TestUp_20240814142344_b(t *testing.T) {
+func TestUp_20240814142344(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	existingToken := uuid.NewString()
