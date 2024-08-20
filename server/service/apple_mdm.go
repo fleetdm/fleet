@@ -4004,7 +4004,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		return nil, &fleet.BadRequestError{Message: "no file headers for token"}
 	}
 
-	// because we are in this method, we know that the path has 6 parts, e.g:
+	// because we are in this method, we know that the path has 7 parts, e.g:
 	// /api/latest/fleet/abm_tokens/19/renew
 
 	pathParts := strings.Split(r.URL.Path, "/")
