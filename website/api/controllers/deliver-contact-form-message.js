@@ -75,7 +75,7 @@ module.exports = {
       emailAddress: emailAddress,
       firstName: firstName,
       lastName: lastName,
-      leadSource: 'Website - Contact forms',
+      contactSource: 'Website - Contact forms',
       description: `Sent a contact form message: ${message}`,
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {

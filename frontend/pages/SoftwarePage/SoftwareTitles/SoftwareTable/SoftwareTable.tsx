@@ -30,6 +30,9 @@ import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Spinner from "components/Spinner";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -37,9 +40,12 @@ import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 import {
   ISoftwareDropdownFilterVal,
+  ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
   getSoftwareFilterForQueryKey,
+  getSoftwareVulnFiltersForQueryKey,
+  getVulnFilterDetails,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -68,10 +74,12 @@ interface ISoftwareTableProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFiltersParams;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
   resetPageIndex: boolean;
+  onAddFilterClick: () => void;
 }
 
 const baseClass = "software-table";
@@ -87,10 +95,12 @@ const SoftwareTable = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
   isLoading,
   resetPageIndex,
+  onAddFilterClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
@@ -128,15 +138,14 @@ const SoftwareTable = ({
       };
       if (softwareFilter === "installableSoftware") {
         newQueryParam.available_for_install = true.toString();
-      } else {
-        newQueryParam.vulnerable = (
-          softwareFilter === "vulnerableSoftware"
-        ).toString();
+      }
+      if (softwareFilter === "selfServiceSoftware") {
+        newQueryParam.self_service = true.toString();
       }
 
-      return newQueryParam;
+      return { ...newQueryParam, ...vulnFilters };
     },
-    [softwareFilter, teamId]
+    [softwareFilter, teamId, vulnFilters]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -182,27 +191,31 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  // determines if a user should be able to search in the table
-  const searchable = isSoftwareEnabled;
+  // Determines if a user should be able to filter or search in the table
+  const hasData = tableData && tableData.length > 0;
+  const hasQuery = query !== "";
+  const hasSoftwareFilter = softwareFilter !== "allSoftware";
+  const hasVersionFilter = showVersions;
+  const hasVulnFilters = getVulnFilterDetails(vulnFilters).filterCount > 0;
+
+  const showFilterHeaders =
+    isSoftwareEnabled &&
+    (hasData ||
+      hasQuery ||
+      hasSoftwareFilter ||
+      hasVersionFilter ||
+      hasVulnFilters);
 
   const handleShowVersionsToggle = () => {
-    const queryParams: Record<string, string | number | undefined> = {
+    const queryParams: Record<string, string | number | boolean | undefined> = {
       query,
       team_id: teamId,
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
+      ...getSoftwareFilterForQueryKey("allSoftware"), // Reset to all software
+      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
     };
-
-    // if we are currently showing installable titles, we want to switch to
-    // all software versions. If not, we want to keep the current filter.
-    if (softwareFilter === "installableSoftware") {
-      queryParams.vulnerable = "false";
-    } else {
-      queryParams.vulnerable = (
-        softwareFilter === "vulnerableSoftware"
-      ).toString();
-    }
 
     router.replace(
       getNextLocationPath({
@@ -224,6 +237,7 @@ const SoftwareTable = ({
       orderDirection,
       orderKey,
       page: 0, // resets page index
+      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
       ...getSoftwareFilterForQueryKey(value),
     };
 
@@ -276,55 +290,63 @@ const SoftwareTable = ({
     );
   };
 
-  const renderCustomFilters = () => {
-    // Hide filters if no software is detected with no filters present
-    if (
-      query === "" &&
-      !showVersions &&
-      softwareFilter === "allSoftware" &&
-      data?.count === 0
-    )
-      return <></>;
-
+  const renderCustomControls = () => {
     const options = showVersions
       ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
       : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
 
     return (
       <div className={`${baseClass}__filter-controls`}>
-        <div className={`${baseClass}__version-slider`}>
-          {/* div required dropdown form field width bug */}
-          <Slider
-            value={showVersions}
-            onChange={handleShowVersionsToggle}
-            inactiveText="Show versions"
-            activeText="Show versions"
+        {!showVersions && ( // Hidden when viewing versions table
+          <Dropdown
+            value={softwareFilter}
+            className={`${baseClass}__vuln_dropdown`}
+            options={options}
+            searchable={false}
+            onChange={handleCustomFilterDropdownChange}
+            tableFilterDropdown
           />
-        </div>
-        <Dropdown
-          value={softwareFilter}
-          className={`${baseClass}__vuln_dropdown`}
-          options={options}
-          searchable={false}
-          onChange={handleCustomFilterDropdownChange}
-          tableFilterDropdown
+        )}
+        <Slider
+          value={showVersions}
+          onChange={handleShowVersionsToggle}
+          inactiveText="Show versions"
+          activeText="Show versions"
         />
       </div>
     );
   };
 
-  const renderTableHelpText = () => {
+  const renderCustomFilters = () => {
+    const vulnFilterDetails = getVulnFilterDetails(vulnFilters);
     return (
-      <div>
-        Seeing unexpected software or vulnerabilities?{" "}
-        <CustomLink
-          url={GITHUB_NEW_ISSUE_LINK}
-          text="File an issue on GitHub"
-          newTab
-        />
-      </div>
+      <TooltipWrapper
+        className={`${baseClass}__filters`}
+        position="left"
+        underline={false}
+        showArrow
+        tipOffset={12}
+        tipContent={vulnFilterDetails.tooltipText}
+        disableTooltip={vulnFilterDetails.filterCount === 0}
+      >
+        <Button variant="text-link" onClick={onAddFilterClick}>
+          <Icon name="filter" color="core-fleet-blue" />
+          <span>{vulnFilterDetails.buttonText}</span>
+        </Button>
+      </TooltipWrapper>
     );
   };
+
+  const renderTableHelpText = () => (
+    <div>
+      Seeing unexpected software or vulnerabilities?{" "}
+      <CustomLink
+        url={GITHUB_NEW_ISSUE_LINK}
+        text="File an issue on GitHub"
+        newTab
+      />
+    </div>
+  );
 
   return (
     <div className={baseClass}>
@@ -336,6 +358,7 @@ const SoftwareTable = ({
         emptyComponent={() => (
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
+            vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
             isCollectingSoftware={data?.counts_updated_at === null}
@@ -351,14 +374,15 @@ const SoftwareTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={searchable}
-        inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
+        searchable={showFilterHeaders}
+        inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happeing outside of
         // the TableContainer.
         // additionalQueries={softwareFilter}
-        customControl={searchable ? renderCustomFilters : undefined}
+        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customFilters={showFilterHeaders ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}
         renderTableHelpText={renderTableHelpText}
