@@ -422,7 +422,22 @@ const TableContainer = <T,>({
         )}
       </>
     );
-  }, [customFiltersButton]);
+  }, [
+    actionButton,
+    customControl,
+    customFiltersButton,
+    disableActionButton,
+    disableCount,
+    disableTableHeader,
+    inputPlaceHolder,
+    isLoading,
+    renderCount,
+    searchQuery,
+    searchToolTipText,
+    searchable,
+    stackControls,
+    wideSearch,
+  ]);
 
   return (
     <div className={wrapperClasses}>
