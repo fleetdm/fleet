@@ -21,6 +21,7 @@ module.exports = {
         'what-does-your-team-manage-eo-it',
         'what-does-your-team-manage-vm',
         'what-do-you-manage-mdm',
+        'cross-platform-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',

@@ -14,6 +14,12 @@
     font-weight: 800;
     line-height: 120%;
   }
+  ul {
+    margin-top: 32px;
+    li {
+      margin-bottom: 24px;
+    }
+  }
   [purpose='logo-container'] {
     max-width: 524px;
     margin-left: auto;
@@ -29,15 +35,50 @@
     }
   }
   [purpose='form-container'] {
-    width: 528px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  [purpose='page-container'] {
-    padding-top: 64px;
+    min-width: 632px;
     padding-left: 64px;
     padding-right: 64px;
-    padding-bottom: 64px;
+    padding-top: 64px;
+    margin-right: 20px;
+  }
+  [purpose='form-tip'] {
+    margin-top: 32px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #E6E3D0;
+    background: #FFFEF9;
+    p {
+      margin-bottom: 0px;
+    }
+    img {
+      height: 32px;
+      width: 32px;
+      margin-right: 12px;
+    }
+  }
+  [purpose='form-image'] {
+    width: 100%;
+    height: 800px;
+    max-width: 568px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 16px;
+    &.stage-two {
+      background-image: url('/images/psystage-2-aware-508x784@2x.png');
+    }
+    &.stage-three {
+      background-image: url('/images/psystage-3-intrigued-508x784@2x.png');
+    }
+    &.stage-four {
+      background-image: url('/images/psystage-4-has-use-case-508x784@2x.png');
+    }
+  }
+  [purpose='page-container'] {
+    padding-top: 20px;
+    padding-left: 20px;
+    padding-right: 24px;
+    padding-bottom: 24px;
     max-width: unset;
     display: flex;
     flex-direction: column;
@@ -259,6 +300,16 @@
       padding-right: 40px;
       max-width: 600px;
     }
+    [purpose='form-container'] {
+      padding: 0;
+      min-width: unset;
+      max-width: 504px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    [purpose='form-image'] {
+      display: none;
+    }
 
   }
   @media (max-width: 768px) {
@@ -267,7 +318,6 @@
       padding-left: 24px;
       padding-right: 24px;
     }
-
   }
   @media (max-width: 575px) {
     [purpose='logo-container'] {
