@@ -6736,7 +6736,7 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true,
+      "calendar_events_enabled": true
     },
     {
       "id": 2,
