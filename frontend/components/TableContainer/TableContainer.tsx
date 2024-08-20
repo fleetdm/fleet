@@ -83,6 +83,7 @@ interface ITableContainerProps<T = any> {
   customControl?: () => JSX.Element;
   /** Filter button right of the search rendering alternative responsive design */
   customFilters?: () => JSX.Element;
+  /** Uses a different responsive design where search bar moves to new line but filter button remains inline with other table headers */
   includeFilterSelectorButton?: boolean;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;

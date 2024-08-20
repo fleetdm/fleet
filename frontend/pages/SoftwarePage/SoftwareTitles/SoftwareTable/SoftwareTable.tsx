@@ -379,6 +379,7 @@ const SoftwareTable = ({
         // additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
         customFilters={showFilterHeaders ? renderCustomFilters : undefined}
+        includeFilterSelectorButton
         stackControls
         renderCount={renderSoftwareCount}
         renderFooter={renderTableFooter}
