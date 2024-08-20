@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-//go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
+//go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
 
 type ContextKey string
 

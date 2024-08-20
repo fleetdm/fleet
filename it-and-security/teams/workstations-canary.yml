@@ -96,7 +96,10 @@ controls:
     deadline: "2024-08-23"
     minimum_version: "14.6.1"
   windows_settings:
-    custom_settings: null
+    custom_settings:
+      - path: ../lib/configuration-profiles/windows-firewall.xml
+      - path: ../lib/configuration-profiles/windows-password.xml
+      - path: ../lib/configuration-profiles/windows-screen-lock.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2

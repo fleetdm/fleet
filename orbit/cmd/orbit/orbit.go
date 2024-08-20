@@ -851,7 +851,7 @@ func main() {
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
 		const (
-			renewEnrollmentProfileCommandFrequency = time.Hour
+			renewEnrollmentProfileCommandFrequency = 3 * time.Minute
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
@@ -864,8 +864,7 @@ func main() {
 		switch runtime.GOOS {
 		case "darwin":
 			orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
-				orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL,
-			))
+				orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
 			const nudgeLaunchInterval = 30 * time.Minute
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
@@ -1224,7 +1223,12 @@ func main() {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
 				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
 			} else {
-				orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
+				orbitClient.RegisterConfigReceiver(
+					update.ApplyDiskEncryptionRunnerMiddleware(
+						orbitClient.GetServerCapabilities,
+						orbitClient.TriggerOrbitRestart,
+					),
+				)
 			}
 		}
 
