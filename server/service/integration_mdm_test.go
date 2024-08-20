@@ -9984,10 +9984,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	// HACK We still don't have a shape for the patch API yet, cheat
-	// by reaching into the datastore
-	err := s.ds.UpdateVPPTokenTeam(context.Background(), resp.Tokens[0].ID, nil, fleet.NullTeamAllTeams)
-	require.NoError(t, err)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: &[]uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Get list of VPP apps from "Apple"
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
@@ -10239,8 +10237,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
 
-	// HACK Waiting for team update shape
-	s.ds.UpdateVPPTokenTeam(context.Background(), vppRes.Token.ID, &team.ID, fleet.NullTeamNone)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: &[]uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
