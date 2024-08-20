@@ -4,16 +4,13 @@ module.exports = {
   friendlyName: 'Get scripts',
 
 
-  description: '',
-
-
-  inputs: {
-
-  },
+  description: 'Builds and returns an array of deployed scripts on the Fleet instance and undeployed scripts stored in the dashboard\'s datastore',
 
 
   exits: {
-
+    success: {
+      outputType: [{}],
+    }
   },
 
 

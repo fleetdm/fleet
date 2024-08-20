@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get profiles',
 
 
-  description: 'returns an array of all profiles on a Fleet instance.',
+  description: 'Builds and returns an array of deployed configuration profiles on the Fleet instance and undeployed profiles stored in the dashboard\'s datastore.',
 
   exits: {
     success: {
