@@ -54,6 +54,24 @@ module.exports = function defineCustomHook(sails) {
           problems.push('No `sails.config.custom.internalEmailAddress` was configured.');
         }
 
+
+        if (sails.config.custom.fleetBaseUrl === undefined) {
+          throw new Error('Missing config vairable! Please set sails.config.custom.fleetBaseUrl to be the URL of your Fleet instance.');
+        }
+        if (sails.config.custom.fleetApiToken === undefined) {
+          throw new Error('Missing config vairable! Please set sails.config.custom.fleetApiToken to be a token for your Fleet instance.');
+        }
+
+
+        if (_.endsWith(sails.config.custom.fleetBaseUrl, '/')) {
+          sails.config.custom.fleetBaseUrl = _.trimRight(sails.config.custom.fleetBaseUrl, '/');
+          sails.log.warn('Warning: The provided sails.config.custom.fleetBaseUrl has a trailing slash. To make sure all auto-generated URLs work as expected, this trailing slash has been removed for you.');
+        }
+        if (!_.startsWith(sails.config.custom.fleetBaseUrl, 'https://')) {
+          sails.log.warn('Warning: The provided sails.config.custom.fleetBaseUrl is missing a protocol (https://). To make sure all auto-generated URLs work as expected, the protocol has been added to the fleetBaseUrl.');
+          sails.config.custom.fleetBaseUrl = 'https://'+sails.config.custom.fleetBaseUrl;
+        }
+
         sails.log.verbose(
 `Some optional settings have not been configured yet:
 ---------------------------------------------------------------------
