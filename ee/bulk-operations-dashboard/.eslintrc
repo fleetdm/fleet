@@ -40,7 +40,8 @@
 
     // Models:
     "User": true,
-    "UndeployedProfile": true
+    "UndeployedProfile": true,
+    "UndeployedScript": true
     
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

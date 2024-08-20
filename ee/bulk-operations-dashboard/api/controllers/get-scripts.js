@@ -110,6 +110,9 @@ module.exports = {
       };
       scriptsOnThisFleetInstance.push(scriptInformation);
     }
+    // Get the undeployed scripts from the app's database.
+    let undeployedScripts = await UndeployedScript.find();
+    scriptsOnThisFleetInstance = _.union(scriptsOnThisFleetInstance, undeployedScripts);
     // Sort scripts by their name.
     scriptsOnThisFleetInstance = _.sortByOrder(scriptsOnThisFleetInstance, 'name', 'asc');
     return scriptsOnThisFleetInstance;

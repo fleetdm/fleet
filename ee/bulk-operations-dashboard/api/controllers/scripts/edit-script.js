@@ -42,7 +42,7 @@ module.exports = {
     let filename;
     let extension;
     // If there is not a new script, and the script is deployed (has teams array === deployed), download the script to be able to add it to other teams.
-    if(!newScript){
+    if(!newScript && script.teams){
       let scriptFleetApid = script.teams[0].scriptFleetApid;
       let scriptDownloadResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'GET',
@@ -66,6 +66,11 @@ module.exports = {
       if(script.name !== filename+extension){
         throw 'scriptNameDoesNotMatch';
       }
+    } else if (!newScript && !script.teams){// Undeployed profiles are stored in the app's database.
+      // console.log('editing an undeployed profile!');
+      scriptContents = script.scriptContents;
+      filename = script.name + script.scriptType;
+      extension = script.scriptType;
     }
 
     if(!newScript){
@@ -158,6 +163,27 @@ module.exports = {
           },
         });
       }
+    }
+
+    // If this profile has an ID, then it is a database record, and we will delete it if it has been deployed to a team.
+    if(script.id && newTeamIds.length > 0){
+      // console.log('Undeployed script has been deployed. deleting DB record!');
+      await UndeployedScript.destroy({id: script.id});
+    } else if(!script.id && newTeamIds.length === 0){
+      // If this is not a database record of a script, and the script is being undeployed from all teams, we'll create a databse record for it.
+      // console.log('Creating database record for a (now) undeployed script!');
+      await UndeployedScript.create({
+        name: script.name,
+        platform: extension === '.ps1' ? 'Windows' : 'macOS & Linux',
+        scriptContents,
+        scriptType: extension,
+      });
+    } else if(script.id && newScript){
+      // If there is a new script that is replacing a database record, update the scriptContents in the database.
+      // console.log('Updating existing undeployed script!');
+      await UndeployedScript.updateOne({id: script.id}).set({
+        scriptContents,
+      });
     }
 
     // All done.

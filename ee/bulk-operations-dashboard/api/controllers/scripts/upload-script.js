@@ -18,7 +18,6 @@ module.exports = {
 
     teams: {
       type: ['string'],
-      required: true,
       description: 'An array of team IDs that this profile will be added to'
     }
   },
@@ -66,44 +65,49 @@ module.exports = {
     let newScriptInfo = {
       name: datelessExtensionlessFilename,
       platform: _.endsWith(scriptFilename, '.ps1') ? 'Windows' : 'macOS and Linux',
-      profileType: extension,
+      scriptType: extension,
       createdAt: Date.now()
     };
-    // Send a request to add the script for every team ID in the array of teams.
-    for(let teamApid of teams){
-      // Build a request body for the team.
-      let requestBodyForThisTeam = {
-        script: {
-          options: {
-            filename: datelessExtensionlessFilename + extension,
-            contentType: 'application/octet-stream'
-          },
-          value: scriptContents,
+    if(!teams) {
+      newScriptInfo.scriptContents = scriptContents;
+      await UndeployedScript.create(newScriptInfo).fetch();
+    } else {
+      // Send a request to add the script for every team ID in the array of teams.
+      for(let teamApid of teams){
+        // Build a request body for the team.
+        let requestBodyForThisTeam = {
+          script: {
+            options: {
+              filename: datelessExtensionlessFilename + extension,
+              contentType: 'application/octet-stream'
+            },
+            value: scriptContents,
+          }
+        };
+        let addScriptUrl;
+        // If the script is being added to the "no team" team, then we need to include the team ID of the no team team in the request URL
+        if(Number(teamApid) === 0){
+          addScriptUrl = `/api/v1/fleet/scripts?team_id=${teamApid}`;
+        } else {
+          // Otherwise, the team_id needs to be included in the request's formData.
+          addScriptUrl = `/api/v1/fleet/scripts`;
+          requestBodyForThisTeam.team_id = Number(teamApid);// eslint-disable-line camelcase
         }
-      };
-      let addScriptUrl;
-      // If the script is being added to the "no team" team, then we need to include the team ID of the no team team in the request URL
-      if(Number(teamApid) === 0){
-        addScriptUrl = `/api/v1/fleet/scripts?team_id=${teamApid}`;
-      } else {
-        // Otherwise, the team_id needs to be included in the request's formData.
-        addScriptUrl = `/api/v1/fleet/scripts`;
-        requestBodyForThisTeam.team_id = Number(teamApid);// eslint-disable-line camelcase
+        // Send a PSOT request to add the script.
+        await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
+          baseUrl: sails.config.custom.fleetBaseUrl,
+          url:addScriptUrl,
+          enctype: 'multipart/form-data',
+          body: requestBodyForThisTeam,
+          headers: {
+            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+          },
+        })
+        .intercept({raw: {statusCode: 409}}, ()=>{
+          return 'scriptWithThisNameAlreadyExists';
+        });
       }
-      // Send a PSOT request to add the script.
-      await sails.helpers.http.sendHttpRequest.with({
-        method: 'POST',
-        baseUrl: sails.config.custom.fleetBaseUrl,
-        url:addScriptUrl,
-        enctype: 'multipart/form-data',
-        body: requestBodyForThisTeam,
-        headers: {
-          Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-        },
-      })
-      .intercept({raw: {statusCode: 409}}, ()=>{
-        return 'scriptWithThisNameAlreadyExists';
-      });
     }
     // All done.
     return newScriptInfo;

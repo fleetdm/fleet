@@ -53,7 +53,9 @@
     // Make sure backend globals aren't indadvertently tolerated in our client-side JS:
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     "sails": false,
-    "User": false
+    "User": false,
+    "UndeployedProfile": false,
+    "UndeployedScript": false
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

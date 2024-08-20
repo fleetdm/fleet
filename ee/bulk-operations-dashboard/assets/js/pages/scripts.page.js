@@ -72,7 +72,11 @@ parasails.registerPage('scripts', {
       this.scriptsToDisplay = scriptsOnThisTeam;
     },
     clickDownloadScript: async function(script) {
-      window.open('/download-script?id='+encodeURIComponent(script.teams[0].scriptFleetApid));
+      if(!script.teams){
+        window.open('/download-script?id='+encodeURIComponent(script.id));
+      } else {
+        window.open('/download-script?fleetApid='+encodeURIComponent(script.teams[0].scriptFleetApid));
+      }
     },
     clickOpenEditModal: async function(script) {
       this.scriptToEdit = _.clone(script);
