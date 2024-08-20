@@ -1331,9 +1331,6 @@ type Datastore interface {
 	// ListABMTokens lists all of the ABM tokens.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
-	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
-	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error
-
 	// DeleteABMToken deletes the given ABM token from the datastore.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
 

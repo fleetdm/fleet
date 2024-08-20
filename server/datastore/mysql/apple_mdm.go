@@ -4751,6 +4751,18 @@ WHERE
 	}
 	abmTok.EncryptedToken = decrypted
 
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	abmTok.MDMServerURL = url
+
 	return &abmTok, nil
 }
 
@@ -4825,6 +4837,18 @@ ON DUPLICATE KEY UPDATE
 
 	tok.ID = uint(tokenID)
 
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
 	return tok, nil
 }
 
@@ -4859,22 +4883,21 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
 	}
 
+	for _, tok := range tokens {
+		cfg, err := ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get app config")
+		}
+
+		url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+		}
+
+		tok.MDMServerURL = url
+	}
+
 	return tokens, nil
-}
-
-func (ds *Datastore) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) error {
-	const stmt = `
-UPDATE
-	abm_tokens
-SET
-	macos_default_team_id = ?,
-	ios_default_team_id = ?,
-	ipados_default_team_id = ?
-WHERE
-	id = ?`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, macOSTeamID, iOSTeamID, iPadOSTeamID, tokenID)
-	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
 func (ds *Datastore) DeleteABMToken(ctx context.Context, tokenID uint) error {
@@ -4915,8 +4938,8 @@ LEFT OUTER JOIN
 WHERE abt.id = ?
 	`
 
-	var token fleet.ABMToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, tokenID); err != nil {
+	var tok fleet.ABMToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tok, stmt, tokenID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("ABMToken"))
 		}
@@ -4924,7 +4947,29 @@ WHERE abt.id = ?
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
 	}
 
-	return &token, nil
+	// decrypt the token with the serverPrivateKey, the resulting value will be
+	// the token still encrypted, but just with the ABM cert and key (it is that
+	// encrypted value that is stored with another layer of encryption with the
+	// serverPrivateKey).
+	decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+	}
+	tok.EncryptedToken = decrypted
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	return &tok, nil
 }
 
 func (ds *Datastore) GetABMTokenCount(ctx context.Context) (int, error) {
