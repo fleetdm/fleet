@@ -1,3 +1,61 @@
+## Fleet 4.56.0 (Aug 20, 2024) - IN PROGRESS
+
+### Bug fixes
+
+**Endpoint Operations:**
+
+- Added ability to add/remove/disable VPP in the fleet UI.
+- Fleet server now accepts arguments via stdin for passing secrets.
+- Added UI support for the Apple VPP feature on the software pages.
+- Added support for S3 to store MDM bootstrap packages.
+- Added support for No teams on all software pages including adding software installers.
+- Added support to UI for self-service VPP software.
+- Added a warning banner to the UI for uploaded VPP tokens about to expire/already expired.
+- Added backend and GitOps support for self-service VPP.
+- Displayed label names in case-insensitive alphabetical order in the Fleet UI.
+
+**Device Management (MDM):**
+
+- Enforced FileVault during MacOS Setup Assistant process for hosts enrolled into teams with disk encryption turned on.
+- Added functionality for MDM migrations for hosts manually enrolled in a 3rd party MDM.
+- Added offline screen to macOS MDM migration flow.
+- Updated instructions on "My device" for MDM migrations on pre-Sonoma macOS hosts.
+- Added support for Apple VPP tokens, VPP management endpoints, and VPP activities.
+- Added support for generating FleetD packages for Linux ARM64.
+- Added support for iOS and iPadOS devices, user-installed apps, and VPP installations.
+- Increased threshold to renew Apple SCEP certificates for MDM enrollments to 180 days.
+
+**Vulnerability Management:**
+
+- CVEs identified as 'Rejected' in NVD will no longer match against software.
+- Updated calendar events for scheduled maintenance to align with Google Calendar events.
+- Added matching rules for Microsoft 365 security updates for July and August.
+- Improved handling of vulnerability scanning for macOS homebrew packages.
+- Added functionality to scanning to avoid ignoring software with special characters.
+- Fixed false negative vulnerabilities with IntelliJ IDEA CE and PyCharm CE installed via Homebrew.
+- Added a migration for older team configurations to include both installers and App Store apps.
+- Added DB updates to support the VPP software feature.
+
+**Bug fixes and improvements:**
+
+- Fixed bug where configuration profile still showed old label name after update.
+- Updated text for "Turn on MDM" banners in UI.
+- Fixed styling issue in disk encryption table.
+- Fixed bug with cached prepared statements in MySQL server.
+- Fixed issue with app-wide warning banners not showing on initial page load.
+- Fixed API path used to download software installer.
+- Fixed bug where hosts page allowed excess pagination.
+- Fixed bug causing software installers to show up as "Available for install" after transfer to different team.
+- Fixed bug in software installer package download endpoint.
+- Fixed error in software installer installation status filter in host software page.
+- Fixed issue with Google Calendar events not being processed correctly.
+- Dropped support for MySQL 5.7 and raised minimum requirements to MySQL 8.0.
+- Improved fleetctl gitops error message for team name changes.
+- Improved handling of software install results for deleted hosts.
+- Improved Fleet Free user experience when accessing Premium features.
+- Added index to query results DB table for faster query timestamp retrieval.
+- Added additional statistics for AI features, maintenance window, and Fleet Desktop.
+- Added empty state handling for various vulnerability search scenarios in the UI.
 ## Fleet 4.55.1 (Aug 15, 2024)
 
 ### Bug fixes
