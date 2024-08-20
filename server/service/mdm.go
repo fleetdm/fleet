@@ -2648,8 +2648,8 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 ////////////////////////////////////////////////////
 
 type patchVPPTokensTeamsRequest struct {
-	ID      uint    `url:"id"`
-	TeamIDs *[]uint `json:"team_id"`
+	ID      uint   `url:"id"`
+	TeamIDs []uint `json:"team_id"`
 }
 
 type patchVPPTokensTeamsResponse struct {
@@ -2667,12 +2667,12 @@ func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (e
 	return patchVPPTokensTeamsResponse{}, nil
 }
 
-func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs *[]uint) error {
+func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if teamIDs != nil && len(*teamIDs) > 1 {
+	if teamIDs != nil && len(teamIDs) > 1 {
 		return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New("A VPP token can only belong to one team"), http.StatusBadRequest))
 	}
 
@@ -2680,13 +2680,13 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 	var teamID *uint
 	if teamIDs == nil {
 		nullTeam = fleet.NullTeamNoTeam
-	} else if len(*teamIDs) == 0 {
+	} else if len(teamIDs) == 0 {
 		nullTeam = fleet.NullTeamAllTeams
-	} else if (*teamIDs)[0] == 0 {
+	} else if teamIDs[0] == 0 {
 		nullTeam = fleet.NullTeamNone
 	} else {
 		nullTeam = fleet.NullTeamNone
-		teamID = &(*teamIDs)[0]
+		teamID = &teamIDs[0]
 	}
 
 	if err := svc.ds.UpdateVPPTokenTeam(ctx, tokenID, teamID, nullTeam); err != nil {
@@ -2710,9 +2710,6 @@ type getVPPTokensResponse struct {
 func (r getVPPTokensResponse) error() error { return r.Err }
 
 func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
-	req := request.(*getVPPTokensRequest)
-	_ = req
-
 	tokens, err := svc.GetVPPTokens(ctx)
 	if err != nil {
 		return getVPPTokensResponse{Err: err}, nil

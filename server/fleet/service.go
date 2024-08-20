@@ -713,7 +713,7 @@ type Service interface {
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
 	UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*VPPTokenDB, error)
-	UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs *[]uint) error
+	UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) error
 	GetVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
