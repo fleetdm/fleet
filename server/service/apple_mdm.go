@@ -3877,79 +3877,11 @@ func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
-	// first check for reads as we need to load the cert/key from the db. We will
-	// do another write check below.
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-	})
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "Please generate a keypair first.",
-			}, "saving ABM token")
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
-	}
-
-	tokenBytes, err := io.ReadAll(token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading token bytes")
-	}
-
-	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
-	if derCert == nil {
-		return nil, ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
-	}
-
-	cert, err := x509.ParseCertificate(derCert.Bytes)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
-	}
-
-	decryptedToken, _, err := assets.DecryptRawABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
-			InternalErr: err,
-		}, "validating ABM token")
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	tok := &fleet.ABMToken{
-		EncryptedToken: tokenBytes,
-	}
-
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
-	}
-
-	tok, err = svc.ds.InsertABMToken(ctx, tok)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "save ABM token")
-	}
-
-	// flip the app config flag
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
-	}
-
-	appCfg.MDM.AppleBMEnabledAndConfigured = true
-
-	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM enablement")
-	}
-
-	return tok, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3977,31 +3909,11 @@ func disableABMEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) DisableABM(ctx context.Context, tokenID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	if err := svc.ds.DeleteABMToken(ctx, tokenID); err != nil {
-		return ctxerr.Wrap(ctx, err, "removing ABM token")
-	}
-
-	count, err := svc.ds.GetABMTokenCount(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting ABM token count")
-	}
-
-	if count == 0 {
-		// flip the app config flag
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving app config")
-		}
-
-		appCfg.MDM.AppleBMEnabledAndConfigured = false
-		return svc.ds.SaveAppConfig(ctx, appCfg)
-	}
-
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4025,16 +3937,11 @@ func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	tokens, err := svc.ds.ListABMTokens(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
-	}
-
-	return tokens, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4067,55 +3974,11 @@ func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get ABM token to update teams")
-	}
-
-	// validate the team IDs
-	var macOSTeamName, iOSTeamName, iPadOSTeamName string
-	if macOSTeamID != nil {
-		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking existence of macOS team")
-		}
-
-		macOSTeamName = macOSTeam.Name
-	}
-
-	if iOSTeamID != nil {
-		iOSTeam, err := svc.ds.Team(ctx, *iOSTeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking existence of iOS team")
-		}
-		iOSTeamName = iOSTeam.Name
-	}
-
-	if iPadOSTeamID != nil {
-		iPadOSTeam, err := svc.ds.Team(ctx, *iPadOSTeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking existence of iPadOS team")
-		}
-		iPadOSTeamName = iPadOSTeam.Name
-	}
-
-	token.MacOSDefaultTeamID = macOSTeamID
-	token.IOSDefaultTeamID = iOSTeamID
-	token.IPadOSDefaultTeamID = iPadOSTeamID
-
-	if err := ctxerr.Wrap(ctx, svc.ds.SaveABMToken(ctx, token), "updating token teams"); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
-	}
-
-	token.MacOSTeam = macOSTeamName
-	token.IOSTeam = iOSTeamName
-	token.IPadOSTeam = iPadOSTeamName
-
-	return token, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4180,23 +4043,9 @@ func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	oldTok, err := svc.ds.GetABMTokenByID(ctx, tokenID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
-	}
-
-	tok, err := svc.SaveABMToken(ctx, token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving ABM token on renew")
-	}
-
-	tok.MacOSTeam = oldTok.MacOSTeam
-	tok.IOSTeam = oldTok.IOSTeam
-	tok.IPadOSTeam = oldTok.IPadOSTeam
-
-	return tok, nil
+	return nil, fleet.ErrMissingLicense
 }
