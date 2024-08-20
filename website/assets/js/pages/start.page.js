@@ -317,7 +317,7 @@ parasails.registerPage('start', {
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'kinda-stuck'){
             nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'havent-gotten-to-it') {
-            nextStepInForm = 'deploy-fleet-in-your-environment';
+            nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
             nextStepInForm = 'how-many-hosts';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){
