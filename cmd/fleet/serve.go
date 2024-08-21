@@ -76,6 +76,7 @@ import (
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const softwareInstallerUploadTimeout = 4 * time.Minute
+const liveQueryMemCacheDuration = 1 * time.Second
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -346,7 +347,7 @@ the way that the Fleet server works.
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 				log.With(logger, "component", "query-results"),
 			)
-			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, config.Redis.LiveQueryCacheExpiration)
+			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			// Set common configuration for all logging.

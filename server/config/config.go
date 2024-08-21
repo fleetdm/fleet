@@ -74,8 +74,6 @@ type RedisConfig struct {
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
-	// Fleet Server in memory cache duration for live queries
-	LiveQueryCacheExpiration time.Duration `yaml:"live_query_cache_expiration"`
 }
 
 const (
@@ -973,7 +971,6 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
-	man.addConfigDuration("redis.live_query_cache_expiration", 1*time.Second, "Time to cache Redis live query keys in memory")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1394,7 +1391,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
-			LiveQueryCacheExpiration:  man.getConfigDuration("redis.live_query_cache_expiration"),
 		},
 		Server: ServerConfig{
 			Address:                     man.getConfigString("server.address"),
