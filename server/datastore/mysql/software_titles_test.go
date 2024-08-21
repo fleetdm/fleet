@@ -1001,6 +1001,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "vpp1", Version: "0.0.1", Source: "apps"},
+		{Name: "installer1", Version: "0.0.1", Source: "apps"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -1040,6 +1042,63 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{name: "vpp2", source: "ios_apps"},
 		{name: "vpp2", source: "ipados_apps"},
 		{name: "vpp2", source: "apps"},
+	}, names)
+
+	var vppVersionID uint
+	var installer1ID uint
+	var fooID uint
+	for _, title := range titles {
+		switch title.Name {
+		case "vpp1":
+			vppVersionID = title.Versions[0].ID
+		case "installer1":
+			installer1ID = title.Versions[0].ID
+		case "foo":
+			fooID = title.Versions[0].ID
+		}
+	}
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: vppVersionID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: installer1ID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: fooID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID:              ptr.Uint(0),
+			AvailableForInstall: true,
+			VulnerableOnly:      true,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, counts)
+	require.Len(t, titles, 2)
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "installer1", source: "apps"},
+		{name: "vpp1", source: "apps"},
 	}, names)
 
 	// with filter returns only available for install

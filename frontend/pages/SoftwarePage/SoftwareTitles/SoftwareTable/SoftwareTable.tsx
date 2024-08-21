@@ -332,18 +332,16 @@ const SoftwareTable = ({
     );
   };
 
-  const renderTableFooter = () => {
-    return (
-      <div>
-        Seeing unexpected software or vulnerabilities?{" "}
-        <CustomLink
-          url={GITHUB_NEW_ISSUE_LINK}
-          text="File an issue on GitHub"
-          newTab
-        />
-      </div>
-    );
-  };
+  const renderTableHelpText = () => (
+    <div>
+      Seeing unexpected software or vulnerabilities?{" "}
+      <CustomLink
+        url={GITHUB_NEW_ISSUE_LINK}
+        text="File an issue on GitHub"
+        newTab
+      />
+    </div>
+  );
 
   return (
     <div className={baseClass}>
@@ -384,7 +382,7 @@ const SoftwareTable = ({
         }
         stackControls
         renderCount={renderSoftwareCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}
