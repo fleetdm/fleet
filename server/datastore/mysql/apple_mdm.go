@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -14,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -4921,73 +4923,78 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	return tok, nil
 }
 
-func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
-	stmt := `
-	UPDATE
-		vpp_tokens
-	SET
-		organization_name = ?,
-		location = ?,
-		renew_at = ?,
-		token = ?,
-		team_id = ?,
-		null_team_type = ?
-	WHERE
-		id = ?
-`
+func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) error {
+	stmtRemove := `DELETE FROM vpp_token_teams WHERE vpp_token_id = ?`
+	stmtInsert := `
+	INSERT INTO
+		vpp_token_teams (
+			vpp_token_id,
+			team_id,
+			null_team_type
+	) VALUES `
+	stmtValues := `(?, ?, ?)`
 
-	if tok.TeamID != nil && tok.NullTeam != fleet.NullTeamNone {
-		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
+	var values string
+	var args []any
+	// No DB constraint, if no team or all teams comes up we have to
+	// check it in go
+	var nullTeamCheck fleet.NullTeamType
+
+	if len(teams) > 0 {
+		for _, team := range teams {
+			if values == "" {
+				values = stmtValues
+			} else {
+				values = strings.Join([]string{values, stmtValues}, ",")
+			}
+			var teamptr *uint
+			nullTeam := fleet.NullTeamNone
+			if team != 0 {
+				// Regular team
+				teamptr = &team
+			} else {
+				// NoTeam team
+				nullTeam = fleet.NullTeamNoTeam
+				nullTeamCheck = fleet.NullTeamNoTeam
+			}
+			args = append(args, id, teamptr, nullTeam)
+		}
+	} else if teams != nil {
+		// Empty but not nil, All Teams!
+		values = stmtValues
+		args = append(args, id, nil, fleet.NullTeamAllTeams)
+		nullTeamCheck = fleet.NullTeamAllTeams
 	}
 
-	if err := ds.checkVPPNullTeam(ctx, tok.TeamID, tok.NullTeam); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
+	stmtInsertFull := stmtInsert + values
+
+	if err := ds.checkVPPNullTeam(ctx, &id, nullTeamCheck); err != nil {
+		return ctxerr.Wrap(ctx, err, "vpp token null team check")
 	}
 
-	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
+	///////////////////////
+	// BEGIN TRANSACTION //
+	///////////////////////
+	tx, err := ds.writer(ctx).BeginTx(ctx, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+		return ctxerr.Wrap(ctx, err, "could not begin transaction to update vpp token teams")
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(
-		ctx,
-		stmt,
-		tok.OrgName,
-		tok.Location,
-		tok.RenewDate,
-		tokEnc,
-		tok.TeamID,
-		tok.NullTeam,
-		tok.ID,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating vpp token")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
-	stmt := `
-	UPDATE
-		vpp_tokens
-	SET
-		team_id = ?,
-		null_team_type = ?
-	WHERE
-		id = ?
-`
-	if teamID != nil && nullTeam != fleet.NullTeamNone {
-		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
-	}
-
-	if err := ds.checkVPPNullTeam(ctx, &id, nullTeam); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, nullTeam, id); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmtInsertFull, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
+
+	if err := tx.Commit(); err != nil {
+		return ctxerr.Wrap(ctx, err, "comitting update vpp token data")
+	}
+	////////////////////////
+	// COMMIT TRANSACTION //
+	////////////////////////
 
 	return nil
 }
@@ -5002,33 +5009,61 @@ func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 }
 
 func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
-	stmt := `
+	stmtTokens := `
 	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
+		v.id,
+		v.organization_name,
+		v.location,
+		v.renew_at,
+		v.token,
+		t.team_id,
+		t.null_team_type
 	FROM
-		vpp_tokens
+		vpp_tokens v
+	LEFT OUTER JOIN
+		vpp_token_teams t
+	ON
+		vpp_tokens.id = vpp_token_teams.vpp_token_id
+`
+
+	stmtTeams := `
+	SELECT
+		vt.id,
+		vt.vpp_token_id,
+		vt.team_id,
+		vt.null_team_type
+		t.name
+	FROM
+		vpp_token_teams vt
+	LEFT OUTER JOIN
+		teams t
+	ON vt.team_id = t.id
 `
 	var tokEncs []struct {
-		ID        uint               `db:"id"`
-		OrgName   string             `db:"organization_name"`
-		Location  string             `db:"location"`
-		RenewDate time.Time          `db:"renew_at"`
-		Token     []byte             `db:"token"`
-		TeamID    *uint              `db:"team_id"`
-		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+		ID        uint      `db:"id"`
+		OrgName   string    `db:"organization_name"`
+		Location  string    `db:"location"`
+		RenewDate time.Time `db:"renew_at"`
+		Token     []byte    `db:"token"`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEncs, stmt); err != nil {
+	var teams []struct {
+		ID         string             `db:"id"`
+		VPPTokenID uint               `db:"vpp_token_id"`
+		TeamID     *uint              `db:"team_id"`
+		TeamName   string             `db:"name"`
+		NullTeam   fleet.NullTeamType `db:"null_team_type"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEncs, stmtTokens); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting vpp tokens from db")
 	}
 
-	var tokens []fleet.VPPTokenDB
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, stmtTeams); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token teams from db")
+	}
+
+	tokens := map[uint]fleet.VPPTokenDB{}
 
 	for _, tokEnc := range tokEncs {
 		tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
@@ -5036,50 +5071,84 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 			return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
 		}
 
-		tokens = append(tokens, fleet.VPPTokenDB{
+		tokens[tokEnc.ID] = fleet.VPPTokenDB{
 			ID:        tokEnc.ID,
 			OrgName:   tokEnc.OrgName,
 			Location:  tokEnc.Location,
 			RenewDate: tokEnc.RenewDate,
 			Token:     string(tokDec),
-			TeamID:    tokEnc.TeamID,
-			NullTeam:  tokEnc.NullTeam,
-		})
+		}
 	}
 
-	return tokens, nil
+	for _, team := range teams {
+		token := tokens[team.VPPTokenID]
+		if team.TeamID != nil {
+			token.Teams = append(token.Teams, fleet.TeamTuple{ID: *team.TeamID, Name: team.TeamName})
+		} else {
+			token.NullTeam = team.NullTeam
+		}
+	}
+
+	var outTokens []fleet.VPPTokenDB
+	for _, token := range tokens {
+		outTokens = append(outTokens, token)
+	}
+
+	slices.SortFunc(outTokens, func(a, b fleet.VPPTokenDB) int {
+		return cmp.Compare(int(a.ID), int(b.ID))
+	})
+
+	return outTokens, nil
 }
 
 func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 	stmtTeam := `
 	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
+		v.id,
+		v.organization_name,
+		v.location,
+		v.renew_at,
+		v.token,
+		vt.team_id,
+		vt.null_team_type
 	FROM
-		vpp_tokens
+		vpp_token_teams vt
+	INNER JOIN
+		vpp_tokens v
+	ON v.id = t.team_id
 	WHERE
-		team_id = ?
+		vt.team_id = ?
+`
+	stmtTeamNames := `
+	SELECT
+		t.id,
+		t.name
+	FROM
+		teams t
+	INNER JOIN
+		vpp_token_teams vt
+	ON t.id = vt.team_id
+	WHERE
+		vt.vpp_token_id = ?
 `
 	stmtNullTeam := `
 	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
+		v.id,
+		v.organization_name,
+		v.location,
+		v.renew_at,
+		v.token,
+		vt.team_id,
+		vt.null_team_type
 	FROM
-		vpp_tokens
+		vpp_tokens v
+	INNER JOIN
+		vpp_token_teams vt
+	ON v.id = vt.vpp_token_id
 	WHERE
-		team_id IS NULL
-    AND
-        null_team_type = ?
+		vt.team_id IS NULL
+	AND
+		vt.null_team_type = ?
 `
 
 	var tokEnc struct {
@@ -5111,6 +5180,17 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		}
 	}
 
+	var teams []fleet.TeamTuple
+	if tokEnc.TeamID != nil {
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, stmtTeamNames, tokEnc.TeamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token team information")
+		}
+	}
+
+	if tokEnc.NullTeam == fleet.NullTeamAllTeams {
+		teams = []fleet.TeamTuple{} // Initialized but empty
+	}
+
 	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
@@ -5122,7 +5202,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		Location:  tokEnc.Location,
 		RenewDate: tokEnc.RenewDate,
 		Token:     string(tokDec),
-		TeamID:    tokEnc.TeamID,
+		Teams:     teams,
 		NullTeam:  tokEnc.NullTeam,
 	}
 
@@ -5130,7 +5210,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 }
 
 func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, nullTeam fleet.NullTeamType) error {
-	nullTeamStmt := `SELECT id FROM vpp_tokens WHERE null_team_type = ?`
+	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
 
 	if nullTeam != fleet.NullTeamNone {
 		var id uint

@@ -769,10 +769,15 @@ type VPPTokenDB struct {
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
 	Token    string       `json:"-"`
-	TeamID   *uint        `json:"team_id"`
+	Teams    []TeamTuple  `json:"teams"`
 	NullTeam NullTeamType `json:"null_team_type"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type TeamTuple struct {
+	ID   uint   `json:"team_id"`
+	Name string `json:"name"`
 }
 
 type NullTeamType string
