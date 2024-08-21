@@ -18,6 +18,7 @@ parasails.registerPage('start', {
       'what-does-your-team-manage-eo-it': {},
       'what-does-your-team-manage-vm': {},
       'what-do-you-manage-mdm': {},
+      'cross-platform-mdm': {stepCompleted: true},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
       'deploy-fleet-in-your-environment': {stepCompleted: true},
@@ -25,6 +26,8 @@ parasails.registerPage('start', {
       'how-was-your-deployment': {},
       'whats-left-to-get-you-set-up': {},
     },
+
+    psychologicalStage: '2 - Aware',
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
@@ -89,6 +92,9 @@ parasails.registerPage('start', {
         this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
       }
     }
+    if(this.me.psychologicalStage){
+      this.psychologicalStage = this.me.psychologicalStage;
+    }
     if(window.location.hash) {
       if(typeof analytics !== 'undefined') {
         if(window.location.hash === '#signup') {
@@ -126,11 +132,13 @@ parasails.registerPage('start', {
     handleSubmittingForm: async function(argins) {
       let formDataForThisStep = _.clone(argins);
       let nextStep = this.getNextStep();
-      let getStartedProgress = await Cloud.saveQuestionnaireProgress.with({
+      let questionanireProgress = await Cloud.saveQuestionnaireProgress.with({
         currentStep: this.currentStep,
         formData: formDataForThisStep,
       });
-      this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
+
+      this.previouslyAnsweredQuestions[this.currentStep] = questionanireProgress.getStartedProgress[this.currentStep];
+      this.psychologicalStage = questionanireProgress.psychologicalStage;
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {
@@ -140,6 +148,9 @@ parasails.registerPage('start', {
     },
     clickGoToPreviousStep: async function() {
       switch(this.currentStep) {
+        case 'what-are-you-using-fleet-for':
+          this.currentStep = 'start';
+          break;
         case 'have-you-ever-used-fleet':
           this.currentStep = 'what-are-you-using-fleet-for';
           break;
@@ -175,8 +186,11 @@ parasails.registerPage('start', {
           } else if(primaryBuyingSituation === 'vm') {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(primaryBuyingSituation === 'mdm') {
-            this.currentStep = 'what-do-you-manage-mdm';
+            this.currentStep = 'cross-platform-mdm';
           }
+          break;
+        case 'cross-platform-mdm':
+          this.currentStep = 'what-do-you-manage-mdm';
           break;
         case 'lets-talk-to-your-team':
           this.currentStep = 'how-many-hosts';
@@ -274,6 +288,9 @@ parasails.registerPage('start', {
           nextStepInForm = 'is-it-any-good';
           break;
         case 'what-do-you-manage-mdm':
+          nextStepInForm = 'cross-platform-mdm';
+          break;
+        case 'cross-platform-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':
@@ -300,7 +317,7 @@ parasails.registerPage('start', {
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'kinda-stuck'){
             nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'havent-gotten-to-it') {
-            nextStepInForm = 'deploy-fleet-in-your-environment';
+            nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
             nextStepInForm = 'how-many-hosts';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){
