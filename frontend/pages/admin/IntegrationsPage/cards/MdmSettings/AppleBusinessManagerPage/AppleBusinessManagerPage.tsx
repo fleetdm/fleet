@@ -19,10 +19,9 @@ import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 
-import DisableAutomaticEnrollmentModal from "./modals/DisableAutomaticEnrollmentModal";
-import RenewTokenModal from "./modals/RenewTokenModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
+import RenewAbmModal from "./components/RenewAbmModal";
 import DeleteAbmModal from "./components/DeleteAbmModal";
 import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
 
@@ -52,7 +51,11 @@ const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
   );
 };
 
-const AddAbmMessage = () => {
+interface IAddAbmMessageProps {
+  onAddAbm: () => void;
+}
+
+const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
   return (
     <div className={`${baseClass}__add-adm-message`}>
       <h2>Add your ABM</h2>
@@ -60,12 +63,7 @@ const AddAbmMessage = () => {
         Automatically enroll newly purchased Apple hosts when they&apos;re first
         unboxed and set up by your end users.
       </p>
-      <Button
-        variant="brand"
-        onClick={() => {
-          console.log("click add abm");
-        }}
-      >
+      <Button variant="brand" onClick={onAddAbm}>
         Add ABM
       </Button>
     </div>
@@ -114,14 +112,18 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowEditTeamModal(false);
   }, [refetch]);
 
+  const onAddAbm = () => {
+    setShowAddAbmModal(true);
+  };
+
+  const onAdded = () => {
+    refetch();
+    setShowAddAbmModal(false);
+  };
+
   const onRenewToken = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
     setShowRenewModal(true);
-  };
-
-  const onDeleteToken = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
-    setShowDeleteModal(true);
   };
 
   const onCancelRenewToken = useCallback(() => {
@@ -134,6 +136,11 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     refetch();
     setShowRenewModal(false);
   }, [refetch]);
+
+  const onDeleteToken = (abmToken: IMdmAbmToken) => {
+    selectedToken.current = abmToken;
+    setShowDeleteModal(true);
+  };
 
   const onCancelDeleteToken = useCallback(() => {
     selectedToken.current = null;
@@ -151,7 +158,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   }
 
   const showDataError = errorAbmTokens && errorAbmTokens.status !== 404;
-  const showConnectAbm = !abmTokens;
 
   const renderContent = () => {
     if (!config?.mdm.enabled_and_configured) {
@@ -172,7 +178,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     }
 
     if (abmTokens?.length === 0) {
-      return <AddAbmMessage />;
+      return <AddAbmMessage onAddAbm={onAddAbm} />;
     }
 
     if (abmTokens) {
@@ -207,7 +213,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business Manager (ABM)</h1>
             {abmTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
-              <Button variant="brand" onClick={() => setShowAddAbmModal(true)}>
+              <Button variant="brand" onClick={onAddAbm}>
                 Add ABM
               </Button>
             )}
@@ -216,10 +222,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         </div>
       </>
       {showAddAbmModal && (
-        <AddAbmModal onCancel={() => setShowAddAbmModal(false)} />
+        <AddAbmModal
+          onAdded={onAdded}
+          onCancel={() => setShowAddAbmModal(false)}
+        />
       )}
       {showRenewModal && selectedToken.current && (
-        <RenewTokenModal
+        <RenewAbmModal
           tokenId={selectedToken.current.id}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}

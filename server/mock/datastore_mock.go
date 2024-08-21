@@ -864,6 +864,30 @@ type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.
 
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
+type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error)
+
+type GetVPPTokenFunc func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error)
+
+type UpdateVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenDB) error
+
+type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
+
+type ListVPPTokensFunc func(ctx context.Context) ([]fleet.VPPTokenDB, error)
+
+type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
+
+type UpdateVPPTokenTeamFunc func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error
+
+type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
+
+type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
+
+type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
+
+type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error)
+
+type GetABMTokenCountFunc func(ctx context.Context) (int, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1017,6 +1041,8 @@ type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamI
 type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+
+type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPToken, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2285,6 +2311,42 @@ type DataStore struct {
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
 
+	InsertVPPTokenFunc        InsertVPPTokenFunc
+	InsertVPPTokenFuncInvoked bool
+
+	GetVPPTokenFunc        GetVPPTokenFunc
+	GetVPPTokenFuncInvoked bool
+
+	UpdateVPPTokenFunc        UpdateVPPTokenFunc
+	UpdateVPPTokenFuncInvoked bool
+
+	DeleteVPPTokenFunc        DeleteVPPTokenFunc
+	DeleteVPPTokenFuncInvoked bool
+
+	ListVPPTokensFunc        ListVPPTokensFunc
+	ListVPPTokensFuncInvoked bool
+
+	GetVPPTokenByTeamIDFunc        GetVPPTokenByTeamIDFunc
+	GetVPPTokenByTeamIDFuncInvoked bool
+
+	UpdateVPPTokenTeamFunc        UpdateVPPTokenTeamFunc
+	UpdateVPPTokenTeamFuncInvoked bool
+
+	InsertABMTokenFunc        InsertABMTokenFunc
+	InsertABMTokenFuncInvoked bool
+
+	ListABMTokensFunc        ListABMTokensFunc
+	ListABMTokensFuncInvoked bool
+
+	DeleteABMTokenFunc        DeleteABMTokenFunc
+	DeleteABMTokenFuncInvoked bool
+
+	GetABMTokenByIDFunc        GetABMTokenByIDFunc
+	GetABMTokenByIDFuncInvoked bool
+
+	GetABMTokenCountFunc        GetABMTokenCountFunc
+	GetABMTokenCountFuncInvoked bool
+
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
 
@@ -2515,6 +2577,9 @@ type DataStore struct {
 
 	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
 	GetPastActivityDataForVPPAppInstallFuncInvoked bool
+
+	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
+	GetVPPTokenByLocationFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5473,6 +5538,90 @@ func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error
 	return s.SaveABMTokenFunc(ctx, tok)
 }
 
+func (s *DataStore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.InsertVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPTokenFunc(ctx, tok, teamID, nullTeam)
+}
+
+func (s *DataStore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenFunc(ctx, tok)
+}
+
+func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.DeleteVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.ListVPPTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListVPPTokensFunc(ctx)
+}
+
+func (s *DataStore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenByTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenByTeamIDFunc(ctx, teamID)
+}
+
+func (s *DataStore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenTeamFunc(ctx, id, teamID, nullTeam)
+}
+
+func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.InsertABMTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertABMTokenFunc(ctx, tok)
+}
+
+func (s *DataStore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.ListABMTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListABMTokensFunc(ctx)
+}
+
+func (s *DataStore) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.DeleteABMTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteABMTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByIDFunc(ctx, tokenID)
+}
+
+func (s *DataStore) GetABMTokenCount(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.GetABMTokenCountFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenCountFunc(ctx)
+}
+
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
 	s.mu.Lock()
 	s.WSTEPStoreCertificateFuncInvoked = true
@@ -6010,4 +6159,11 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
+}
+
+func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPToken, error) {
+	s.mu.Lock()
+	s.GetVPPTokenByLocationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenByLocationFunc(ctx, loc)
 }

@@ -21,6 +21,7 @@ import TableDataError from "components/DataError";
 import SoftwareTable from "./SoftwareTable";
 import {
   ISoftwareDropdownFilterVal,
+  ISoftwareVulnFilters,
   getSoftwareFilterForQueryKey,
 } from "./SoftwareTable/helpers";
 
@@ -40,10 +41,12 @@ interface ISoftwareTitlesProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
   resetPageIndex: boolean;
   addedSoftwareToken: string | null;
+  onAddFilterClick: () => void;
 }
 
 const SoftwareTitles = ({
@@ -54,10 +57,12 @@ const SoftwareTitles = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
   resetPageIndex,
   addedSoftwareToken,
+  onAddFilterClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -83,6 +88,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         addedSoftwareToken,
+        ...vulnFilters,
         ...getSoftwareFilterForQueryKey(softwareFilter),
       },
     ],
@@ -117,8 +123,8 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        vulnerable: softwareFilter === "vulnerableSoftware",
         addedSoftwareToken,
+        ...vulnFilters,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -150,6 +156,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         availableForInstall: true,
+        ...vulnFilters,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -190,6 +197,8 @@ const SoftwareTitles = ({
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
         resetPageIndex={resetPageIndex}
+        onAddFilterClick={onAddFilterClick}
+        vulnFilters={vulnFilters}
       />
     </div>
   );

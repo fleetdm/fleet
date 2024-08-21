@@ -8,7 +8,11 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
+
 import RenewDateCell from "./RenewDateCell";
+import OrgNameCell from "./OrgNameCell";
 
 type IAbmTableConfig = Column<IMdmAbmToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
@@ -38,9 +42,10 @@ export const generateTableConfig = (
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} className={"org-name-cell"} />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { terms_expired, org_name } = cellProps.cell.row.original;
+        return <OrgNameCell orgName={org_name} termsExpired={terms_expired} />;
+      },
     },
     {
       accessor: "renew_date",
@@ -63,7 +68,21 @@ export const generateTableConfig = (
     },
     {
       accessor: "macos_team",
-      Header: "macOS team",
+      Header: () => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                macOS hosts are automatically added to this team in Fleet when
+                they appear in Apple Business Manager.
+              </>
+            }
+          >
+            macOS team
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      },
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
@@ -71,7 +90,21 @@ export const generateTableConfig = (
     },
     {
       accessor: "ios_team",
-      Header: "iOS team",
+      Header: () => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                iOS hosts are automatically added to this team in Fleet when
+                they appear in Apple Business Manager.
+              </>
+            }
+          >
+            iOS team
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      },
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
@@ -79,7 +112,21 @@ export const generateTableConfig = (
     },
     {
       accessor: "ipados_team",
-      Header: "iPadOS team",
+      Header: () => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                iPadOS hosts are automatically added to this team in Fleet when
+                they appear in Apple Business Manager.
+              </>
+            }
+          >
+            iPadOS team
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      },
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />

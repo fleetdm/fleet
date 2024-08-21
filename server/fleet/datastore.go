@@ -1325,6 +1325,29 @@ type Datastore interface {
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
+	InsertVPPToken(ctx context.Context, tok *VPPTokenData, teamID *uint, nullTeam NullTeamType) (*VPPTokenDB, error)
+	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
+	UpdateVPPToken(ctx context.Context, tok *VPPTokenDB) error
+	DeleteVPPToken(ctx context.Context, tokenID uint) error
+	ListVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
+	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
+	UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam NullTeamType) error
+
+	// InsertABMToken inserts a new ABM token into the datastore.
+	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
+
+	// ListABMTokens lists all of the ABM tokens.
+	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
+	// DeleteABMToken deletes the given ABM token from the datastore.
+	DeleteABMToken(ctx context.Context, tokenID uint) error
+
+	// GetABMTokenByID retrieves the ABM token with the given ID.
+	GetABMTokenByID(ctx context.Context, tokenID uint) (*ABMToken, error)
+
+	// GetABMTokenCount returns the number of ABM tokens in the DB.
+	GetABMTokenCount(ctx context.Context) (int, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
@@ -1609,6 +1632,8 @@ type Datastore interface {
 
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
+
+	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPToken, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

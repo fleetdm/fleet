@@ -16,9 +16,10 @@ const baseClass = "add-abm-modal";
 
 interface IAddAbmModalProps {
   onCancel: () => void;
+  onAdded: () => void;
 }
 
-const AddAbmModal = ({ onCancel }: IAddAbmModalProps) => {
+const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [tokenFile, setTokenFile] = useState<File | null>(null);
@@ -42,15 +43,16 @@ const AddAbmModal = ({ onCancel }: IAddAbmModalProps) => {
     try {
       await mdmAbmAPI.uploadToken(tokenFile);
       renderFlash("success", "Added successfully.");
-      onCancel();
+      onAdded();
     } catch (e) {
       // TODO: ensure API is sending back the correct err messages
       const msg = getErrorReason(e);
       renderFlash("error", msg);
+      onCancel();
     } finally {
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, onCancel]);
+  }, [tokenFile, renderFlash, onAdded, onCancel]);
 
   return (
     <Modal

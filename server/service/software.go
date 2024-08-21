@@ -241,5 +241,10 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 		return 0, fleet.ErrMissingLicense
 	}
 
+	// required for vulnerability filters
+	if lic.IsPremium() {
+		opt.IncludeCVEScores = true
+	}
+
 	return svc.ds.CountSoftware(ctx, opt)
 }

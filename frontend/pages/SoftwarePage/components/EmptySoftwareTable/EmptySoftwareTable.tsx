@@ -1,34 +1,32 @@
-// This component is used on DashboardPage.tsx > Software.tsx,
-// Host Details / Device User > Software.tsx, and SoftwarePage.tsx
-
 import React from "react";
-
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import {
+  getVulnFilterDetails,
+  ISoftwareDropdownFilterVal,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
-  /** tableName is displayed in the search empty state */
+  vulnFilters?: ISoftwareVulnFiltersParams;
   tableName?: string;
   isSoftwareDisabled?: boolean;
-  /** noSearchQuery is true when there is no search string filtering the results */
   noSearchQuery?: boolean;
-  /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
-  /** true if the team has any software installers or VPP apps available to install on hosts */
   installableSoftwareExists?: boolean;
 }
 
 const generateTypeText = (
   tableName: string,
-  softwareFilter?: ISoftwareDropdownFilterVal
-) => {
+  softwareFilter?: ISoftwareDropdownFilterVal,
+  vulnFilters?: ISoftwareVulnFiltersParams
+): string => {
   if (softwareFilter === "installableSoftware") {
     return "installable software";
   }
-  if (softwareFilter === "vulnerableSoftware") {
+  if (vulnFilters?.vulnerable) {
     return "vulnerable software";
   }
   return tableName;
@@ -36,47 +34,67 @@ const generateTypeText = (
 
 const EmptySoftwareTable = ({
   softwareFilter = "allSoftware",
+  vulnFilters,
   tableName = "software",
   isSoftwareDisabled,
   noSearchQuery,
   isCollectingSoftware,
   installableSoftwareExists,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(tableName, softwareFilter);
+  const softwareTypeText = generateTypeText(
+    tableName,
+    softwareFilter,
+    vulnFilters
+  );
 
-  const emptySoftware: IEmptyTableProps = {
-    header: "No items match the current search criteria",
-    info: `Expecting to see ${softwareTypeText}? Check back later.`,
+  const { filterCount: vulnFiltersCount } = getVulnFilterDetails(vulnFilters);
+
+  const isFiltered =
+    vulnFiltersCount > 0 || !noSearchQuery || softwareFilter !== "allSoftware";
+
+  const getEmptySoftwareInfo = (): IEmptyTableProps => {
+    if (isSoftwareDisabled) {
+      return {
+        header: "Software inventory disabled",
+        info: (
+          <>
+            Users with the admin role can{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+              text="turn on software inventory"
+              newTab
+            />
+            .
+          </>
+        ),
+      };
+    }
+
+    if (!isFiltered) {
+      if (softwareFilter === "allSoftware") {
+        if (installableSoftwareExists) {
+          return {
+            header: `No ${tableName} detected`,
+            info: "Install software on your hosts to see versions.",
+          };
+        }
+        if (isCollectingSoftware) {
+          return {
+            header: `No ${tableName} detected`,
+            info: `Expecting to see ${softwareTypeText}? Check back later.`,
+          };
+        }
+        return { header: `No ${tableName} detected`, info: "" };
+      }
+    }
+
+    return {
+      header: "No items match the current search criteria",
+      info: `Expecting to see ${softwareTypeText}? Check back later.`,
+    };
   };
 
-  if (noSearchQuery && softwareFilter === "allSoftware") {
-    emptySoftware.header = `No ${tableName} detected`;
-  }
-
-  if (softwareFilter === "allSoftware" && installableSoftwareExists) {
-    emptySoftware.header = `No ${tableName} detected`;
-    emptySoftware.info = "Install software on your hosts to see versions.";
-  }
-
-  if (isCollectingSoftware) {
-    emptySoftware.header = `No ${tableName} detected`;
-    emptySoftware.info = `Expecting to see ${softwareTypeText}? Check back later.`;
-  }
-
-  if (isSoftwareDisabled) {
-    emptySoftware.header = "Software inventory disabled";
-    emptySoftware.info = (
-      <>
-        Users with the admin role can{" "}
-        <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-          text="turn on software inventory"
-          newTab
-        />
-        .
-      </>
-    );
-  }
+  const emptySoftware = getEmptySoftwareInfo();
 
   return (
     <EmptyTable

@@ -35,7 +35,7 @@ module.exports = {
       type: 'string',
       description: 'A description of what this lead is about; e.g. a contact form message, or the size of t-shirt being requested.'
     },
-    leadSource: {
+    contactSource: {
       type: 'string',
       required: true,
       isIn: [
@@ -58,7 +58,7 @@ module.exports = {
 
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, leadSource, leadDescription, numberOfHosts}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, contactSource, leadDescription, numberOfHosts}) {
     if(sails.config.environment !== 'production') {
       sails.log('Skipping Salesforce integration...');
       return;
@@ -72,7 +72,7 @@ module.exports = {
       linkedinUrl,
       primaryBuyingSituation,
       psychologicalStage,
-      leadSource,
+      contactSource,
       description: leadDescription,
     });
 
@@ -80,7 +80,7 @@ module.exports = {
       salesforceContactId: recordIds.salesforceContactId,
       salesforceAccountId: recordIds.salesforceAccountId,
       leadDescription,
-      leadSource,
+      leadSource: contactSource,
       numberOfHosts,
     });
 

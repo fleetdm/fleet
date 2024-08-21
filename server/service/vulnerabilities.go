@@ -55,9 +55,9 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		}
 	}
 
+	// Check whether the query was for a vulnerability known to fleet
 	var knownVulnerability *bool
-	if len(vulns) == 0 && len(request.ListOptions.MatchQuery) > 0 {
-		// If no vulnerabilities are returned, we need to check if the query was for a vulnerability known to fleet
+	if len(request.ListOptions.MatchQuery) > 0 {
 		query := request.ListOptions.MatchQuery
 		matches := cveRegex.FindStringSubmatch(query)
 		if matches != nil {
@@ -66,9 +66,20 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 				// If CVE prefix was missing, we add it
 				query = cvePrefix + query
 			}
-			known, err := svc.IsCVEKnownToFleet(ctx, query)
-			if err != nil {
-				return listVulnerabilitiesResponse{Err: err}, nil
+			// As an optimization, we first check if the CVE was one of the ones returned
+			// by the query. If it was, we already know it's known to Fleet.
+			var known bool
+			for _, vuln := range vulns {
+				if vuln.CVE.CVE == query {
+					known = true
+					break
+				}
+			}
+			if !known {
+				known, err = svc.IsCVEKnownToFleet(ctx, query)
+				if err != nil {
+					return listVulnerabilitiesResponse{Err: err}, nil
+				}
 			}
 			knownVulnerability = &known
 		}

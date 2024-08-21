@@ -66,6 +66,22 @@ AND index_name = ?
 	return count > 0
 }
 
+func indexExistsTx(tx *sql.Tx, table, index string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE table_schema = DATABASE()
+AND table_name = ?
+AND index_name = ?
+`, table, index).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
 // updateAppConfigJSON updates the `json_value` stored in the `app_config_json` after applying the
 // supplied callback to the current config object.
 func updateAppConfigJSON(tx *sql.Tx, fn func(config *fleet.AppConfig) error) error {

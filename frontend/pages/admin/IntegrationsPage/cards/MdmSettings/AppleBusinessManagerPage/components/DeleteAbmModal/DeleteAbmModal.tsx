@@ -39,8 +39,9 @@ const DeleteAbmModal = ({
         "error",
         "Couldn’t disable automatic enrollment. Please try again."
       );
+      onCancel();
     }
-  }, [onDeletedToken, renderFlash, tokenId]);
+  }, [onCancel, onDeletedToken, renderFlash, tokenId]);
 
   return (
     <Modal
