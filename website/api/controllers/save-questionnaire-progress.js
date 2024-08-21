@@ -87,26 +87,23 @@ module.exports = {
     // 'how-many-hosts': Stage 4/5/6
     // 'will-you-be-self-hosting': Stage 5/6
     // 'what-are-you-working-on-eo-security'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-eo-it'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-vm'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-do-you-manage-mdm'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
+    //  - no-use-case-yet: » Stage 3
     //  - All other options » Stage 4
-    // 'is-it-any-good': Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
+    // 'is-it-any-good': Stage 3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
-    //  - host-fleet-for-me » Stage 4
-    //  - deploy-fleet-in-environment » Stage 4
+    //  - host-fleet-for-me » Stage 5
+    //  - deploy-fleet-in-environment » Stage 5
     //  - let-me-think-about-it »  Stage 2
     // FUTURE: Should the step about deploying fleet in your env be here?  (For same reason is-it-any-good is here: when navigating back then forwards?)
     // 'how-was-your-deployment'
     //  - up-and-running »  Stage 5
-    //  - kinda-stuck »  Stage 4 (...at best!  Still got the use case.)
+    //  - kinda-stuck »  Stage 5
     //  - havent-gotten-to-it » Stage 4 (same as above)
     //  - changed-mind-want-managed-deployment » Stage 4 (same as above)
     //  - decided-to-not-use-fleet » Stage 2
@@ -130,7 +127,7 @@ module.exports = {
         psychologicalStage = '6 - Has team buy-in';
       } else if(valueFromFormData === 'yes-recently-deployed'){
         psychologicalStage = '5 - Personally confident';
-      } else if(valueFromFormData === 'yes-deployed-local'){
+      } else if(valueFromFormData === 'yes-deployed-local') {
         // If they've tried Fleet locally, set their stage to 3.
         psychologicalStage = '3 - Intrigued';
       } else {
@@ -145,13 +142,7 @@ module.exports = {
       let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
       if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
         if(valueFromFormData === 'no-use-case-yet') {
-          // Check the user's answer to the previous question
-          if(hasUsedFleetAnswer === 'yes-deployed-local'){
-            // If they've tried Fleet locally, set their stage to 3.
-            psychologicalStage = '3 - Intrigued';
-          } else {
-            psychologicalStage = '2 - Aware';
-          }
+          psychologicalStage = '3 - Intrigued';
         } else {// Otherwise, they have a use case and will be set to stage 4.
           psychologicalStage = '4 - Has use case';
         }
@@ -161,12 +152,7 @@ module.exports = {
           // be selected,  we'll check the user's previous answers before changing their psyStage
           if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
-            if(hasUsedFleetAnswer === 'yes-deployed-local') {
-              // If they've tried Fleet locally, set their stage to 3.
-              psychologicalStage = '3 - Intrigued';
-            } else {
-              psychologicalStage = '2 - Aware';
-            }
+            psychologicalStage = '3 - Intrigued';
           } else {
             psychologicalStage = '4 - Has use case';
           }
@@ -178,27 +164,22 @@ module.exports = {
         // If the user selects "Let me think about it", set their psyStage to 2.
         if(valueFromFormData === 'let-me-think-about-it') {
           psychologicalStage = '2 - Aware';
-        } else if (['deploy-fleet-in-environment','host-fleet-for-me'].includes(valueFromFormData)) {
-          psychologicalStage = '4 - Has use case';
+        } else if (['host-fleet-for-me', 'deploy-fleet-in-environment'].includes(valueFromFormData)) {
+          psychologicalStage = '5 - Personally confident';
         } else { require('assert')(false,'This should never happen.'); }
       } else if(currentStep === 'how-was-your-deployment') {
         if(valueFromFormData === 'decided-to-not-use-fleet') {
           psychologicalStage = '2 - Aware';
-        } else if(valueFromFormData === 'up-and-running'){
+        } else if(['up-and-running', 'changed-mind-want-managed-deployment', 'kinda-stuck', 'havent-gotten-to-it'].includes(valueFromFormData)){
           psychologicalStage = '5 - Personally confident';
-        } else if(['kinda-stuck', 'havent-gotten-to-it', 'changed-mind-want-managed-deployment'].includes(valueFromFormData)){
-          psychologicalStage = '4 - Has use case';
         } else { require('assert')(false,'This should never happen.'); }
       } else if (currentStep === 'whats-left-to-get-you-set-up') {
         // FUTURE: do more stuff (for now this always acts like 'no change')
       } else if(currentStep === 'how-many-hosts') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
           psychologicalStage = '6 - Has team buy-in';
-        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
-          psychologicalStage = '5 - Personally confident';
         } else {
-          // IWMIH then we want Fleet to host for us (either because we wanted that from the get-go, or we backtracked because deploying looked too time-consuming)
-          psychologicalStage = '4 - Has use case';
+          psychologicalStage = '5 - Personally confident';
         }
       } else if(currentStep === 'will-you-be-self-hosting') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
