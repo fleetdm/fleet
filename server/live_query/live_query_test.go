@@ -131,6 +131,7 @@ func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
 
 	queries, err := store.QueriesForHost(1)
 	require.NoError(t, err)
+	t.Log("queries for host 1:", queries)
 	assert.Len(t, queries, 0)
 
 	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
