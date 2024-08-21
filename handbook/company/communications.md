@@ -720,7 +720,7 @@ Before spending any money on an offsite, inviting people, booking travel, or oth
   - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
   - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
 
-After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and recommended budget):
+After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
   - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
   - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
