@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -693,7 +694,6 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
 		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
 		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
 		{Name: fleet.MDMAssetCACert, Value: certPEM},
@@ -701,6 +701,9 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	}
 
 	err = ds.InsertMDMConfigAssets(context.Background(), assets)
+	require.NoError(t, err)
+
+	_, err = ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: apple_mdm.DEPName})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())
