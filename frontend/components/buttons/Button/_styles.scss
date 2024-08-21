@@ -70,6 +70,7 @@ $base-class: "button";
   border: 0;
   position: relative;
   cursor: pointer;
+  min-width: max-content;
 
   &:focus {
     outline: none;

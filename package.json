@@ -18,7 +18,7 @@
   "dependencies": {
     "@types/dompurify": "3.0.2",
     "ace-builds": "1.4.12",
-    "axios": "1.6.0",
+    "axios": "1.7.4",
     "content-disposition": "0.5.4",
     "core-js": "3.25.1",
     "date-fns": "3.6.0",
