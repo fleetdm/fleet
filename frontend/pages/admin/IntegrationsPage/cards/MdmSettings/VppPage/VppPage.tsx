@@ -194,14 +194,15 @@ const VppPage = ({ router }: IVppPageProps) => {
             <h1>Volume Purchasing Program (VPP)</h1>
             {vppTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
               <Button variant="brand" onClick={onAddVpp}>
-                Add ABM
+                Add VPP
               </Button>
             )}
           </div>
           <>{renderContent()}</>
         </div>
       </>
-      {showAddVppModal && (
+      {/* {showAddVppModal && ( */}
+      {true && (
         <AddVppModal
           onAdded={onAdded}
           onCancel={() => setShowAddVppModal(false)}

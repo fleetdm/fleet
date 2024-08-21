@@ -7,9 +7,9 @@ import mdmAbmAPI from "services/entities/mdm_apple_bm";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
-import CustomLink from "components/CustomLink";
 import { FileDetails } from "components/FileUploader/FileUploader";
-import DownloadABMKey from "pages/admin/components/DownloadFileButtons/DownloadABMKey";
+
+import VppSetupSteps from "./VppSetupSteps";
 
 const baseClass = "add-vpp-modal";
 
@@ -31,7 +31,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     }
   }, []);
 
-  const uploadAbmToken = useCallback(async () => {
+  const uploadVppToken = useCallback(async () => {
     setIsUploading(true);
     if (!tokenFile) {
       setIsUploading(false);
@@ -56,85 +56,19 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
   return (
     <Modal
       className={baseClass}
-      title="Add ABM"
+      title="Add VPP"
       onExit={onCancel}
       width="large"
     >
       <>
-        <ol className={`${baseClass}__setup-list`}>
-          <li>
-            <span>1.</span>
-            <p>
-              Download your public key. <DownloadABMKey baseClass={baseClass} />
-            </p>
-          </li>
-          <li>
-            <span>2.</span>
-            <span>
-              <span>
-                Sign in to{" "}
-                <CustomLink
-                  newTab
-                  text="Apple Business Manager"
-                  url="https://business.apple.com"
-                />
-                <br />
-                If your organization doesn&apos;t have an account, select{" "}
-                <b>Enroll now</b>.
-              </span>
-            </span>
-          </li>
-          <li>
-            <span>3.</span>
-            <span>
-              Select your <b>account name</b> at the bottom left of the screen,
-              then select <b>Preferences</b>.
-            </span>
-          </li>
-          <li>
-            <span>4.</span>
-            <span>
-              In the <b>Your MDM Servers</b> section, select <b>Add</b>.
-            </span>
-          </li>
-          <li>
-            <span>5.</span>
-            <span>Enter a name for the server such as “Fleet”.</span>
-          </li>
-          <li>
-            <span>6.</span>
-            <span>
-              Under <b>MDM Server Settings</b>, upload the public key downloaded
-              in the first step and select <b>Save</b>.
-            </span>
-          </li>
-          <li>
-            <span>7.</span>
-            <span>
-              In the <b>Default Device Assignment</b> section, select{" "}
-              <b>Change</b>, then assign the newly created server as the default
-              for your Macs, and select <b>Done</b>.
-            </span>
-          </li>
-          <li>
-            <span>8.</span>
-            <span>
-              Select newly created server in the sidebar, then select{" "}
-              <b>Download Token</b> on the top.
-            </span>
-          </li>
-          <li>
-            <span>9.</span>
-            <span>Upload the downloaded token (.p7m file).</span>
-          </li>
-        </ol>
+        <VppSetupSteps extendendSteps />
         <FileUploader
           className={`${baseClass}__file-uploader ${
             isUploading ? `${baseClass}__file-uploader--loading` : ""
           }`}
-          accept=".p7m"
-          message="ABM token (.p7m)"
-          graphicName={"file-p7m"}
+          accept=".vpptoken"
+          message="Content token (.vpptoken)"
+          graphicName="file-vpp"
           buttonType="link"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
           filePreview={
@@ -150,11 +84,11 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
         <div className="modal-cta-wrap">
           <Button
             variant="brand"
-            onClick={uploadAbmToken}
+            onClick={uploadVppToken}
             isLoading={isUploading}
             disabled={!tokenFile || isUploading}
           >
-            Add ABM
+            Add VPP
           </Button>
         </div>
       </>

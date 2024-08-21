@@ -1,3 +1,11 @@
 .vpp-table {
 
+  // this is a special case where the org name cell is too long at smaller widths.
+  // We dont want to remove any more columns so we need to reduce the width of
+  // the org name cell content to prevent table content overflow.
+  @media (max-width: $break-sm) {
+    .org_name__cell > span {
+      width: 140px;
+    }
+  }
 }

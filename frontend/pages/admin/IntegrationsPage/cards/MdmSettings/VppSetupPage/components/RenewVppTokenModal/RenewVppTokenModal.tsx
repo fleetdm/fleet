@@ -9,7 +9,7 @@ import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
 import { FileDetails } from "components/FileUploader/FileUploader";
 
-import VppSetupSteps from "../VppSetupSteps";
+import VppSetupSteps from "../../../VppPage/components/AddVppModal/VppSetupSteps";
 
 const baseClass = "renew-vpp-token-modal";
 
