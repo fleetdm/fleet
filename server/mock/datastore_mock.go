@@ -250,7 +250,15 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
-type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
+type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
+
+type AddHostMDMCommandsFunc func(ctx context.Context, commands []fleet.HostMDMCommand) error
+
+type GetHostMDMCommandsFunc func(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error)
+
+type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCommand) error
+
+type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
@@ -603,6 +611,8 @@ type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *j
 type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
+
+type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) error
 
 type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
@@ -1363,6 +1373,18 @@ type DataStore struct {
 	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
 	ListIOSAndIPadOSToRefetchFuncInvoked bool
 
+	AddHostMDMCommandsFunc        AddHostMDMCommandsFunc
+	AddHostMDMCommandsFuncInvoked bool
+
+	GetHostMDMCommandsFunc        GetHostMDMCommandsFunc
+	GetHostMDMCommandsFuncInvoked bool
+
+	RemoveHostMDMCommandFunc        RemoveHostMDMCommandFunc
+	RemoveHostMDMCommandFuncInvoked bool
+
+	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
+	CleanupHostMDMCommandsFuncInvoked bool
+
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
 
@@ -1890,6 +1912,9 @@ type DataStore struct {
 
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
+
+	UpdateMDMDataFunc        UpdateMDMDataFunc
+	UpdateMDMDataFuncInvoked bool
 
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
@@ -3314,11 +3339,39 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error) {
+func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error) {
 	s.mu.Lock()
 	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
+}
+
+func (s *DataStore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	s.mu.Lock()
+	s.AddHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AddHostMDMCommandsFunc(ctx, commands)
+}
+
+func (s *DataStore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
+	s.mu.Lock()
+	s.GetHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMCommandsFunc(ctx, hostID)
+}
+
+func (s *DataStore) RemoveHostMDMCommand(ctx context.Context, command fleet.HostMDMCommand) error {
+	s.mu.Lock()
+	s.RemoveHostMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveHostMDMCommandFunc(ctx, command)
+}
+
+func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostMDMCommandsFunc(ctx)
 }
 
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -4551,6 +4604,13 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServe
 	s.SetOrUpdateMDMDataFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name, fleetEnrollRef)
+}
+
+func (s *DataStore) UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error {
+	s.mu.Lock()
+	s.UpdateMDMDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMDataFunc(ctx, hostID, enrolled)
 }
 
 func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
