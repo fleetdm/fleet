@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { IMdmVppToken } from "interfaces/mdm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import BackLink from "components/BackLink";
@@ -17,6 +17,7 @@ import Spinner from "components/Spinner";
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
 import DeleteVppModal from "./components/DeleteVppModal";
+import VppTable from "./components/VppTable";
 
 const baseClass = "vpp-page";
 
@@ -73,7 +74,7 @@ const VppPage = ({ router }: IVppPageProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddVppModal, setShowAddVppModal] = useState(false);
 
-  const selectedToken = useRef<IMdmAbmToken | null>(null);
+  const selectedToken = useRef<IMdmVppToken | null>(null);
 
   const {
     data: vppTokens,
@@ -91,6 +92,10 @@ const VppPage = ({ router }: IVppPageProps) => {
     }
   );
 
+  const onEditTokenTeam = (token: IMdmVppToken) => {
+    console.log(token);
+  };
+
   const onAddVpp = () => {
     setShowAddVppModal(true);
   };
@@ -100,8 +105,8 @@ const VppPage = ({ router }: IVppPageProps) => {
     setShowAddVppModal(false);
   };
 
-  const onRenewToken = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
+  const onRenewToken = (vppToken: IMdmVppToken) => {
+    selectedToken.current = vppToken;
     setShowRenewModal(true);
   };
 
@@ -116,8 +121,8 @@ const VppPage = ({ router }: IVppPageProps) => {
     setShowRenewModal(false);
   }, [refetch]);
 
-  const onDeleteToken = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
+  const onDeleteToken = (vppToken: IMdmVppToken) => {
+    selectedToken.current = vppToken;
     setShowDeleteModal(true);
   };
 
@@ -164,12 +169,12 @@ const VppPage = ({ router }: IVppPageProps) => {
             Business Manager.
           </p>
           <p>table here</p>
-          {/* <AppleBusinessManagerTable
-            abmTokens={abmTokens}
+          <VppTable
+            vppTokens={vppTokens}
             onEditTokenTeam={onEditTokenTeam}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
-          /> */}
+          />
         </>
       );
     }
