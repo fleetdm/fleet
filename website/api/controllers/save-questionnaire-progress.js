@@ -122,17 +122,13 @@ module.exports = {
     } else if(currentStep === 'what-are-you-using-fleet-for') {
       psychologicalStage = '2 - Aware';
     } else if(currentStep === 'have-you-ever-used-fleet') {
-      if(['yes-deployed'].includes(valueFromFormData)) {
+      if(valueFromFormData === 'yes-deployed') {
         // If the user has Fleet deployed, set their stage to 6.
         psychologicalStage = '6 - Has team buy-in';
-      } else if(valueFromFormData === 'yes-recently-deployed'){
+      } else if(valueFromFormData === 'yes-recently-deployed') {
         psychologicalStage = '5 - Personally confident';
-      } else if(valueFromFormData === 'yes-deployed-local') {
-        // If they've tried Fleet locally, set their stage to 3.
-        psychologicalStage = '3 - Intrigued';
       } else {
-        // Otherwise, we'll just assume liu're only aware.  Maybe liu don't fully grasp what Fleet can do.
-        psychologicalStage = '2 - Aware';
+        psychologicalStage = '3 - Intrigued';
       }
     } else {
       // If the user submitted any other step, we'll set variables using the answers to the previous questions.
