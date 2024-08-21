@@ -1,9 +1,7 @@
 import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
-
 import { getErrorReason } from "interfaces/errors";
-
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 
 import Button from "components/buttons/Button";
@@ -16,15 +14,17 @@ import Modal from "components/Modal";
 
 const baseClass = "modal renew-token-modal";
 
-interface IRenewCertModalProps {
+interface IRenewAbmModalProps {
+  tokenId: number;
   onCancel: () => void;
-  onRenew: () => void;
+  onRenewedToken: () => void;
 }
 
-const RenewCertModal = ({
+const RenewAbmModal = ({
+  tokenId,
   onCancel,
-  onRenew,
-}: IRenewCertModalProps): JSX.Element => {
+  onRenewedToken,
+}: IRenewAbmModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUploading, setIsUploading] = useState(false);
@@ -37,7 +37,7 @@ const RenewCertModal = ({
     }
   }, []);
 
-  const onRenewClick = useCallback(async () => {
+  const onRenewToken = useCallback(async () => {
     if (!tokenFile) {
       // this shouldn'r happen, but just in case
       renderFlash("error", "Please provide a token file.");
@@ -45,23 +45,30 @@ const RenewCertModal = ({
     }
     setIsUploading(true);
     try {
-      await mdmAppleBmAPI.uploadToken(tokenFile);
-      renderFlash("success", "ABM token renewed successfully.");
+      await mdmAppleBmAPI.renewToken(tokenId, tokenFile);
+      renderFlash("success", "Renewed successfully.");
       setIsUploading(false);
-      onRenew();
+      onRenewedToken();
     } catch (e) {
+      // TODO: figure out what error message will be sent from API.
       const msg = getErrorReason(e);
       if (msg.toLowerCase().includes("valid token")) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Couldn’t renew. Please try again.");
       }
+      onCancel();
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, onRenew]);
+  }, [tokenFile, renderFlash, tokenId, onRenewedToken, onCancel]);
 
   return (
-    <Modal title="Renew token" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Renew token"
+      onExit={onCancel}
+      className={baseClass}
+      isContentDisabled={isUploading}
+    >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
@@ -118,9 +125,9 @@ const RenewCertModal = ({
             disabled={!tokenFile || isUploading}
             isLoading={isUploading}
             type="button"
-            onClick={onRenewClick}
+            onClick={onRenewToken}
           >
-            Renew token
+            Renew ABM
           </Button>
         </div>
       </div>
@@ -128,4 +135,4 @@ const RenewCertModal = ({
   );
 };
 
-export default RenewCertModal;
+export default RenewAbmModal;

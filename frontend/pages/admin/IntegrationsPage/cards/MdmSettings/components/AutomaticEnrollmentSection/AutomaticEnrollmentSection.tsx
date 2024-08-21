@@ -28,7 +28,7 @@ const AutomaticEnrollmentSection = ({
   };
 
   const navigateToAppleAutomaticEnrollment = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_APPLE);
+    router.push(PATHS.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER);
   };
 
   return (

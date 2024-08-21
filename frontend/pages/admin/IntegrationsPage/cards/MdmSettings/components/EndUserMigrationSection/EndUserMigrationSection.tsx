@@ -79,7 +79,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   };
 
   const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   const onChangeMode = (mode: string) => {
