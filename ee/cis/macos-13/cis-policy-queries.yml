@@ -3467,6 +3467,40 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Show Status Bar Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Status Bar in Safari shows the full URL of any link on hover. It protects the user from visiting sites where the domain has been obfuscated by allowing the user to review whether the link points to an unexpected location.
+  resolution: |
+    Automated method:
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is ShowOverlayStatusBar 
+      3. The key must be set to: <true/>
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='ShowOverlayStatusBar' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='ShowOverlayStatusBar' AND 
+            (value != 1 AND value != 'true')
+        );  
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
