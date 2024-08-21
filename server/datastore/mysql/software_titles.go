@@ -356,11 +356,8 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		((si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s)
 	`, includeVPPAppsAndSoftwareInstallers)
 
-	// add software installed for hosts if any of this is true:
-	//
-	// - we're not filtering for "available for install" only
-	// - we're filtering by vulnerable only
-	if !opt.AvailableForInstall || opt.VulnerableOnly {
+	// add software installed for hosts if we're not filtering for "available for install" only
+	if !opt.AvailableForInstall {
 		defaultFilter = ` ( ` + defaultFilter + ` OR sthc.hosts_count > 0 ) `
 	}
 	if opt.SelfServiceOnly {
