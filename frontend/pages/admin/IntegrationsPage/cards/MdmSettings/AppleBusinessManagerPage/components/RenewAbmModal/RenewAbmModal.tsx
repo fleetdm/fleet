@@ -16,12 +16,14 @@ const baseClass = "modal renew-token-modal";
 
 interface IRenewAbmModalProps {
   tokenId: number;
+  orgName: string;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
 const RenewAbmModal = ({
   tokenId,
+  orgName,
   onCancel,
   onRenewedToken,
 }: IRenewAbmModalProps) => {
@@ -70,6 +72,9 @@ const RenewAbmModal = ({
       isContentDisabled={isUploading}
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
+        <p className={`${baseClass}__description`}>
+          Renew Apple Business Manager for <b>{orgName}</b>.
+        </p>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
             <p>
