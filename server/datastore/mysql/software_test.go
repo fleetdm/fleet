@@ -4162,13 +4162,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -4182,13 +4182,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(false)},
 	}
 	expected["vpp4ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp4",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, SelfService: ptr.Bool(false)},
 	}
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly["vpp1ios_apps"] = expected["vpp1ios_apps"]
