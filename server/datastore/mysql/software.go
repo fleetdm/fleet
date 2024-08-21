@@ -2122,7 +2122,7 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
-		onlySelfServiceClause = ` AND si.self_service = 1 `
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
 	var onlyVulnerableClause string
@@ -2157,8 +2157,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			-- in a future iteration, will be supported for VPP apps
-			NULL as vpp_app_self_service,
+			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
@@ -2215,9 +2214,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			-- in a future iteration, will be supported for VPP apps
-			NULL as vpp_app_self_service,
-			vap.adam_id as vpp_app_adam_id,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
