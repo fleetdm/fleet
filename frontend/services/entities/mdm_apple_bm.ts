@@ -73,7 +73,6 @@ export default {
 
   getTokens: (): Promise<IMdmAbmToken[]> => {
     const { MDM_ABM_TOKENS } = endpoints;
-    console.log("Fetching ABM tokens from:", MDM_ABM_TOKENS);
     // return sendRequest("GET", MDM_ABM_TOKENS);
     return Promise.resolve([
       {
@@ -111,17 +110,10 @@ export default {
   }) => {
     const { MDM_ABM_TOKEN_TEAMS } = endpoints;
     const path = MDM_ABM_TOKEN_TEAMS(params.tokenId);
-    console.log(
-      "Editing teams for token id",
-      params.tokenId,
-      "with data:",
-      params.teams
-    );
     // promisify a mock response with a timeout
     await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
-      console.log("done")
+      console.log("mock API call done")
     );
-    console.log("Teams edited successfully");
-    return Promise.resolve();
+    return Promise.resolve(); // TODO: remove when API is ready
   },
 };

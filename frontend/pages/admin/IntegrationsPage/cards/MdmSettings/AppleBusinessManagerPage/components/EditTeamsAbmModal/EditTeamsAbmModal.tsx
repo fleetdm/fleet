@@ -110,8 +110,6 @@ const EditTeamsAbmModal = ({
   const onSave = useCallback(
     async (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
-      console.log("onSave", selectedTeamNames, evt);
-
       const teamIds = getSelectedTeamIds(
         selectedTeamNames,
         availableTeams || []
@@ -126,7 +124,6 @@ const EditTeamsAbmModal = ({
       }
 
       setIsSaving(true);
-      console.log("isSaving");
       try {
         await mdmAbmAPI.editTeams({
           tokenId: token.id,
@@ -150,7 +147,6 @@ const EditTeamsAbmModal = ({
       isContentDisabled={isSaving}
     >
       <>
-        {" "}
         <p>
           Edit teams for <b>{token.org_name}</b>.
         </p>
