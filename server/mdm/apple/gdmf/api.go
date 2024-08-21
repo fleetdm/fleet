@@ -154,8 +154,17 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return err
 		}
+
+		defer func() {
+			if resp != nil && resp.StatusCode >= http.StatusBadRequest {
+				// consume and close the body for retried requests to prevent resource leaks
+				_, _ = io.ReadAll(resp.Body)
+				resp.Body.Close()
+			}
+		}()
+
 		if resp.StatusCode == http.StatusTooManyRequests {
-			// handle 429 rate-limits, see
+			// handle 429 rate-limits
 			rawAfter := resp.Header.Get("Retry-After")
 			afterSecs, err := strconv.ParseInt(rawAfter, 10, 0)
 			if err == nil && (time.Duration(afterSecs)*time.Second) < maxWaitForRetryAfter {
@@ -171,9 +180,11 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 		}
 		return nil
 	}
+
 	if err := backoff.Retry(op, backoff.WithMaxRetries(backoff.NewConstantBackOff(retryBackoff), uint64(maxRetries))); err != nil {
 		return nil, err
 	}
+
 	return resp, err
 }
 

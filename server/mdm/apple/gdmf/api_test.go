@@ -18,16 +18,13 @@ func TestGetLatest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// load the test data from the file
-		b, err := os.ReadFile("test_data.json")
+		b, err := os.ReadFile("./testdata/gdmf.json")
 		require.NoError(t, err)
 		_, err = w.Write(b)
 		require.NoError(t, err)
 	}))
-	os.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
-	t.Cleanup(func() {
-		srv.Close()
-		os.Unsetenv("FLEET_DEV_GDMF_URL")
-	})
+	defer srv.Close()
+	t.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
 
 	// test the function
 	d := apple_mdm.MachineInfo{
@@ -224,7 +221,7 @@ func TestRetries(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		retryCount++
 		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write(nil)
+		_, err := w.Write([]byte(`{"error": "bad request"}`))
 		require.NoError(t, err)
 	}))
 	os.Setenv("FLEET_DEV_GDMF_URL", srv.URL)

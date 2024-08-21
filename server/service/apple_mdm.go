@@ -1312,7 +1312,8 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 		parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message: "unable to parse deviceinfo header",
+				Message:     "unable to parse deviceinfo header",
+				InternalErr: err,
 			}
 		}
 		p := fleet.MDMAppleMachineInfo(*parsed)

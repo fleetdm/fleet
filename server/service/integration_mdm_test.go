@@ -524,7 +524,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// load the test data from the file
-		b, err := os.ReadFile("../mdm/apple/gdmf/test_data.json")
+		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
 		require.NoError(s.T(), err)
 		_, err = w.Write(b)
 		require.NoError(s.T(), err)

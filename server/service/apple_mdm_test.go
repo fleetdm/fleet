@@ -3379,16 +3379,13 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	gdmf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// load the test data from the file
-		b, err := os.ReadFile("../mdm/apple/gdmf/test_data.json")
+		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
 		require.NoError(t, err)
 		_, err = w.Write(b)
 		require.NoError(t, err)
 	}))
-	os.Setenv("FLEET_DEV_GDMF_URL", gdmf.URL)
-	t.Cleanup(func() {
-		gdmf.Close()
-		os.Unsetenv("FLEET_DEV_GDMF_URL")
-	})
+	defer gdmf.Close()
+	t.Setenv("FLEET_DEV_GDMF_URL", gdmf.URL)
 
 	latestMacOSVersion := "14.6.1"
 	latestMacOSBuild := "23G93"
