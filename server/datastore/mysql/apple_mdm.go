@@ -5295,3 +5295,35 @@ func (ds *Datastore) GetABMTokenCount(ctx context.Context) (int, error) {
 
 	return count, nil
 }
+
+func (ds *Datastore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {
+	const stmt = `UPDATE abm_tokens SET terms_expired = ? WHERE organization_name = ? AND terms_expired != ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, expired, orgName, expired)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update abm_tokens terms_expired")
+	}
+	affRows, _ := res.RowsAffected()
+
+	if affRows > 0 {
+		// if it did update the row, then the previous value was the opposite of
+		// expired
+		wasSet = !expired
+	} else {
+		// if it did not update any row, then the previous value was the same
+		wasSet = expired
+	}
+	return wasSet, nil
+}
+
+func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
+	// The expectation is that abm_tokens will have few rows (we don't even
+	// support pagination on the "list ABM tokens" endpoint), so this query
+	// should be very fast even without index on terms_expired.
+	const stmt = `SELECT COUNT(*) FROM abm_tokens WHERE terms_expired = 1`
+
+	var count int
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens with terms expired")
+	}
+	return count, nil
+}

@@ -136,6 +136,10 @@ type MDM struct {
 	// PATCH /config API, it is only set automatically, internally, by detecting
 	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
 	// API.
+	//
+	// It is set to true as soon as one of the ABM tokens receives this error
+	// code, and is set to false only once all ABM tokens have agreed to the new
+	// terms.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
 	// EnabledAndConfigured is set to true if Fleet has been

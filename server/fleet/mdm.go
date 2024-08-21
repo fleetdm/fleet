@@ -80,13 +80,15 @@ func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
 }
 
-// AppConfigUpdated is the minimal interface required to get and update the
-// AppConfig, as required to handle the DEP API errors to flag that Apple's
-// terms have changed and must be accepted. The Fleet Datastore satisfies
-// this interface.
-type AppConfigUpdater interface {
+// ABMTermsUpdater is the minimal interface required to get and update the
+// AppConfig, and set an ABM token's terms_expired flag as required to handle
+// the DEP API errors to indicate that Apple's terms have changed and must be
+// accepted. The Fleet Datastore satisfies this interface.
+type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
+	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
