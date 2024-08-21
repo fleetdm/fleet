@@ -14,7 +14,7 @@ func Up_20240820165136(tx *sql.Tx) error {
 CREATE TABLE vpp_token_teams (
 	id int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
     vpp_token_id int unsigned NOT NULL,
-	team_id int unsigned NOT NULL,
+	team_id int unsigned,
 	null_team_type enum('none','allteams','noteam') COLLATE utf8mb4_unicode_ci DEFAULT 'none',
 	UNIQUE KEY idx_vpp_token_teams_team_id (team_id),
 	CONSTRAINT fk_vpp_token_teams_team_id FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
