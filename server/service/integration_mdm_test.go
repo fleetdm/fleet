@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -96,6 +97,7 @@ type integrationMDMTestSuite struct {
 	mdmCommander               *apple_mdm.MDMAppleCommander
 	logger                     kitlog.Logger
 	scepChallenge              string
+	depAcctResponse            []byte
 	appleVPPConfigSrv          *httptest.Server
 	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
@@ -360,8 +362,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Handle /associate
-		if strings.Contains(r.URL.Path, "associate") {
+		slog.With("filename", "server/service/integration_mdm_test.go", "func", "appleVPPConfigSrv").Info("JVE_LOG: fake apple server", "url", r.URL.Path)
+		switch {
+		case strings.Contains(r.URL.Path, "session"):
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case strings.Contains(r.URL.Path, "account"):
+			slog.With("filename", "server/service/integration_mdm_test.go", "func", "appleVPPConfigSrv").Info("JVE_LOG: in DEP /account handler ")
+
+			_, _ = w.Write(s.depAcctResponse)
+		case strings.Contains(r.URL.Path, "associate"):
 			var associations vpp.AssociateAssetsRequest
 
 			decoder := json.NewDecoder(r.Body)
@@ -454,11 +463,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				}
 			}
 			_, _ = w.Write([]byte(`{"eventId": "123-345"}`))
-			return
-		}
-
-		// Handle /assets
-		if strings.Contains(r.URL.Path, "assets") {
+		case strings.Contains(r.URL.Path, "assets"):
 			w.Header().Set("Content-Type", "application/json")
 			assets := s.appleVPPConfigSrvConfig.Assets
 			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
@@ -473,27 +478,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			if err != nil {
 				panic(err)
 			}
-			return
-		}
+		case strings.Contains(r.URL.Path, "client/config"):
+			// Handle /client/config
+			resp := []byte(`{"locationName": "Fleet Location One"}`)
+			if strings.Contains(r.URL.RawQuery, "invalidToken") {
+				// This replicates the response sent back from Apple's VPP endpoints when an invalid
+				// token is passed. For more details see:
+				// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+				// https://developer.apple.com/documentation/devicemanagement/client_config
+				// https://developer.apple.com/documentation/devicemanagement/errorresponse
+				// Note that the Apple server returns 200 in this case.
+				resp = []byte(`{"errorNumber": 9622,"errorMessage": "Invalid authentication token"}`)
+			}
 
-		// Handle /client/config
-		resp := []byte(`{"locationName": "Fleet Location One"}`)
-		if strings.Contains(r.URL.RawQuery, "invalidToken") {
-			// This replicates the response sent back from Apple's VPP endpoints when an invalid
-			// token is passed. For more details see:
-			// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
-			// https://developer.apple.com/documentation/devicemanagement/client_config
-			// https://developer.apple.com/documentation/devicemanagement/errorresponse
-			// Note that the Apple server returns 200 in this case.
-			resp = []byte(`{"errorNumber": 9622,"errorMessage": "Invalid authentication token"}`)
-		}
+			if strings.Contains(r.URL.RawQuery, "serverError") {
+				resp = []byte(`{"errorNumber": 9603,"errorMessage": "Internal server error"}`)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 
-		if strings.Contains(r.URL.RawQuery, "serverError") {
-			resp = []byte(`{"errorNumber": 9603,"errorMessage": "Internal server error"}`)
-			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write(resp)
 		}
-
-		_, _ = w.Write(resp)
 	}))
 
 	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -522,6 +526,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
+	s.T().Setenv("FLEET_DEV_DEP_URL", s.appleVPPConfigSrv.URL)
 
 	s.mockedDownloadFleetdmMeta = fleetdbase.Metadata{
 		MSIURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.msi", uuid.NewString()),
@@ -550,7 +555,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	// enable MDM flows
 	s.appleCoreCertsSetup()
-	s.enableABM()
+	s.uploadValidABMToken("org1")
 
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
@@ -9099,10 +9104,6 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	t := s.T()
-	ctx := context.Background()
-
-	// ensure enable ABM again for other tests
-	t.Cleanup(s.enableABM)
 
 	// Validate error when server private key not set
 	testSetEmptyPrivateKey = true
@@ -9112,48 +9113,74 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't download public key. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	testSetEmptyPrivateKey = false
 
+	// try to upload an invalid token
+	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Invalid token. Please provide a valid token from Apple Business Manager.")
+
+	// Note: There should be 1 key because enableABM is called during setup.
+
+	var getAppleBMResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/abm", nil, http.StatusOK, &getAppleBMResp)
+	require.Equal(t, getAppleBMResp.OrgName, "org1")
+	require.Nil(t, getAppleBMResp.Err)
+	require.Equal(t, getAppleBMResp.AppleID, "admin@org1.com")
+
+	// Check that the legacy endpoint returns the 1 existing token
+
+	var listABMTokensResp listABMTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &listABMTokensResp)
+	require.Len(t, listABMTokensResp.Tokens, 1)
+	require.Nil(t, listABMTokensResp.Err)
+	tok1 := listABMTokensResp.Tokens[0]
+	require.Equal(t, tok1.OrganizationName, "org1")
+	require.Equal(t, tok1.AppleID, "admin@org1.com")
+
 	// grab the current public key
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
 	require.Nil(t, abmResp.Err)
 	require.NotEmpty(t, abmResp.PublicKey)
 
-	// disable ABM
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/abm_token", nil, http.StatusNoContent)
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMTokenDeprecated,
-	})
-	var nfe fleet.NotFoundError
-	require.ErrorAs(t, err, &nfe)
-	require.Nil(t, assets)
+	// Upload some more tokens
+	s.uploadValidABMToken("org2")
+	s.uploadValidABMToken("org3")
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &listABMTokensResp)
+	require.Len(t, listABMTokensResp.Tokens, 3)
+	tok2, tok3 := listABMTokensResp.Tokens[1], listABMTokensResp.Tokens[2]
+	require.Equal(t, tok2.OrganizationName, "org2")
+	require.Equal(t, tok3.OrganizationName, "org3")
 
-	// try to upload a token without a keypair
-	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Please generate a keypair first.")
+	// Legacy endpoint should return an error now
+	r = s.Do("GET", "/api/latest/fleet/abm", nil, http.StatusGone)
+	require.Contains(t, extractServerErrorText(r.Body), "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
 
-	// enable ABM again, creates a new keypair because the previous one was deleted
-	var newABMResp generateABMKeyPairResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &newABMResp)
-	require.Nil(t, newABMResp.Err)
-	require.NotEmpty(t, newABMResp.PublicKey)
-	block, _ := pem.Decode(newABMResp.PublicKey)
-	require.NotNil(t, block)
-	require.Equal(t, "CERTIFICATE", block.Type)
-	require.NotEqual(t, abmResp.PublicKey, newABMResp.PublicKey)
+	// Update team associations
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &teamResp)
+	tm1 := teamResp.Team
 
-	// as long as the certs are not deleted, we should return the same values to support renewing the token
-	var renewABMResp generateABMKeyPairResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &renewABMResp)
-	require.Nil(t, renewABMResp.Err)
-	require.NotEmpty(t, renewABMResp.PublicKey)
-	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 2")}}, http.StatusOK, &teamResp)
+	tm2 := teamResp.Team
 
-	// simulate a renew flow
-	s.enableABM()
+	var updateTokTeamsResp updateABMTokenTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d/teams", tok2.ID), &updateABMTokenTeamsRequest{MacOSTeamID: &tm1.ID, IOSTeamID: &tm2.ID}, http.StatusOK, &updateTokTeamsResp)
+	require.Equal(t, tm1.Name, updateTokTeamsResp.ABMToken.MacOSTeam)
+	require.Equal(t, tm2.Name, updateTokTeamsResp.ABMToken.IOSTeam)
+	require.Empty(t, updateTokTeamsResp.ABMToken.IPadOSTeam)
+
+	// Renew a token
+	// var renewTokResp renewABMTokenResponse
+	// s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d/renew", tok2.ID), &renewABMTokenRequest{MacOSTeamID: &tm1.ID, IOSTeamID: &tm2.ID}, http.StatusOK, &updateTokTeamsResp)
+
+	// delete ABM token
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d", tok3.ID), nil, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &listABMTokensResp)
+	require.Len(t, listABMTokensResp.Tokens, 2)
+	require.Nil(t, listABMTokensResp.Err)
+	require.Equal(t, tok1.ID, listABMTokensResp.Tokens[0].ID)
+	require.Equal(t, tok2.ID, listABMTokensResp.Tokens[1].ID)
 }
 
-func (s *integrationMDMTestSuite) enableABM() {
+func (s *integrationMDMTestSuite) uploadValidABMToken(orgName string) {
 	t := s.T()
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
@@ -9162,9 +9189,6 @@ func (s *integrationMDMTestSuite) enableABM() {
 	block, _ := pem.Decode(abmResp.PublicKey)
 	require.NotNil(t, block)
 	require.Equal(t, "CERTIFICATE", block.Type)
-
-	// try to upload an invalid token
-	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Invalid token. Please provide a valid token from Apple Business Manager.")
 
 	// generate a mock token and encrypt it using the public key
 	testBMToken := &nanodep_client.OAuth1Tokens{
@@ -9190,6 +9214,8 @@ func (s *integrationMDMTestSuite) enableABM() {
 	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
 	require.NoError(t, err)
 
+	s.depAcctResponse = []byte(fmt.Sprintf(`{"admin_id": "admin@%[1]s.com", "org_name": "%[1]s"}`, orgName))
+
 	// upload the encrypted token
 	smimeMessage := fmt.Sprintf(
 		"Content-Type: application/pkcs7-mime; name=\"smime.p7m\"; smime-type=enveloped-data\r\n"+
@@ -9204,12 +9230,15 @@ func (s *integrationMDMTestSuite) enableABM() {
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMTokenDeprecated,
 	})
 	require.NoError(t, err)
-	require.Len(t, assets, 3)
-	require.Equal(t, smimeMessage, string(assets[fleet.MDMAssetABMTokenDeprecated].Value))
+	require.Len(t, assets, 2)
 	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
+
+	tok, err := s.ds.GetABMTokenByOrgName(ctx, orgName)
+	require.NoError(t, err)
+
+	require.Equal(t, smimeMessage, string(tok.EncryptedToken))
 }
 
 func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
@@ -9297,7 +9326,7 @@ func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expected
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/abm_token", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/abm_tokens", b.Bytes(), expectedStatus, headers)
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)

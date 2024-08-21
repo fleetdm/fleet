@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 const DefaultBaseURL = "https://mdmenrollment.apple.com/"
@@ -51,7 +52,11 @@ func RetrieveAndResolveURL(ctx context.Context, name string, store ConfigRetriev
 	if err != nil {
 		return nil, err
 	}
-	urlBase, err := url.Parse(config.BaseURL)
+	baseURL := config.BaseURL
+	if devURL := os.Getenv("FLEET_DEV_DEP_URL"); devURL != "" {
+		baseURL = devURL
+	}
+	urlBase, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
