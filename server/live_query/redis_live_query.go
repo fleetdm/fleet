@@ -86,6 +86,19 @@ type memCache struct {
 	mu                 sync.RWMutex
 }
 
+func (r *redisLiveQuery) cacheIsExpired() bool {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	return r.cache.cacheExp.Before(time.Now())
+}
+
+func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	sql, found := r.cache.sqlCache[campaignID]
+	return sql, found
+}
+
 // NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
 func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger, memCacheExp time.Duration) *redisLiveQuery {
@@ -174,7 +187,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	}
 
 	// convert the query name (campaign id) to the key name
-	keyNames := make([]string, len(names))
+	keyNames := make([]string, 0, len(names))
 	for _, name := range names {
 		tkey, _ := generateKeys(name)
 		keyNames = append(keyNames, tkey)
@@ -195,19 +208,10 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	var cachedSQL map[string]string
-
-	r.cache.mu.RLock()
-	if r.cache.cacheExp.Before(time.Now()) {
-		r.cache.mu.RUnlock()
-		cacheCopy, err := r.loadCache()
-		if err != nil {
+	if r.cacheIsExpired() {
+		if err := r.loadCache(); err != nil {
 			return fmt.Errorf("load cache: %w", err)
 		}
-		cachedSQL = cacheCopy.sqlCache
-	} else {
-		cachedSQL = r.cache.sqlCache
-		r.cache.mu.RUnlock()
 	}
 
 	// Pipeline redis calls to check for this host in the bitfield of the
@@ -236,8 +240,10 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 		}
 
 		if targeted == 1 {
-			if sql, found := cachedSQL[name]; found {
+			if sql, found := r.getSQLByCampaignID(name); found {
 				queriesByHost[name] = sql
+			} else {
+				level.Warn(r.logger).Log("msg", "live query not found in cache", "name", name)
 			}
 		}
 	}
@@ -320,31 +326,38 @@ func (r *redisLiveQuery) removeQueryNames(names ...string) error {
 }
 
 func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
-	r.cache.mu.RLock()
-	if r.cache.cacheExp.After(time.Now()) {
-		names := r.cache.activeQueriesCache
-		r.cache.mu.RUnlock()
-		return names, nil
-	}
-	r.cache.mu.RUnlock()
+	// copyActiveQueries returns a copy of the active queries cache to
+	// ensure thread safety.
+	copyActiveQueries := func() []string {
+		r.cache.mu.RLock()
+		defer r.cache.mu.RUnlock()
 
-	cacheCopy, err := r.loadCache()
-	if err != nil {
+		names := make([]string, len(r.cache.activeQueriesCache))
+		copy(names, r.cache.activeQueriesCache)
+
+		return names
+	}
+
+	if !r.cacheIsExpired() {
+		return copyActiveQueries(), nil
+	}
+
+	if err := r.loadCache(); err != nil {
 		return nil, fmt.Errorf("load cache: %w", err)
 	}
 
-	return cacheCopy.activeQueriesCache, nil
+	return copyActiveQueries(), nil
 }
 
-func (r *redisLiveQuery) loadCache() (memCache, error) {
+func (r *redisLiveQuery) loadCache() error {
 	expiredQueries := make(map[string]struct{})
 	sqlCache := make(map[string]string)
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	activeIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	if err != nil {
-		return memCache{}, fmt.Errorf("get active queries: %w", err)
+	if err != nil && err != redigo.ErrNil {
+		return fmt.Errorf("get active queries: %w", err)
 	}
 
 	for _, id := range activeIDs {
@@ -353,7 +366,7 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 		sql, err := redigo.String(conn.Do("GET", sqlKey))
 		if err != nil {
 			if err != redigo.ErrNil {
-				return memCache{}, fmt.Errorf("get query sql: %w", err)
+				return fmt.Errorf("get query sql: %w", err)
 			}
 
 			// It is possible the livequery key has expired but was still in the set
@@ -402,10 +415,7 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 		}
 	}
 
-	return memCache{
-		sqlCache:           sqlCache,
-		activeQueriesCache: activeIDs,
-	}, nil
+	return nil
 }
 
 func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
