@@ -11,7 +11,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
-import RenewDateCell from "./RenewDateCell";
+import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
 
 type IAbmTableConfig = Column<IMdmAbmToken>;

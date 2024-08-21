@@ -168,7 +168,6 @@ const VppPage = ({ router }: IVppPageProps) => {
             Add your VPP to install Apple App Store apps purchased through Apple
             Business Manager.
           </p>
-          <p>table here</p>
           <VppTable
             vppTokens={vppTokens}
             onEditTokenTeam={onEditTokenTeam}

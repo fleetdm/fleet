@@ -8,7 +8,8 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import RenewDateCell from "../../../AppleBusinessManagerPage/components/AppleBusinessManagerTable/RenewDateCell";
+
+import RenewDateCell from "../../../components/RenewDateCell";
 
 type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
