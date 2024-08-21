@@ -104,8 +104,8 @@ module.exports = {
     // 'how-was-your-deployment'
     //  - up-and-running »  Stage 5
     //  - kinda-stuck »  Stage 5
-    //  - havent-gotten-to-it » Stage 4 (same as above)
-    //  - changed-mind-want-managed-deployment » Stage 4 (same as above)
+    //  - havent-gotten-to-it » Stage 5
+    //  - changed-mind-want-managed-deployment » Stage 5
     //  - decided-to-not-use-fleet » Stage 2
     // 'whats-left-to-get-you-set-up'
     //  - need-premium-license-key » No change (Stage ??)
