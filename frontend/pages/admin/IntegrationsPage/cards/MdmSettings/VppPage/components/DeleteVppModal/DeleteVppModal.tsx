@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import mdmAppleAPI from "services/entities/mdm_apple";
 import { NotificationContext } from "context/notification";
 
 import Button from "components/buttons/Button";
@@ -9,14 +9,14 @@ import Modal from "components/Modal";
 const baseClass = "delete-vpp-modal";
 
 interface IDeleteVppModalProps {
-  tokenOrgName: string;
+  orgName: string;
   tokenId: number;
   onCancel: () => void;
   onDeletedToken: () => void;
 }
 
 const DeleteVppModal = ({
-  tokenOrgName,
+  orgName,
   tokenId,
   onCancel,
   onDeletedToken,
@@ -29,15 +29,12 @@ const DeleteVppModal = ({
     setIsDeleting(true);
 
     try {
-      await mdmAbmAPI.deleteToken(tokenId);
+      await mdmAppleAPI.deleteVppToken(tokenId);
       renderFlash("success", "Deleted successfully.");
       onDeletedToken();
     } catch (e) {
       // TODO: Check API sends back correct error messages
-      renderFlash(
-        "error",
-        "Couldn’t disable automatic enrollment. Please try again."
-      );
+      renderFlash("error", "Couldn’t delete. Please try again.");
       onCancel();
     }
   }, [onCancel, onDeletedToken, renderFlash, tokenId]);
@@ -51,12 +48,12 @@ const DeleteVppModal = ({
     >
       <>
         <p>
-          New hosts purchased in the <b>{tokenOrgName}</b> won&apos;t
-          automatically enroll to Fleet.{" "}
+          Apps purchased for the <b>{orgName}</b> location won&apos;t appear in
+          Fleet. Apps won&apos;t be uninstalled from hosts.
         </p>
         <p>
-          If you want to re-enable automatic enrollment, you&apos;ll have to
-          upload a new ABM token.
+          If you want to enable VPP integration again, you&apos;ll have to
+          upload a new token.
         </p>
 
         <div className="modal-cta-wrap">

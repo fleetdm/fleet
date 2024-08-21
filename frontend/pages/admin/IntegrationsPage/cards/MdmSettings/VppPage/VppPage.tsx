@@ -217,7 +217,7 @@ const VppPage = ({ router }: IVppPageProps) => {
       )}
       {showDeleteModal && selectedToken.current && (
         <DeleteVppModal
-          tokenOrgName={selectedToken.current.org_name}
+          orgName={selectedToken.current.org_name}
           tokenId={selectedToken.current.id}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}

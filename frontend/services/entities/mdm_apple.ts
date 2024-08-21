@@ -130,4 +130,10 @@ export default {
     formData.append("token", token);
     return sendRequest("PATCH", path, formData);
   },
+
+  deleteVppToken: (id: number): Promise<void> => {
+    const { MDM_VPP_TOKEN } = endpoints;
+    const path = MDM_VPP_TOKEN(id);
+    return sendRequest("DELETE", path);
+  },
 };
