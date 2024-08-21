@@ -121,7 +121,7 @@ const OperatingSystems = ({
       return;
     }
     setShowTitle(true);
-    if (!!osVersions.length) {
+    if (osVersions.length) {
       setTitleDescription?.(renderDescription());
       setTitleDetail?.(titleDetail);
       return;
