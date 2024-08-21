@@ -131,6 +131,8 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 			return nil
 		}
 
+		// TODO(JVE): update this to not used hardcoded name
+		// Use the value in host_dep_assignments.abm_token_id column
 		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
