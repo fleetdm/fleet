@@ -69,7 +69,7 @@ const RenewVppModal = ({
 
   return (
     <Modal
-      title="Renew token"
+      title="Renew VPP"
       onExit={onCancel}
       className={baseClass}
       isContentDisabled={isRenewing}

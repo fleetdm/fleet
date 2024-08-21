@@ -41,7 +41,7 @@ const DeleteVppModal = ({
 
   return (
     <Modal
-      title="Delete ABM"
+      title="Delete VPP"
       className={baseClass}
       onExit={onCancel}
       isContentDisabled={isDeleting}
