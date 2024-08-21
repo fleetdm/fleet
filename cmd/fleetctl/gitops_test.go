@@ -1821,7 +1821,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return nil, nil
+		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

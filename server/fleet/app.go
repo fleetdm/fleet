@@ -618,6 +618,15 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
+	if c.MDM.AppleBussinessManager.Set {
+		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBussinessManager.Value))
+		for i, s := range c.MDM.AppleBussinessManager.Value {
+			abm[i] = s
+		}
+		clone.MDM.AppleBussinessManager = optjson.SetSlice(abm)
+
+	}
+
 	return &clone
 }
 
