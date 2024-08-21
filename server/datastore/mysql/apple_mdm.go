@@ -4678,7 +4678,8 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
 // (their details haven't been updated in the given `interval`).
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
-	err error) {
+	err error,
+) {
 	hostsStmt := fmt.Sprintf(`
 SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
 INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
@@ -4713,7 +4714,6 @@ LIMIT 500
 }
 
 func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
-
 	const baseStmt = `
 		INSERT INTO host_mdm_commands (host_id, command_type)
 		VALUES %s
@@ -4775,4 +4775,62 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+	stmt := `
+SELECT 
+	team_id, platform 
+FROM 
+	hosts h 
+JOIN 
+	host_dep_assignments hdep ON h.id = host_id 
+WHERE 
+	hardware_serial = ? AND deleted_at IS NULL 
+LIMIT 1`
+
+	var dest struct {
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+	}
+
+	var settings fleet.AppleOSUpdateSettings
+	if dest.TeamID == nil {
+		// use the global settings
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = ac.MDM.IOSUpdates
+		case "ipados":
+			settings = ac.MDM.IPadOSUpdates
+		case "darwin":
+			settings = ac.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	} else {
+		// use the team settings
+		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = tm.Config.MDM.IOSUpdates
+		case "ipados":
+			settings = tm.Config.MDM.IPadOSUpdates
+		case "darwin":
+			settings = tm.Config.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	}
+
+	return &settings, nil
 }
