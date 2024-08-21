@@ -134,11 +134,11 @@ func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
 	require.NoError(t, err)
 	assert.Len(t, queries, 0)
 
-	time.Sleep(2 * time.Second)
-
-	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	require.NoError(t, err)
-	require.Len(t, activeNames, 0)
+	assert.Eventually(t, func() bool {
+		activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+		require.NoError(t, err)
+		return len(activeNames) == 0
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
