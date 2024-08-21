@@ -753,18 +753,23 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 	if src == nil {
 		return nil
 	}
-	var commands MDMCommandsAlreadySent
-	if err := json.Unmarshal(src.([]byte), &commands); err != nil {
-		return err
-	}
 
+	raw, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type for MDMCommandsAlreadySent: %T", src)
+	}
 	// Filter out [null] command types which MySQL returns when there are no commands_already_sent.
 	// For details, see: https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html#function_json-arrayagg
-	if len(commands) == 1 && commands[0] == "" {
+	if string(raw) == "[null]" {
 		*c = nil
-	} else {
-		*c = commands
+		return nil
 	}
+
+	var commands MDMCommandsAlreadySent
+	if err := json.Unmarshal(raw, &commands); err != nil {
+		return err
+	}
+	*c = commands
 	return nil
 }
 
