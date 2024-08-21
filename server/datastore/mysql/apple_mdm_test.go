@@ -6716,6 +6716,22 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	count, err = ds.CountABMTokensWithTermsExpired(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, count)
+
+	// setting the expired flag of a non-existing token always returns as if it
+	// did not update (which is fine, it will only be called after a DEP API call
+	// that used this token, so if the token does not exist it would fail the
+	// call).
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, "no-such-token", false)
+	require.NoError(t, err)
+	require.False(t, was)
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, "no-such-token", true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// count is unaffected
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
