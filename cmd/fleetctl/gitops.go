@@ -178,9 +178,8 @@ func gitopsCommand() *cli.Command {
 						if slices.Contains(abmTeams, team.Name) {
 							if usesLegacyABMConfig {
 								return fmt.Errorf("apple_bm_default_team %s cannot be deleted", team.Name)
-							} else {
-								return fmt.Errorf("apple_business_manager team %s cannot be deleted", team.Name)
 							}
+							return fmt.Errorf("apple_business_manager team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)

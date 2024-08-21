@@ -415,7 +415,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// TODO: errcheck and refactor
-	svc.validateABMAssignments(ctx, &appConfig.MDM, &oldAppConfig.MDM, invalid, license)
+	abmAssignments, err := svc.validateABMAssignments(ctx, &appConfig.MDM, &oldAppConfig.MDM, invalid, license)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
+	}
 
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -538,37 +541,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// TODO: what about removing assignments?
 	if appConfig.MDM.AppleBussinessManager.Set || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		tokens, err := svc.ds.ListABMTokens(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		tokensByName := map[string]*fleet.ABMToken{}
-		for _, token := range tokens {
-			tokensByName[token.OrganizationName] = token
-		}
-
-		teamsByName := map[string]*uint{}
-		teams, err := svc.ds.TeamsSummary(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, tm := range teams {
-			teamsByName[tm.Name] = &tm.ID
-		}
-
-		for _, bm := range appConfig.MDM.AppleBussinessManager.Value {
-			tok, ok := tokensByName[bm.OrganizationName]
-			if !ok {
-				return nil, errors.New("TODO")
-			}
-			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
-			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
-			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
-
+		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "TODO")
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 			}
 		}
 	}

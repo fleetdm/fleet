@@ -130,7 +130,7 @@ type MDMAppleABMAssignmentInfo struct {
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
 	// AppleBussinessManager TODO
 	AppleBussinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
@@ -851,7 +851,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-
+	if c.MDM.AppleBussinessManager.Set {
+		c.MDM.DeprecatedAppleBMDefaultTeam = ""
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
