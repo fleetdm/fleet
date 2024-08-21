@@ -120,9 +120,20 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+type MDMAppleABMAssignmentInfo struct {
+	OrganizationName string `json:"organization_name"`
+	MacOSTeam        string `json:"macos_team"`
+	IOSTeam          string `json:"ios_team"`
+	IpadOSTeam       string `json:"ipados_team"`
+}
+
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
-	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	// Deprecated: use AppleBussinessManager instead
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team"`
+
+	// AppleBussinessManager TODO
+	AppleBussinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set

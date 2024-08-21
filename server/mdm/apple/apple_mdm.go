@@ -306,8 +306,8 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 		return err
 	}
 	var appleBMTeam *fleet.Team
-	if appCfg.MDM.AppleBMDefaultTeam != "" {
-		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
+	if appCfg.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}

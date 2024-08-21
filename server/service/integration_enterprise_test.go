@@ -2911,7 +2911,7 @@ func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
 	// get the appconfig, nothing changed
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.AppleBMDefaultTeam)
+	require.Empty(t, acResp.MDM.DeprecatedAppleBMDefaultTeam)
 
 	// set to a valid team name
 	acResp = appConfigResponse{}
@@ -2920,12 +2920,12 @@ func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
 			"apple_bm_default_team": %q
 		}
 	}`, tm.Name)), http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
+	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
 
 	// get the appconfig, set to that team name
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
+	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
