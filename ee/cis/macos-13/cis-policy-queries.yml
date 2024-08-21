@@ -2201,10 +2201,10 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log.
+    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log. Apple has deprecated auditd as of macOS 11.0 Big Sur. In macOS 14.0 Sonoma it is no longer enabled by default.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy the following script which will enable security auditing:
+    Ask your system administrator to deploy the following script which will load auditd and create the audit_control file:
     /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
   query: | 
     SELECT 1 WHERE EXISTS (
