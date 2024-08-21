@@ -12,7 +12,7 @@ import {
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 
-const baseClass = "modal renew-token-modal";
+const baseClass = "renew-abm-modal";
 
 interface IRenewAbmModalProps {
   tokenId: number;
@@ -70,6 +70,7 @@ const RenewAbmModal = ({
       onExit={onCancel}
       className={baseClass}
       isContentDisabled={isUploading}
+      width="large"
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
         <p className={`${baseClass}__description`}>
@@ -121,7 +122,7 @@ const RenewAbmModal = ({
             </p>
           </li>
         </ol>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
