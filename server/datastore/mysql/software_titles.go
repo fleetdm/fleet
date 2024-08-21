@@ -262,7 +262,6 @@ SELECT
 	si.self_service as package_self_service,
 	si.filename as package_name,
 	si.version as package_version,
-	-- in a future iteration, will be supported for VPP apps
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vap.latest_version as vpp_app_version,
@@ -364,7 +363,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		defaultFilter = ` ( ` + defaultFilter + ` OR sthc.hosts_count > 0 ) `
 	}
 	if opt.SelfServiceOnly {
-		defaultFilter += ` AND si.self_service = 1 `
+		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
