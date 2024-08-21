@@ -3,6 +3,7 @@ package live_query
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -132,6 +133,8 @@ func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
 	queries, err := store.QueriesForHost(1)
 	require.NoError(t, err)
 	assert.Len(t, queries, 0)
+
+	time.Sleep(2 * time.Second)
 
 	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
 	require.NoError(t, err)
