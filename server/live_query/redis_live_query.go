@@ -118,20 +118,7 @@ func generateKeys(name string) (targetsKey, sqlKey string) {
 //	baseName := extractTargetKeyName(tkey)
 //	baseName == name
 func extractTargetKeyName(key string) string {
-	return extractKeyName(key, queryKeyPrefix)
-}
-
-// returns the base name part of a sql key, i.e. so that this is true:
-//
-//	_, skey := generateKeys(name)
-//	baseName := extractSQLKeyName(skey, sqlKeyPrefix)
-//	baseName == name
-func extractSQLKeyName(key string) string {
-	return extractKeyName(key, sqlKeyPrefix+queryKeyPrefix)
-}
-
-func extractKeyName(key, prefix string) string {
-	name := strings.TrimPrefix(key, prefix)
+	name := strings.TrimPrefix(key, queryKeyPrefix)
 	if len(name) > 0 && name[0] == '{' {
 		name = name[1:]
 	}
@@ -360,46 +347,23 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 		return memCache{}, fmt.Errorf("get active queries: %w", err)
 	}
 
-	keyNames := make([]string, 0, len(activeIDs))
 	for _, id := range activeIDs {
-		_, sqlKeys := generateKeys(id)
-		keyNames = append(keyNames, sqlKeys)
-	}
+		_, sqlKey := generateKeys(id)
 
-	conn = redis.ReadOnlyConn(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	keysBySlot := redis.SplitKeysBySlot(r.pool, keyNames...)
-	for _, keys := range keysBySlot {
-		for _, key := range keys {
-			if err := conn.Send("GET", key); err != nil {
+		sql, err := redigo.String(conn.Do("GET", sqlKey))
+		if err != nil {
+			if err != redigo.ErrNil {
 				return memCache{}, fmt.Errorf("get query sql: %w", err)
 			}
+
+			// It is possible the livequery key has expired but was still in the set
+			// - handle this gracefully by collecting the keys to remove them from
+			// the set and keep going.
+			expiredQueries[id] = struct{}{}
+			continue
 		}
 
-		if err := conn.Flush(); err != nil {
-			return memCache{}, fmt.Errorf("flush pipeline: %w", err)
-		}
-
-		for _, key := range keys {
-			sql, err := redigo.String(conn.Receive())
-			if err != nil {
-				if err != redigo.ErrNil {
-					return memCache{}, fmt.Errorf("receive query sql: %w", err)
-				}
-
-				// It is possible the livequery key has expired but was still in the set
-				// - handle this gracefully by collecting the keys to remove them from
-				// the set and keep going.
-				name := extractSQLKeyName(key)
-				expiredQueries[name] = struct{}{}
-				continue
-			}
-
-			// extract the name from the key
-			name := extractSQLKeyName(key)
-			sqlCache[name] = sql
-		}
+		sqlCache[id] = sql
 	}
 
 	// remove expired queries from the names list
