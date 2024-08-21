@@ -20,7 +20,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
 import DisableVppModal from "./components/DisableVppModal";
-import VppSetupSteps from "../VppPage/components/AddVppModal/VppSetupSteps";
+import VppSetupSteps from "../VppPage/components/VppSetupSteps";
 import RenewVppTokenModal from "./components/RenewVppTokenModal";
 
 const baseClass = "vpp-setup-page";
