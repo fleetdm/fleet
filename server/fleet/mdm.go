@@ -62,11 +62,21 @@ type ABMToken struct {
 	MDMServerURL string `db:"-" json:"mdm_server_url"`
 
 	// the following fields are not in the abm_tokens table, they must be queried
-	// by a LEFT JOIN on the corresponding team, coalesced to an empty string if
+	// by a LEFT JOIN on the corresponding team, coalesced to "No team" if
 	// null (no team).
-	MacOSTeam  string `db:"macos_team" json:"macos_team"`
-	IOSTeam    string `db:"ios_team" json:"ios_team"`
-	IPadOSTeam string `db:"ipados_team" json:"ipados_team"`
+	MacOSTeamName  string `db:"macos_team" json:"-"`
+	IOSTeamName    string `db:"ios_team" json:"-"`
+	IPadOSTeamName string `db:"ipados_team" json:"-"`
+
+	// These fields are composed of the ID and name fields above, and are used in API responses.
+	MacOSTeam  ABMTokenTeam `json:"macos_team"`
+	IOSTeam    ABMTokenTeam `json:"ios_team"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_team"`
+}
+
+type ABMTokenTeam struct {
+	Name string `json:"name"`
+	ID   uint   `json:"team_id"`
 }
 
 type AppleCSR struct {

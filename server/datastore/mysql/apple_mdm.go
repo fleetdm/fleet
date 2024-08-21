@@ -5159,9 +5159,9 @@ SELECT
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
-	COALESCE(t1.name, '') as macos_team,
-	COALESCE(t2.name, '') as ios_team,
-	COALESCE(t3.name, '') as ipados_team
+	COALESCE(t1.name, 'No team') as macos_team,
+	COALESCE(t2.name, 'No team') as ios_team,
+	COALESCE(t3.name, 'No team') as ipados_team
 FROM
 	abm_tokens abt
 LEFT OUTER JOIN
@@ -5190,6 +5190,23 @@ LEFT OUTER JOIN
 
 	for _, tok := range tokens {
 		tok.MDMServerURL = url
+
+		// Promote DB fields into respective objects
+		var macOSTeamID, iOSTeamID, iPadIOSTeamID uint
+		if tok.MacOSDefaultTeamID != nil {
+			macOSTeamID = *tok.MacOSDefaultTeamID
+		}
+		if tok.IOSDefaultTeamID != nil {
+			iOSTeamID = *tok.IOSDefaultTeamID
+		}
+		if tok.IPadOSDefaultTeamID != nil {
+			iPadIOSTeamID = *tok.IPadOSDefaultTeamID
+		}
+
+		tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
+		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
+		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
+
 	}
 
 	return tokens, nil
@@ -5228,9 +5245,9 @@ SELECT
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
-	COALESCE(t1.name, '') as macos_team,
-	COALESCE(t2.name, '') as ios_team,
-	COALESCE(t3.name, '') as ipados_team
+	COALESCE(t1.name, 'No team') as macos_team,
+	COALESCE(t2.name, 'No team') as ios_team,
+	COALESCE(t3.name, 'No team') as ipados_team
 FROM
 	abm_tokens abt
 LEFT OUTER JOIN
@@ -5281,6 +5298,22 @@ LEFT OUTER JOIN
 	}
 
 	tok.MDMServerURL = url
+
+	// Promote DB fields into respective objects
+	var macOSTeamID, iOSTeamID, iPadIOSTeamID uint
+	if tok.MacOSDefaultTeamID != nil {
+		macOSTeamID = *tok.MacOSDefaultTeamID
+	}
+	if tok.IOSDefaultTeamID != nil {
+		iOSTeamID = *tok.IOSDefaultTeamID
+	}
+	if tok.IPadOSDefaultTeamID != nil {
+		iPadIOSTeamID = *tok.IPadOSDefaultTeamID
+	}
+
+	tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
+	tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
+	tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
 
 	return &tok, nil
 }
