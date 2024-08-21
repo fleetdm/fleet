@@ -3,7 +3,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
-  getVulnFilterDetails,
+  getVulnFilterRenderDetails,
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
@@ -22,7 +22,7 @@ const generateTypeText = (
   tableName: string,
   softwareFilter?: ISoftwareDropdownFilterVal,
   vulnFilters?: ISoftwareVulnFiltersParams
-): string => {
+) => {
   if (softwareFilter === "installableSoftware") {
     return "installable software";
   }
@@ -47,7 +47,9 @@ const EmptySoftwareTable = ({
     vulnFilters
   );
 
-  const { filterCount: vulnFiltersCount } = getVulnFilterDetails(vulnFilters);
+  const { filterCount: vulnFiltersCount } = getVulnFilterRenderDetails(
+    vulnFilters
+  );
 
   const isFiltered =
     vulnFiltersCount > 0 || !noSearchQuery || softwareFilter !== "allSoftware";
