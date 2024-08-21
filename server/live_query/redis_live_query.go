@@ -73,12 +73,16 @@ type redisLiveQuery struct {
 	// connection pool
 	pool fleet.RedisPool
 	// in memory cache
-	cache           memCache
+	cache memCache
+	// in memory cache expiration
 	cacheExpiration time.Duration
 
 	logger kitlog.Logger
 }
 
+// memCache is an in-memory cache for live queries. It stores the SQL of the
+// queries and the active queries set. It also stores the expiration time of the
+// cache.
 type memCache struct {
 	sqlCache           map[string]string
 	activeQueriesCache []string
@@ -86,12 +90,15 @@ type memCache struct {
 	mu                 sync.RWMutex
 }
 
+// cacheIsExpired is a thread-safe method to check if the cache is expired.
 func (r *redisLiveQuery) cacheIsExpired() bool {
 	r.cache.mu.RLock()
 	defer r.cache.mu.RUnlock()
 	return r.cache.cacheExp.Before(time.Now())
 }
 
+// getSQLByCampaignID is a thread-safe method to get the SQL of a live query by its
+// campaign ID.
 func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
 	r.cache.mu.RLock()
 	defer r.cache.mu.RUnlock()
