@@ -1,5 +1,5 @@
 ---
-# The latest version of CIS Benchmarks for macOS as of January 2023 was used which was benchmark 1.0 for macOS 13.0 https://workbench.cisecurity.org/benchmarks/10541
+# The latest version of CIS Benchmarks for macOS as of August 2024 was used which was benchmark 2.1.0 for macOS 13
 apiVersion: v1
 kind: policy
 spec:
