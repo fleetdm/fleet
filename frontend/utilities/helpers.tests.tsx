@@ -1,4 +1,4 @@
-import { daysAgo, daysFromNow } from "test/test-utils";
+import { getPastDate, getFutureDate } from "test/test-utils";
 import {
   removeOSPrefix,
   compareVersions,
@@ -54,26 +54,26 @@ describe("helpers utilities", () => {
 
   describe("willExpireWithinXDays function", () => {
     it("will return true if the date is within x number of days", () => {
-      const fiveDaysFromNow = daysFromNow(5);
+      const fiveDaysFromNow = getFutureDate(5);
       expect(willExpireWithinXDays(fiveDaysFromNow, 10)).toEqual(true);
 
-      const tenDaysFromNow = daysFromNow(10);
+      const tenDaysFromNow = getFutureDate(10);
       expect(willExpireWithinXDays(tenDaysFromNow, 30)).toEqual(true);
     });
 
     it("will return false if the date is not within x number of days", () => {
-      const thirtyDaysFromNow = daysFromNow(30);
+      const thirtyDaysFromNow = getFutureDate(30);
       expect(willExpireWithinXDays(thirtyDaysFromNow, 10)).toEqual(false);
 
-      const fiftyDaysFromNow = daysFromNow(50);
+      const fiftyDaysFromNow = getFutureDate(50);
       expect(willExpireWithinXDays(fiftyDaysFromNow, 30)).toEqual(false);
     });
 
     it("will return false if the date has already expired", () => {
-      const fiveDaysAgo = daysAgo(5);
+      const fiveDaysAgo = getPastDate(5);
       expect(willExpireWithinXDays(fiveDaysAgo, 10)).toEqual(false);
 
-      const fiftyDaysAgo = daysAgo(50);
+      const fiftyDaysAgo = getPastDate(50);
       expect(willExpireWithinXDays(fiftyDaysAgo, 30)).toEqual(false);
     });
   });
