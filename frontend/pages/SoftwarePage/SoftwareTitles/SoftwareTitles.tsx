@@ -22,7 +22,7 @@ import SoftwareTable from "./SoftwareTable";
 import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFilters,
-  getSoftwareFilterForQueryKey,
+  buildSoftwareFilterQueryParams,
 } from "./SoftwareTable/helpers";
 
 const baseClass = "software-titles";
@@ -46,7 +46,7 @@ interface ISoftwareTitlesProps {
   teamId?: number;
   resetPageIndex: boolean;
   addedSoftwareToken: string | null;
-  onAddFilterClick: () => void;
+  onAddFiltersClick: () => void;
 }
 
 const SoftwareTitles = ({
@@ -62,7 +62,7 @@ const SoftwareTitles = ({
   teamId,
   resetPageIndex,
   addedSoftwareToken,
-  onAddFilterClick,
+  onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -89,7 +89,7 @@ const SoftwareTitles = ({
         teamId,
         addedSoftwareToken,
         ...vulnFilters,
-        ...getSoftwareFilterForQueryKey(softwareFilter),
+        ...buildSoftwareFilterQueryParams(softwareFilter),
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -197,7 +197,7 @@ const SoftwareTitles = ({
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
         resetPageIndex={resetPageIndex}
-        onAddFilterClick={onAddFilterClick}
+        onAddFiltersClick={onAddFiltersClick}
         vulnFilters={vulnFilters}
       />
     </div>

@@ -35,9 +35,9 @@ import TabsWrapper from "components/TabsWrapper";
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
 import {
-  getSoftwareFilterForQueryKey,
+  buildSoftwareFilterQueryParams,
   getSoftwareFilterFromQueryParams,
-  getSoftwareVulnFiltersForQueryKey,
+  buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFilters,
 } from "./SoftwareTitles/SoftwareTable/helpers";
@@ -158,13 +158,19 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // defined redirect behavior if the params are invalid
   const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
+
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
-  const [showAddFilterModal, setShowAddFilterModal] = useState(false);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
     null
@@ -261,9 +267,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     setShowPreviewTicketModal(!showPreviewTicketModal);
   }, [setShowPreviewTicketModal, showPreviewTicketModal]);
 
-  const toggleAddFilterModal = useCallback(() => {
-    setShowAddFilterModal(!showAddFilterModal);
-  }, [setShowAddFilterModal, showAddFilterModal]);
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
   // TODO: move into manage automations modal
   const onCreateWebhookSubmit = async (
@@ -310,8 +316,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...getSoftwareFilterForQueryKey(softwareFilter),
-      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...vulnFilters,
     };
 
     router.replace(
@@ -321,7 +327,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         queryParams: convertParamsToSnakeCase(newQueryParams),
       })
     );
-    toggleAddFilterModal();
+    toggleSoftwareFiltersModal();
   };
 
   const navigateToNav = useCallback(
@@ -427,10 +433,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
-          vulnFilters: getSoftwareVulnFiltersFromQueryParams(queryParams),
+          vulnFilters: softwareVulnFilters,
           resetPageIndex,
           addedSoftwareToken,
-          onAddFilterClick: toggleAddFilterModal,
+          onAddFiltersClick: toggleSoftwareFiltersModal,
         })}
       </div>
     );
@@ -474,14 +480,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             isFreeTier={isFreeTier}
           />
         )}
-
-        {showAddFilterModal && (
+        {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
-            onExit={toggleAddFilterModal}
+            onExit={toggleSoftwareFiltersModal}
             onSubmit={onApplyVulnFilters}
-            vulnFiltersQueryParams={getSoftwareVulnFiltersFromQueryParams(
-              queryParams
-            )}
+            vulnFilters={softwareVulnFilters}
           />
         )}
       </div>

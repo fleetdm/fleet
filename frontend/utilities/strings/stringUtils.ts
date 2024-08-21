@@ -75,8 +75,13 @@ export const pluralize = (
   return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
 };
 
+export const strToBool = (str?: string | null) => {
+  return str ? JSON.parse(str) : false;
+};
+
 export default {
   capitalize,
   capitalizeRole,
   pluralize,
+  strToBool,
 };

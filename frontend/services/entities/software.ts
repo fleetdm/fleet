@@ -99,6 +99,10 @@ export interface IGetSoftwareVersionQueryKey
   scope: "softwareVersion";
 }
 
+export interface ISoftwareInstallTokenResponse {
+  token: string;
+}
+
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
@@ -240,23 +244,15 @@ export default {
     return sendRequest("DELETE", path);
   },
 
-  downloadSoftwarePackage: (
+  getSoftwarePackageToken: (
     softwareTitleId: number,
     teamId: number
-  ): Promise<AxiosResponse> => {
-    const path = `${endpoints.SOFTWARE_PACKAGE(
+  ): Promise<ISoftwareInstallTokenResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
     )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
-    return sendRequest(
-      "GET",
-      path,
-      undefined,
-      "blob",
-      undefined,
-      undefined,
-      true // return raw response
-    );
+    return sendRequest("POST", path);
   },
 
   getSoftwareInstallResult: (installUuid: string) => {
