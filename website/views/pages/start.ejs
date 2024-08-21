@@ -7,10 +7,10 @@
       <div v-if="currentStep === 'start'">
         <div class=" mx-auto">
           <h2>What to expect</h2>
-          <p>Fleet is a little different from some of the other MDM’s you might have used.</p>
+          <p>Fleet is a little different from some of the other MDMs you might have used.</p>
           <ul>
             <li>You can deploy it yourself at any time and it’s 100% source available.</li>
-            <li>You don’t have to talk to us to first, but if you want to, you can. We hang out <a href="/support">over here</a>.</li>
+            <li>You don’t have to talk to us first, but you can if you want to. We hang out <a href="/support">over here</a>.</li>
             <li>Fleet customers get unlimited support, migration assistance, and even a private Slack support channel.</li>
           </ul>
           <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['start']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
@@ -18,7 +18,7 @@
             <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
           </div>
           </ajax-form>
-          <div purpose="form-tip" class="d-flex flex-row align-items-center justify-content-between">
+          <div purpose="form-tip" class="d-flex flex-row align-items-center justify-content-start">
             <div><img alt="A lightbulb" src="/images/icon-suggestion-64x64@2x.png"></div>
             <div>
             If you’d like to chat with other customers about their experience with Fleet, just let us know.
@@ -381,6 +381,11 @@
                 <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                 I'm just curious
               </label>
+              <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'linux' ? 'selected' : '']">
+                <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="linux" @input="clickClearOneFormError('mdmUseCase')">
+                <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+                Actually, I'm here for Linux
+              </label>
               <div class="invalid-feedback" v-if="formErrors.mdmUseCase">Please select an option</div>
             </div>
           </div>
@@ -396,9 +401,13 @@
         //  ╚═╝╩╚═╚═╝╚═╝╚═╝  ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩%>
       <div v-if="currentStep === 'cross-platform-mdm'">
         <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['cross-platform-mdm']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+          <div purpose="progress-bar-container">
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 45%"></div></div>
+            <img purpose="success-icon" alt="🚀" src="/images/icon-form-success-16x16@2x.png">
+          </div>
           <h2>The myth of cross platform</h2>
           <p>Fleet lets you work directly with data and events from the native operating system.</p>
-          <p>It still exposes familiar concepts like smart groups and extension attributes, but for every platform’s “special” nuance, and in a way that let’s you go all the way down to the bare metal.</p>
+          <p>It still exposes familiar concepts similar to smart groups and extension attributes, but for every platform’s “special” nuance, and in a way that lets you go all the way down to the bare metal.</p>
           <p>With Fleet you only need to manage Mac, Windows, and Linux; not Omnissa, Intune, and your anxiety.</p>
           <div purpose="form-buttons">
             <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
@@ -432,7 +441,12 @@
             </a>
           </div>
           <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
-          <p>You can come back here any time to continue with your deployment.</p>
+          <div purpose="form-tip" class="d-flex flex-row align-items-center justify-content-between">
+            <div><img alt="A lightbulb" src="/images/icon-suggestion-64x64@2x.png"></div>
+            <div>
+              You can come back here any time to continue with your deployment.
+            </div>
+          </div>
           <div purpose="form-buttons">
             <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
             <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
@@ -469,66 +483,6 @@
             <div class="invalid-feedback" v-if="formErrors.whatDidYouThink">Please select an option</div>
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
-          <div purpose="quote" v-else-if="!formData['what-are-you-using-fleet-for'].primaryBuyingSituation || formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm'">
-            <div purpose="logo" class="mb-4"><img height="32" alt="Uber logo" src="/images/social-proof-logo-uber-71x32@2x.png"></div>
-            <p purpose="quote-text">
-              Exciting. This is a team that listens to feedback.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Erik Gomez" src="/images/testimonial-author-erik-gomez-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Erik Gomez</p>
-                <p purpose="job-title" class="m-0">Staff Client Platform Engineer</p>
-              </div>
-            </div>
-          </div>
-          <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm'">
-            <div purpose="logo" class="mb-4"><img height="32" alt="Rivian logo" src="/images/logo-rivian-dark-120x32@2x.png"></div>
-            <p purpose="quote-text">
-              The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Andre Shields" src="/images/testimonial-author-andre-shields-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Andre Shields</p>
-                <p purpose="job-title" class="m-0">Staff Cybersecurity Engineer, Vulnerability Management</p>
-              </div>
-            </div>
-          </div>
-          <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it'">
-            <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/logo-deputy-118x28@2x.png"></div>
-            <p purpose="quote-text">
-              When we look at vendors, we look for ones that are very receptive to feedback, where you’re just part of the family, I guess. Fleet’s really good at that.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Harrison Ravazzolo" src="/images/testimonial-author-harrison-ravazzolo-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Harrison Ravazzolo</p>
-                <p purpose="job-title" class="m-0">Lead platform and identity engineer</p>
-              </div>
-            </div>
-          </div>
-          <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security'">
-            <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
-            <p purpose="quote-text">
-              Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
-                <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
-              </div>
-            </div>
-          </div>
           <div purpose="form-buttons">
             <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
             <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
@@ -575,8 +529,7 @@
           </div>
           <div class="mx-auto">
             <h2>Deploy Fleet in your environment</h2>
-            <p>Learn how to deploy and roll out Fleet in your environment.<br>
-              You can come back any time to continue or get help.</p>
+            <p>Learn how to deploy and roll out Fleet in your environment.</p>
           </div>
           <div purpose="start-cards">
             <a purpose="card" href="/docs/deploy">
@@ -592,6 +545,12 @@
           </div>
           <div purpose="logo-container">
           <logo-carousel></logo-carousel>
+          </div>
+          <div purpose="form-tip" class="d-flex flex-row align-items-center justify-content-start">
+            <div><img alt="A lightbulb" src="/images/icon-suggestion-64x64@2x.png"></div>
+            <div>
+              You can come back any time to continue or get help.
+            </div>
           </div>
           <div purpose="form-buttons">
             <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
@@ -699,7 +658,7 @@
         </div>
         <div class="mx-auto">
           <h2>Deploy Fleet in your environment</h2>
-          <p>Learn how to deploy and rollout Fleet in your environment, get a Fleet Premium license, or both. You can come back in any time to upgrade.</p>
+          <p>Learn how to deploy and rollout Fleet in your environment, get a Fleet Premium license, or both.</p>
         </div>
         <div purpose="start-cards">
           <a purpose="card" href="/docs/deploy">
@@ -714,6 +673,13 @@
             <p>Purchase a Fleet Premium license</p>
           </a>
         </div>
+        <div purpose="form-tip" class="d-flex flex-row align-items-center justify-content-start">
+          <div><img alt="A lightbulb" src="/images/icon-suggestion-64x64@2x.png"></div>
+          <div>
+            You can come back in any time to upgrade.
+          </div>
+        </div>
+
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
         </div>
