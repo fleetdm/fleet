@@ -30,6 +30,10 @@ export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
 
+export interface IUploadVppTokenReponse {
+  vpp_token: IMdmVppToken;
+}
+
 export default {
   getAppleAPNInfo: () => {
     const { MDM_APPLE_PNS } = endpoints;
@@ -59,11 +63,11 @@ export default {
     return sendRequest("GET", MDM_APPLE_VPP);
   },
 
-  uploadVppToken: (token: File) => {
-    const { MDM_APPLE_VPP_TOKEN } = endpoints;
+  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+    const { MDM_VPP_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
-    return sendRequest("POST", MDM_APPLE_VPP_TOKEN, formData);
+    return sendRequest("POST", MDM_VPP_TOKENS, formData);
   },
 
   disableVpp: () => {

@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -40,7 +40,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     }
 
     try {
-      await mdmAbmAPI.uploadToken(tokenFile);
+      await mdmAppleAPI.uploadVppToken(tokenFile);
       renderFlash("success", "Added successfully.");
       onAdded();
     } catch (e) {
@@ -75,7 +75,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
             tokenFile && (
               <FileDetails
                 details={{ name: tokenFile.name }}
-                graphicName="file-p7m"
+                graphicName="file-vpp"
               />
             )
           }

@@ -201,8 +201,7 @@ const VppPage = ({ router }: IVppPageProps) => {
           <>{renderContent()}</>
         </div>
       </>
-      {/* {showAddVppModal && ( */}
-      {true && (
+      {showAddVppModal && (
         <AddVppModal
           onAdded={onAdded}
           onCancel={() => setShowAddVppModal(false)}
