@@ -146,7 +146,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
-  const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMdmCard, setShowMdmCard] = useState(true);
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
