@@ -149,7 +149,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewTeamPolicy(ctx, 1, fleet.PolicyPayload{
+			_, err := svc.NewTeamPolicy(ctx, 1, fleet.NewTeamPolicyPayload{
 				Name:  "query1",
 				Query: "select 1;",
 			})

@@ -31,7 +31,12 @@ func (ds *Datastore) NewActivity(
 	var userName *string
 	var userEmail *string
 	if user != nil {
-		userID = &user.ID
+		// To support creating activities with users that were deleted. This can happen
+		// for automatically installed software which uses the author of the upload as the author of
+		// the installation.
+		if user.ID != 0 {
+			userID = &user.ID
+		}
 		userName = &user.Name
 		userEmail = &user.Email
 	}

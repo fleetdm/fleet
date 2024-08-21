@@ -401,6 +401,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Title:         "foo",
 		Source:        "apps",
 		Version:       "0.0.1",
+		UserID:        u.ID,
 	})
 	require.NoError(t, err)
 	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -411,6 +412,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Title:         "bar",
 		Source:        "apps",
 		Version:       "0.0.2",
+		UserID:        u.ID,
 	})
 	require.NoError(t, err)
 	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)

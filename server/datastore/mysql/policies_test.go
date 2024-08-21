@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" //nolint:gosec // (only used for tests)
 	"encoding/hex"
@@ -63,6 +64,8 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNameSort", testPoliciesNameSort},
 		{"TestGetCalendarPolicies", testGetCalendarPolicies},
 		{"GetTeamHostsPolicyMemberships", testGetTeamHostsPolicyMemberships},
+		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
+		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1219,8 +1222,28 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 func testPoliciesByID(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	policy1 := newTestPolicy(t, ds, user1, "policy1", "darwin", nil)
-	_ = newTestPolicy(t, ds, user1, "policy2", "darwin", nil)
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	policy2 := newTestPolicy(t, ds, user1, "policy2", "darwin", &team1.ID)
 	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+
+	// Associate an installer to policy2
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+	})
+	require.NoError(t, err)
+	policy2.SoftwareInstallerID = ptr.Uint(installerID)
+	err = ds.SavePolicy(context.Background(), policy2, false, false)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{policy1.ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, ds.UpdateHostPolicyCounts(context.Background()))
@@ -1230,9 +1253,12 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, len(policiesByID), 2)
 	assert.Equal(t, policiesByID[1].ID, policy1.ID)
 	assert.Equal(t, policiesByID[1].Name, policy1.Name)
+	assert.Nil(t, policiesByID[1].SoftwareInstallerID)
+	assert.Equal(t, uint(1), policiesByID[1].PassingHostCount)
 	assert.Equal(t, policiesByID[2].ID, uint(2))
 	assert.Equal(t, policiesByID[2].Name, "policy2")
-	assert.Equal(t, uint(1), policiesByID[1].PassingHostCount)
+	assert.NotNil(t, policiesByID[2].SoftwareInstallerID)
+	assert.Equal(t, uint(1), *policiesByID[2].SoftwareInstallerID)
 
 	_, err = ds.PoliciesByID(context.Background(), []uint{1, 2, 3})
 	require.Error(t, err)
@@ -3874,4 +3900,93 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.True(t, hostsTeam2[0].Passing)
 	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
 	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+}
+
+func testNewGlobalPolicyWithInstaller(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	_, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: ptr.Uint(1),
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errSoftwareTitleIDOnGlobalPolicy)
+}
+
+func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"}) // team2 has no policies
+	require.NoError(t, err)
+
+	// Policy p1 has no associated installer.
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p1",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: nil,
+	})
+	require.NoError(t, err)
+	// Create and associate an installer to p2.
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+	})
+	require.NoError(t, err)
+	require.Nil(t, p1.SoftwareInstallerID)
+	p2, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p2",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: ptr.Uint(installerID),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, p2.SoftwareInstallerID)
+	require.Equal(t, installerID, *p2.SoftwareInstallerID)
+	// Create p3 as global policy.
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "p3",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.SoftwareInstallerID)
+	require.Equal(t, installerID, *p2.SoftwareInstallerID)
+
+	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID)
+	require.NoError(t, err)
+	require.Len(t, policiesWithInstallers, 1)
+	require.Equal(t, p2.ID, policiesWithInstallers[0].ID)
+	require.Equal(t, installerID, policiesWithInstallers[0].InstallerID)
+
+	p1.SoftwareInstallerID = ptr.Uint(installerID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.NoError(t, err)
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.SoftwareInstallerID)
+	require.Equal(t, installerID, *p2.SoftwareInstallerID)
+
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID)
+	require.NoError(t, err)
+	require.Len(t, policiesWithInstallers, 2)
+	require.Equal(t, p1.ID, policiesWithInstallers[0].ID)
+	require.Equal(t, installerID, policiesWithInstallers[0].InstallerID)
+	require.Equal(t, p2.ID, policiesWithInstallers[1].ID)
+	require.Equal(t, installerID, policiesWithInstallers[1].InstallerID)
+
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID)
+	require.NoError(t, err)
+	require.Empty(t, policiesWithInstallers)
 }

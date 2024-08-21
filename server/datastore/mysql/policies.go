@@ -22,12 +22,18 @@ import (
 
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
-	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical, p.calendar_events_enabled
+	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
+	p.calendar_events_enabled, p.software_installer_id
 `
+
+var errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be set on team policies only")
 
 var policySearchColumns = []string{"p.name"}
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+	if args.SoftwareInstallerID != nil {
+		return nil, ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "create policy")
+	}
 	if args.QueryID != nil {
 		q, err := ds.Query(ctx, *args.QueryID)
 		if err != nil {
@@ -129,15 +135,18 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+	if p.TeamID == nil && p.SoftwareInstallerID != nil {
+		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
+	}
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, software_installer_id = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := ds.writer(ctx).ExecContext(
-		ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.ID,
+		ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -484,7 +493,8 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	  COALESCE(u.email, '') AS author_email,
 	  ps.updated_at as host_count_updated_at,
 	  COALESCE(ps.passing_host_count, 0) as passing_host_count,
-	  COALESCE(ps.failing_host_count, 0) as failing_host_count
+	  COALESCE(ps.failing_host_count, 0) as failing_host_count,
+	  p.software_installer_id
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
 	  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
@@ -601,11 +611,11 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID,
 	)
 	switch {
 	case err == nil:
@@ -1425,6 +1435,16 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get calendar policies")
+	}
+	return policies, nil
+}
+
+func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint) ([]fleet.PolicySoftwareInstallerData, error) {
+	query := `SELECT id, software_installer_id FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL;`
+	var policies []fleet.PolicySoftwareInstallerData
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies with associated installer")
 	}
 	return policies, nil
 }
