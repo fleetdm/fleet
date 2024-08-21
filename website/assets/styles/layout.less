@@ -144,8 +144,28 @@ html, body {
     [purpose='banner-image'] {
       height: 80px;
       min-width: 80px;
-      background-image: url('/images/continue-thumbnail.png');
       background-size: cover;
+      background-position: center;
+      background-size: 100% auto;
+      border-radius: 12px;
+      &.stage-one {
+        background-image: url('/images/psystage-1-unaware-558x680@2x.png');
+      }
+      &.stage-two {
+        background-image: url('/images/cta-thumbnail-psystage-2-aware-128x128@2x.png');
+      }
+      &.stage-three {
+        background-image: url('/images/cta-thumbnail-psystage-3-intrigued-128x128@2x.png');
+      }
+      &.stage-four {
+        background-image: url('/images/cta-thumbnail-psystage-4-has-use-case-128x128@2x.png');
+      }
+      &.stage-five {
+        background-image: url('/images/cta-thumbnail-stage-5-100x100@2x.png');
+      }
+      &.stage-six {
+        background-image: url('/images/psystage-6-has-team-buy-in-504x784@2x.png');
+      }
     }
   }
   [purpose='banner-body'].collapsed {
@@ -656,7 +676,6 @@ body.detected-mobile {
       [purpose='banner-image'] {
         height: 54px;
         min-width: 54px;
-        background-image: url('/images/continue-thumbnail.png');
         background-size: cover;
       }
     }
@@ -667,7 +686,6 @@ body.detected-mobile {
       [purpose='banner-image'] {
         height: 54px;
         min-width: 54px;
-        background-image: url('/images/continue-thumbnail.png');
         background-size: cover;
       }
       transform: none;
