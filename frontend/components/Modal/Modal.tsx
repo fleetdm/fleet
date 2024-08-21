@@ -12,15 +12,23 @@ export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
   onEnter?: () => void;
-  /**     default 650px, large 800px, xlarge 850px, auto auto-width */
+  /**     medium 650px, large 800px, xlarge 850px, auto auto-width
+   * @default "medium"
+   */
   width?: ModalWidth;
-  /**    isHidden can be set true to hide the modal when opening another modal */
+  /**    isHidden can be set true to hide the modal when opening another modal
+   * @default false
+   */
   isHidden?: boolean;
-  /**    isLoading can be set true to enable targeting elements by loading state */
+  /**    isLoading can be set true to enable targeting elements by loading state
+   * @default false
+   */
   isLoading?: boolean;
-  /** isContentDisabled can be set to true to display the modal content as disabled.
+  /** `isContentDisabled` can be set to true to display the modal content as disabled.
    * At the moment this will place an overlay over the modal content and make it
-   * unclickable.
+   * unclickable. The top right will not be disabled and will still be clickable.
+   *
+   * @default false
    */
   isContentDisabled?: boolean;
   className?: string;
