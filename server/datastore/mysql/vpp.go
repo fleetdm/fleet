@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -49,7 +50,8 @@ WHERE
 }
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
-	error) {
+	error,
+) {
 	var dest fleet.VPPAppStatusSummary
 
 	stmt := fmt.Sprintf(`
@@ -438,14 +440,20 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 	return &dest, nil
 }
 
-func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string, selfService bool) error {
+func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
+	commandUUID, associatedEventID string, selfService bool,
+) error {
 	stmt := `
 INSERT INTO host_vpp_software_installs
   (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service)
 VALUES
   (?,?,?,?,?,?,?)
 	`
+
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
 		associatedEventID, selfService); err != nil {
