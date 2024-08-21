@@ -145,7 +145,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the invalid CVE empty search state when search query is invalid with no results", async () => {
+  it("Renders the invalid CVE empty search state when search query wrapped in quotes is invalid with no results", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -167,7 +167,7 @@ describe("Software Vulnerabilities table", () => {
             has_previous_results: false,
           },
         })}
-        query="abcdefg"
+        query='"abcdefg"'
         perPage={20}
         orderDirection="asc"
         orderKey="hosts_count"
@@ -187,7 +187,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the valid known CVE empty search state when search query is valid known CVE with no results", async () => {
+  it("Renders the valid known CVE empty search state when search query wrapped in quotes is valid known CVE with no results", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -210,7 +210,7 @@ describe("Software Vulnerabilities table", () => {
           },
           known_vulnerability: true,
         })}
-        query="cve-2002-1000"
+        query='"cve-2002-1000"'
         perPage={20}
         orderDirection="asc"
         orderKey="hosts_count"
@@ -232,7 +232,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the valid unknown CVE empty search state when search query is not a valid known CVE with no results", async () => {
+  it("Renders the valid unknown CVE empty search state when search query wrapped in quotes is not a valid known CVE with no results", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -275,8 +275,8 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  // Test for exact match even though API returned fuzzy match
-  it("Renders exact match results: valid known CVE empty search state when search query is a valid and known CVE though API returned results that do not exact match", async () => {
+  // Test for exact match with quotes
+  it("Renders exact match results: valid known CVE empty search state when search query wrapped in quotes is a valid and known CVE though API returned results that do not exact match", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -299,7 +299,7 @@ describe("Software Vulnerabilities table", () => {
           },
           known_vulnerability: true,
         })}
-        query="cve-2002-1234"
+        query='"cve-2002-1234"'
         perPage={20}
         orderDirection="asc"
         orderKey="hosts_count"
@@ -321,8 +321,8 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  // Test for exact match even though API returned fuzzy match
-  it("Renders exact match results: valid unknown CVE empty search state when search query is a valid and unknown CVE though API returned results that do not exact match", async () => {
+  // Test for exact match with quotes
+  it("Renders exact match results: valid unknown CVE empty search state when search query wrapped in quotes is a valid and unknown CVE though API returned results that do not exact match", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -345,7 +345,7 @@ describe("Software Vulnerabilities table", () => {
           },
           known_vulnerability: false,
         })}
-        query="cve-2002-1234"
+        query='"cve-2002-1234"'
         perPage={20}
         orderDirection="asc"
         orderKey="hosts_count"

@@ -2,12 +2,19 @@
 
 import React from "react";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
-import {
+import { AxiosError } from "axios";
+import softwareVulnAPI, {
   IGetVulnerabilitiesQueryKey,
   IVulnerabilitiesResponse,
+  IGetVulnerabilityQueryKey,
+  IVulnerabilityResponse,
   getVulnerabilities,
 } from "services/entities/vulnerabilities";
+import { ignoreAxiosError } from "interfaces/errors";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -41,6 +48,8 @@ const SoftwareVulnerabilities = ({
   showExploitedVulnerabilitiesOnly,
   resetPageIndex,
 }: ISoftwareVulnerabilitiesProps) => {
+  const handlePageError = useErrorHandler();
+
   const queryParams = {
     page: currentPage,
     per_page: perPage,
@@ -50,6 +59,14 @@ const SoftwareVulnerabilities = ({
     query,
     exploit: showExploitedVulnerabilitiesOnly,
   };
+
+  const isExactMatchQuery = (() => {
+    if (query) {
+      const pattern = /^".*"$|^'.*'$/;
+      return pattern.test(query);
+    }
+    return false;
+  })();
 
   const { data, isFetching, isLoading, isError } = useQuery<
     IVulnerabilitiesResponse,
@@ -67,6 +84,39 @@ const SoftwareVulnerabilities = ({
     {
       keepPreviousData: true,
       staleTime: 30000,
+      enabled: !isExactMatchQuery,
+    }
+  );
+
+  const {
+    data: vuln,
+    isLoading: isVulnLoading,
+    isError: isVulnError,
+  } = useQuery<
+    IVulnerabilityResponse,
+    AxiosError,
+    IVulnerabilityResponse,
+    IGetVulnerabilityQueryKey[]
+  >(
+    [
+      {
+        scope: "softwareVulnByCVE",
+        vulnerability: query || "",
+        teamId,
+      },
+    ],
+    ({ queryKey }) => {
+      return softwareVulnAPI.getVulnerability(queryKey[0]);
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
+      onError: (error) => {
+        if (!ignoreAxiosError(error, [403, 404])) {
+          handlePageError(error);
+        }
+      },
+      enabled: isExactMatchQuery,
     }
   );
 

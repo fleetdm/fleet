@@ -69,31 +69,6 @@ const SoftwareVulnerabilitiesTable = ({
 }: ISoftwareVulnerabilitiesTableProps) => {
   const validQuery = query ? isValidCVEFormat(query) : true;
 
-  // Customer request that turns this table's fuzzy API search
-  // into exact match in the UI -- Logic lives here
-  // Various empty states live in EmptyVulnerabilitiesTable
-  const exactMatchSearchData = (() => {
-    // Invalid queries replace any results with no results
-    if (!validQuery) {
-      return [];
-    }
-
-    // No search query renders all results returned from API
-    if (!query) {
-      return data?.vulnerabilities || [];
-    }
-
-    // Query returning results filter the vulnerabilities to return only the exact match
-    if (data?.vulnerabilities) {
-      const normalizedQuery = normalizeCVE(query);
-
-      return data.vulnerabilities.filter(
-        (vulnerability) => normalizeCVE(vulnerability.cve) === normalizedQuery
-      );
-    }
-    return [];
-  })();
-
   const { isPremiumTier } = useContext(AppContext);
 
   const determineQueryParamChange = useCallback(
@@ -214,12 +189,9 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const renderVulnerabilityCount = () => {
-    if (!exactMatchSearchData.length || !data?.count || !validQuery)
-      return null;
+    if (!data?.count || !validQuery) return null;
 
-    // Count without a query is returned from API, but exact match search
-    // must show filtered count
-    const count = query ? exactMatchSearchData.length : data.count;
+    const count = data.count;
 
     return (
       <>
