@@ -4731,10 +4731,6 @@ func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
 		), http.StatusOK,
 	)
 
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeEnabledActivitiesWebhook{}.ActivityName(), "", 0,
-	)
-
 	appConfig := s.getConfig()
 	require.True(t, appConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	require.Equal(t, "http://some/url", appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
@@ -4774,6 +4770,12 @@ func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
     		"interval": "1h"
   		}
 	}`), http.StatusUnprocessableEntity)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedActivitiesWebhook{}.ActivityName(),
+		`{"destination_url": ""}`,
+		0,
+	)
 
 	// update without a negative days count
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{

@@ -1301,17 +1301,26 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_activities_webhook
-
-Generated when a user turns on the activities webhook.
-
-This activity does not contain any detail fields.
-
 ## disabled_activities_webhook
 
 Generated when a user turns off the activities webhook.
 
 This activity does not contain any detail fields.
+
+## edited_activities_webhook
+
+Generated when a user modify the activities webhook.
+
+This activity contains the following fields:
+- destionation_url: the current destionation URL.
+
+#### Example
+
+```json
+{
+  "destionation_url": "https://notify.fleet.example.com"
+}
+```
 
 
 <meta name="title" value="Audit logs">

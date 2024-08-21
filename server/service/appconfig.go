@@ -417,17 +417,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	if appConfig.WebhookSettings.ActivitiesWebhook.Enable != oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable {
-		if appConfig.WebhookSettings.ActivitiesWebhook.Enable {
-			act := fleet.ActivityTypeEnabledActivitiesWebhook{}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for enabled webhook activities")
-			}
-		} else {
-			act := fleet.ActivityTypeDisabledActivitiesWebhook{}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for disabled webhook activities")
-			}
+	if !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable {
+		act := fleet.ActivityTypeDisabledActivitiesWebhook{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled webhook activities")
+		}
+	}
+
+	if appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL {
+		act := fleet.ActivityTypeEditedActivitiesWebhook{
+			DestionationURL: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited webhook activities")
 		}
 	}
 

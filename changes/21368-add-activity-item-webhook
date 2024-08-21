@@ -1,1 +1,1 @@
-- Generate activities when a user turns on/off the activities webhook.
+- Generate activities when a user turns off the activities webhook or modify the destination url.

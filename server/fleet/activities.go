@@ -107,8 +107,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
 
-	ActivityTypeEnabledActivitiesWebhook{},
 	ActivityTypeDisabledActivitiesWebhook{},
+	ActivityTypeEditedActivitiesWebhook{},
 }
 
 type ActivityDetails interface {
@@ -1771,18 +1771,6 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }`
 }
 
-type ActivityTypeEnabledActivitiesWebhook struct {
-}
-
-func (a ActivityTypeEnabledActivitiesWebhook) ActivityName() string {
-	return "enabled_activities_webhook"
-}
-
-func (a ActivityTypeEnabledActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a user turns on the activities webhook.`,
-		`This activity does not contain any detail fields.`, ""
-}
-
 type ActivityTypeDisabledActivitiesWebhook struct {
 }
 
@@ -1793,4 +1781,19 @@ func (a ActivityTypeDisabledActivitiesWebhook) ActivityName() string {
 func (a ActivityTypeDisabledActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user turns off the activities webhook.`,
 		`This activity does not contain any detail fields.`, ""
+}
+
+type ActivityTypeEditedActivitiesWebhook struct {
+	DestionationURL string `json:"destination_url"`
+}
+
+func (a ActivityTypeEditedActivitiesWebhook) ActivityName() string {
+	return "edited_activities_webhook"
+}
+
+func (a ActivityTypeEditedActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user modify the activities webhook.`, `This activity contains the following fields:
+- destionation_url: the current destionation URL.`, `{
+  "destionation_url": "https://notify.fleet.example.com"
+}`
 }
