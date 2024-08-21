@@ -2,6 +2,7 @@
   background: linear-gradient(180deg, #E8F1F6 0%, #FFF 16.49%);
   a {
     color: @core-fleet-black-75;
+    text-decoration: underline;
   }
   h1 {
     font-size: 32px;
@@ -65,7 +66,6 @@
     background-position: center;
     background-repeat: no-repeat;
     border-radius: 16px;
-    transition: background-image 0.3s forwards;
     &.stage-two {
       background-image: url('/images/psystage-2-aware-508x784@2x.png');
     }
@@ -189,6 +189,9 @@
     align-items: center;
     justify-content: start;
     user-select: none;
+    a {
+      text-decoration: none;
+    }
   }
   [purpose='submit-button'] {
     padding: 12px;
