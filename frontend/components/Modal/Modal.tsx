@@ -24,9 +24,9 @@ export interface IModalProps {
    * @default false
    */
   isLoading?: boolean;
-  /** isContentDisabled can be set to true to display the modal content as disabled.
+  /** `isContentDisabled` can be set to true to display the modal content as disabled.
    * At the moment this will place an overlay over the modal content and make it
-   * unclickable.
+   * unclickable. The top right will not be disabled and will still be clickable.
    *
    * @default false
    */

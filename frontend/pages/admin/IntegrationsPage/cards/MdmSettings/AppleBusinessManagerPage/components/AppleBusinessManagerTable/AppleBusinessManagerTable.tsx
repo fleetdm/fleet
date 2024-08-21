@@ -23,16 +23,13 @@ const AppleBusinessManagerTable = ({
 }: IAppleBusinessManagerTableProps) => {
   const onSelectAction = (action: string, abmToken: IMdmAbmToken) => {
     switch (action) {
-      case "editTeam":
-        console.log(action, abmToken);
+      case "editTeams":
         onEditTokenTeam(abmToken);
         break;
       case "renew":
-        console.log(action, abmToken);
         onRenewToken(abmToken);
         break;
       case "delete":
-        console.log(action, abmToken);
         onDeleteToken(abmToken);
         break;
       default:
