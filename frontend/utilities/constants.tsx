@@ -90,9 +90,10 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "5.8.1 +", value: "5.8.1" },
   { label: "5.7.0 +", value: "5.7.0" },
   { label: "5.6.0 +", value: "5.6.0" },
+  { label: "5.5.1 +", value: "5.5.1" },
   { label: "5.4.0 +", value: "5.4.0" },
   { label: "5.3.0 +", value: "5.3.0" },
-  { label: "5.2.3 +", value: "5.2.4" },
+  { label: "5.2.3 +", value: "5.2.3" },
   { label: "5.2.2 +", value: "5.2.2" },
   { label: "5.2.1 +", value: "5.2.1" },
   { label: "5.2.0 +", value: "5.2.0" },
@@ -126,6 +127,33 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.2 +", value: "1.8.2" },
   { label: "1.8.1 +", value: "1.8.1" },
 ];
+
+export const getUpdatedMinOsqueryVersionOptions = (
+  recentOsqueryVersionsReleased: string[]
+) => {
+  // Create a set of existing version values for quick lookup
+  const existingVersionOptions = new Set(
+    MIN_OSQUERY_VERSION_OPTIONS.map((option) => option.value)
+  );
+
+  // Find missing versions
+  const missingVersions = recentOsqueryVersionsReleased.filter(
+    (version) => !existingVersionOptions.has(version)
+  );
+
+  // Create new options for missing versions
+  const newVersionOptions = missingVersions.map((version) => ({
+    label: `${version} +`,
+    value: version,
+  }));
+
+  // Combine the new options with the existing ones, inserting after the first item
+  return [
+    MIN_OSQUERY_VERSION_OPTIONS[0],
+    ...newVersionOptions,
+    ...MIN_OSQUERY_VERSION_OPTIONS.slice(1),
+  ];
+};
 
 export const LIVE_POLICY_STEPS = {
   1: "EDITOR",
