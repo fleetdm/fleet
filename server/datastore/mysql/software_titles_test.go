@@ -653,10 +653,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	}, &team2.ID)
 	require.NoError(t, err)
 
-	// create a VPP app for "No team"
+	// create a VPP app for "No team", allowing self-service
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, ptr.Uint(0))
 	require.NoError(t, err)
 
@@ -708,6 +708,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Equal(t, "vpp3", titles[0].Name)
+	require.NotNil(t, titles[0].AppStoreApp)
+	require.NotNil(t, titles[0].AppStoreApp.SelfService)
+	require.True(t, *titles[0].AppStoreApp.SelfService)
 
 	// Get title of bar software.
 	title, err := ds.SoftwareTitleByID(context.Background(), barTitle.ID, nil, globalTeamFilter)
@@ -835,6 +838,15 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, titles, 0)
+
+	// Testing the no-team filter with self-service only
+	titles, _, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, SelfServiceOnly: true, TeamID: ptr.Uint(0)}, fleet.TeamFilter{
+		User:            userGlobalAdmin,
+		IncludeObserver: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "vpp3", titles[0].Name)
 }
 
 func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
