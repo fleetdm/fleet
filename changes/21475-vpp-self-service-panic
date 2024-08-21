@@ -1,0 +1,1 @@
+- Fixes a panic that occurs when an end user attempts to install a VPP app from self-service.
