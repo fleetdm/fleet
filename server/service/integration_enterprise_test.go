@@ -2890,44 +2890,6 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
-func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
-	t := s.T()
-
-	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
-		Description: "desc",
-	})
-	require.NoError(s.T(), err)
-
-	var acResp appConfigResponse
-
-	// try to set an invalid team name
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {
-			"apple_bm_default_team": "xyz"
-		}
-	}`), http.StatusUnprocessableEntity, &acResp)
-
-	// get the appconfig, nothing changed
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.DeprecatedAppleBMDefaultTeam)
-
-	// set to a valid team name
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": {
-			"apple_bm_default_team": %q
-		}
-	}`, tm.Name)), http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
-
-	// get the appconfig, set to that team name
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
-}
-
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	t := s.T()
 
