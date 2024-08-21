@@ -8661,7 +8661,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
 		OSID:              os.ID,
-		CVE:               "CVE-2021-1234",
+		CVE:               "CVE-2021-12345",
 		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
@@ -8718,17 +8718,17 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	// insert CVEMeta
-	knownCVEWoPrefix := "2021-1299"
+	knownCVEWoPrefix := "2021-12999"
 	knownCVE := "cve-" + knownCVEWoPrefix
 	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
-			CVE:              "CVE-2021-1234",
+			CVE:              "CVE-2021-12345",
 			CVSSScore:        ptr.Float64(7.5),
 			EPSSProbability:  ptr.Float64(0.5),
 			CISAKnownExploit: ptr.Bool(true),
 			Published:        ptr.Time(mockTime),
-			Description:      "Test CVE 2021-1234",
+			Description:      "Test CVE 2021-12345",
 		},
 		{
 			CVE:              "CVE-2021-1235",
@@ -8775,9 +8775,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		DetailsLink string
 		Source      fleet.VulnerabilitySource
 	}{
-		"CVE-2021-1234": {
+		"CVE-2021-12345": {
 			HostCount:   1,
-			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-12345",
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
@@ -8791,7 +8791,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	for _, vuln := range resp.Vulnerabilities {
 		expectedVuln, ok := expected[vuln.CVE.CVE]
-		require.True(t, ok)
+		require.True(t, ok, vuln.CVE.CVE)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
@@ -8813,9 +8813,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		DetailsLink string
 		Source      fleet.VulnerabilitySource
 	}{
-		"CVE-2021-1234": {
+		"CVE-2021-12345": {
 			HostCount:   1,
-			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-12345",
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
@@ -8855,6 +8855,24 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Empty(t, resp.Err)
 	assert.Len(s.T(), resp.Vulnerabilities, 0)
 	assert.Equal(t, resp.Count, uint(0))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
+
+	// test with a substring of a known CVE -- results are returned but the exact match is not known to Fleet
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "CVE-2021-1234")
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 1)
+	assert.Equal(t, resp.Count, uint(1))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	assert.Equal(t, ptr.Bool(false), resp.KnownVulnerability)
+
+	// test with exact match of a known CVE -- results are returned and CVE is known to Fleet
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "2021-12345")
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 1)
+	assert.Equal(t, resp.Count, uint(1))
 	assert.False(t, resp.Meta.HasPreviousResults)
 	assert.False(t, resp.Meta.HasNextResults)
 	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
@@ -8924,17 +8942,17 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "team_id", "0")
 
 	// Valid CVD not in "no team" scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound, &gResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNotFound, &gResp, "team_id", "0")
 
 	// Invalid TeamID
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusForbidden, &gResp, "team_id", "100")
 
 	// Valid Global Request
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
+	require.Equal(t, "CVE-2021-12345", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
-	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-12345", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)

@@ -7,6 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -4708,50 +4709,12 @@ LIMIT 500
 }
 
 func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
-	const stmt = `
-SELECT
-	abt.id,
-	abt.organization_name,
-	abt.apple_id,
-	abt.terms_expired,
-	abt.renew_at,
-	abt.token,
-	abt.macos_default_team_id,
-	abt.ios_default_team_id,
-	abt.ipados_default_team_id,
-	COALESCE(t1.name, '') as macos_team,
-	COALESCE(t2.name, '') as ios_team,
-	COALESCE(t3.name, '') as ipados_team
-FROM
-	abm_tokens abt
-LEFT OUTER JOIN
-	teams t1 ON t1.id = abt.macos_default_team_id
-LEFT OUTER JOIN
-	teams t2 ON t2.id = abt.ios_default_team_id
-LEFT OUTER JOIN
-	teams t3 ON t3.id = abt.ipados_default_team_id
-WHERE
-	abt.organization_name = ?`
-
-	var abmTok fleet.ABMToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &abmTok, stmt, orgName); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("ABMToken").WithName(orgName))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get abm token by org name")
-	}
-
-	// decrypt the token with the serverPrivateKey, the resulting value will be
-	// the token still encrypted, but just with the ABM cert and key (it is that
-	// encrypted value that is stored with another layer of encryption with the
-	// serverPrivateKey).
-	decrypted, err := decrypt(abmTok.EncryptedToken, ds.serverPrivateKey)
+	tok, err := ds.getABMToken(ctx, 0, orgName)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by org name")
 	}
-	abmTok.EncryptedToken = decrypted
 
-	return &abmTok, nil
+	return tok, nil
 }
 
 func (ds *Datastore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
@@ -4788,4 +4751,547 @@ WHERE
 		tok.IPadOSDefaultTeamID,
 		tok.ID)
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
+}
+
+func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+	insertStmt := `
+	INSERT INTO
+		vpp_tokens (
+			organization_name,
+			location,
+			renew_at,
+			token,
+			team_id,
+			null_team_type
+		)
+	VALUES (?, ?, ?, ?, ?, ?)
+`
+
+	if teamID != nil && nullTeam != fleet.NullTeamNone {
+		return nil, ctxerr.Errorf(ctx, "nullTeam must be set to NullTeamNone if teamID is present")
+	}
+
+	if err := ds.checkVPPNullTeam(ctx, nil, nullTeam); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking vpp token null team")
+	}
+
+	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
+	}
+
+	var tokRaw fleet.VPPTokenRaw
+	if err := json.Unmarshal(tokRawBytes, &tokRaw); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshalling raw vpp token")
+	}
+
+	exp, err := time.Parse(fleet.VPPTimeFormat, tokRaw.ExpDate)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
+	}
+	exp = exp.UTC()
+
+	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+	}
+
+	vppTokenDB := &fleet.VPPTokenDB{
+		OrgName:   tokRaw.OrgName,
+		Location:  tok.Location,
+		RenewDate: exp,
+		Token:     tok.Token,
+		TeamID:    teamID,
+		NullTeam:  nullTeam,
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		insertStmt,
+		vppTokenDB.OrgName,
+		vppTokenDB.Location,
+		exp,
+		tokEnc,
+		vppTokenDB.TeamID,
+		vppTokenDB.NullTeam,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
+	}
+
+	id, _ := res.LastInsertId()
+
+	vppTokenDB.ID = uint(id)
+
+	return vppTokenDB, nil
+}
+
+func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+	stmt := `
+	SELECT
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+	WHERE
+		id = ?
+`
+
+	var tokEnc struct {
+		ID        uint               `db:"id"`
+		OrgName   string             `db:"organization_name"`
+		Location  string             `db:"location"`
+		RenewDate time.Time          `db:"renew_at"`
+		Token     []byte             `db:"token"`
+		TeamID    *uint              `db:"team_id"`
+		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token from db")
+	}
+
+	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+	}
+
+	tok := &fleet.VPPTokenDB{
+		ID:        tokEnc.ID,
+		OrgName:   tokEnc.OrgName,
+		Location:  tokEnc.Location,
+		RenewDate: tokEnc.RenewDate,
+		Token:     string(tokDec),
+		TeamID:    tokEnc.TeamID,
+		NullTeam:  tokEnc.NullTeam,
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	const stmt = `
+INSERT INTO
+	abm_tokens
+	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`
+	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrganizationName,
+		tok.AppleID,
+		tok.TermsExpired,
+		tok.RenewAt,
+		doubleEncTok,
+		tok.MacOSDefaultTeamID,
+		tok.IOSDefaultTeamID,
+		tok.IPadOSDefaultTeamID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token")
+	}
+
+	tokenID, _ := res.LastInsertId()
+
+	tok.ID = uint(tokenID)
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	return tok, nil
+}
+
+func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
+	stmt := `
+	UPDATE
+		vpp_tokens
+	SET
+		organization_name = ?,
+		location = ?,
+		renew_at = ?,
+		token = ?,
+		team_id = ?,
+		null_team_type = ?
+	WHERE
+		id = ?
+`
+
+	if tok.TeamID != nil && tok.NullTeam != fleet.NullTeamNone {
+		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
+	}
+
+	if err := ds.checkVPPNullTeam(ctx, tok.TeamID, tok.NullTeam); err != nil {
+		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
+	}
+
+	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrgName,
+		tok.Location,
+		tok.RenewDate,
+		tokEnc,
+		tok.TeamID,
+		tok.NullTeam,
+		tok.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp token")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+	stmt := `
+	UPDATE
+		vpp_tokens
+	SET
+		team_id = ?,
+		null_team_type = ?
+	WHERE
+		id = ?
+`
+	if teamID != nil && nullTeam != fleet.NullTeamNone {
+		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
+	}
+
+	if err := ds.checkVPPNullTeam(ctx, &id, nullTeam); err != nil {
+		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, nullTeam, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp token team")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting vpp token")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	stmt := `
+	SELECT
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+`
+	var tokEncs []struct {
+		ID        uint               `db:"id"`
+		OrgName   string             `db:"organization_name"`
+		Location  string             `db:"location"`
+		RenewDate time.Time          `db:"renew_at"`
+		Token     []byte             `db:"token"`
+		TeamID    *uint              `db:"team_id"`
+		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEncs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp tokens from db")
+	}
+
+	var tokens []fleet.VPPTokenDB
+
+	for _, tokEnc := range tokEncs {
+		tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+		}
+
+		tokens = append(tokens, fleet.VPPTokenDB{
+			ID:        tokEnc.ID,
+			OrgName:   tokEnc.OrgName,
+			Location:  tokEnc.Location,
+			RenewDate: tokEnc.RenewDate,
+			Token:     string(tokDec),
+			TeamID:    tokEnc.TeamID,
+			NullTeam:  tokEnc.NullTeam,
+		})
+	}
+
+	return tokens, nil
+}
+
+func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+	stmtTeam := `
+	SELECT
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+	WHERE
+		team_id = ?
+`
+	stmtNullTeam := `
+	SELECT
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token,
+		team_id,
+		null_team_type
+	FROM
+		vpp_tokens
+	WHERE
+		team_id IS NULL
+    AND
+        null_team_type = ?
+`
+
+	var tokEnc struct {
+		ID        uint               `db:"id"`
+		OrgName   string             `db:"organization_name"`
+		Location  string             `db:"location"`
+		RenewDate time.Time          `db:"renew_at"`
+		Token     []byte             `db:"token"`
+		TeamID    *uint              `db:"team_id"`
+		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+	}
+
+	var err error
+	if teamID != nil {
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtTeam, teamID)
+	} else {
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamNoTeam)
+	}
+	if err != nil {
+		if errors.Is(sql.ErrNoRows, err) {
+			if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamAllTeams); err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
+				}
+				return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+			}
+		} else {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+		}
+	}
+
+	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+	}
+
+	tok := &fleet.VPPTokenDB{
+		ID:        tokEnc.ID,
+		OrgName:   tokEnc.OrgName,
+		Location:  tokEnc.Location,
+		RenewDate: tokEnc.RenewDate,
+		Token:     string(tokDec),
+		TeamID:    tokEnc.TeamID,
+		NullTeam:  tokEnc.NullTeam,
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, nullTeam fleet.NullTeamType) error {
+	nullTeamStmt := `SELECT id FROM vpp_tokens WHERE null_team_type = ?`
+
+	if nullTeam != fleet.NullTeamNone {
+		var id uint
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, nullTeamStmt, nullTeam); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, err, "checking for nullteam constraints")
+			}
+		} else {
+			if currentID == nil || *currentID != id {
+				return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	const stmt = `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+
+	`
+
+	var tokens []*fleet.ABMToken
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokens, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
+	}
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	for _, tok := range tokens {
+		tok.MDMServerURL = url
+	}
+
+	return tokens, nil
+}
+
+func (ds *Datastore) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	const stmt = `
+DELETE FROM
+	abm_tokens
+WHERE ID = ?
+		`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, tokenID)
+
+	return ctxerr.Wrap(ctx, err, "deleting ABM token")
+}
+
+func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+	tok, err := ds.getABMToken(ctx, tokenID, "")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string) (*fleet.ABMToken, error) {
+	stmt := `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.token,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, '') as macos_team,
+	COALESCE(t2.name, '') as ios_team,
+	COALESCE(t3.name, '') as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+%s
+	`
+
+	var ident any = orgName
+	clause := "WHERE abt.organization_name = ?"
+	if tokenID != 0 {
+		clause = "WHERE abt.id = ?"
+		ident = tokenID
+	}
+
+	stmt = fmt.Sprintf(stmt, clause)
+
+	var tok fleet.ABMToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tok, stmt, ident); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token")
+	}
+
+	// decrypt the token with the serverPrivateKey, the resulting value will be
+	// the token still encrypted, but just with the ABM cert and key (it is that
+	// encrypted value that is stored with another layer of encryption with the
+	// serverPrivateKey).
+	decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+	}
+	tok.EncryptedToken = decrypted
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	return &tok, nil
+}
+
+func (ds *Datastore) GetABMTokenCount(ctx context.Context) (int, error) {
+	var count int
+	const countStmt = `SELECT COUNT(*) FROM abm_tokens`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting existing ABM tokens")
+	}
+
+	return count, nil
 }

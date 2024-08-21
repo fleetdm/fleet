@@ -1,4 +1,4 @@
-# This workflow tests packaging of Fleet-osquery with the
+# This workflow tests generation of fleetd packages with the
 # `fleetdm/fleetctl` Docker image.
 name: Test native tooling packaging
 
@@ -60,6 +60,12 @@ jobs:
 
     - name: Install Go Dependencies
       run: make deps-go
+
+    - name: Build fleetdm/wix
+      run: make wix-docker
+
+    - name: Build fleetdm/bomutils
+      run: make bomutils-docker
 
     - name: Build fleetdm/fleetctl
       run: make fleetctl-docker

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -22,15 +23,37 @@ func SetABMTokenMetadata(
 	abmToken *fleet.ABMToken,
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
-	logger kitlog.Logger) error {
-
+	logger kitlog.Logger,
+) error {
 	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.OrganizationName)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting ABM token")
 	}
 
+	return SetDecryptedABMTokenMetadata(ctx, abmToken, decryptedToken, depStorage, ds, logger)
+}
+
+func SetDecryptedABMTokenMetadata(
+	ctx context.Context,
+	abmToken *fleet.ABMToken,
+	decryptedToken *depclient.OAuth1Tokens,
+	depStorage storage.AllDEPStorage,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) error {
 	depClient := NewDEPClient(depStorage, ds, logger)
-	res, err := depClient.AccountDetail(ctx, abmToken.OrganizationName)
+
+	orgName := abmToken.OrganizationName
+	if orgName == "" {
+		// Then this is a newly uploaded token, which will not be found in the datastore when
+		// RetrieveAuthTokens tries to find it. Set the token in the context so that downstream we
+		// know it's not in the datastore.
+		ctx = abmctx.NewContext(ctx, decryptedToken)
+		// We don't have an org name, but the depClient expects an org name, so we set this fake one.
+		orgName = "new_abm_token"
+	}
+
+	res, err := depClient.AccountDetail(ctx, orgName)
 	if err != nil {
 		var authErr *depclient.AuthError
 		if errors.As(err, &authErr) {

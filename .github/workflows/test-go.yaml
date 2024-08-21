@@ -45,7 +45,7 @@ jobs:
         suite: ["integration", "core"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
-        mysql: ["mysql:8.0.36"]
+        mysql: ["mysql:8.0.36", "mysql:8.4.2"]
     continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 
@@ -156,10 +156,6 @@ jobs:
         fi
         GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
 
-    # TODO: figure out a sane way to combine outputs from different matrix jobs
-    # into a single slack notification, instead of sending one per job. This
-    # problem already existed but now it's accentuated because we're running 4
-    # jobs.
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0

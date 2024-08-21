@@ -727,8 +727,10 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 }
 
 // RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
-const RefetchCommandUUIDPrefix = "REFETCH-"
-const RefetchAppsCommandUUIDPrefix = "REFETCH-APPS-"
+const (
+	RefetchCommandUUIDPrefix     = "REFETCH-"
+	RefetchAppsCommandUUIDPrefix = "REFETCH-APPS-"
+)
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -755,6 +757,35 @@ type VPPTokenData struct {
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
 }
+
+const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
+
+// VPPTokenDB represents a VPP token record in the DB
+type VPPTokenDB struct {
+	ID        uint      `json:"id"`
+	OrgName   string    `json:"org_name"`
+	Location  string    `json:"location"`
+	RenewDate time.Time `json:"renew_date"`
+	// Token is the token dowloaded from ABM. It is the base64 encoded
+	// JSON object with the structure of `VPPTokenRaw`
+	Token    string       `json:"-"`
+	TeamID   *uint        `json:"team_id"`
+	NullTeam NullTeamType `json:"null_team_type"`
+	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
+
 type AppleDevice int
 
 const (
