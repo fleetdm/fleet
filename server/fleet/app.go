@@ -120,6 +120,9 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDMAppleABMAssignmentInfo represents an user definition of the association
+// between an ABM token (via organization name) and the teams used to associate
+// hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
 	MacOSTeam        string `json:"macos_team"`
@@ -132,7 +135,8 @@ type MDM struct {
 	// Deprecated: use AppleBussinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
-	// AppleBussinessManager TODO
+	// AppleBussinessManager defines the associations between ABM tokens
+	// and the teams used to assign hosts when they're ingested from ABM.
 	AppleBussinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been

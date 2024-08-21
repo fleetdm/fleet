@@ -107,12 +107,20 @@ func gitopsCommand() *cli.Command {
 					}
 					firstFileMustBeGlobal = ptr.Bool(false)
 				}
+
+				// Special handling for tokens is required because they link to teams (by
+				// name.) Because teams can be created/deleted during the same gitops run, we
+				// grab some information to help us determine allowed/restricted actions and
+				// when to perform the associations.
 				if isGlobalConfig && totalFilenames > 1 {
-					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkAppleBMDefaultTeam(config, fleetClient)
+					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
 					}
 
+					// if one of the teams assigned to an ABM token doesn't exist yet, we need to
+					// submit the configs without the ABM default team set. We'll set those
+					// separately later when the teams are already created.
 					if hasMissingABMTeam {
 						if mdm, ok := config.OrgSettings["mdm"]; ok {
 							if mdmMap, ok := mdm.(map[string]any); ok {
@@ -132,7 +140,8 @@ func gitopsCommand() *cli.Command {
 									}
 								}
 
-								// If team is not found, we need to remove the AppleBMDefaultTeam from the global config, and then apply it after teams are processed
+								// If team is not found, we need to remove the AppleBMDefaultTeam from
+								// the global config, and then apply it after teams are processed
 								mdmMap["apple_business_manager"] = nil
 								mdmMap["apple_bm_default_team"] = ""
 							}
@@ -163,8 +172,9 @@ func gitopsCommand() *cli.Command {
 				}
 			}
 
+			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
 			if len(abmTeams) > 0 && hasMissingABMTeam {
-				if err = applyAppleBMDefaultTeamIfNeeded(c, teamNames, abmTeams, originalMDMConfig, usesLegacyABMConfig, flDryRun, fleetClient); err != nil {
+				if err = applyABMTokenAssignmentIfNeeded(c, teamNames, abmTeams, originalMDMConfig, usesLegacyABMConfig, flDryRun, fleetClient); err != nil {
 					return err
 				}
 			}
@@ -203,7 +213,13 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
-func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
+// checkABMTeamAssignments validates the spec, and finds if:
+//
+// 1. The user is using the legacy apple_bm_default_team config.
+// 2. All teams assigned to ABM tokens already exist.
+// 3. Performs validations according to the spec for both the new and the
+// deprecated key used for this setting.
+func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 	abmTeams []string, missingTeam bool, usesLegacyConfig bool, err error,
 ) {
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
@@ -212,7 +228,7 @@ func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
 			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
 
 			if hasLegacyConfig && hasNewConfig {
-				return nil, false, false, errors.New("mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops")
+				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 
 			if !hasLegacyConfig && !hasNewConfig {
@@ -230,7 +246,7 @@ func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
 
 			if hasLegacyConfig {
 				if appleBMDefaultTeam, ok := appleBMDT.(string); ok {
-					// Normalize AppleBMDefaultTeam for Unicode support
+					// normalize for Unicode support
 					appleBMDefaultTeam = norm.NFC.String(appleBMDefaultTeam)
 					abmTeams = append(abmTeams, appleBMDefaultTeam)
 					usesLegacyConfig = true
@@ -246,6 +262,7 @@ func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
 						if cfg, ok := item.(map[string]any); ok {
 							for _, teamConfigKey := range []string{"macos_team", "ios_team", "ipados_team"} {
 								if team, ok := cfg[teamConfigKey].(string); ok && team != "" {
+									// normalize for Unicode support
 									team = norm.NFC.String(team)
 									abmTeams = append(abmTeams, team)
 									if _, ok := teamNames[team]; !ok {
@@ -263,7 +280,7 @@ func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
 	return abmTeams, missingTeam, usesLegacyConfig, nil
 }
 
-func applyAppleBMDefaultTeamIfNeeded(
+func applyABMTokenAssignmentIfNeeded(
 	ctx *cli.Context,
 	teamNames []string,
 	abmTeamNames []string,
@@ -273,7 +290,7 @@ func applyAppleBMDefaultTeamIfNeeded(
 	fleetClient *service.Client,
 ) error {
 	if usesLegacyConfig && len(abmTeamNames) > 1 {
-		return errors.New("mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops")
+		return errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 	}
 
 	if usesLegacyConfig && len(abmTeamNames) == 0 {

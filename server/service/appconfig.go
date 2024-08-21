@@ -414,7 +414,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
-	// TODO: errcheck and refactor
 	abmAssignments, err := svc.validateABMAssignments(ctx, &appConfig.MDM, &oldAppConfig.MDM, invalid, license)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
@@ -953,8 +952,6 @@ func (svc *Service) validateMDM(
 	return nil
 }
 
-const abmErr = `mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"`
-
 func (svc *Service) validateABMAssignments(
 	ctx context.Context,
 	mdm, oldMdm *fleet.MDM,
@@ -962,7 +959,7 @@ func (svc *Service) validateABMAssignments(
 	license *fleet.LicenseInfo,
 ) ([]*fleet.ABMToken, error) {
 	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
-		invalid.Append("mdm.apple_bm_default_team", abmErr)
+		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
 		return nil, nil
 	}
 
@@ -982,7 +979,7 @@ func (svc *Service) validateABMAssignments(
 		}
 
 		if len(tokens) > 1 {
-			invalid.Append("mdm.apple_bm_default_team", "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops")
+			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
 			return nil, nil
 		}
 
@@ -1019,7 +1016,11 @@ func (svc *Service) validateABMAssignments(
 		}
 		tokensByName := map[string]*fleet.ABMToken{}
 		for _, token := range tokens {
-			// TODO: explain
+			// The default assignments for all tokens is "no team"
+			// (ie: team_id IS NULL), here we reset the assignments
+			// for all tokens, those will be re-added below.
+			//
+			// This ensures any unassignments are properly handled.
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
