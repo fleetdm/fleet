@@ -30,6 +30,9 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
+var addHostMDMCommandsBatchSize = 10000
+
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
@@ -4674,19 +4677,22 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
 // (their details haven't been updated in the given `interval`).
-func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
-	var deviceUUIDs []string
+func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
+	err error,
+) {
 	hostsStmt := fmt.Sprintf(`
-SELECT h.uuid FROM hosts h
-JOIN host_mdm hmdm ON hmdm.host_id = h.id
+SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
+INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
+LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
-AND hmdm.enrolled
-AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`)
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &deviceUUIDs, hostsStmt, interval.Seconds()); err != nil {
+AND TRIM(h.uuid) != ''
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+GROUP BY h.id`)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, hostsStmt, interval.Seconds()); err != nil {
 		return nil, err
 	}
 
-	return deviceUUIDs, nil
+	return devices, nil
 }
 
 func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
@@ -4705,6 +4711,70 @@ LIMIT 500
 	}
 
 	return deviceUUIDs, nil
+}
+
+func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	const baseStmt = `
+		INSERT INTO host_mdm_commands (host_id, command_type)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+		command_type = VALUES(command_type)`
+
+	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
+		start := i
+		end := i + hostIssuesInsertBatchSize
+		if end > len(commands) {
+			end = len(commands)
+		}
+		totalToProcess := end - start
+		const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?),", totalToProcess), ",",
+		)
+		stmt := fmt.Sprintf(baseStmt, values)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerInsert)
+		for j := start; j < end; j++ {
+			item := commands[j]
+			args = append(
+				args, item.HostID, item.CommandType,
+			)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
+	const stmt = `SELECT host_id, command_type FROM host_mdm_commands WHERE host_id = ?`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt, hostID); err != nil {
+		return nil, err
+	}
+	return commands, nil
+}
+
+func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.HostMDMCommand) error {
+	const stmt = `
+		DELETE FROM host_mdm_commands
+		WHERE host_id = ? AND command_type = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
+	// Delete commands that don't have a corresponding host or have been sent over 7 days ago.
+	const stmt = `
+		DELETE hmc FROM host_mdm_commands AS hmc
+		LEFT JOIN hosts h ON h.id = hmc.host_id
+		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 7 DAY`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
 }
 
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {

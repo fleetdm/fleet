@@ -61,9 +61,13 @@ jobs:
       # Run in background while other steps complete to speed up the workflow
       run: docker pull fleetdm/wix:latest &
 
+    - name: Pull fleetdm/bomutils
+      # Run in background while other steps complete to speed up the workflow
+      run: docker pull fleetdm/bomutils:latest &
+
     - name: Run Colima
       if: startsWith(matrix.os, 'macos')
-      timeout-minutes: 10
+      timeout-minutes: 15
       # notes:
       # - docker to install the docker CLI and interact with the Colima
       #   container runtime

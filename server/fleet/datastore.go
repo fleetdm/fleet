@@ -336,7 +336,15 @@ type Datastore interface {
 
 	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
 	// updated in the given `interval`).
-	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []AppleDevicesToRefetch, err error)
+	// AddHostMDMCommands adds the provided MDM commands to the host to track which commands have been sent.
+	AddHostMDMCommands(ctx context.Context, commands []HostMDMCommand) error
+	// GetHostMDMCommands returns the MDM commands that have been sent to the host.
+	GetHostMDMCommands(ctx context.Context, hostID uint) (commands []HostMDMCommand, err error)
+	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
+	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
+	// CleanupHostMDMCommands removes invalid and stale MDM commands sent to hosts.
+	CleanupHostMDMCommands(ctx context.Context) error
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
@@ -865,6 +873,8 @@ type Datastore interface {
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
+	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
+	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
 	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
 	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
 	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error

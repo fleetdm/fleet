@@ -84,9 +84,11 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
+		{"HostMDMCommands", testHostMDMCommands},
 	}
 
 	for _, c := range cases {
+		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 
@@ -5695,9 +5697,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	}
 
 	// Test with no hosts.
-	uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Create a placeholder macOS host.
 	_ = newHost("darwin")
@@ -5712,9 +5714,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(2), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Now simulate the initial MDM checkin of the devices.
 	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
@@ -5741,13 +5743,16 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, iPadOS0, false)
 
 	// Test with hosts but empty state in nanomdm command tables.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 2)
+	require.Len(t, devices, 2)
+	uuids := []string{devices[0].UUID, devices[1].UUID}
 	sort.Slice(uuids, func(i, j int) bool {
 		return uuids[i] < uuids[j]
 	})
-	require.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Empty(t, devices[0].CommandsAlreadySent)
+	assert.Empty(t, devices[1].CommandsAlreadySent)
 
 	// Set iOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5756,10 +5761,10 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device should not be returned because it was refetched recently
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iPadOS0_UUID")
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
 
 	// Set iPadOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5768,9 +5773,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// Both devices are up-to-date thus none should be returned.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Set iOS detail_updated_at as 2 hours in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5779,10 +5784,23 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device be returned because it is out of date.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iOS0_UUID")
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iOS0_UUID")
+	assert.Empty(t, devices[0].CommandsAlreadySent)
+
+	// Update commands already sent to the devices and check that they are returned.
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+		HostID:      iOS0.ID,
+		CommandType: "my-command",
+	}}))
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iOS0_UUID")
+	require.Len(t, devices[0].CommandsAlreadySent, 1)
+	assert.Equal(t, "my-command", devices[0].CommandsAlreadySent[0])
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -6334,6 +6352,77 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.Nil(t, bpContent)
 }
 
+func testHostMDMCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	addHostMDMCommandsBatchSizeOrig := addHostMDMCommandsBatchSize
+	addHostMDMCommandsBatchSize = 2
+	t.Cleanup(func() {
+		addHostMDMCommandsBatchSize = addHostMDMCommandsBatchSizeOrig
+	})
+
+	// create a host
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	hostCommands := []fleet.HostMDMCommand{
+		{
+			HostID:      h.ID,
+			CommandType: "command-1",
+		},
+		{
+			HostID:      h.ID,
+			CommandType: "command-2",
+		},
+		{
+			HostID:      h.ID,
+			CommandType: "command-3",
+		},
+	}
+
+	badHostID := h.ID + 1
+	allCommands := append(hostCommands, fleet.HostMDMCommand{
+		HostID:      badHostID,
+		CommandType: "command-1",
+	})
+	err = ds.AddHostMDMCommands(ctx, allCommands)
+	require.NoError(t, err)
+
+	commands, err := ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands, commands)
+
+	// Remove a command
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, hostCommands[0]))
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	// Clean up commands, and make sure badHost commands have been removed, but others remain.
+	commands, err = ds.GetHostMDMCommands(ctx, badHostID)
+	require.NoError(t, err)
+	assert.Len(t, commands, 1)
+
+	require.NoError(t, ds.CleanupHostMDMCommands(ctx))
+	commands, err = ds.GetHostMDMCommands(ctx, badHostID)
+	require.NoError(t, err)
+	assert.Empty(t, commands)
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+}
+
 func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -6480,16 +6569,12 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 
 	// create a non-DEP host
 	_, err = ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("non-dep-osquery-id"),
-		NodeKey:         ptr.String("non-dep-node-key"),
-		UUID:            "non-dep-uuid",
-		Hostname:        "non-dep-hostname",
-		Platform:        "macos",
-		HardwareSerial:  "non-dep-serial",
+		OsqueryHostID:  ptr.String("non-dep-osquery-id"),
+		NodeKey:        ptr.String("non-dep-node-key"),
+		UUID:           "non-dep-uuid",
+		Hostname:       "non-dep-hostname",
+		Platform:       "macos",
+		HardwareSerial: "non-dep-serial",
 	})
 
 	// non-DEP host should return not found

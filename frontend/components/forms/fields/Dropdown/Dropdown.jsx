@@ -188,9 +188,11 @@ class Dropdown extends Component {
       "error",
       "name",
       "tooltip",
+      "disabled",
     ]);
     const selectClasses = classnames(className, `${baseClass}__select`, {
       [`${baseClass}__select--error`]: error,
+      [`${baseClass}__select--disabled`]: disabled,
     });
 
     return (

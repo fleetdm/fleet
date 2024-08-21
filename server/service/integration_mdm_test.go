@@ -290,6 +290,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					return integrationsSchedule, nil
 				}
 			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
+					logger := cronLog
+					refetcherSchedule := schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger)
+						}),
+					)
+					return refetcherSchedule, nil
+				}
+			},
 		},
 		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
@@ -9807,6 +9821,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Enroll host
 	host, mdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "https://foo.com", true, "", ""))
 
 	// Refetch host
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
@@ -9817,6 +9832,17 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	assert.Equal(t, host.ID, hostResp.Host.ID)
 	assert.True(t, hostResp.Host.RefetchRequested)
+
+	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Len(t, commands, commandsSent)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	}, commands)
+
+	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 
 	// Check the MDM commands and send response
 	cmd, err := mdmClient.Idle()
@@ -9841,6 +9867,10 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
 	require.NoError(t, err)
+
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Empty(t, commands)
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -9974,6 +10004,64 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.False(t, hostResp.Host.RefetchRequested)
 	assert.Equal(t, deviceNameRenamed, hostResp.Host.ComputerName)
 	assert.Empty(t, hostResp.Host.Software)
+
+	// Mark host as unenrolled and refetch.
+	require.NoError(t, s.ds.UpdateMDMData(ctx, host.ID, false))
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NoError(t, err)
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
+
+	// Set iOS detail_updated_at as 2 hours in the past.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, host.ID)
+		return err
+	})
+	trigger := triggerRequest{
+		Name: string(fleet.CronAppleMDMIPhoneIPadRefetcher),
+	}
+	_ = s.Do("POST", "/api/latest/fleet/trigger", trigger, http.StatusOK)
+	commandsSent += commandsSentPerRefetch
+
+	// Wait until MDM commands are set up
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for range ticker.C {
+			commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
+			require.NoError(t, err)
+			if len(commands) == commandsSentPerRefetch {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Error("Timeout: MDM commands not queued up")
+	}
+
+	// Check the MDM commands and send response
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
+	require.NoError(t, err)
+	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, host.ID, hostResp.Host.ID)
+	assert.False(t, hostResp.Host.RefetchRequested)
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (automatic)", *hostResp.Host.MDM.EnrollmentStatus)
 
 	// list commands should return all the commands we sent
 	var listCmdResp listMDMAppleCommandsResponse

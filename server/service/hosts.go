@@ -1036,19 +1036,56 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	}
 
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
-		err := svc.verifyMDMConfiguredAndConnected(ctx, host)
+		// Get MDM commands already sent
+		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host MDM commands")
+		}
+		doAppRefetch := true
+		doDeviceInfoRefetch := true
+		for _, cmd := range commands {
+			switch cmd.CommandType {
+			case fleet.RefetchDeviceCommandUUIDPrefix:
+				doDeviceInfoRefetch = false
+			case fleet.RefetchAppsCommandUUIDPrefix:
+				doAppRefetch = false
+			}
+		}
+		if !doAppRefetch && !doDeviceInfoRefetch {
+			// Nothing to do.
+			return nil
+		}
+		err = svc.verifyMDMConfiguredAndConnected(ctx, host)
 		if err != nil {
 			return err
 		}
+		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2)
 		cmdUUID := uuid.NewString()
-		err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+		if doAppRefetch {
+			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+			}
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+			})
 		}
-		// DeviceInformation is last because the refetch response clears the refetch_requested flag
-		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+cmdUUID)
+		if doDeviceInfoRefetch {
+			// DeviceInformation is last because the refetch response clears the refetch_requested flag
+			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch host with MDM")
+			}
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+			})
+		}
+		// Add commands to the database to track the commands sent
+		err = svc.ds.AddHostMDMCommands(ctx, hostMDMCommands)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
+			return ctxerr.Wrap(ctx, err, "add host mdm commands")
 		}
 	}
 
