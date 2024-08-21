@@ -394,10 +394,8 @@ func (r *redisLiveQuery) loadCache() (memCache, error) {
 			}
 
 			go func() {
-				fmt.Println("Cleaning up expired queries", names)
 				err = r.removeQueryNames(names...)
 				if err != nil {
-					fmt.Printf("Error removing expired queries: %v\n", err)
 					level.Warn(r.logger).Log("msg", "removing expired live queries", "err", err)
 				}
 			}()
