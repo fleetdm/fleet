@@ -19,11 +19,7 @@ import {
 } from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
-import {
-  IMacadminAggregate,
-  IMunkiIssuesAggregate,
-  IMunkiVersionsAggregate,
-} from "interfaces/macadmins";
+import { IMacadminAggregate } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
   IMdmSummaryResponse,
