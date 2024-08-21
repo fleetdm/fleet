@@ -5149,7 +5149,7 @@ func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, null
 }
 
 func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
-	const stmt = `
+	stmt := `
 SELECT
 	abt.id,
 	abt.organization_name,
@@ -5159,9 +5159,9 @@ SELECT
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
-	COALESCE(t1.name, '') as macos_team,
-	COALESCE(t2.name, '') as ios_team,
-	COALESCE(t3.name, '') as ipados_team
+	COALESCE(t1.name, :no_team) as macos_team,
+	COALESCE(t2.name, :no_team) as ios_team,
+	COALESCE(t3.name, :no_team) as ipados_team
 FROM
 	abm_tokens abt
 LEFT OUTER JOIN
@@ -5173,8 +5173,13 @@ LEFT OUTER JOIN
 
 	`
 
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.NoTeamName})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
+	}
+
 	var tokens []*fleet.ABMToken
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokens, stmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokens, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
 	}
 
@@ -5190,6 +5195,23 @@ LEFT OUTER JOIN
 
 	for _, tok := range tokens {
 		tok.MDMServerURL = url
+
+		// Promote DB fields into respective objects
+		var macOSTeamID, iOSTeamID, iPadIOSTeamID uint
+		if tok.MacOSDefaultTeamID != nil {
+			macOSTeamID = *tok.MacOSDefaultTeamID
+		}
+		if tok.IOSDefaultTeamID != nil {
+			iOSTeamID = *tok.IOSDefaultTeamID
+		}
+		if tok.IPadOSDefaultTeamID != nil {
+			iPadIOSTeamID = *tok.IPadOSDefaultTeamID
+		}
+
+		tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
+		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
+		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
+
 	}
 
 	return tokens, nil
@@ -5228,9 +5250,9 @@ SELECT
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
-	COALESCE(t1.name, '') as macos_team,
-	COALESCE(t2.name, '') as ios_team,
-	COALESCE(t3.name, '') as ipados_team
+	COALESCE(t1.name, :no_team) as macos_team,
+	COALESCE(t2.name, :no_team) as ios_team,
+	COALESCE(t3.name, :no_team) as ipados_team
 FROM
 	abm_tokens abt
 LEFT OUTER JOIN
@@ -5242,6 +5264,11 @@ LEFT OUTER JOIN
 %s
 	`
 
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.NoTeamName})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
+	}
+
 	var ident any = orgName
 	clause := "WHERE abt.organization_name = ?"
 	if tokenID != 0 {
@@ -5251,8 +5278,10 @@ LEFT OUTER JOIN
 
 	stmt = fmt.Sprintf(stmt, clause)
 
+	args = append(args, ident)
+
 	var tok fleet.ABMToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tok, stmt, ident); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tok, stmt, args...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("ABMToken"))
 		}
@@ -5281,6 +5310,22 @@ LEFT OUTER JOIN
 	}
 
 	tok.MDMServerURL = url
+
+	// Promote DB fields into respective objects
+	var macOSTeamID, iOSTeamID, iPadIOSTeamID uint
+	if tok.MacOSDefaultTeamID != nil {
+		macOSTeamID = *tok.MacOSDefaultTeamID
+	}
+	if tok.IOSDefaultTeamID != nil {
+		iOSTeamID = *tok.IOSDefaultTeamID
+	}
+	if tok.IPadOSDefaultTeamID != nil {
+		iPadIOSTeamID = *tok.IPadOSDefaultTeamID
+	}
+
+	tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
+	tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
+	tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
 
 	return &tok, nil
 }

@@ -6377,9 +6377,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tok.EncryptedToken))
 	require.Empty(t, tok.OrganizationName)
 	require.Empty(t, tok.AppleID)
-	require.Empty(t, tok.MacOSTeam)
-	require.Empty(t, tok.IOSTeam)
-	require.Empty(t, tok.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, tok.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tok.IOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tok.IPadOSTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
@@ -6396,9 +6396,15 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, tm1.Name, tokReload.MacOSTeam)
-	require.Equal(t, tm2.Name, tokReload.IOSTeam)
-	require.Empty(t, tokReload.IPadOSTeam)
+	require.Equal(t, tm1.Name, tokReload.MacOSTeamName)
+	require.Equal(t, tm1.Name, tokReload.MacOSTeam.Name)
+	require.Equal(t, tm1.ID, tokReload.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
+	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
+	require.Equal(t, fleet.NoTeamName, tokReload.IPadOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tokReload.IPadOSTeam.Name)
+	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
 
 	// empty name token now doesn't exist
 	_, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -6417,9 +6423,11 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Empty(t, tokReload.MacOSTeam)
-	require.Equal(t, tm2.Name, tokReload.IOSTeam)
-	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeam.Name)
+	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
 
 	// change just the encrypted token
 	encTok2 := uuid.NewString()
@@ -6433,9 +6441,15 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok2, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Empty(t, tokReload.MacOSTeam)
-	require.Equal(t, tm2.Name, tokReload.IOSTeam)
-	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeam.Name)
+	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
+	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeam.Name)
+	require.Equal(t, tm3.ID, tokReload.IPadOSTeam.ID)
 
 	// Remove unused token
 	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
@@ -6446,9 +6460,11 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	expTok := toks[0]
 	require.Equal(t, "org-name", expTok.OrganizationName)
 	require.Equal(t, "name@example.com", expTok.AppleID)
-	require.Empty(t, expTok.MacOSTeam)
-	require.Equal(t, tm2.Name, expTok.IOSTeam)
-	require.Equal(t, tm3.Name, expTok.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, expTok.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, expTok.MacOSTeam.Name)
+	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, expTok.IOSTeamName)
+	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
 }
 
 func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
