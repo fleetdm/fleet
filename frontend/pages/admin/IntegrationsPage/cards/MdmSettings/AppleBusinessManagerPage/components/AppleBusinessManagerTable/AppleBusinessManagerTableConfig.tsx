@@ -9,7 +9,6 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
