@@ -125,6 +125,14 @@ func TestDEPClient(t *testing.T) {
 		{token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: false,
 			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
 
+		// use a valid token without org, nothing is checked
+		{token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+
+		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
+		{token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+
 		// use an invalid token, appconfig should not even be read (not a terms error)
 		{token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
 			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
@@ -159,6 +167,14 @@ func TestDEPClient(t *testing.T) {
 
 		// terms changed during auth for org1, now both tokens have the flag, doesn't update appConfig
 		{token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true}},
+
+		// use a valid token without org, nothing is checked
+		{token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true}},
+
+		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
+		{token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
 			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true}},
 
 		// valid token for org1, resets that token's flag but not appConfig
