@@ -3097,3 +3097,62 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
   "exit_code": 0
 }
 ```
+
+### Get token to download package
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+
+The returned token is a one-time use token that expires after 10 minutes.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                      |
+|-------------------|---------|-------|------------------------------------------------------------------|
+| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| team_id           | integer | query | **Required**. The team ID containing the software package.       |
+| alt               | integer | query | **Required**. Must be specified and set to "media".              |
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
+}
+```
+
+### Download package using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                              |
+|-------------------|---------|------|--------------------------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
+| token             | string  | path | **Required**. The token to download the software package.                |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
