@@ -445,7 +445,7 @@ const DataTable = ({
 
   const tableStyles = classnames({
     "data-table__table": true,
-    "data-table__no-rows": !!rows.length,
+    "data-table__no-rows": !rows.length,
     "is-observer": isOnlyObserver,
   });
 
