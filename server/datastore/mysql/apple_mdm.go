@@ -5316,6 +5316,9 @@ func (ds *Datastore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgN
 }
 
 func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
+	// The expectation is that abm_tokens will have few rows (we don't even
+	// support pagination on the "list ABM tokens" endpoint), so this query
+	// should be very fast even without index on terms_expired.
 	const stmt = `SELECT COUNT(*) FROM abm_tokens WHERE terms_expired = 1`
 
 	var count int

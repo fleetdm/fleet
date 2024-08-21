@@ -124,6 +124,8 @@ func TestDEPClient(t *testing.T) {
 		{token: validToken, wantErr: false, readInvoked: true, writeInvoked: true, termsFlag: false},
 	}
 
+	// TODO(mna): update test to check with different tokens the effect on the terms_expired flags.
+
 	// order of calls is important, and test must not be parallelized as it would
 	// be racy. For that reason, subtests are not used (it would make it possible
 	// to run one subtest in isolation, which could fail).

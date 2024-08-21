@@ -88,6 +88,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
+		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
 	}
 
 	for _, c := range cases {
@@ -6651,6 +6652,70 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	_, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
 	require.Error(t, err)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// count works with no token
+	count, err := ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// create a few tokens
+	encTok1 := uuid.NewString()
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", EncryptedToken: []byte(encTok1)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+	encTok2 := uuid.NewString()
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", EncryptedToken: []byte(encTok2)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t2.ID)
+	// this one simulates a mirated token - empty name
+	encTok3 := uuid.NewString()
+	t3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "", EncryptedToken: []byte(encTok3)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t3.ID)
+
+	// none have terms expired yet
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// set t1 terms expired
+	was, err := ds.SetABMTokenTermsExpiredForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was)
+
+	// set t2 terms not expired, no-op
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t2.OrganizationName, false)
+	require.NoError(t, err)
+	require.False(t, was)
+
+	// set t3 terms expired
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t3.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was)
+
+	// count is now 2
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, count)
+
+	// set t1 terms not expired
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t1.OrganizationName, false)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// set t3 terms still expired
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t3.OrganizationName, true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// count is now 1
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
 }
 
 func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
