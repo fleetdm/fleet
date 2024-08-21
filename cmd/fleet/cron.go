@@ -37,7 +37,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -894,6 +893,9 @@ func newCleanupsAndAggregationSchedule(
 			// in use.
 			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
 		}),
+		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
+			return ds.CleanupHostMDMCommands(ctx)
+		}),
 	)
 
 	return s, nil
@@ -1295,35 +1297,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "fetching app config")
-			}
-
-			if !appCfg.MDM.EnabledAndConfigured {
-				level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
-				return nil
-			}
-
-			start := time.Now()
-			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
-			}
-			if len(uuids) == 0 {
-				return nil
-			}
-			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
-			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
-			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
-			}
-			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			if err := commander.DeviceInformation(ctx, uuids, fleet.RefetchCommandUUIDPrefix+commandUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
-			}
-			return nil
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
 		}),
 	)
 
