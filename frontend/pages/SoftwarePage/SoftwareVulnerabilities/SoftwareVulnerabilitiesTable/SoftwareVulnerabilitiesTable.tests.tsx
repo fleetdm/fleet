@@ -1,6 +1,5 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { noop } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
 
 import {
@@ -85,6 +84,7 @@ describe("Software Vulnerabilities table", () => {
             has_previous_results: false,
           },
         })}
+        emptyStateReason="no-vulns-detected"
         query=""
         perPage={20}
         orderDirection="asc"
@@ -167,6 +167,7 @@ describe("Software Vulnerabilities table", () => {
             has_previous_results: false,
           },
         })}
+        emptyStateReason="invalid-cve"
         query='"abcdefg"'
         perPage={20}
         orderDirection="asc"
@@ -209,6 +210,7 @@ describe("Software Vulnerabilities table", () => {
             has_previous_results: false,
           },
         })}
+        emptyStateReason="known-vuln"
         query='"cve-2002-1000"'
         perPage={20}
         orderDirection="asc"
@@ -222,7 +224,7 @@ describe("Software Vulnerabilities table", () => {
 
     expect(
       screen.getByText(
-        "This is a known vulnerability (CVE), but it wasn't detected on any hosts."
+        "This is a known vulnerability (CVE), but it wasn't detected on any hosts"
       )
     ).toBeInTheDocument();
     expect(
@@ -253,95 +255,8 @@ describe("Software Vulnerabilities table", () => {
             has_previous_results: false,
           },
         })}
+        emptyStateReason="unknown-cve"
         query="cve-2002-12345"
-        perPage={20}
-        orderDirection="asc"
-        orderKey="hosts_count"
-        showExploitedVulnerabilitiesOnly={false}
-        currentPage={0}
-        isLoading={false}
-        resetPageIndex={false}
-      />
-    );
-
-    expect(screen.getByText("This is not a known CVE")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "None of Fleet's vulnerability sources are aware of this CVE."
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Vulnerability")).toBeNull();
-  });
-
-  // Test for exact match with quotes
-  it("Renders exact match results: valid known CVE empty search state when search query wrapped in quotes is a valid and known CVE though API returned results that do not exact match", async () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
-    render(
-      <SoftwareVulnerabilitiesTable
-        router={mockRouter}
-        isSoftwareEnabled
-        data={createMockVulnerabilitiesResponse({
-          count: 1,
-          vulnerabilities: [createMockVulnerability({ cve: "cve-2002-12345" })],
-          meta: {
-            has_next_results: false,
-            has_previous_results: false,
-          },
-        })}
-        query='"cve-2002-1234"'
-        perPage={20}
-        orderDirection="asc"
-        orderKey="hosts_count"
-        showExploitedVulnerabilitiesOnly={false}
-        currentPage={0}
-        isLoading={false}
-        resetPageIndex={false}
-      />
-    );
-
-    expect(
-      screen.getByText(
-        "This is a known vulnerability (CVE), but it wasn't detected on any hosts."
-      )
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Expecting to see vulnerabilities? Check back later.")
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Vulnerability")).toBeNull();
-  });
-
-  // Test for exact match with quotes
-  it("Renders exact match results: valid unknown CVE empty search state when search query wrapped in quotes is a valid and unknown CVE though API returned results that do not exact match", async () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
-    render(
-      <SoftwareVulnerabilitiesTable
-        router={mockRouter}
-        isSoftwareEnabled
-        data={createMockVulnerabilitiesResponse({
-          count: 1,
-          vulnerabilities: [createMockVulnerability({ cve: "cve-2002-12345" })],
-          meta: {
-            has_next_results: false,
-            has_previous_results: false,
-          },
-        })}
-        query='"cve-2002-1234"'
         perPage={20}
         orderDirection="asc"
         orderKey="hosts_count"
