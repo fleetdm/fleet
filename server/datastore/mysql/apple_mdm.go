@@ -4889,8 +4889,8 @@ TEAMLOOP:
 		switch team.NullTeam {
 		case fleet.NullTeamAllTeams:
 			// This should only be possible if there are no other teams
-			// Make sure something is allocated to indicate AllTeams
-			tok.Teams = make([]fleet.TeamTuple, 0, 1)
+			// Make sure something array is non-nil
+			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP
 		case fleet.NullTeamNoTeam:
 			tok.Teams = append(tok.Teams, fleet.TeamTuple{
@@ -5118,8 +5118,8 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 		switch team.NullTeam {
 		case fleet.NullTeamAllTeams:
 			// All teams, there should be no other teams.
-			// Allocate a list to make sure it's not nil
-			token.Teams = make([]fleet.TeamTuple, 0, 1)
+			// Make sure array is non-nil
+			token.Teams = []fleet.TeamTuple{}
 		case fleet.NullTeamNoTeam:
 			token.Teams = append(token.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
 		case fleet.NullTeamNone:
