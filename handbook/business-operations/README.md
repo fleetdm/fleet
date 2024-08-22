@@ -334,16 +334,17 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
 
 
-### Update a team member's compensation
-To [change a team member's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
-1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the team member's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+### Update a teammate's compensation
+To [change a teammate's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
+1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
 2. Share the values assessment document with the manager and ask them to perform the values assessment.
-3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and set a meeting between the manager, head of department, and Head of Business Operations about level of job skill in relation to compensation benchmarking levels.
-4. Schedule a new calendar event for the Head of Business Operations with the founders over an existing founders' 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking. During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
-5. Head of Business Operations will post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
-6. Communicate via Slack DM the decision to the teammate's people manager, who will then communicate to their teammate.
-7. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-8. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Business Operations so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
+   - If the teammdate's manager is not part of the e-group, the Head of Business Operations will ensure they're included in the discussion at e-group as well. 
+7. Once compensation decisions have been finalized, the Head of Business Operations will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
+8. Send the teammates manager a Slack DM to determine who will communicate the decision to their teammate.
+9. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+10. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+11. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
