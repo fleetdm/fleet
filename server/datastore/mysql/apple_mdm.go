@@ -5063,7 +5063,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 		vt.vpp_token_id,
 		vt.team_id,
 		vt.null_team_type,
-		t.name
+		COALESCE(t.name, '') AS name
 	FROM
 		vpp_token_teams vt
 	LEFT OUTER JOIN

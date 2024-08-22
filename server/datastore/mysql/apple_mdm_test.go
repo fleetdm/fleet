@@ -6499,9 +6499,27 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, tok.Token)
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
+	// No team assigned
 	assert.Nil(t, tok.Teams)
 
-	// All teams
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Nil(t, tok.Teams)
+
+	toks, err := ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+	assert.Equal(t, dataToken.Location, toks[0].Location)
+	assert.Equal(t, dataToken.Token, toks[0].Token)
+	assert.Equal(t, orgName, toks[0].OrgName)
+	assert.Equal(t, location, toks[0].Location)
+	assert.Nil(t, toks[0].Teams)
+
+	// Assign to all teams
 	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
 	assert.NoError(t, err)
 
@@ -6511,23 +6529,50 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, tok.Token)
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
+	/// "All Teams" teamm array is non-nil but empty
 	assert.NotNil(t, tok.Teams)
 	assert.Len(t, tok.Teams, 0)
 
-	// Assign to team
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+	assert.Equal(t, dataToken.Location, toks[0].Location)
+	assert.Equal(t, dataToken.Token, toks[0].Token)
+	assert.Equal(t, orgName, toks[0].OrgName)
+	assert.Equal(t, location, toks[0].Location)
+	assert.NotNil(t, toks[0].Teams)
+	assert.Len(t, toks[0].Teams, 0)
+
+	// Assign to team "No Team"
+	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
+	assert.NoError(t, err)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.Len(t, tok.Teams, 1)
+	assert.Equal(t, uint(0), tok.Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, tok.Teams[0].Name)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.Len(t, toks, 1)
+	assert.Len(t, toks[0].Teams, 1)
+	assert.Equal(t, uint(0), toks[0].Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, toks[0].Teams[0].Name)
+
+	// Assign to normal team
 	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
 	assert.NoError(t, err)
 
-	// Assign to team "No Team"
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
 	assert.Len(t, tok.Teams, 1)
 	assert.Equal(t, team.ID, tok.Teams[0].ID)
+	assert.Equal(t, team.Name, tok.Teams[0].Name)
 
-	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
-	assert.NoError(t, err)
-	assert.Len(t, tok.Teams, 1)
-	assert.Equal(t, uint(0), tok.Teams[0].ID)
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.Len(t, toks, 1)
+	assert.Len(t, toks[0].Teams, 1)
+	assert.Equal(t, team.ID, toks[0].Teams[0].ID)
+	assert.Equal(t, team.Name, toks[0].Teams[0].Name)
 
 	// Switch teams
 	// tok.TeamID = &team2.ID
