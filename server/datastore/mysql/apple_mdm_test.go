@@ -6618,6 +6618,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team.Name, tok.Teams[0].Name)
 
 	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
 	assert.Len(t, toks, 1)
 	assert.Len(t, toks[0].Teams, 1)
 	assert.Equal(t, team.ID, toks[0].Teams[0].ID)
@@ -6638,6 +6639,13 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, teamTok.Teams, 1)
 	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
 	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
+
+	err = ds.DeleteVPPToken(ctx, tokID)
+	assert.NoError(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 0)
 
 	// Switch teams
 	// tok.TeamID = &team2.ID
