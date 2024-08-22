@@ -1,27 +1,32 @@
-import React, { useContext, useState } from "react";
+import React, { useState, useContext, useCallback } from "react";
 
-import mdmAppleAPI from "services/entities/mdm_apple";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import FileUploader from "components/FileUploader";
-import { FileDetails } from "components/FileUploader/FileUploader";
-
+import {
+  FileUploader,
+  FileDetails,
+} from "components/FileUploader/FileUploader";
+import Modal from "components/Modal";
 import VppSetupSteps from "../VppSetupSteps";
 
-const baseClass = "renew-vpp-token-modal";
+const baseClass = "modal renew-vpp-modal";
 
-interface IRenewVppTokenModalProps {
-  onExit: () => void;
-  onTokenRenewed: () => void;
+interface IRenewVppModalProps {
+  tokenId: number;
+  orgName: string;
+  onCancel: () => void;
+  onRenewedToken: () => void;
 }
 
-const RenewVppTokenModal = ({
-  onExit,
-  onTokenRenewed,
-}: IRenewVppTokenModalProps) => {
+const RenewVppModal = ({
+  tokenId,
+  orgName,
+  onCancel,
+  onRenewedToken,
+}: IRenewVppModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isRenewing, setIsRenewing] = useState(false);
   const [tokenFile, setTokenFile] = useState<File | null>(null);
@@ -33,7 +38,7 @@ const RenewVppTokenModal = ({
     }
   };
 
-  const onRenewToken = async () => {
+  const onRenewToken = useCallback(async () => {
     setIsRenewing(true);
 
     if (!tokenFile) {
@@ -43,27 +48,37 @@ const RenewVppTokenModal = ({
     }
 
     try {
-      await mdmAppleAPI.uploadVppToken(tokenFile);
+      await mdmAppleAPI.renewVppToken(tokenId, tokenFile);
       renderFlash(
         "success",
         "Volume Purchasing Program (VPP) integration enabled successfully."
       );
-      onTokenRenewed();
+      onRenewedToken();
     } catch (e) {
+      // TODO: check API error messsages.
       const msg = getErrorReason(e, { reasonIncludes: "valid token" });
       if (msg) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Couldn't Upload. Please try again.");
       }
+      onCancel();
     }
-    onExit();
     setIsRenewing(false);
-  };
+  }, [onCancel, onRenewedToken, renderFlash, tokenFile, tokenId]);
 
   return (
-    <Modal title="Renew token" className={baseClass} onExit={onExit}>
+    <Modal
+      title="Renew VPP"
+      onExit={onCancel}
+      className={baseClass}
+      isContentDisabled={isRenewing}
+      width="large"
+    >
       <>
+        <p className={`${baseClass}__description`}>
+          Renew Volume Purchasing Program for <b>{orgName}</b> location.
+        </p>
         <VppSetupSteps />
         <FileUploader
           className={`${baseClass}__file-uploader`}
@@ -97,4 +112,4 @@ const RenewVppTokenModal = ({
   );
 };
 
-export default RenewVppTokenModal;
+export default RenewVppModal;

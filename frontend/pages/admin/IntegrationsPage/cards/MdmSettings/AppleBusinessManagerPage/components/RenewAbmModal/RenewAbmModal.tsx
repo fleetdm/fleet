@@ -12,16 +12,18 @@ import {
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 
-const baseClass = "modal renew-token-modal";
+const baseClass = "renew-abm-modal";
 
 interface IRenewAbmModalProps {
   tokenId: number;
+  orgName: string;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
 const RenewAbmModal = ({
   tokenId,
+  orgName,
   onCancel,
   onRenewedToken,
 }: IRenewAbmModalProps) => {
@@ -68,8 +70,12 @@ const RenewAbmModal = ({
       onExit={onCancel}
       className={baseClass}
       isContentDisabled={isUploading}
+      width="large"
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
+        <p className={`${baseClass}__description`}>
+          Renew Apple Business Manager for <b>{orgName}</b>.
+        </p>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
             <p>
@@ -116,7 +122,7 @@ const RenewAbmModal = ({
             </p>
           </li>
         </ol>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""

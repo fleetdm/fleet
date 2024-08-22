@@ -1,9 +1,4 @@
-.renew-token-modal {
-  width: 760px;
-
-  &__info-header {
-    margin-bottom: $pad-xlarge;
-  }
+.renew-abm-modal {
 
   &__setup-content {
     display: flex;
@@ -29,33 +24,10 @@
     }
   }
 
-  &__request-button {
-    display: flex;
-    gap: $pad-small;
-    align-items: center;
-    margin-top: $pad-small;
-    margin-left: $pad-medium;
-
-    label {
-      display: flex;
-      gap: $pad-small;
-      cursor: pointer;
-    }
-  }
 
   &__file-uploader {
     margin-top: $pad-medium;
     margin-left: $pad-medium;
-    border-radius: 6px;
-
-    .file-uploader__message {
-      color: $ui-fleet-black-75;
-      margin: 0;
-    }
-
-    button {
-      margin-top: 0;
-    }
   }
 
   &__button-wrap {

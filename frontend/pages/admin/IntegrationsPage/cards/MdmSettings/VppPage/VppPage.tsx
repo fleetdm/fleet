@@ -1,28 +1,25 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-
-import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-
 import { AxiosError } from "axios";
+import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
-
 import { AppContext } from "context/app";
-import { IMdmAbmToken } from "interfaces/mdm";
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import { IMdmVppToken } from "interfaces/mdm";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import BackLink from "components/BackLink";
+import MainContent from "components/MainContent";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 
-import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
-import AddAbmModal from "./components/AddAbmModal";
-import RenewAbmModal from "./components/RenewAbmModal";
-import DeleteAbmModal from "./components/DeleteAbmModal";
+import AddVppModal from "./components/AddVppModal";
+import RenewVppModal from "./components/RenewVppModal";
+import DeleteVppModal from "./components/DeleteVppModal";
+import VppTable from "./components/VppTable";
 
-const baseClass = "apple-business-manager-page";
+const baseClass = "vpp-page";
 
 interface ITurnOnMdmMessageProps {
   router: InjectedRouter;
@@ -33,8 +30,8 @@ const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
     <div className={`${baseClass}__turn-on-mdm-message`}>
       <h2>Turn on Apple MDM</h2>
       <p>
-        To add your ABM and enable automatic enrollment for macOS, iOS, and
-        iPadOS hosts, first turn on Apple MDM.
+        To install Apple App Store apps purchased through Apple Business
+        Manager, first turn on Apple MDM.
       </p>
       <Button
         variant="brand"
@@ -48,43 +45,46 @@ const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
   );
 };
 
-interface IAddAbmMessageProps {
-  onAddAbm: () => void;
+interface IAddVppMessageProps {
+  onAddVpp: () => void;
 }
 
-const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
+const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
   return (
-    <div className={`${baseClass}__add-adm-message`}>
-      <h2>Add your ABM</h2>
+    <div className={`${baseClass}__add-vpp-message`}>
+      <h2>Add your VPP</h2>
       <p>
-        Automatically enroll newly purchased Apple hosts when they&apos;re first
-        unboxed and set up by your end users.
+        Install Apple App Store apps purchased through Apple Business Manager.
       </p>
-      <Button variant="brand" onClick={onAddAbm}>
-        Add ABM
+      <Button variant="brand" onClick={onAddVpp}>
+        Add VPP
       </Button>
     </div>
   );
 };
 
-const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
+interface IVppPageProps {
+  router: InjectedRouter;
+}
+
+const VppPage = ({ router }: IVppPageProps) => {
   const { config } = useContext(AppContext);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showAddAbmModal, setShowAddAbmModal] = useState(false);
+  const [showAddVppModal, setShowAddVppModal] = useState(false);
 
-  const selectedToken = useRef<IMdmAbmToken | null>(null);
+  const selectedToken = useRef<IMdmVppToken | null>(null);
 
   const {
-    data: abmTokens,
-    error: errorAbmTokens,
+    data: vppTokens,
+    error: errorVppTokens,
     isLoading,
     isRefetching,
     refetch,
-  } = useQuery<IMdmAbmToken[], AxiosError>(
-    ["abmTokens"],
-    () => mdmAbmAPI.getTokens(),
+  } = useQuery<IMdmVppToken[], AxiosError>(
+    ["vpp_tokens"],
+    () => mdmAppleAPI.getVppTokens(),
     {
       refetchOnWindowFocus: false,
       retry: (tries, error) =>
@@ -92,22 +92,21 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     }
   );
 
-  const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
-    // TODO: Show edit team modal
+  const onEditTokenTeam = (token: IMdmVppToken) => {
+    console.log(token);
   };
 
-  const onAddAbm = () => {
-    setShowAddAbmModal(true);
+  const onAddVpp = () => {
+    setShowAddVppModal(true);
   };
 
   const onAdded = () => {
     refetch();
-    setShowAddAbmModal(false);
+    setShowAddVppModal(false);
   };
 
-  const onRenewToken = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
+  const onRenewToken = (vppToken: IMdmVppToken) => {
+    selectedToken.current = vppToken;
     setShowRenewModal(true);
   };
 
@@ -122,8 +121,8 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowRenewModal(false);
   }, [refetch]);
 
-  const onDeleteToken = (abmToken: IMdmAbmToken) => {
-    selectedToken.current = abmToken;
+  const onDeleteToken = (vppToken: IMdmVppToken) => {
+    selectedToken.current = vppToken;
     setShowDeleteModal(true);
   };
 
@@ -138,11 +137,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowDeleteModal(false);
   }, [refetch]);
 
-  if (isLoading || isRefetching) {
-    return <Spinner />;
-  }
-
-  const showDataError = errorAbmTokens && errorAbmTokens.status !== 404;
+  const showDataError = errorVppTokens && errorVppTokens.status !== 404;
 
   const renderContent = () => {
     if (!config?.mdm.enabled_and_configured) {
@@ -162,19 +157,19 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       );
     }
 
-    if (abmTokens?.length === 0) {
-      return <AddAbmMessage onAddAbm={onAddAbm} />;
+    if (vppTokens?.length === 0) {
+      return <AddVppMessage onAddVpp={onAddVpp} />;
     }
 
-    if (abmTokens) {
+    if (vppTokens) {
       return (
         <>
           <p>
-            Add your ABM to automatically enroll newly purchased Apple hosts
-            when they&apos;re first unboxed and set up by your end users.
+            Add your VPP to install Apple App Store apps purchased through Apple
+            Business Manager.
           </p>
-          <AppleBusinessManagerTable
-            abmTokens={abmTokens}
+          <VppTable
+            vppTokens={vppTokens}
             onEditTokenTeam={onEditTokenTeam}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
@@ -196,24 +191,24 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         />
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
-            <h1>Apple Business Manager (ABM)</h1>
-            {abmTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
-              <Button variant="brand" onClick={onAddAbm}>
-                Add ABM
+            <h1>Volume Purchasing Program (VPP)</h1>
+            {vppTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
+              <Button variant="brand" onClick={onAddVpp}>
+                Add VPP
               </Button>
             )}
           </div>
           <>{renderContent()}</>
         </div>
       </>
-      {showAddAbmModal && (
-        <AddAbmModal
+      {showAddVppModal && (
+        <AddVppModal
           onAdded={onAdded}
-          onCancel={() => setShowAddAbmModal(false)}
+          onCancel={() => setShowAddVppModal(false)}
         />
       )}
       {showRenewModal && selectedToken.current && (
-        <RenewAbmModal
+        <RenewVppModal
           tokenId={selectedToken.current.id}
           orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
@@ -221,8 +216,8 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         />
       )}
       {showDeleteModal && selectedToken.current && (
-        <DeleteAbmModal
-          tokenOrgName={selectedToken.current.org_name}
+        <DeleteVppModal
+          orgName={selectedToken.current.org_name}
           tokenId={selectedToken.current.id}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
@@ -232,4 +227,4 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   );
 };
 
-export default AppleBusinessManagerPage;
+export default VppPage;
