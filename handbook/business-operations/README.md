@@ -339,7 +339,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
 2. Share the values assessment document with the manager and ask them to perform the values assessment.
 3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Business Operations so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
-   - If the teammdate's manager is not part of the e-group, the Head of Business Operations will ensure they're included in the discussion at e-group as well. 
+   - If the teammate's manager is not part of the e-group, the Head of Business Operations will ensure they're included in the discussion at e-group as well. 
 7. Once compensation decisions have been finalized, the Head of Business Operations will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
 8. Send the teammates manager a Slack DM to determine who will communicate the decision to their teammate.
 9. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
