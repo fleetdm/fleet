@@ -90,7 +90,7 @@ FROM
 	app_config_json
 LIMIT 1
 `
-	var raw json.RawMessage
+	var raw sql.Null[json.RawMessage]
 	if err := txx.Get(&raw, getABMCfg); err != nil {
 		return fmt.Errorf("select MDM config from app_config_json: %w", err)
 	}
@@ -100,9 +100,9 @@ LIMIT 1
 		abmDefaultTeam  string
 	)
 	// decode if we did get an object
-	if len(raw) > 0 && raw[0] == '{' {
+	if raw.Valid && len(raw.V) > 0 && raw.V[0] == '{' {
 		var config map[string]interface{}
-		if err := json.Unmarshal(raw, &config); err != nil {
+		if err := json.Unmarshal(raw.V, &config); err != nil {
 			return fmt.Errorf("unmarshal appconfig: %w", err)
 		}
 
