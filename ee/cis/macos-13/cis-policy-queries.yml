@@ -1730,15 +1730,16 @@ spec:
     that can be attempted against the RAM that has the encryption keys or the running operating system protected
     by a login screen.
 
-    Mac systems should be set to hibernate after sleeping for a risk-acceptable time period.
     MacBooks should be set so that the `standbydelay` is 15 minutes (900 seconds) or less.
+    Mac systems should be set to hibernate after sleeping for a risk-acceptable time period.
+    Organizations may still decide to use hibernate after sleeping if there is a security need 
+    (ex. international travel), but it can cause kernel panics in Apple Silicon Macs.
   resolution: |
     Ask your system administrator to deploy the following script to Macbook devices:
     if [[ $(uname -m) == 'arm64' ]]; then
             # Apple silicon
             /usr/bin/sudo /usr/bin/pmset -a standby 900
             /usr/bin/sudo /usr/bin/pmset -a destroyfvkeyonstandby 1
-            /usr/bin/sudo /usr/bin/pmset -a hibernatemode 25
     else
             # Intel
             /usr/bin/sudo /usr/bin/pmset -a standbydelaylow 900
@@ -1779,12 +1780,11 @@ spec:
             SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
           ) AND EXISTS (
             SELECT
-                CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby,
-                CAST(JSON_EXTRACT(battery, '$.hibernatemode') AS INTEGER) AS hibernatemode
+                CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby
             FROM (
                 SELECT JSON_EXTRACT(json_result, '$.Battery Power:') AS battery FROM pmset WHERE getting = 'custom'
             )
-            WHERE standby <= 900 AND hibernatemode = 25
+            WHERE standby <= 900
           )
         )
     );
