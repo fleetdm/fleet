@@ -340,11 +340,11 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 2. Share the values assessment document with the manager and ask them to perform the values assessment.
 3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Business Operations so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
    - If the teammate's manager is not part of the e-group, the Head of Business Operations will ensure they're included in the discussion at e-group as well. 
-7. Once compensation decisions have been finalized, the Head of Business Operations will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
-8. Send the teammates manager a Slack DM to determine who will communicate the decision to their teammate.
-9. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-10. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
-11. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
+4. Once compensation decisions have been finalized, the Head of Business Operations will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
+5. Send the teammates manager a Slack DM to determine who will communicate the decision to the teammate.
+6. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+8. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
