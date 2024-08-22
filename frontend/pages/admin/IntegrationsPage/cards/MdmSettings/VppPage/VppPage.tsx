@@ -83,7 +83,7 @@ const VppPage = ({ router }: IVppPageProps) => {
     isRefetching,
     refetch,
   } = useQuery<IMdmVppToken[], AxiosError>(
-    ["abmTokens"],
+    ["vpp_tokens"],
     () => mdmAppleAPI.getVppTokens(),
     {
       refetchOnWindowFocus: false,
