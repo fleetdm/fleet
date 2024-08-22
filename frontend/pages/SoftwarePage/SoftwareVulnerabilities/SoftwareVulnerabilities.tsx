@@ -109,6 +109,7 @@ const SoftwareVulnerabilities = ({
     isLoading: isLoadingExactMatch,
     isFetching: isFetchingExactMatch,
     isError: isExactMatchError,
+    refetch: refetchExactMatch,
   } = useQuery<
     IVulnerabilityResponse,
     any, // TODO: Fix error type
@@ -141,16 +142,17 @@ const SoftwareVulnerabilities = ({
             },
           });
           setEmptyStateReason("no-matching-items");
+        } else {
+          setTableData({
+            count: 1,
+            counts_updated_at: data.vulnerability.hosts_count_updated_at,
+            vulnerabilities: [data.vulnerability],
+            meta: {
+              has_next_results: false,
+              has_previous_results: false,
+            },
+          });
         }
-        setTableData({
-          count: 1,
-          counts_updated_at: data.vulnerability.hosts_count_updated_at,
-          vulnerabilities: [data.vulnerability],
-          meta: {
-            has_next_results: false,
-            has_previous_results: false,
-          },
-        });
       },
       onError: (error) => {
         console.log("error", error);
@@ -212,6 +214,14 @@ const SoftwareVulnerabilities = ({
       enabled: isExactMatchQuery && isSoftwareEnabled,
     }
   );
+
+  // If a user toggles between exact exploit and non-exploit,
+  // we need the table data to recheck cisa_known_exploit and populate accordingly
+  useEffect(() => {
+    if (isExactMatchQuery) {
+      refetchExactMatch();
+    }
+  }, [queryParams.exploit, isExactMatchQuery]);
 
   if (isLoading || isLoadingExactMatch) {
     return <Spinner />;
