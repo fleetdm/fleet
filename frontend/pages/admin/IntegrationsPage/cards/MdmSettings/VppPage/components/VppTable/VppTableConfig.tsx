@@ -10,6 +10,7 @@ import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import RenewDateCell from "../../../components/RenewDateCell";
+import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
 
 type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
@@ -25,6 +26,27 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
 
 const generateActions = () => {
   return DEFAULT_ACTION_OPTIONS;
+};
+
+const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
+  warning: {
+    tooltipText: (
+      <>
+        VPP content token is less than 30 days from expiration.
+        <br />
+        To renew, go to <b>Actions {">"} Renew</b>.
+      </>
+    ),
+  },
+  error: {
+    tooltipText: (
+      <>
+        VPP content token is expired.
+        <br />
+        To renew, go to <b>Actions {">"} Renew</b>.
+      </>
+    ),
+  },
 };
 
 export const generateTableConfig = (
@@ -58,6 +80,7 @@ export const generateTableConfig = (
       Cell: (cellProps: IRenewDateCellProps) => (
         <RenewDateCell
           value={cellProps.cell.value}
+          statusConfig={RENEW_DATE_CELL_STATUS_CONFIG}
           className="abm-renew-date-cell"
         />
       ),

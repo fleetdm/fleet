@@ -12,6 +12,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
+import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
 
 type IAbmTableConfig = Column<IMdmAbmToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
@@ -27,6 +28,25 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
 
 const generateActions = () => {
   return DEFAULT_ACTION_OPTIONS;
+};
+
+const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
+  warning: {
+    tooltipText: (
+      <>
+        ABM server token is less than 30 days from expiration.
+        <br /> To renew, go to <b>Actions {">"} Renew.</b>
+      </>
+    ),
+  },
+  error: {
+    tooltipText: (
+      <>
+        ABM server token is expired.
+        <br /> To renew, go to <b>Actions {">"} Renew</b>.
+      </>
+    ),
+  },
 };
 
 export const generateTableConfig = (
@@ -53,6 +73,7 @@ export const generateTableConfig = (
       Cell: (cellProps: IRenewDateCellProps) => (
         <RenewDateCell
           value={cellProps.cell.value}
+          statusConfig={RENEW_DATE_CELL_STATUS_CONFIG}
           className="abm-renew-date-cell"
         />
       ),

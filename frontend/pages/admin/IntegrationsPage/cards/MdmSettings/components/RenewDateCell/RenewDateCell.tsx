@@ -9,12 +9,24 @@ import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
 
 const baseClass = "renew-date-cell";
 
+export type IRenewDateCellStatusConfig = Record<
+  Exclude<IIndicatorValue, "indeterminate" | "success">,
+  {
+    tooltipText: ReactNode;
+  }
+>;
+
 interface IRenewDateCellProps {
   value: string;
+  statusConfig: IRenewDateCellStatusConfig;
   className?: string;
 }
 
-const RenewDateCell = ({ value, className }: IRenewDateCellProps) => {
+const RenewDateCell = ({
+  value,
+  statusConfig,
+  className,
+}: IRenewDateCellProps) => {
   const formattedDate = monthDayYearFormat(value);
 
   // "w250" is a utility class that sets the width the the same as
@@ -29,19 +41,12 @@ const RenewDateCell = ({ value, className }: IRenewDateCellProps) => {
 
   if (willExpireWithinXDays(value, 30)) {
     indicatorStatus = "warning";
-    tooltipText = (
-      <>
-        ABM server token is less than 30 days from expiration. To renew, go to{" "}
-        <b>Actions {">"} Renew.</b>
-      </>
-    );
   } else if (hasLicenseExpired(value)) {
     indicatorStatus = "error";
-    tooltipText = (
-      <>
-        ABM server token is expired. To renew, go to <b>Actions {">"} Renew</b>.
-      </>
-    );
+  }
+
+  if (indicatorStatus !== "success") {
+    tooltipText = statusConfig[indicatorStatus].tooltipText;
   }
 
   const tooltipProp = tooltipText ? { tooltipText } : undefined;

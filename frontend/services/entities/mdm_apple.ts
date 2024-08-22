@@ -104,7 +104,20 @@ export default {
         id: 1,
         org_name: "Fleet Device Management Inc.",
         location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-11-29T00:00:00Z",
+        renew_date: "2023-11-29T00:00:00Z",
+        terms_expired: false,
+        teams: [
+          "💻 Workstations",
+          "💻🐣 Workstations (canary)",
+          "📱🏢 Company-owned iPhones",
+          "🔳🏢 Company-owned iPads",
+        ],
+      },
+      {
+        id: 1,
+        org_name: "Fleet Device Management Inc.",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-08-29T00:00:00Z",
         terms_expired: false,
         teams: [
           "💻 Workstations",
