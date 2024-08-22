@@ -625,7 +625,12 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	}
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
-	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.EqualValues(t, 4, n) // 4 new hosts ("abc", "xyz", "ijk", "tuv")
 	require.Nil(t, tmID)
@@ -651,7 +656,12 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "def", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Nil(t, tmID)
 	require.Equal(t, int64(2), n)
@@ -677,7 +687,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 	require.NotNil(t, tmID)
@@ -700,7 +710,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "jqk", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.EqualValues(t, n, 1)
 	require.Nil(t, tmID)
@@ -825,10 +835,15 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	testUUID := "test-uuid"
 	testModel := "MacBook Pro"
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business Manager)
 	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
-	})
+	}, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 	require.Nil(t, tmID)
@@ -872,10 +887,15 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	require.Equal(t, testUUID, hosts[0].UUID)
 	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// no effect if same host appears in DEP sync
 	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
-	})
+	}, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), n)
 	require.Nil(t, tmID)
@@ -3656,6 +3676,11 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// create a mix of DEP-enrolled hosts, non-Fleet-MDM, pending DEP-enrollment
 	hosts := make([]*fleet.Host, 7)
 	for i := 0; i < len(hosts); i++ {
@@ -3675,19 +3700,19 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 		switch {
 		case i <= 3:
 			// assigned in ABM to Fleet
-			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
 		case i == 4:
 			// not ABM assigned
 		case i == 5:
 			// ABM assignment was deleted
-			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
 			err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
 			require.NoError(t, err)
 		case i == 6:
 			// assigned in ABM, but we don't have a serial
-			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
 		}
 		hosts[i] = h
@@ -4193,13 +4218,18 @@ func TestHostDEPAssignments(t *testing.T) {
 	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	t.Run("DEP enrollment", func(t *testing.T) {
 		depSerial := "dep-serial"
 		depUUID := "dep-uuid"
 		depOrbitNodeKey := "dep-orbit-node-key"
 		depDeviceTok := "dep-device-token"
 
-		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
+		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), n)
 
@@ -4557,6 +4587,11 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	cases := []struct {
 		name string
 		in   []string
@@ -4576,7 +4611,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 				{SerialNumber: "bar"},
 				{SerialNumber: "baz"},
 			}
-			_, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices)
+			_, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID)
 			require.NoError(t, err)
 
 			err = ds.DeleteHostDEPAssignments(ctx, tt.in)
@@ -5376,6 +5411,11 @@ func TestRestorePendingDEPHost(t *testing.T) {
 	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	t.Run("DEP enrollment", func(t *testing.T) {
 		checkHostExistsInTable := func(t *testing.T, tableName string, hostID uint, expected bool, where ...string) {
 			stmt := "SELECT 1 FROM " + tableName + " WHERE host_id = ?"
@@ -5427,7 +5467,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			depUUID := "dep-uuid"
 			depOrbitNodeKey := "dep-orbit-node-key"
 
-			n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
+			n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID)
 			require.NoError(t, err)
 			require.Equal(t, int64(1), n)
 
@@ -5509,10 +5549,15 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	_, err = ds.GetHostDEPAssignment(ctx, h.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 	require.NoError(t, err)
 
 	assignment, err := ds.GetHostDEPAssignment(ctx, h.ID)
@@ -5528,7 +5573,7 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.ID, assignment.HostID)
 	require.NotNil(t, assignment.DeletedAt)
 
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 	require.NoError(t, err)
 	assignment, err = ds.GetHostDEPAssignment(ctx, h.ID)
 	require.NoError(t, err)
@@ -5699,6 +5744,11 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		return h
 	}
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// Test with no hosts.
 	uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
@@ -5712,7 +5762,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 	}
-	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
 
@@ -5877,7 +5927,12 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 	}
 
-	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
 

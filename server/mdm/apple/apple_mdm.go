@@ -394,6 +394,8 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return nil
 	}
 
+	abmTokenID := uint(0)
+
 	var addedDevices []godep.Device
 	var deletedSerials []string
 	var modifiedSerials []string
@@ -456,7 +458,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices)
+	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID)
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
@@ -509,7 +511,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
 		}
 
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts); err != nil {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTokenID); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing device")
 		}
 

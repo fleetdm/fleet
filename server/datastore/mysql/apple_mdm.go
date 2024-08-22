@@ -897,7 +897,7 @@ type hostWithEnrolled struct {
 	Enrolled *bool `db:"enrolled"`
 }
 
-func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (createdCount int64, teamID *uint, err error) {
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint) (createdCount int64, teamID *uint, err error) {
 	if len(devices) < 1 {
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
 		return 0, nil, nil
@@ -1013,7 +1013,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hosts...); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 		}
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
 
@@ -1040,9 +1040,9 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	return createdCount, teamID, err
 }
 
-func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host) error {
+func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert host DEP assignments")
 		}
 
@@ -1050,13 +1050,13 @@ func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts
 	})
 }
 
-func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host) error {
+func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host, abmTokenID uint) error {
 	if len(hosts) == 0 {
 		return nil
 	}
 
 	stmt := `
-		INSERT INTO host_dep_assignments (host_id)
+		INSERT INTO host_dep_assignments (host_id, abm_token_id)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  added_at = CURRENT_TIMESTAMP,
@@ -1065,8 +1065,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	args := []interface{}{}
 	values := []string{}
 	for _, host := range hosts {
-		args = append(args, host.ID)
-		values = append(values, "(?)")
+		args = append(args, host.ID, abmTokenID)
+		values = append(values, "(?, ?)")
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
