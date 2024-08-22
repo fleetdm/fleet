@@ -187,7 +187,20 @@ module.exports = {
         psychologicalStage = '2 - Aware';
       }//ﬁ
     }//ﬁ
-
+    // Set the user's answer to the current step.
+    questionnaireProgress[currentStep] = formData;
+    // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
+    let getStartedProgress = _.clone(questionnaireProgress);
+    let questionnaireProgressAsAFormattedString = undefined;// Default to undefined.
+    // Using a try catch block to handle errors from JSON.stringify.
+    try {
+      questionnaireProgressAsAFormattedString = JSON.stringify(getStartedProgress)
+      .replace(/[\{|\}|"]/g, '')// Remove the curly braces and quotation marks wrapping JSON objects
+      .replace(/,/g, '\n')// Replace commas with newlines.
+      .replace(/:\w+:/g, ':\t');// Replace the key from the formData with a color and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+    } catch(err){
+      sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
+    }
     // Only update CRM records if the user's psychological stage changes.
     if(psychologicalStage !== userRecord.psychologicalStage) {
       // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
@@ -200,6 +213,7 @@ module.exports = {
         organization: this.req.me.organization,
         psychologicalStage,
         psychologicalStageChangedBy: 'Website - Start flow',
+        getStartedResponses: questionnaireProgressAsAFormattedString,
         contactSource: 'Website - Sign up',
       }).exec((err)=>{
         if(err){
@@ -208,11 +222,6 @@ module.exports = {
         return;
       });
     }//ﬁ
-    // TODO: send all other answers to Salesforce (when there are fields for them)
-    // Set the user's answer to the current step.
-    questionnaireProgress[currentStep] = formData;
-    // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
-    let getStartedProgress = _.clone(questionnaireProgress);
     // Update the user's database model.
     await User.updateOne({id: userRecord.id})
     .set({
@@ -222,7 +231,7 @@ module.exports = {
       psychologicalStageLastChangedAt,
     });
     // Return the JSON dictionary of form data submitted by this user.
-    return {getStartedProgress, psychologicalStage};
+    return {getStartedProgress, psychologicalStage, primaryBuyingSituation};
   }
 
 
