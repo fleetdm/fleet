@@ -6429,10 +6429,10 @@ None.
     "location": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
     "teams": [
-      "💻 Workstations",
-      "💻🐣 Workstations (canary)",
-      "📱🏢 Company-owned iPhones",
-      "🔳🏢 Company-owned iPads"
+      {"name": "💻 Workstations", "team_id": 1},
+      {"name": "💻🐣 Workstations (canary)", "team_id": 2},
+      {"name": "📱🏢 Company-owned iPhones", "team_id": 3},
+      {"name": "🔳🏢 Company-owned iPads", "team_id" 4}
     ],
   }
 ]
