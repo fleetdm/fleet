@@ -1774,7 +1774,7 @@ CREATE TABLE `vpp_apps_teams` (
 CREATE TABLE `vpp_token_teams` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `vpp_token_id` int unsigned NOT NULL,
-  `team_id` int unsigned NOT NULL,
+  `team_id` int unsigned DEFAULT NULL,
   `null_team_type` enum('none','allteams','noteam') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'none',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_vpp_token_teams_team_id` (`team_id`),
