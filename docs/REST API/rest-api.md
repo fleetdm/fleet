@@ -6775,7 +6775,7 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
-      "install_software" {
+      "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
       }
