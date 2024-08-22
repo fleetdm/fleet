@@ -476,6 +476,43 @@ const ManagePolicyPage = ({
     }
   };
 
+  // TODO - finalize
+
+  // const onUpdatePolicySoftwareInstall = async (
+  //   formData: IPolicySWInstallFormData
+  //   // {policyIDs: swTitleIds}
+  // ) => {
+  //   setIsUpdatingPolicySoftwareInstall(true);
+  //   // get policyIds: swTitleIds that have changed
+  //   const changedPolicies = []; // TODO
+
+  //   // if there are any:
+  //   try {
+  //     const responses: Promise<any>[] = [];
+  //     responses.concat(
+  //       changedPolicies.map((changedPolicy) => {
+  //         return teamPoliciesAPI.update(changedPolicy.id, {
+  //           software_title_id: changedPolicy.software_title_id || null, // TODO: confirm undefined/null
+  //           team_id: teamIdForApi,
+  //         });
+  //       })
+  //     );
+
+  //     await Promise.all(responses);
+  //     await wait(100); // Wait 100ms to avoid race conditions with refetch
+  //     await refetchTeamPolicies();
+  //     renderFlash("success", "Successfully updated policy automations.");
+  //   } catch {
+  //     renderFlash(
+  //       "error",
+  //       "Could not update policy automations. Please try again."
+  //     );
+  //   } finally {
+  //     togglePolicySoftwareInstallModal();
+  //     setIsUpdatingPolicySoftwareInstall(false);
+  //   }
+  // };
+
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
     setIsUpdatingCalendarEvents(true);
 
