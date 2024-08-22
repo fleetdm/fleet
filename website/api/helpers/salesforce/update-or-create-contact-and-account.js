@@ -33,14 +33,15 @@ module.exports = {
     psychologicalStageChangedBy: {
       type: 'string',
       isIn: [
-        'Website - Start flow',
-        'Website - Contact forms',
-        'Website - Swag request',
-        'Let\'s get you set up',
-        'Initial qualification meeting',
+        'Website - Organic start flow',
+        'Manual',
         'Dripify',
-        'ABM ads',
-        'Awareness ads',
+        // 'Website - Contact forms',
+        // 'Website - Swag request',
+        // 'Google ads - 82g28ghdsgcampaignid',
+        // 'LinkedIn ads - 82g28ghdsgcampaignid',
+        // 'LinkedIn ads - 82g28ghdsgcampaignid',
+        // 'LinkedIn ads - 82g28ghdsgcampaignid',
       ],
     },
     contactSource: {
@@ -134,6 +135,12 @@ module.exports = {
       // If a description was provided and the contact has a description, append the new description to it.
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
+      if(psychologicalStage && existingContactRecord.Stage__c) {
+        // If the existing Contact record has a psychological stage and the psychological stage was previously set by the start flow, set the new psychological stage.
+        if(psychologicalStageChangedBy && psychologicalStageChangedBy === 'Website - Start flow' && existingContactRecord.Psystage_change_reason__c === 'Website - Start flow') {
+          valuesToSet.Stage__c = psychologicalStage; // eslint-disable-line camelcase
+        }
       }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
