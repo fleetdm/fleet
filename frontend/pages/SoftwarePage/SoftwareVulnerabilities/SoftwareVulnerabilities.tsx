@@ -1,9 +1,8 @@
 /** software/vulnerabilities Vulnerabilities tab */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 import softwareVulnAPI, {
   IGetVulnerabilitiesQueryKey,
   IVulnerabilitiesResponse,
@@ -20,6 +19,7 @@ import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
+import { isValidCVEFormat } from "./SoftwareVulnerabilitiesTable/helpers";
 
 const baseClass = "software-vulnerabilities";
 
@@ -87,15 +87,18 @@ const SoftwareVulnerabilities = ({
     () => getVulnerabilities(queryParams),
     {
       keepPreviousData: true,
-      staleTime: 30000,
-      enabled: !isExactMatchQuery,
+      enabled: !isExactMatchQuery && isSoftwareEnabled,
       onSuccess: (data) => {
         setTableData(data);
         if (data.count === 0) {
-          if (queryParams.exploit) {
+          if (
+            queryParams.exploit ||
+            (queryParams.query && queryParams.query.length > 0)
+          ) {
             setEmptyStateReason("no-matching-items");
+          } else {
+            setEmptyStateReason("no-vulns-detected");
           }
-          setEmptyStateReason("no-vulns-detected");
         }
       },
     }
@@ -126,6 +129,7 @@ const SoftwareVulnerabilities = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
       onSuccess: (data) => {
+        // If filtering for exploited vulns, hide vulnerability if cisa_known_exploit is false
         if (queryParams.exploit && !data.vulnerability.cisa_known_exploit) {
           setTableData({
             count: 0,
@@ -135,7 +139,6 @@ const SoftwareVulnerabilities = ({
               has_next_results: false,
               has_previous_results: false,
             },
-            known_vulnerability: false,
           });
           setEmptyStateReason("no-matching-items");
         }
@@ -147,10 +150,10 @@ const SoftwareVulnerabilities = ({
             has_next_results: false,
             has_previous_results: false,
           },
-          known_vulnerability: true,
         });
       },
       onError: (error) => {
+        console.log("error", error);
         if (error.status === 400) {
           if (
             error?.data?.errors &&
@@ -166,30 +169,47 @@ const SoftwareVulnerabilities = ({
                 has_next_results: false,
                 has_previous_results: false,
               },
-              known_vulnerability: false,
             });
             setEmptyStateReason("invalid-cve");
           }
         } else if (error.status === 404) {
           if (
-            error?.data?.errors &&
-            error.data.errors[0].reason.includes("This is not known CVE.")
+            (error?.data?.errors &&
+              error.data.errors[0].reason.includes("This is not known CVE.")) ||
+            error.data.errors[0].reason.includes(
+              "was not found in the datastore"
+            )
           ) {
-            setTableData({
-              count: 0,
-              counts_updated_at: "",
-              vulnerabilities: [],
-              meta: {
-                has_next_results: false,
-                has_previous_results: false,
-              },
-              known_vulnerability: false,
-            });
-            setEmptyStateReason("unknown-cve");
+            // Frontend CVE validation
+            if (query && !isValidCVEFormat(stripQuotes(query))) {
+              setEmptyStateReason("invalid-cve");
+            } else {
+              setEmptyStateReason("unknown-cve");
+            }
           }
+          setTableData({
+            count: 0,
+            counts_updated_at: "",
+            vulnerabilities: [],
+            meta: {
+              has_next_results: false,
+              has_previous_results: false,
+            },
+          });
+        } else if (error.status === 204) {
+          setTableData({
+            count: 0,
+            counts_updated_at: "",
+            vulnerabilities: [],
+            meta: {
+              has_next_results: false,
+              has_previous_results: false,
+            },
+          });
+          setEmptyStateReason("known-vuln");
         }
       },
-      enabled: isExactMatchQuery,
+      enabled: isExactMatchQuery && isSoftwareEnabled,
     }
   );
 

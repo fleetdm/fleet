@@ -208,7 +208,6 @@ describe("Software Vulnerabilities table", () => {
             has_next_results: false,
             has_previous_results: false,
           },
-          known_vulnerability: true,
         })}
         query='"cve-2002-1000"'
         perPage={20}
@@ -253,7 +252,6 @@ describe("Software Vulnerabilities table", () => {
             has_next_results: false,
             has_previous_results: false,
           },
-          known_vulnerability: false,
         })}
         query="cve-2002-12345"
         perPage={20}
@@ -297,7 +295,6 @@ describe("Software Vulnerabilities table", () => {
             has_next_results: false,
             has_previous_results: false,
           },
-          known_vulnerability: true,
         })}
         query='"cve-2002-1234"'
         perPage={20}
@@ -343,7 +340,6 @@ describe("Software Vulnerabilities table", () => {
             has_next_results: false,
             has_previous_results: false,
           },
-          known_vulnerability: false,
         })}
         query='"cve-2002-1234"'
         perPage={20}

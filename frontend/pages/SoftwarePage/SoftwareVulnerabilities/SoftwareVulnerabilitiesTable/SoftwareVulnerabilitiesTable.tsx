@@ -258,13 +258,12 @@ const SoftwareVulnerabilitiesTable = ({
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}
             teamId={teamId}
-            // exploitedFilter={showExploitedVulnerabilitiesOnly}
+            exploitedFilter={showExploitedVulnerabilitiesOnly}
             isSoftwareDisabled={!isSoftwareEnabled}
-            // searchQuery={query}
-            // knownVulnerability={data?.known_vulnerability}
             emptyStateReason={emptyStateReason}
           />
         )}
+        defaultSearchQuery={query}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
         defaultPageIndex={currentPage}
