@@ -1,9 +1,5 @@
 .apple-business-manager-table {
 
-  .abm-renew-date-cell {
-    @include ellipse-text;
-  }
-
   // The desired behavior is to hide the header and team cell one by one
   // as the viewport gets smaller. This is achieved by using the max-width
   // media query with the breakpoint values taken from when the table content

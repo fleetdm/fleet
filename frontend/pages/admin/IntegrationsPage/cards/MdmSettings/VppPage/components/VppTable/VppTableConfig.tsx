@@ -81,7 +81,7 @@ export const generateTableConfig = (
         <RenewDateCell
           value={cellProps.cell.value}
           statusConfig={RENEW_DATE_CELL_STATUS_CONFIG}
-          className="abm-renew-date-cell"
+          className="vpp-renew-date-cell"
         />
       ),
     },
