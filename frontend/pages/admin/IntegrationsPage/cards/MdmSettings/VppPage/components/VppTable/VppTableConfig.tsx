@@ -11,10 +11,12 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
+import TeamsCell from "./TeamsCell";
 
 type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
 type IRenewDateCellProps = CellProps<IMdmVppToken, IMdmVppToken["renew_date"]>;
+type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
 
 type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
@@ -81,6 +83,18 @@ export const generateTableConfig = (
         <RenewDateCell
           value={cellProps.cell.value}
           statusConfig={RENEW_DATE_CELL_STATUS_CONFIG}
+          className="vpp-renew-date-cell"
+        />
+      ),
+    },
+
+    {
+      accessor: "teams",
+      Header: "Renew date",
+      disableSortBy: true,
+      Cell: (cellProps: ITeamsCellProps) => (
+        <TeamsCell
+          teams={cellProps.cell.value}
           className="vpp-renew-date-cell"
         />
       ),
