@@ -6960,6 +6960,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
 
 Either `query` or `query_id` must be provided.
 
@@ -7003,7 +7004,11 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": false
+    "calendar_events_enabled": false,
+    "install_software": {
+     "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    }
   }
 }
 ```
@@ -7058,6 +7063,7 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
+| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
 
 #### Example
 
@@ -7099,7 +7105,11 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": true
+    "calendar_events_enabled": true,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    }
   }
 }
 ```
