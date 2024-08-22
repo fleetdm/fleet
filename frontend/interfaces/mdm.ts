@@ -16,6 +16,8 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
+export type ITokenTeam = Pick<ITeamSummary, "id" | "name">;
+
 export interface IMdmAbmToken {
   id: number;
   apple_id: string;
@@ -23,9 +25,9 @@ export interface IMdmAbmToken {
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
-  macos_team: string;
-  ios_team: string;
-  ipados_team: string;
+  macos_team: ITokenTeam;
+  ios_team: ITokenTeam;
+  ipados_team: ITokenTeam;
 }
 
 export interface IMdmVppToken {
@@ -33,8 +35,7 @@ export interface IMdmVppToken {
   org_name: string;
   location: string;
   renew_date: string;
-  // terms_expired: boolean; // TODO: what does this mean in the context of VPP? isn't this just an abm concept?
-  teams: Pick<ITeamSummary, "name" | "id">[] | null; // null means token isn't configured to a team; empty array means all teams
+  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {

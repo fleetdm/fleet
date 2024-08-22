@@ -45,9 +45,10 @@ func SetDecryptedABMTokenMetadata(
 
 	orgName := abmToken.OrganizationName
 	if orgName == "" {
-		// Then this is a newly uploaded token, which will not be found in the datastore when
-		// RetrieveAuthTokens tries to find it. Set the token in the context so that downstream we
-		// know it's not in the datastore.
+		// Then this is a newly uploaded token (or one migrated from the
+		// single-token world), which will not be found in the datastore when
+		// RetrieveAuthTokens tries to find it. Set the token in the context so
+		// that downstream we know it's not in the datastore.
 		ctx = abmctx.NewContext(ctx, decryptedToken)
 		// We don't have an org name, but the depClient expects an org name, so we set this fake one.
 		orgName = "new_abm_token"
