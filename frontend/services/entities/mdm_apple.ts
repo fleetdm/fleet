@@ -101,19 +101,38 @@ export default {
     // return sendRequest("GET", MDM_VPP_TOKENS);
     return Promise.resolve([
       {
-        id: 1,
-        org_name: "Fleet Device Management Inc.",
+        id: 4,
+        org_name: "Org 4",
         location: "https://example.com/mdm/apple/mdm",
         renew_date: "2024-11-29T00:00:00Z",
-        terms_expired: false,
+        teams: [], // all teams
+      },
+      {
+        id: 5,
+        org_name: "Org 5",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-11-29T00:00:00Z",
+        teams: null, // unassigned
+      },
+      {
+        id: 1,
+        org_name: "Org 1",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-11-29T00:00:00Z",
         teams: [
-          "💻 Workstations",
-          "💻🐣 Workstations (canary)",
-          "📱🏢 Company-owned iPhones",
-          "🔳🏢 Company-owned iPads",
+          { id: 0, name: "No team" },
+          { id: 2, name: "Pirates" },
+          { id: 1, name: "Rocket" },
         ],
       },
-    ]); // TODO: remove when API is ready
+      {
+        id: 2,
+        org_name: "Org 2",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2024-11-29T00:00:00Z",
+        teams: [{ id: 3, name: "🥷 Ninjas" }],
+      },
+    ]);
   },
 
   uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
@@ -135,5 +154,26 @@ export default {
     const { MDM_VPP_TOKEN } = endpoints;
     const path = MDM_VPP_TOKEN(id);
     return sendRequest("DELETE", path);
+  },
+
+  editVppTeams: async (params: {
+    tokenId: number;
+    teamIds: number[] | null;
+  }) => {
+    // const { MDM_VPP_TOKEN } = endpoints;
+    // const path = MDM_VPP_TOKEN(id);
+    // return sendRequest("PATCH", path, { teams: teamIds });
+    console.log(
+      "Editing teams for token id",
+      params.tokenId,
+      "with data:",
+      params.teamIds
+    );
+    // promisify a mock response with a timeout
+    await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
+      console.log("done")
+    );
+    console.log("Teams edited successfully");
+    return Promise.resolve();
   },
 };
