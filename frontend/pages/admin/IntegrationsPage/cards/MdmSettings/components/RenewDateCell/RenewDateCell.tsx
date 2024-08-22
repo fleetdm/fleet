@@ -18,6 +18,10 @@ export type IRenewDateCellStatusConfig = Record<
 
 interface IRenewDateCellProps {
   value: string;
+  /**
+   * `statusConfig` currently this allows us to dynamically change the tooltip
+   * text depending on the status of the date. Can be extended later if needed.
+   */
   statusConfig: IRenewDateCellStatusConfig;
   className?: string;
 }
