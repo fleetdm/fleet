@@ -6519,6 +6519,11 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location, toks[0].Location)
 	assert.Nil(t, toks[0].Teams)
 
+	teamTok, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+	assert.Nil(t, teamTok)
+
 	// Assign to all teams
 	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
 	assert.NoError(t, err)

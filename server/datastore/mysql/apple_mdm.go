@@ -5146,7 +5146,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.organization_name,
 		v.location,
 		v.renew_at,
-		v.token,
+		v.token
 	FROM
 		vpp_token_teams vt
 	INNER JOIN
@@ -5159,7 +5159,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 	SELECT
 		vt.team_id,
 		vt.null_team_type,
-		t.name
+		COALESCE(t.name, '') AS name
 	FROM
 		teams t
 	INNER JOIN
@@ -5174,7 +5174,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.organization_name,
 		v.location,
 		v.renew_at,
-		v.token,
+		v.token
 	FROM
 		vpp_tokens v
 	INNER JOIN
