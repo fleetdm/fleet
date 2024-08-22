@@ -18,7 +18,7 @@ import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
 import DeleteVppModal from "./components/DeleteVppModal";
 import VppTable from "./components/VppTable";
-import EditTeamsVppModal from "../AppleBusinessManagerPage/components/EditTeamsVppModal";
+import EditTeamsVppModal from "./components/EditTeamsVppModal";
 
 const baseClass = "vpp-page";
 
