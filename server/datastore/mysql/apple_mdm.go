@@ -5151,7 +5151,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		vpp_token_teams vt
 	INNER JOIN
 		vpp_tokens v
-	ON v.id = t.team_id
+	ON vt.vpp_token_id = v.id
 	WHERE
 		vt.team_id = ?
 `
@@ -5161,9 +5161,9 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		vt.null_team_type,
 		COALESCE(t.name, '') AS name
 	FROM
-		teams t
-	INNER JOIN
 		vpp_token_teams vt
+	LEFT OUTER JOIN
+		teams t
 	ON t.id = vt.team_id
 	WHERE
 		vt.vpp_token_id = ?
