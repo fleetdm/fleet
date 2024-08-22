@@ -2,14 +2,14 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { IVulnerabiltiesEmptyStateReason } from "services/entities/vulnerabilities";
+import { IVulnerabilitiesEmptyStateReason } from "services/entities/vulnerabilities";
 
 export interface IEmptyVulnerabilitiesTableProps {
   isPremiumTier?: boolean;
   teamId?: number;
   exploitedFilter?: boolean;
   isSoftwareDisabled?: boolean;
-  emptyStateReason?: IVulnerabiltiesEmptyStateReason;
+  emptyStateReason?: IVulnerabilitiesEmptyStateReason;
 }
 
 const LearnMoreLink = () => (
@@ -21,7 +21,7 @@ const LearnMoreLink = () => (
 );
 
 const emptyStateDetails: Record<
-  IVulnerabiltiesEmptyStateReason,
+  IVulnerabilitiesEmptyStateReason,
   Partial<IEmptyTableProps>
 > = {
   "no-vulns-detected": {

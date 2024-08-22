@@ -9,7 +9,7 @@ import softwareVulnAPI, {
   IGetVulnerabilityQueryKey,
   IVulnerabilityResponse,
   getVulnerabilities,
-  IVulnerabiltiesEmptyStateReason,
+  IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -52,7 +52,7 @@ const SoftwareVulnerabilities = ({
   const [
     emptyStateReason,
     setEmptyStateReason,
-  ] = useState<IVulnerabiltiesEmptyStateReason>();
+  ] = useState<IVulnerabilitiesEmptyStateReason>();
 
   const queryParams = {
     page: currentPage,

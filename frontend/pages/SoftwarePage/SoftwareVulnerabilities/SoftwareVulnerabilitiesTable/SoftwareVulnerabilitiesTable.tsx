@@ -25,13 +25,13 @@ import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulner
 
 import {
   IVulnerabilitiesResponse,
-  IVulnerabiltiesEmptyStateReason,
+  IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
-import { getExploitedVulnerabiltiesDropdownOptions } from "./helpers";
+import { getExploitedVulnerabilitiesDropdownOptions } from "./helpers";
 
 const baseClass = "software-vulnerabilities-table";
 
@@ -45,7 +45,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
   data?: IVulnerabilitiesResponse;
-  emptyStateReason?: IVulnerabiltiesEmptyStateReason;
+  emptyStateReason?: IVulnerabilitiesEmptyStateReason;
   query?: string;
   perPage: number;
   orderDirection: "asc" | "desc";
@@ -239,7 +239,7 @@ const SoftwareVulnerabilitiesTable = ({
       <Dropdown
         value={showExploitedVulnerabilitiesOnly}
         className={`${baseClass}__exploited-vulnerabilities-dropdown`}
-        options={getExploitedVulnerabiltiesDropdownOptions(isPremiumTier)}
+        options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
         tableFilterDropdown
