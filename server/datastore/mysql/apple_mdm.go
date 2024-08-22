@@ -4755,27 +4755,17 @@ WHERE
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
-func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 	insertStmt := `
 	INSERT INTO
 		vpp_tokens (
 			organization_name,
 			location,
 			renew_at,
-			token,
-			team_id,
-			null_team_type
+			token
 		)
 	VALUES (?, ?, ?, ?, ?, ?)
 `
-
-	if teamID != nil && nullTeam != fleet.NullTeamNone {
-		return nil, ctxerr.Errorf(ctx, "nullTeam must be set to NullTeamNone if teamID is present")
-	}
-
-	if err := ds.checkVPPNullTeam(ctx, nil, nullTeam); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking vpp token null team")
-	}
 
 	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
 	if err != nil {
@@ -4803,8 +4793,6 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		Location:  tok.Location,
 		RenewDate: exp,
 		Token:     tok.Token,
-		TeamID:    teamID,
-		NullTeam:  nullTeam,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
@@ -4814,8 +4802,6 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		vppTokenDB.Location,
 		exp,
 		tokEnc,
-		vppTokenDB.TeamID,
-		vppTokenDB.NullTeam,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
@@ -4836,25 +4822,43 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		location,
 		renew_at,
 		token,
-		team_id,
-		null_team_type
 	FROM
-		vpp_tokens
+		vpp_tokens v
 	WHERE
 		id = ?
 `
+	stmtTeams := `
+	SELECT
+		vt.team_id,
+		vt.null_team_type,
+		t.name,
+	FROM
+		vpp_token_teams vt
+	LEFT OUTER JOIN
+		teams t
+	ON t.id = vt.team_id
+	WHERE
+		vpp_token_id = ?
+`
 
 	var tokEnc struct {
-		ID        uint               `db:"id"`
-		OrgName   string             `db:"organization_name"`
-		Location  string             `db:"location"`
-		RenewDate time.Time          `db:"renew_at"`
-		Token     []byte             `db:"token"`
-		TeamID    *uint              `db:"team_id"`
-		NullTeam  fleet.NullTeamType `db:"null_team_type"`
+		ID        uint      `db:"id"`
+		OrgName   string    `db:"organization_name"`
+		Location  string    `db:"location"`
+		RenewDate time.Time `db:"renew_at"`
+		Token     []byte    `db:"token"`
+	}
+
+	var tokTeams []struct {
+		TeamID   *uint              `db:"team_id"`
+		NullTeam fleet.NullTeamType `db:"null_team_type"`
+		Name     string             `db:"name"`
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "selecting vpp token from db")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token from db")
 	}
 
@@ -4863,14 +4867,43 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
 	}
 
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokTeams, stmtTeams, tokenID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token teams from db")
+	}
+
 	tok := &fleet.VPPTokenDB{
 		ID:        tokEnc.ID,
 		OrgName:   tokEnc.OrgName,
 		Location:  tokEnc.Location,
 		RenewDate: tokEnc.RenewDate,
 		Token:     string(tokDec),
-		TeamID:    tokEnc.TeamID,
-		NullTeam:  tokEnc.NullTeam,
+	}
+
+	if tokTeams == nil {
+		// Not assigned, no need to loop over teams
+		return tok, nil
+	}
+
+TEAMLOOP:
+	for _, team := range tokTeams {
+		switch team.NullTeam {
+		case fleet.NullTeamAllTeams:
+			// This should only be possible if there are no other teams
+			// Make sure something is allocated to indicate AllTeams
+			tok.Teams = make([]fleet.TeamTuple, 0, 1)
+			break TEAMLOOP
+		case fleet.NullTeamNoTeam:
+			tok.Teams = append(tok.Teams, fleet.TeamTuple{
+				ID:   0,
+				Name: fleet.TeamNameNoTeam,
+			})
+		case fleet.NullTeamNone:
+			// Regular team
+			tok.Teams = append(tok.Teams, fleet.TeamTuple{
+				ID:   *team.TeamID,
+				Name: team.Name,
+			})
+		}
 	}
 
 	return tok, nil
