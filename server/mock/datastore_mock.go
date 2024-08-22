@@ -830,7 +830,7 @@ type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) er
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
-type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
+type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[uint][]string, err error)
 
 type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint][]string, error)
 
@@ -5429,7 +5429,7 @@ func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, res
 	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
 }
 
-func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[uint][]string, err error) {
 	s.mu.Lock()
 	s.ScreenDEPAssignProfileSerialsForCooldownFuncInvoked = true
 	s.mu.Unlock()

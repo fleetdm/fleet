@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +27,13 @@ func TestMacosSetupAssistant(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	// call TruncateTables immediately as some DB migrations may create jobs
 	mysql.TruncateTables(t, ds)
+
+	org1Name := "org1"
+
+	mysql.SetTestABMAssets(t, ds, org1Name)
+
+	tok, err := ds.GetABMTokenByOrgName(ctx, org1Name)
+	require.NoError(t, err)
 
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)
@@ -42,11 +48,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		encTok := uuid.NewString()
-		abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
-		require.NotEmpty(t, abmToken.ID)
-		require.NoError(t, err)
-		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tok.ID)
 		require.NoError(t, err)
 		hosts[i] = h
 		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)
@@ -65,8 +67,6 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
-
-	mysql.SetTestABMAssets(t, ds)
 
 	logger := kitlog.NewNopLogger()
 	depStorage, err := ds.NewMDMAppleDEPStorage()
@@ -132,7 +132,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	err = depStorage.StoreConfig(ctx, org1Name, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
 	w := NewWorker(ds, logger)

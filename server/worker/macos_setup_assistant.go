@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -117,6 +118,7 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
+		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: about to call ScreenDEPAssignProfileSerialsForCooldown", "taskName", MacosSetupAssistantProfileChanged)
 		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "run profile changed")
@@ -132,13 +134,23 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		}
 
 		// TODO(JVE): update this to not used hardcoded name
-		// Use the value in host_dep_assignments.abm_token_id column
-		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "assign profile")
-		}
-		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-			return ctxerr.Wrap(ctx, err, "worker: run profile changed")
+		// get serials + abm token org name
+		// make a map of org name -> []serials
+		// make 1 call to AssignProfile per org name, and pass in the serials for that name
+		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: orgs and serials", "taskName", MacosSetupAssistantProfileChanged, "assignSerials", assignSerials)
+		for tokID, serials := range assignSerials {
+			tok, err := m.Datastore.GetABMTokenByID(ctx, tokID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+			}
+			slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: assigning profiles for org ", "taskName", MacosSetupAssistantProfileChanged, "orgName", tok.OrganizationName)
+			resp, err := m.DEPClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "assign profile")
+			}
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+				return ctxerr.Wrap(ctx, err, "worker: run profile changed")
+			}
 		}
 	}
 	return nil
@@ -187,6 +199,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
+		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileDeleted").Info("JVE_LOG: about to call ScreenDEPAssignProfileSerialsForCooldown")
 		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "run profile deleted")
@@ -201,12 +214,19 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 			return nil
 		}
 
-		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "assign profile")
-		}
-		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-			return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
+		for tokID, serials := range assignSerials {
+			tok, err := m.Datastore.GetABMTokenByID(ctx, tokID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+			}
+			// TODO(JVE): add the decrypted token to the context
+			resp, err := m.DEPClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "assign profile")
+			}
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+				return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
+			}
 		}
 	}
 	return nil
@@ -247,10 +267,10 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
-	serials := args.HostSerialNumbers
 	if !fromCooldown {
 		// if not a retry, then we need to screen the serials for cooldown
-		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
+		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runHostsTransferred").Info("JVE_LOG: about to call ScreenDEPAssignProfileSerialsForCooldown ")
+		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "run hosts transferred")
 		}
@@ -259,21 +279,27 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 			// after the cooldown period is over
 			level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
 		}
-		serials = assignSerials
+
+		if len(assignSerials) == 0 {
+			level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
+			return nil
+		}
+
+		for tokID, serials := range assignSerials {
+			tok, err := m.Datastore.GetABMTokenByID(ctx, tokID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+			}
+			resp, err := m.DEPClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "assign profile")
+			}
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+				return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
+			}
+		}
 	}
 
-	if len(serials) == 0 {
-		level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
-		return nil
-	}
-
-	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "assign profile")
-	}
-	if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-		return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
-	}
 	return nil
 }
 

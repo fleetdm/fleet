@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"text/template"
@@ -212,8 +213,9 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	jsonProf.AwaitDeviceConfigured = true
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
+	res, err := depClient.DefineProfile(ctx, "org1", &jsonProf)
 	if err != nil {
+		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: call to /profile failed ", "error", err)
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
@@ -553,25 +555,31 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			continue
 		}
 
-		apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, assignSerials...)
-		if err != nil {
-			level.Error(logger).Log(
-				"msg", "assign profile",
+		for tokID, serials := range assignSerials {
+			tok, err := d.ds.GetABMTokenByID(ctx, tokID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+			}
+			apiResp, err := depClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			if err != nil {
+				level.Error(logger).Log(
+					"msg", "assign profile",
+					"devices", len(assignSerials),
+					"err", err,
+				)
+				return fmt.Errorf("assign profile: %w", err)
+			}
+
+			logs := []interface{}{
+				"msg", "profile assigned",
 				"devices", len(assignSerials),
-				"err", err,
-			)
-			return fmt.Errorf("assign profile: %w", err)
-		}
+			}
+			logs = append(logs, logCountsForResults(apiResp.Devices)...)
+			level.Info(logger).Log(logs...)
 
-		logs := []interface{}{
-			"msg", "profile assigned",
-			"devices", len(assignSerials),
-		}
-		logs = append(logs, logCountsForResults(apiResp.Devices)...)
-		level.Info(logger).Log(logs...)
-
-		if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
-			return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
+			if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
+				return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
+			}
 		}
 	}
 

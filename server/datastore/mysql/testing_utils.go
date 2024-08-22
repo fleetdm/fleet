@@ -29,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -694,7 +693,7 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
-func SetTestABMAssets(t testing.TB, ds *Datastore) {
+func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) {
 	apnsCert, apnsKey, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
@@ -712,7 +711,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	err = ds.InsertMDMConfigAssets(context.Background(), assets)
 	require.NoError(t, err)
 
-	_, err = ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: apple_mdm.DEPName})
+	_, err = ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())

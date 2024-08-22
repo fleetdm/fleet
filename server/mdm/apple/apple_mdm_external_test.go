@@ -36,7 +36,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
 		require.NoError(t, err)
 
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, apple_mdm.DEPName)
 
 		logger := log.NewNopLogger()
 		return apple_mdm.NewDEPService(ds, depStorage, logger)

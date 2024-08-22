@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -3603,9 +3604,11 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByTokenID map[uint][]string, err error) {
+	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: starting ")
 	if len(serials) == 0 {
-		return skipSerials, assignSerials, nil
+		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: serials was empty, exiting early ")
+		return skipSerials, serialsByTokenID, nil
 	}
 
 	stmt := `
@@ -3615,7 +3618,8 @@ SELECT
 	ELSE
 		'assign'
 	END AS status,
-	hardware_serial
+	hardware_serial,
+	abm_token_id
 FROM
 	host_dep_assignments
 	JOIN hosts ON id = host_id
@@ -3625,29 +3629,44 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
 	if err != nil {
+		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: sqlx in failed", "error", err)
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: prepare statement arguments")
 	}
 
 	var rows []struct {
 		Status         string `db:"status"`
 		HardwareSerial string `db:"hardware_serial"`
+		TokenID        *uint  `db:"abm_token_id"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: select failed", "error", err)
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
 	}
 
+	serialsByTokenID = make(map[uint][]string)
+
+	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: before for loop", "skipSerials", skipSerials, "serialsByOrgName", serialsByTokenID)
 	for _, r := range rows {
+		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: looking at row", "serial", r.HardwareSerial, "tokenID", *r.TokenID)
 		switch r.Status {
 		case "assign":
-			assignSerials = append(assignSerials, r.HardwareSerial)
+			// assignSerials = append(assignSerials, r.HardwareSerial)
+			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: setting serial in assign list ", "serial", r.HardwareSerial, "tokenID", *r.TokenID)
+			var tokID uint
+			if r.TokenID != nil {
+				tokID = *r.TokenID
+			}
+			serialsByTokenID[tokID] = append(serialsByTokenID[tokID], r.HardwareSerial)
 		case "skip":
 			skipSerials = append(skipSerials, r.HardwareSerial)
 		default:
+			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: default in switch", "error", err)
 			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
 		}
 	}
 
-	return skipSerials, assignSerials, nil
+	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: done", "skipSerials", skipSerials, "serialsByOrgName", serialsByTokenID)
+	return skipSerials, serialsByTokenID, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
