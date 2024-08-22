@@ -7,7 +7,11 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import {
+  GITHUB_NEW_ISSUE_LINK,
+  VULNERABILITIES_SEARCH_BOX_TOOLTIP,
+} from "utilities/constants";
+import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -19,16 +23,15 @@ import TableCount from "components/TableContainer/TableCount";
 
 import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
 
-import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
+import {
+  IVulnerabilitiesResponse,
+  IVulnerabiltiesEmptyStateReason,
+} from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
-import {
-  getExploitedVulnerabiltiesDropdownOptions,
-  normalizeCVE,
-  isValidCVEFormat,
-} from "./helpers";
+import { getExploitedVulnerabiltiesDropdownOptions } from "./helpers";
 
 const baseClass = "software-vulnerabilities-table";
 
@@ -42,6 +45,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
   data?: IVulnerabilitiesResponse;
+  emptyStateReason?: IVulnerabiltiesEmptyStateReason;
   query?: string;
   perPage: number;
   orderDirection: "asc" | "desc";
@@ -57,6 +61,7 @@ const SoftwareVulnerabilitiesTable = ({
   router,
   isSoftwareEnabled,
   data,
+  emptyStateReason,
   query,
   perPage,
   orderDirection,
@@ -67,8 +72,6 @@ const SoftwareVulnerabilitiesTable = ({
   isLoading,
   resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const validQuery = query ? isValidCVEFormat(query) : true;
-
   const { isPremiumTier } = useContext(AppContext);
 
   const determineQueryParamChange = useCallback(
@@ -116,6 +119,11 @@ const SoftwareVulnerabilitiesTable = ({
 
   const onQueryChange = useCallback(
     (newTableQuery: ITableQueryData) => {
+      // We don't want to start searching until a user completes their quote query
+      if (isIncompleteQuoteQuery(newTableQuery.searchQuery)) {
+        return;
+      }
+
       // we want to determine which query param has changed in order to
       // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
@@ -189,7 +197,7 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const renderVulnerabilityCount = () => {
-    if (!data?.count || !validQuery) return null;
+    if (!data?.count) return null;
 
     const count = data.count;
 
@@ -243,17 +251,18 @@ const SoftwareVulnerabilitiesTable = ({
     <div className={baseClass}>
       <TableContainer
         columnConfigs={vulnerabilitiesTableHeaders}
-        data={exactMatchSearchData}
-        isLoading={isLoading && validQuery}
+        data={data?.vulnerabilities || []}
+        isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}
             teamId={teamId}
-            exploitedFilter={showExploitedVulnerabilitiesOnly}
+            // exploitedFilter={showExploitedVulnerabilitiesOnly}
             isSoftwareDisabled={!isSoftwareEnabled}
-            searchQuery={query}
-            knownVulnerability={data?.known_vulnerability}
+            // searchQuery={query}
+            // knownVulnerability={data?.known_vulnerability}
+            emptyStateReason={emptyStateReason}
           />
         )}
         defaultSortHeader={orderKey}
@@ -267,6 +276,7 @@ const SoftwareVulnerabilitiesTable = ({
         searchable={searchable}
         searchQueryColumn="vulnerability"
         inputPlaceHolder="Search by CVE"
+        searchToolTipText={VULNERABILITIES_SEARCH_BOX_TOOLTIP}
         onQueryChange={onQueryChange}
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined

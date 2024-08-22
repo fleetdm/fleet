@@ -86,6 +86,13 @@ const getVulnerability = ({
   return sendRequest("GET", path);
 };
 
+export type IVulnerabiltiesEmptyStateReason =
+  | "unknown-cve"
+  | "invalid-cve"
+  | "known-vuln"
+  | "no-matching-items"
+  | "no-vulns-detected";
+
 export default {
   getVulnerabilities,
   getVulnerability,

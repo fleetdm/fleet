@@ -3,6 +3,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { isValidCVEFormat } from "pages/SoftwarePage/SoftwareVulnerabilities/SoftwareVulnerabilitiesTable/helpers";
+import { IVulnerabiltiesEmptyStateReason } from "services/entities/vulnerabilities";
 
 export interface IEmptyVulnerabilitiesTableProps {
   isPremiumTier?: boolean;
@@ -11,6 +12,7 @@ export interface IEmptyVulnerabilitiesTableProps {
   isSoftwareDisabled?: boolean;
   searchQuery?: string;
   knownVulnerability?: boolean;
+  emptyStateReason?: IVulnerabiltiesEmptyStateReason;
 }
 
 const renderLearnMoreLink = () => {
@@ -30,6 +32,7 @@ const EmptyVulnerabilitiesTable = ({
   isSoftwareDisabled,
   searchQuery = "",
   knownVulnerability,
+  emptyStateReason,
 }: IEmptyVulnerabilitiesTableProps): JSX.Element => {
   const emptyVulns: IEmptyTableProps = {
     graphicName: "empty-search-question",
@@ -37,7 +40,7 @@ const EmptyVulnerabilitiesTable = ({
     info: "Expecting to see vulnerabilities? Check back later.",
   };
 
-  if (searchQuery && !isValidCVEFormat(searchQuery)) {
+  if (emptyStateReason === "invalid-cve") {
     emptyVulns.graphicName = "empty-search-exclamation";
     emptyVulns.header = "That vulnerability (CVE) is not valid";
     emptyVulns.info = (
@@ -61,7 +64,7 @@ const EmptyVulnerabilitiesTable = ({
         "Try removing the exploited vulnerabilities filter to expand your search.";
     }
     emptyVulns.additionalInfo = renderLearnMoreLink();
-  } else if (knownVulnerability === false) {
+  } else if (emptyStateReason === "unknown-cve") {
     emptyVulns.graphicName = "empty-search-question";
     emptyVulns.header = "This is not a known CVE";
     emptyVulns.info =
