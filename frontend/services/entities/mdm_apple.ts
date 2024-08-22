@@ -101,32 +101,6 @@ export default {
     // return sendRequest("GET", MDM_VPP_TOKENS);
     return Promise.resolve([
       {
-        id: 4,
-        org_name: "Org 4",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-11-29T00:00:00Z",
-        teams: [], // all teams
-      },
-      {
-        id: 5,
-        org_name: "Org 5",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-11-29T00:00:00Z",
-        teams: null, // unassigned
-      },
-      {
-        id: 1,
-        org_name: "Org 1",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2023-11-29T00:00:00Z",
-        teams: [
-          { id: 1, name: "💻 Workstations" },
-          { id: 2, name: "💻🐣 Workstations (canary)" },
-          { id: 3, name: "📱🏢 Company-owned iPhones" },
-          { id: 4, name: "🔳🏢 Company-owned iPads" },
-        ],
-      },
-      {
         id: 2,
         org_name: "Fleet Device Management Inc.",
         location: "https://example.com/mdm/apple/mdm",
@@ -149,15 +123,15 @@ export default {
         org_name: "Fleet Device Management Inc.",
         location: "https://example.com/mdm/apple/mdm",
         renew_date: "2025-08-29T00:00:00Z",
-        teams: null,
+        teams: null, // unassigned
       },
-      {
-        id: 5,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2025-08-29T00:00:00Z",
-        teams: [],
-      },
+      // {
+      //   id: 1337,
+      //   org_name: "Fleet Device Management Inc.",
+      //   location: "https://example.com/mdm/apple/mdm",
+      //   renew_date: "2025-08-29T00:00:00Z",
+      //   teams: [], // all teams
+      // },
       {
         id: 6,
         org_name: "Fleet Device Management Inc.",

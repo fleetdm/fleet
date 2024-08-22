@@ -162,6 +162,10 @@ const EditTeamsVppModal = ({
     return getOptions(availableTeams || [], tokens, currentToken);
   }, [availableTeams, tokens, currentToken]);
 
+  const isAnyTokenAllTeams = useMemo(() => tokens.some(isTokenAllTeams), [
+    tokens,
+  ]);
+
   const onChange = useCallback((val: string) => {
     setSelectedValue((prev) => updateSelectedValue(prev, val));
   }, []);
@@ -184,7 +188,7 @@ const EditTeamsVppModal = ({
     [currentToken.id, selectedValue, renderFlash, onSuccess]
   );
 
-  const isDropdownDisabled = options.length === 0;
+  const isDropdownDisabled = options.length === 0 && isAnyTokenAllTeams;
 
   return (
     <Modal

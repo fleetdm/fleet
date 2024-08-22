@@ -90,13 +90,10 @@ export const generateTableConfig = (
 
     {
       accessor: "teams",
-      Header: "Renew date",
+      Header: "Teams",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell
-          teams={cellProps.cell.value}
-          className="vpp-renew-date-cell"
-        />
+        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
       ),
     },
     {

@@ -95,7 +95,6 @@ const VppPage = ({ router }: IVppPageProps) => {
   );
 
   const onEditTokenTeams = (token: IMdmVppToken) => {
-    console.log(token);
     selectedToken.current = token;
     setShowEditTeamsModal(true);
   };
