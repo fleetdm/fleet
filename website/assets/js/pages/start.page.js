@@ -76,6 +76,7 @@ parasails.registerPage('start', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+    primaryBuyingSituation: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -139,6 +140,17 @@ parasails.registerPage('start', {
 
       this.previouslyAnsweredQuestions[this.currentStep] = questionanireProgress.getStartedProgress[this.currentStep];
       this.psychologicalStage = questionanireProgress.psychologicalStage;
+      this.primaryBuyingSituation = questionanireProgress.primaryBuyingSituation;
+      if(typeof analytics !== 'undefined') {
+        analytics.identify(this.me.id, {
+          email: this.me.emailAddress,
+          firstName: this.me.firstName,
+          lastName: this.me.lastName,
+          company: this.me.organization,
+          primaryBuyingSituation: this.primaryBuyingSituation,
+          psychologicalStage: this.psychologicalStage,
+        });
+      }
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {
