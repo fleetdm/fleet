@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { ITeamSummary } from "./team";
 
 export interface IMdmApple {
   common_name: string;
@@ -15,7 +16,7 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
-type ITokenTeam = Pick<ITeamSummary, "id" | "name">;
+export type ITokenTeam = Pick<ITeamSummary, "id" | "name">;
 
 export interface IMdmAbmToken {
   id: number;
