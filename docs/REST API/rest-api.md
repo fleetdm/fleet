@@ -6396,9 +6396,9 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
     "terms_expired": false,
-    "macos_team": "💻 Workstations",
-    "ios_team": "📱🏢 Company-owned iPhones",
-    "ipados_team": "🔳🏢 Company-owned iPads"
+    "macos_team": { "name": "💻 Workstations", "team_id" 1}
+    "ios_team": { "name": "📱🏢 Company-owned iPhones", "team_id": 2}
+    "ipados_team": { "name": "🔳🏢 Company-owned iPads", "team_id": 3}
   }
 ]
 ```
