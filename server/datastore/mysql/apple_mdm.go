@@ -5018,8 +5018,10 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 	}
 
-	if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating vpp token team")
+	if len(args) > 0 {
+		if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating vpp token team")
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

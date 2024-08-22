@@ -6493,6 +6493,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_ = dataToken5
 
+	// No assignments / disabled token
 	tok, err := ds.InsertVPPToken(ctx, dataToken)
 	tokID := tok.ID
 	assert.NoError(t, err)
@@ -6500,8 +6501,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, tok.Token)
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
-	// No team assigned
-	assert.Nil(t, tok.Teams)
+	assert.Nil(t, tok.Teams) // No team assigned
 
 	tok, err = ds.GetVPPToken(ctx, tokID)
 	assert.NoError(t, err)
@@ -6640,12 +6640,31 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
 	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
 
+	// Assign back to no team / disabled
+	err = ds.UpdateVPPTokenTeams(ctx, tokID, nil)
+	assert.NoError(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Delete
 	err = ds.DeleteVPPToken(ctx, tokID)
 	assert.NoError(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, toks, 0)
+
+	// TODO tests for multiple tokens, different constraints, etc.
 
 	// Switch teams
 	// tok.TeamID = &team2.ID
