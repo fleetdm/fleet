@@ -878,6 +878,10 @@ type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPP
 
 type UpdateVPPTokenTeamFunc func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error
 
+type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+
+type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
+
 type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
@@ -2331,6 +2335,12 @@ type DataStore struct {
 
 	UpdateVPPTokenTeamFunc        UpdateVPPTokenTeamFunc
 	UpdateVPPTokenTeamFuncInvoked bool
+
+	SetABMTokenTermsExpiredForOrgNameFunc        SetABMTokenTermsExpiredForOrgNameFunc
+	SetABMTokenTermsExpiredForOrgNameFuncInvoked bool
+
+	CountABMTokensWithTermsExpiredFunc        CountABMTokensWithTermsExpiredFunc
+	CountABMTokensWithTermsExpiredFuncInvoked bool
 
 	InsertABMTokenFunc        InsertABMTokenFunc
 	InsertABMTokenFuncInvoked bool
@@ -5585,6 +5595,20 @@ func (s *DataStore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uin
 	s.UpdateVPPTokenTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVPPTokenTeamFunc(ctx, id, teamID, nullTeam)
+}
+
+func (s *DataStore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetABMTokenTermsExpiredForOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenTermsExpiredForOrgNameFunc(ctx, orgName, expired)
+}
+
+func (s *DataStore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.CountABMTokensWithTermsExpiredFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountABMTokensWithTermsExpiredFunc(ctx)
 }
 
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {

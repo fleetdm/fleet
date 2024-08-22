@@ -16,6 +16,7 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
+	NoTeamName       = "No team"
 )
 
 type TeamPayload struct {
