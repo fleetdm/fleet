@@ -2652,14 +2652,11 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions.
-    Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application.
-    It could also be a sign of a computer compromise and a persistent presence on the system.
-    The audit check excludes the "Drop Box" folder that is part of Apple's default user template.
+    Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions. Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a persistent presence on the system.
   resolution: |
     Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
     /usr/bin/sudo IFS=$'\n'
-    for sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -v "Drop Box" ); 
+    for sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -vE "Drop Box|locks" ); 
     do
       /bin/chmod -R o-w "$sysPermissions"
     done
@@ -2683,11 +2680,15 @@ spec:
   platform: darwin
   description: |
     Software sometimes insists on being installed in the /System/Volumes/Data/Library Directory and has inappropriate world-writable permissions.  
-    Folders in /System/Volumes/Data/Library should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
+    Folders in /System/Volumes/Data/Library should not be world-writable. Macs with writable files in System should be investigated forensically. 
+    A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a 
+    persistent presence on the system.
+    
+    The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
   resolution: |
     Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
     /usr/bin/sudo IFS=$'\n'
-    for libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); 
+    for libPermissions in $(/usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -Ev "Caches|/Preferences/Audio/Data|locks");
     do
       /bin/chmod -R o-w "$libPermissions"
     done
