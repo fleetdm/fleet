@@ -38,7 +38,7 @@ export interface IMdmVppToken {
   location: string;
   renew_date: string;
   terms_expired: boolean; // TODO: what does this mean in the context of VPP? isn't this just an abm concept?
-  teams: ITokenTeam[] | null;
+  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
