@@ -133,6 +133,9 @@ const ManagePolicyPage = ({
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
+  const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
+    false
+  );
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
   const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [
@@ -438,6 +441,10 @@ const ManagePolicyPage = ({
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
+  const toggleInstallSoftwareModal = () => {
+    setShowInstallSoftwareModal(!showInstallSoftwareModal);
+  };
+
   const toggleCalendarEventsModal = () => {
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
@@ -446,6 +453,9 @@ const ManagePolicyPage = ({
     switch (option) {
       case "calendar_events":
         toggleCalendarEventsModal();
+        break;
+      case "install_software":
+        toggleInstallSoftwareModal();
         break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
@@ -508,7 +518,7 @@ const ManagePolicyPage = ({
   //       "Could not update policy automations. Please try again."
   //     );
   //   } finally {
-  //     togglePolicySoftwareInstallModal();
+  //     toggleInstallSoftwareModal();
   //     setIsUpdatingPolicySoftwareInstall(false);
   //   }
   // };
@@ -735,11 +745,20 @@ const ManagePolicyPage = ({
 
   const getAutomationsDropdownOptions = () => {
     const isAllTeams = teamIdForApi === undefined || teamIdForApi === -1;
-    let disabledTooltipContent: React.ReactNode;
+    let disabledInstallTooltipContent: React.ReactNode;
+    let disabledCalendarTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
-      disabledTooltipContent = "Available in Fleet Premium.";
+      disabledInstallTooltipContent = "Available in Fleet Premium.";
+      disabledCalendarTooltipContent = "Available in Fleet Premium.";
     } else if (isAllTeams) {
-      disabledTooltipContent = (
+      disabledInstallTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          install software automation.
+        </>
+      );
+      disabledCalendarTooltipContent = (
         <>
           Select a team to manage
           <br />
@@ -752,9 +771,16 @@ const ManagePolicyPage = ({
       {
         label: "Calendar events",
         value: "calendar_events",
-        disabled: !isPremiumTier || isAllTeams,
+        disabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
-        tooltipContent: disabledTooltipContent,
+        tooltipContent: disabledCalendarTooltipContent,
+      },
+      {
+        label: "Install software",
+        value: "install_software",
+        disabled: !!disabledInstallTooltipContent,
+        helpText: "Install software to resolve failing policies.",
+        tooltipContent: disabledInstallTooltipContent,
       },
       {
         label: "Other workflows",
@@ -853,6 +879,8 @@ const ManagePolicyPage = ({
             onSubmit={onDeletePolicySubmit}
           />
         )}
+        {/* TODO */}
+        {/* {showInstallSoftwareModal && <InstallSoftwareModal />} */}
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
@@ -870,6 +898,6 @@ const ManagePolicyPage = ({
       </div>
     </MainContent>
   );
-};
+};;
 
 export default ManagePolicyPage;
