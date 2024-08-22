@@ -417,7 +417,10 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		if err != nil {
 			return err
 		}
-		deletedTitleIDs := make(map[uint]struct{}, 0)
+		type deletedValue struct {
+			vpp bool
+		}
+		deletedTitleIDs := make(map[uint]deletedValue, 0)
 		for _, title := range installedTitles {
 			bundleIdentifier := ""
 			if title.BundleIdentifier != nil {
@@ -425,16 +428,28 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 			}
 			key := UniqueSoftwareTitleStr(title.Name, title.Source, bundleIdentifier)
 			if _, ok := deletedTitles[key]; ok {
-				deletedTitleIDs[title.ID] = struct{}{}
+				deletedTitleIDs[title.ID] = deletedValue{vpp: title.VPPAppsCount > 0}
 			}
 		}
 		if len(deletedTitleIDs) > 0 {
 			IDs := make([]uint, 0, len(deletedTitleIDs))
-			for id := range deletedTitleIDs {
-				IDs = append(IDs, id)
+			vppIDs := make([]uint, 0, len(deletedTitleIDs))
+			for id, value := range deletedTitleIDs {
+				if value.vpp {
+					vppIDs = append(vppIDs, id)
+				} else {
+					IDs = append(IDs, id)
+				}
 			}
-			if err = markHostSoftwareInstallsRemoved(ctx, tx, hostID, IDs); err != nil {
-				return err
+			if len(IDs) > 0 {
+				if err = markHostSoftwareInstallsRemoved(ctx, tx, hostID, IDs); err != nil {
+					return err
+				}
+			}
+			if len(vppIDs) > 0 {
+				if err = markHostVPPSoftwareInstallsRemoved(ctx, tx, hostID, vppIDs); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -2236,7 +2251,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		LEFT OUTER JOIN
 			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
+			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
@@ -2250,7 +2265,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			( hvsi.id IS NULL OR hvsi.id = (
 				SELECT hvsi2.id
 				FROM host_vpp_software_installs hvsi2
-				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform AND hvsi2.removed = 0
 				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
 
@@ -2319,7 +2334,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					host_vpp_software_installs hvsi
 				WHERE
 					hvsi.host_id = :host_id AND
-					hvsi.adam_id = vat.adam_id
+					hvsi.adam_id = vat.adam_id AND
+					hvsi.removed = 0
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform )
@@ -2363,7 +2379,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	stmt := stmtInstalled
 	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
-		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
+		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
@@ -2640,20 +2656,36 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 }
 
 func getInstalledSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
+	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
 	const stmt = `
 SELECT
 	st.id,
 	st.name,
 	st.source,
 	st.browser,
-	st.bundle_identifier
+	st.bundle_identifier,
+	0 as vpp_apps_count
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = ? AND hsi.software_installer_id = si.id
 WHERE hsi.removed = 0
+
+UNION
+
+SELECT
+	st.id,
+	st.name,
+	st.source,
+	st.browser,
+	st.bundle_identifier,
+	1 as vpp_apps_count
+FROM software_titles st
+INNER JOIN vpp_apps vap ON vap.title_id = st.id
+INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = ? AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+WHERE hvsi.removed = 0
 `
 	var titles []fleet.SoftwareTitle
-	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get installed software titles")
 	}
 	return titles, nil
@@ -2673,6 +2705,24 @@ WHERE hsi.host_id = ? AND st.id IN (?)
 	}
 	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "mark host software install removed")
+	}
+	return nil
+}
+
+func markHostVPPSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	const stmt = `
+UPDATE host_vpp_software_installs hvsi
+INNER JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+INNER JOIN software_titles st ON vap.title_id = st.id
+SET hvsi.removed = 1
+WHERE hvsi.host_id = ? AND st.id IN (?)
+`
+	stmtExpanded, args, err := sqlx.In(stmt, hostID, titleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query args to mark host vpp software install removed")
+	}
+	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host vpp software install removed")
 	}
 	return nil
 }

@@ -2931,6 +2931,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 	}
 
 	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+		// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+		err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+			HostID:      host.ID,
+			CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
+		}
+
 		if host.Platform != "ios" && host.Platform != "ipados" {
 			return nil, ctxerr.New(ctx, "refetch apps command sent to non-iOS/non-iPadOS host")
 		}
@@ -2948,18 +2957,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update host software")
 		}
-		err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
-			HostID:      host.ID,
-			CommandType: fleet.RefetchAppsCommandUUIDPrefix,
-		})
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
-		}
 
 		return nil, nil
 	}
 
 	// Otherwise, the command has prefix fleet.RefetchDeviceCommandUUIDPrefix, which is a refetch device command.
+	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID:      host.ID,
+		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
+	}
 
 	var deviceInformationResponse struct {
 		QueryResponses map[string]interface{} `plist:"QueryResponses"`
@@ -3014,13 +3024,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		if err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update MDM data")
 		}
-	}
-	err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
-		HostID:      host.ID,
-		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
 	}
 	return nil, nil
 }
