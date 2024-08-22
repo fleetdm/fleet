@@ -13,7 +13,7 @@ import Modal from "components/Modal";
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 
-const baseClass = "add-abm-modal";
+const baseClass = "edit-teams-abm-modal";
 
 interface IEditTeamsAbmModalProps {
   token: IMdmAbmToken;
@@ -22,13 +22,26 @@ interface IEditTeamsAbmModalProps {
 }
 
 /**
- * Type for the selected team names, which takes the shape of the teams object
+ * Given available teams, return the options for the dropdowns. The "All teams" option is excluded.
+ */
+export const getOptions = (availableTeams: ITeamSummary[] = []) => {
+  return availableTeams
+    ?.filter((t) => t.name !== "All teams")
+    .map((t) => ({
+      value: t.name,
+      label: t.name,
+    }));
+};
+
+/**
+ * Type for the selected team names, which is derived from the shape of the teams object
  * returned by the get token API.
  */
-type SelectedTeamNames = Pick<
-  IMdmAbmToken,
-  "macos_team" | "ios_team" | "ipados_team"
->;
+interface SelectedTeamNames {
+  ios_team: IMdmAbmToken["ios_team"]["name"];
+  ipados_team: IMdmAbmToken["ipados_team"]["name"];
+  macos_team: IMdmAbmToken["macos_team"]["name"];
+}
 
 /**
  * Type for the selected team ids, which takes the shape of the teams object
@@ -42,44 +55,19 @@ type SelectedTeamIds = Parameters<typeof mdmAbmAPI.editTeams>[0]["teams"];
  * The caller is responsible for handling undefined ids appropriately (e.g., using error messages from
  * `validateSelectedTeamIds` function).
  */
-const getSelectedTeamIds = (
+export const getSelectedTeamIds = (
   { ios_team, ipados_team, macos_team }: SelectedTeamNames,
-  availableTeams: ITeamSummary[]
-) => {
+  availableTeams: ITeamSummary[] = []
+): SelectedTeamIds => {
   const byName = availableTeams.reduce((acc, t) => {
     acc[t.name] = t.id;
     return acc;
-  }, {} as Record<string, number | undefined>);
+  }, {} as Record<string, number>);
   return {
     ios_team_id: byName[ios_team],
     ipados_team_id: byName[ipados_team],
     macos_team_id: byName[macos_team],
   };
-};
-
-/**
- * Validate that the selected team names have valid team ids. If any team id is undefined, return an
- * error message indicating which team is invalid.
- *
- * Note: Ideally, we shouldn't need to validate that team names have valid team ids if the backend
- * is adequately protecting against "broken" teams (where users change the name of a team but we
- * forget to update stored references to the old name). This is included as a safeguard and to
- * provide a "noisier" error message to surface potential backend issues.
- */
-const validateSelectedTeamIds = (
-  { ios_team_id, ipados_team_id, macos_team_id }: SelectedTeamIds,
-  { ios_team, ipados_team, macos_team }: SelectedTeamNames
-) => {
-  if (ios_team_id === undefined) {
-    return `Selected iOS team ${ios_team} does not have a valid team id.`;
-  }
-  if (ipados_team_id === undefined) {
-    return `Selected iPadOS team ${ipados_team} does not have a valid team id.`;
-  }
-  if (macos_team_id === undefined) {
-    return `Selected macOS team ${macos_team} does not have a valid team id.`;
-  }
-  return "";
 };
 
 const EditTeamsAbmModal = ({
@@ -92,11 +80,13 @@ const EditTeamsAbmModal = ({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const [selectedTeamNames, setSelectedTeamNames] = useState({
-    ios_team: token.ios_team,
-    ipados_team: token.ipados_team,
-    macos_team: token.macos_team,
-  });
+  const [selectedTeamNames, setSelectedTeamNames] = useState<SelectedTeamNames>(
+    {
+      ios_team: token.ios_team.name,
+      ipados_team: token.ipados_team.name,
+      macos_team: token.macos_team.name,
+    }
+  );
 
   const options = useMemo(() => {
     return availableTeams
@@ -110,24 +100,12 @@ const EditTeamsAbmModal = ({
   const onSave = useCallback(
     async (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
-      const teamIds = getSelectedTeamIds(
-        selectedTeamNames,
-        availableTeams || []
-      );
-      const invalidTeamIdErr = validateSelectedTeamIds(
-        teamIds as SelectedTeamIds,
-        selectedTeamNames
-      );
-      if (invalidTeamIdErr) {
-        renderFlash("error", invalidTeamIdErr);
-        return;
-      }
 
       setIsSaving(true);
       try {
         await mdmAbmAPI.editTeams({
           tokenId: token.id,
-          teams: teamIds as SelectedTeamIds,
+          teams: getSelectedTeamIds(selectedTeamNames, availableTeams),
         });
         renderFlash("success", "Edited successfully.");
         onSuccess();
@@ -178,7 +156,7 @@ const EditTeamsAbmModal = ({
             wrapperClassName={`${baseClass}__form-field form-field--ios`}
             tooltip={
               <>
-                macOS hosts are automatically added to this team in Fleet when
+                iOS hosts are automatically added to this team in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
@@ -194,7 +172,7 @@ const EditTeamsAbmModal = ({
             wrapperClassName={`${baseClass}__form-field form-field--ipados`}
             tooltip={
               <>
-                macOS hosts are automatically added to this team in Fleet when
+                iPadOS hosts are automatically added to this team in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
