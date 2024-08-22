@@ -2630,7 +2630,7 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		Location: locName,
 	}
 
-	tok, err := svc.ds.InsertVPPToken(ctx, &data, nil, fleet.NullTeamNoTeam)
+	tok, err := svc.ds.InsertVPPToken(ctx, &data)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
