@@ -156,6 +156,9 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/scripts': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
+    // 🫧 Bulk operations dashboard
+    'ee/bulk-operations': 'eashaw',// (catch-all)
+
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
