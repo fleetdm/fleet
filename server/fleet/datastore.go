@@ -1327,11 +1327,10 @@ type Datastore interface {
 
 	InsertVPPToken(ctx context.Context, tok *VPPTokenData, teamID *uint, nullTeam NullTeamType) (*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
-	UpdateVPPToken(ctx context.Context, tok *VPPTokenDB) error
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 	ListVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
-	UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam NullTeamType) error
+	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) error
 
 	// InsertABMToken inserts a new ABM token into the datastore.
 	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)

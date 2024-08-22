@@ -4936,8 +4936,8 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 	var values string
 	var args []any
-	// No DB constraint, if no team or all teams comes up we have to
-	// check it in go
+	// No DB constraint for null_team_type, if no team or all teams
+	// comes up we have to check it in go
 	var nullTeamCheck fleet.NullTeamType
 
 	if len(teams) > 0 {
