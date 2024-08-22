@@ -6581,14 +6581,31 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.Len(t, tok.Teams, 1)
+	assert.Equal(t, tokID, tok.ID)
 	assert.Equal(t, uint(0), tok.Teams[0].ID)
 	assert.Equal(t, fleet.TeamNameNoTeam, tok.Teams[0].Name)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.Len(t, toks, 1)
 	assert.Len(t, toks[0].Teams, 1)
+	assert.Equal(t, tokID, toks[0].ID)
 	assert.Equal(t, uint(0), toks[0].Teams[0].ID)
 	assert.Equal(t, fleet.TeamNameNoTeam, toks[0].Teams[0].Name)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, teamTok.ID)
+	assert.Equal(t, dataToken.Location, teamTok.Location)
+	assert.Equal(t, dataToken.Token, teamTok.Token)
+	assert.Equal(t, orgName, teamTok.OrgName)
+	assert.Equal(t, location, teamTok.Location)
+	assert.Len(t, teamTok.Teams, 1)
+	assert.Equal(t, uint(0), teamTok.Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, teamTok.Teams[0].Name)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
 
 	// Assign to normal team
 	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
@@ -6605,6 +6622,22 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, toks[0].Teams, 1)
 	assert.Equal(t, team.ID, toks[0].Teams[0].ID)
 	assert.Equal(t, team.Name, toks[0].Teams[0].Name)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, teamTok.ID)
+	assert.Equal(t, dataToken.Location, teamTok.Location)
+	assert.Equal(t, dataToken.Token, teamTok.Token)
+	assert.Equal(t, orgName, teamTok.OrgName)
+	assert.Equal(t, location, teamTok.Location)
+	assert.NotNil(t, teamTok.Teams)
+	assert.Len(t, teamTok.Teams, 1)
+	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
+	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
 
 	// Switch teams
 	// tok.TeamID = &team2.ID

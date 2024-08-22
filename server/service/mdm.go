@@ -2676,24 +2676,7 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 		return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New("A VPP token can only belong to one team"), http.StatusBadRequest))
 	}
 
-	var nullTeam fleet.NullTeamType
-	var teamID *uint
-	if teamIDs == nil {
-		// Null -> disabled token
-		nullTeam = fleet.NullTeamNone
-	} else if len(teamIDs) == 0 {
-		// Empty -> All teams
-		nullTeam = fleet.NullTeamAllTeams
-	} else if teamIDs[0] == 0 {
-		// 0 -> NoTeam team
-		nullTeam = fleet.NullTeamNoTeam
-	} else {
-		// Regular team assignment
-		nullTeam = fleet.NullTeamNone
-		teamID = &teamIDs[0]
-	}
-
-	if err := svc.ds.UpdateVPPTokenTeam(ctx, tokenID, teamID, nullTeam); err != nil {
+	if err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
 
