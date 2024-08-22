@@ -9310,12 +9310,14 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 Retrieve details about a vulnerability and its affected software and OS versions.
 
+If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a 204 status code is returned.
+
 #### Parameters
 
-| Name     | Type     | In    | Description                                                                                     |
-| ---      | ---      | ---   | ---                                                                                             |
-| cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
+| team_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team". |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 
