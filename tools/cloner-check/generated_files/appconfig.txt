@@ -150,6 +150,12 @@ github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Value	[]fleet.MDMProfileSpec
+github.com/fleetdm/fleet/v4/server/fleet/MDM	VolumePurchasingProgram	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.VolumePurchasingProgram]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.VolumePurchasingProgram]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.VolumePurchasingProgram]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.VolumePurchasingProgram]	Value	[]fleet.VolumePurchasingProgram
+github.com/fleetdm/fleet/v4/server/fleet/VolumePurchasingProgram	Location	string
+github.com/fleetdm/fleet/v4/server/fleet/VolumePurchasingProgram	Teams	[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool

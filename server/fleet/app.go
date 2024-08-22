@@ -130,6 +130,13 @@ type MDMAppleABMAssignmentInfo struct {
 	IpadOSTeam       string `json:"ipados_team"`
 }
 
+// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
+// between a VPP token (via location) and the team associations.
+type MDMAppleVolumePurchasingProgramInfo struct {
+	Location string   `json:"location"`
+	Teams    []string `json:"teams"`
+}
+
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	// Deprecated: use AppleBussinessManager instead
@@ -186,6 +193,8 @@ type MDM struct {
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -629,6 +638,16 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 		clone.MDM.AppleBussinessManager = optjson.SetSlice(abm)
 
+	}
+
+	if c.MDM.VolumePurchasingProgram.Set {
+		vpp := make([]MDMAppleVolumePurchasingProgramInfo, len(c.MDM.VolumePurchasingProgram.Value))
+		for i, s := range c.MDM.VolumePurchasingProgram.Value {
+			vpp[i].Location = s.Location
+			vpp[i].Teams = make([]string, len(s.Teams))
+			copy(vpp[i].Teams, s.Teams)
+		}
+		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
 	}
 
 	return &clone
