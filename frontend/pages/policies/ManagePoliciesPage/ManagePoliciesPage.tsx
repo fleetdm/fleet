@@ -49,6 +49,7 @@ import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
+import InstallSoftwareModal from "./components/InstallSoftwareModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -127,6 +128,10 @@ const ManagePolicyPage = ({
   const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
     false
   );
+  const [
+    isUpdatingPolicySoftwareInstall,
+    setIsUpdatingPolicySoftwareInstall,
+  ] = useState(false);
   const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
     false
   );
@@ -486,42 +491,40 @@ const ManagePolicyPage = ({
     }
   };
 
-  // TODO - finalize
+  const onUpdatePolicySoftwareInstall = async () =>
+    // TODO - finalize
 
-  // const onUpdatePolicySoftwareInstall = async (
-  //   formData: IPolicySWInstallFormData
-  //   // {policyIDs: swTitleIds}
-  // ) => {
-  //   setIsUpdatingPolicySoftwareInstall(true);
-  //   // get policyIds: swTitleIds that have changed
-  //   const changedPolicies = []; // TODO
-
-  //   // if there are any:
-  //   try {
-  //     const responses: Promise<any>[] = [];
-  //     responses.concat(
-  //       changedPolicies.map((changedPolicy) => {
-  //         return teamPoliciesAPI.update(changedPolicy.id, {
-  //           software_title_id: changedPolicy.software_title_id || null, // TODO: confirm undefined/null
-  //           team_id: teamIdForApi,
-  //         });
-  //       })
-  //     );
-
-  //     await Promise.all(responses);
-  //     await wait(100); // Wait 100ms to avoid race conditions with refetch
-  //     await refetchTeamPolicies();
-  //     renderFlash("success", "Successfully updated policy automations.");
-  //   } catch {
-  //     renderFlash(
-  //       "error",
-  //       "Could not update policy automations. Please try again."
-  //     );
-  //   } finally {
-  //     toggleInstallSoftwareModal();
-  //     setIsUpdatingPolicySoftwareInstall(false);
-  //   }
-  // };
+    // formData: IPolicySWInstallFormData
+    // {policyIDs: swTitleIds}
+    {
+      //   setIsUpdatingPolicySoftwareInstall(true);
+      //   // get policyIds: swTitleIds that have changed
+      //   const changedPolicies = []; // TODO
+      //   // if there are any:
+      //   try {
+      //     const responses: Promise<any>[] = [];
+      //     responses.concat(
+      //       changedPolicies.map((changedPolicy) => {
+      //         return teamPoliciesAPI.update(changedPolicy.id, {
+      //           software_title_id: changedPolicy.software_title_id || null, // TODO: confirm undefined/null
+      //           team_id: teamIdForApi,
+      //         });
+      //       })
+      //     );
+      //     await Promise.all(responses);
+      //     await wait(100); // Wait 100ms to avoid race conditions with refetch
+      //     await refetchTeamPolicies();
+      //     renderFlash("success", "Successfully updated policy automations.");
+      //   } catch {
+      //     renderFlash(
+      //       "error",
+      //       "Could not update policy automations. Please try again."
+      //     );
+      //   } finally {
+      //     toggleInstallSoftwareModal();
+      //     setIsUpdatingPolicySoftwareInstall(false);
+      //   }
+    };
 
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
     setIsUpdatingCalendarEvents(true);
@@ -879,8 +882,16 @@ const ManagePolicyPage = ({
             onSubmit={onDeletePolicySubmit}
           />
         )}
-        {/* TODO */}
-        {/* {showInstallSoftwareModal && <InstallSoftwareModal />} */}
+        {showInstallSoftwareModal && (
+          <InstallSoftwareModal
+            onExit={toggleInstallSoftwareModal}
+            onSubmit={onUpdatePolicySoftwareInstall}
+            isUpdating={isUpdatingPolicySoftwareInstall}
+            policies={policiesAvailableToAutomate}
+            // currentTeamId will at this point be present
+            teamId={currentTeamId ?? 0}
+          />
+        )}
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
@@ -898,6 +909,6 @@ const ManagePolicyPage = ({
       </div>
     </MainContent>
   );
-};;
+};
 
 export default ManagePolicyPage;

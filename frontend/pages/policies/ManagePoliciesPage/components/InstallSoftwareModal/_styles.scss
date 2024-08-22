@@ -1,0 +1,15 @@
+.manage-policies-page {
+  .install-software-modal {
+    .form-field--dropdown {
+      width: 276px;
+      .Select-placeholder {
+        color: $ui-fleet-black-50;
+      }
+    }
+    .policy-row {
+      height: 40px;
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+  }
+}

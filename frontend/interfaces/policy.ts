@@ -44,7 +44,7 @@ export interface IPolicy {
   install_software?: IPolicySoftwareToInstall;
 }
 
-interface IPolicySoftwareToInstall {
+export interface IPolicySoftwareToInstall {
   name: string;
   software_title_id: number;
 }

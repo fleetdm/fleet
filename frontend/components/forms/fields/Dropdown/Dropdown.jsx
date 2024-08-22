@@ -202,6 +202,7 @@ class Dropdown extends Component {
         className={wrapperClassName}
       >
         <Select
+          inputRenderer={() => <div>THIS WOULD BE COOL</div>}
           className={selectClasses}
           clearable={clearable}
           disabled={disabled}
