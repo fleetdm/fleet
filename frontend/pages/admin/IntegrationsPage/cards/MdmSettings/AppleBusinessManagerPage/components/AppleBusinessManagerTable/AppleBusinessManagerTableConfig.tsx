@@ -87,7 +87,8 @@ export const generateTableConfig = (
       ),
     },
     {
-      accessor: "macos_team",
+      id: "teams.macos_team",
+      accessor: (originalRow) => originalRow.macos_team.name,
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -109,7 +110,8 @@ export const generateTableConfig = (
       ),
     },
     {
-      accessor: "ios_team",
+      id: "teams.ios_team",
+      accessor: (originalRow) => originalRow.ios_team.name,
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -131,7 +133,8 @@ export const generateTableConfig = (
       ),
     },
     {
-      accessor: "ipados_team",
+      id: "teams.ipados_team",
+      accessor: (originalRow) => originalRow.ipados_team.name,
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
