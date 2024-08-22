@@ -62,11 +62,21 @@ type ABMToken struct {
 	MDMServerURL string `db:"-" json:"mdm_server_url"`
 
 	// the following fields are not in the abm_tokens table, they must be queried
-	// by a LEFT JOIN on the corresponding team, coalesced to an empty string if
+	// by a LEFT JOIN on the corresponding team, coalesced to "No team" if
 	// null (no team).
-	MacOSTeam  string `db:"macos_team" json:"macos_team"`
-	IOSTeam    string `db:"ios_team" json:"ios_team"`
-	IPadOSTeam string `db:"ipados_team" json:"ipados_team"`
+	MacOSTeamName  string `db:"macos_team" json:"-"`
+	IOSTeamName    string `db:"ios_team" json:"-"`
+	IPadOSTeamName string `db:"ipados_team" json:"-"`
+
+	// These fields are composed of the ID and name fields above, and are used in API responses.
+	MacOSTeam  ABMTokenTeam `json:"macos_team"`
+	IOSTeam    ABMTokenTeam `json:"ios_team"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_team"`
+}
+
+type ABMTokenTeam struct {
+	Name string `json:"name"`
+	ID   uint   `json:"team_id"`
 }
 
 type AppleCSR struct {
@@ -80,13 +90,15 @@ func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
 }
 
-// AppConfigUpdated is the minimal interface required to get and update the
-// AppConfig, as required to handle the DEP API errors to flag that Apple's
-// terms have changed and must be accepted. The Fleet Datastore satisfies
-// this interface.
-type AppConfigUpdater interface {
+// ABMTermsUpdater is the minimal interface required to get and update the
+// AppConfig, and set an ABM token's terms_expired flag as required to handle
+// the DEP API errors to indicate that Apple's terms have changed and must be
+// accepted. The Fleet Datastore satisfies this interface.
+type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
+	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -757,6 +769,35 @@ type VPPTokenData struct {
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
 }
+
+const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
+
+// VPPTokenDB represents a VPP token record in the DB
+type VPPTokenDB struct {
+	ID        uint      `json:"id"`
+	OrgName   string    `json:"org_name"`
+	Location  string    `json:"location"`
+	RenewDate time.Time `json:"renew_date"`
+	// Token is the token dowloaded from ABM. It is the base64 encoded
+	// JSON object with the structure of `VPPTokenRaw`
+	Token    string       `json:"-"`
+	TeamID   *uint        `json:"team_id"`
+	NullTeam NullTeamType `json:"null_team_type"`
+	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
+
 type AppleDevice int
 
 const (

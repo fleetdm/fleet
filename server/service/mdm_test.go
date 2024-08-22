@@ -158,13 +158,13 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		err = svc.DeleteMDMAppleAPNSCert(ctx) // Don't expect anything other than an authz error here, since this is pretty much just a DB wrapper.
 		checkAuthErr(t, shouldFailWithAuth, err)
 
-		err = svc.UploadMDMAppleVPPToken(ctx, nil)
+		_, err = svc.UploadVPPToken(ctx, nil)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
-		_, err = svc.GetMDMAppleVPPToken(ctx)
+		_, err = svc.GetVPPTokens(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
-		err = svc.DeleteMDMAppleVPPToken(ctx)
+		err = svc.DeleteVPPToken(ctx, 0)
 		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 

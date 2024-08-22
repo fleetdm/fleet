@@ -941,6 +941,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - make sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google Drive folder.
+- make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
 
 
 

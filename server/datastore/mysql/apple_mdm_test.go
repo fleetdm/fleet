@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -85,6 +87,8 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
+		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
+		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
 	}
 
 	for _, c := range cases {
@@ -621,7 +625,12 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	}
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
-	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.EqualValues(t, 4, n) // 4 new hosts ("abc", "xyz", "ijk", "tuv")
 	require.Nil(t, tmID)
@@ -647,7 +656,12 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "def", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Nil(t, tmID)
 	require.Equal(t, int64(2), n)
@@ -673,7 +687,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 	require.NotNil(t, tmID)
@@ -696,7 +710,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "jqk", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.EqualValues(t, n, 1)
 	require.Nil(t, tmID)
@@ -821,10 +835,15 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	testUUID := "test-uuid"
 	testModel := "MacBook Pro"
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business Manager)
 	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
-	})
+	}, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 	require.Nil(t, tmID)
@@ -868,10 +887,15 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	require.Equal(t, testUUID, hosts[0].UUID)
 	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// no effect if same host appears in DEP sync
 	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
-	})
+	}, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), n)
 	require.Nil(t, tmID)
@@ -3652,6 +3676,11 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// create a mix of DEP-enrolled hosts, non-Fleet-MDM, pending DEP-enrollment
 	hosts := make([]*fleet.Host, 7)
 	for i := 0; i < len(hosts); i++ {
@@ -3671,19 +3700,19 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 		switch {
 		case i <= 3:
 			// assigned in ABM to Fleet
-			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
 		case i == 4:
 			// not ABM assigned
 		case i == 5:
 			// ABM assignment was deleted
-			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
 			err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
 			require.NoError(t, err)
 		case i == 6:
 			// assigned in ABM, but we don't have a serial
-			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
 		}
 		hosts[i] = h
@@ -4189,13 +4218,18 @@ func TestHostDEPAssignments(t *testing.T) {
 	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	t.Run("DEP enrollment", func(t *testing.T) {
 		depSerial := "dep-serial"
 		depUUID := "dep-uuid"
 		depOrbitNodeKey := "dep-orbit-node-key"
 		depDeviceTok := "dep-device-token"
 
-		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
+		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), n)
 
@@ -4553,6 +4587,11 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	cases := []struct {
 		name string
 		in   []string
@@ -4572,7 +4611,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 				{SerialNumber: "bar"},
 				{SerialNumber: "baz"},
 			}
-			_, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices)
+			_, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID)
 			require.NoError(t, err)
 
 			err = ds.DeleteHostDEPAssignments(ctx, tt.in)
@@ -5372,6 +5411,11 @@ func TestRestorePendingDEPHost(t *testing.T) {
 	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	t.Run("DEP enrollment", func(t *testing.T) {
 		checkHostExistsInTable := func(t *testing.T, tableName string, hostID uint, expected bool, where ...string) {
 			stmt := "SELECT 1 FROM " + tableName + " WHERE host_id = ?"
@@ -5423,7 +5467,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			depUUID := "dep-uuid"
 			depOrbitNodeKey := "dep-orbit-node-key"
 
-			n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
+			n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID)
 			require.NoError(t, err)
 			require.Equal(t, int64(1), n)
 
@@ -5505,10 +5549,15 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	_, err = ds.GetHostDEPAssignment(ctx, h.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 	require.NoError(t, err)
 
 	assignment, err := ds.GetHostDEPAssignment(ctx, h.ID)
@@ -5524,7 +5573,7 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.ID, assignment.HostID)
 	require.NotNil(t, assignment.DeletedAt)
 
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 	require.NoError(t, err)
 	assignment, err = ds.GetHostDEPAssignment(ctx, h.ID)
 	require.NoError(t, err)
@@ -5695,6 +5744,11 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		return h
 	}
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// Test with no hosts.
 	uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
@@ -5708,7 +5762,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 	}
-	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
 
@@ -5873,7 +5927,12 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 	}
 
-	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
 
@@ -6373,9 +6432,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tok.EncryptedToken))
 	require.Empty(t, tok.OrganizationName)
 	require.Empty(t, tok.AppleID)
-	require.Empty(t, tok.MacOSTeam)
-	require.Empty(t, tok.IOSTeam)
-	require.Empty(t, tok.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, tok.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tok.IOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tok.IPadOSTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
@@ -6392,9 +6451,15 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, tm1.Name, tokReload.MacOSTeam)
-	require.Equal(t, tm2.Name, tokReload.IOSTeam)
-	require.Empty(t, tokReload.IPadOSTeam)
+	require.Equal(t, tm1.Name, tokReload.MacOSTeamName)
+	require.Equal(t, tm1.Name, tokReload.MacOSTeam.Name)
+	require.Equal(t, tm1.ID, tokReload.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
+	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
+	require.Equal(t, fleet.NoTeamName, tokReload.IPadOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tokReload.IPadOSTeam.Name)
+	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
 
 	// empty name token now doesn't exist
 	_, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -6413,9 +6478,11 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Empty(t, tokReload.MacOSTeam)
-	require.Equal(t, tm2.Name, tokReload.IOSTeam)
-	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeam.Name)
+	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
 
 	// change just the encrypted token
 	encTok2 := uuid.NewString()
@@ -6429,9 +6496,15 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok2, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Empty(t, tokReload.MacOSTeam)
-	require.Equal(t, tm2.Name, tokReload.IOSTeam)
-	require.Equal(t, tm3.Name, tokReload.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeam.Name)
+	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
+	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
+	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
+	require.Equal(t, tm3.Name, tokReload.IPadOSTeam.Name)
+	require.Equal(t, tm3.ID, tokReload.IPadOSTeam.ID)
 
 	// Remove unused token
 	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
@@ -6442,7 +6515,314 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	expTok := toks[0]
 	require.Equal(t, "org-name", expTok.OrganizationName)
 	require.Equal(t, "name@example.com", expTok.AppleID)
-	require.Empty(t, expTok.MacOSTeam)
-	require.Equal(t, tm2.Name, expTok.IOSTeam)
-	require.Equal(t, tm3.Name, expTok.IPadOSTeam)
+	require.Equal(t, fleet.NoTeamName, expTok.MacOSTeamName)
+	require.Equal(t, fleet.NoTeamName, expTok.MacOSTeam.Name)
+	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
+	require.Equal(t, tm2.Name, expTok.IOSTeamName)
+	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
+}
+
+func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kritters"})
+	assert.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
+	_ = team2
+	assert.NoError(t, err)
+
+	tokens, err := ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 0)
+
+	orgName := "Donkey Kong"
+	location := "Jungle"
+	dataToken, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName, location)
+	require.NoError(t, err)
+
+	orgName2 := "Diddy Kong"
+	location2 := "Mines"
+	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
+	require.NoError(t, err)
+
+	orgName3 := "Cranky Cong"
+	location3 := "Cranky's Cabin"
+	dataToken3, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName3, location3)
+	require.NoError(t, err)
+
+	orgName4 := "Funky Kong"
+	location4 := "Funky's Fishing Shack"
+	dataToken4, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName4, location4)
+	require.NoError(t, err)
+
+	orgName5 := "Lanky Kong"
+	location5 := "Lanky Kong's Pool"
+	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
+	_ = dataToken5
+	require.NoError(t, err)
+
+	tok, err := ds.InsertVPPToken(ctx, dataToken, nil, fleet.NullTeamNone)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Equal(t, (*uint)(nil), tok.TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
+
+	tok.NullTeam = fleet.NullTeamAllTeams
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.NoError(t, err)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Equal(t, (*uint)(nil), tok.TeamID)
+	assert.Equal(t, fleet.NullTeamAllTeams, tok.NullTeam)
+
+	tok.TeamID = &team.ID
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.ErrorContains(t, err, "NullTeam must be set to NullTeamNone if TeamID is present")
+
+	tok.NullTeam = fleet.NullTeamNone
+	err = ds.UpdateVPPToken(ctx, tok)
+	assert.NoError(t, err)
+
+	// Switch teams
+	tok.TeamID = &team2.ID
+	err = ds.UpdateVPPTokenTeam(ctx, tok.ID, &team2.ID, fleet.NullTeamNone)
+	assert.NoError(t, err)
+
+	tokens, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 1)
+	assert.Equal(t, dataToken.Location, tokens[0].Location)
+	assert.Equal(t, dataToken.Token, tokens[0].Token)
+	assert.Equal(t, orgName, tokens[0].OrgName)
+	assert.Equal(t, location, tokens[0].Location)
+	assert.Equal(t, team2.ID, *tokens[0].TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Equal(t, team2.ID, *tok.TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
+
+	// Inserting a duplicate token (location constraint)
+	_, err = ds.InsertVPPToken(ctx, dataToken, &team2.ID, fleet.NullTeamNone)
+	require.Error(t, err)
+
+	// Team ID and non-none nullteam
+	_, err = ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamAllTeams)
+	require.Error(t, err)
+
+	// 2 tokens on one team
+	_, err = ds.InsertVPPToken(ctx, dataToken2, &team2.ID, fleet.NullTeamNone)
+	require.Error(t, err)
+
+	tok2, err := ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamNone)
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken2.Location, tok2.Location)
+	assert.Equal(t, dataToken2.Token, tok2.Token)
+	assert.Equal(t, orgName2, tok2.OrgName)
+	assert.Equal(t, location2, tok2.Location)
+	assert.Equal(t, team.ID, *tok2.TeamID)
+	assert.Equal(t, fleet.NullTeamNone, tok2.NullTeam)
+
+	tokens, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 2)
+
+	err = ds.DeleteVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+
+	tokens, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 1)
+	assert.Equal(t, tok2.ID, tokens[0].ID)
+
+	// No team token
+	_, err = ds.InsertVPPToken(ctx, dataToken3, nil, fleet.NullTeamNoTeam)
+	assert.NoError(t, err)
+
+	toknone, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, dataToken3.Token, toknone.Token)
+
+	// Only one no team allowed
+	_, err = ds.InsertVPPToken(ctx, dataToken4, nil, fleet.NullTeamNoTeam)
+	assert.Error(t, err)
+
+	// Try to update to duplicate no team
+	tok2Copy := &fleet.VPPTokenDB{}
+	*tok2Copy = *tok2
+	tok2Copy.TeamID = nil
+	tok2Copy.NullTeam = fleet.NullTeamNoTeam
+	err = ds.UpdateVPPToken(ctx, tok2Copy)
+	assert.Error(t, err)
+
+	err = ds.UpdateVPPTokenTeam(ctx, tok2.ID, nil, fleet.NullTeamNoTeam)
+	assert.Error(t, err)
+
+	tokall, err := ds.InsertVPPToken(ctx, dataToken5, nil, fleet.NullTeamAllTeams)
+	require.NoError(t, err)
+
+	byteam, err := ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
+	require.NoError(t, err)
+	assert.Equal(t, tok2.ID, byteam.ID)
+	assert.Equal(t, tok2.TeamID, byteam.TeamID)
+	assert.Equal(t, tok2.NullTeam, byteam.NullTeam)
+	assert.Equal(t, tok2.Token, byteam.Token)
+	assert.Equal(t, tok2.Location, byteam.Location)
+	assert.Equal(t, tok2.OrgName, byteam.OrgName)
+	assert.Equal(t, tok2.RenewDate, byteam.RenewDate)
+
+	err = ds.DeleteVPPToken(ctx, tok2.ID)
+	require.NoError(t, err)
+
+	// Fall back to all team token
+	byteam, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
+	require.NoError(t, err)
+	assert.Equal(t, tokall.ID, byteam.ID)
+	assert.Equal(t, tokall.TeamID, byteam.TeamID)
+	assert.Equal(t, tokall.NullTeam, byteam.NullTeam)
+	assert.Equal(t, tokall.Token, byteam.Token)
+	assert.Equal(t, tokall.Location, byteam.Location)
+	assert.Equal(t, tokall.OrgName, byteam.OrgName)
+	assert.Equal(t, tokall.RenewDate, byteam.RenewDate)
+
+	err = ds.DeleteVPPToken(ctx, toknone.ID)
+	require.NoError(t, err)
+
+	bynone, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokall.ID, bynone.ID)
+	assert.Equal(t, tokall.TeamID, bynone.TeamID)
+	assert.Equal(t, tokall.NullTeam, bynone.NullTeam)
+	assert.Equal(t, tokall.Token, bynone.Token)
+	assert.Equal(t, tokall.Location, bynone.Location)
+	assert.Equal(t, tokall.OrgName, bynone.OrgName)
+	assert.Equal(t, tokall.RenewDate, bynone.RenewDate)
+
+	// Removing the all teams token means error
+	err = ds.DeleteVPPToken(ctx, tokall.ID)
+	require.NoError(t, err)
+
+	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	_, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// count works with no token
+	count, err := ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// create a few tokens
+	encTok1 := uuid.NewString()
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", EncryptedToken: []byte(encTok1)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+	encTok2 := uuid.NewString()
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", EncryptedToken: []byte(encTok2)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t2.ID)
+	// this one simulates a mirated token - empty name
+	encTok3 := uuid.NewString()
+	t3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "", EncryptedToken: []byte(encTok3)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t3.ID)
+
+	// none have terms expired yet
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// set t1 terms expired
+	was, err := ds.SetABMTokenTermsExpiredForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was)
+
+	// set t2 terms not expired, no-op
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t2.OrganizationName, false)
+	require.NoError(t, err)
+	require.False(t, was)
+
+	// set t3 terms expired
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t3.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was)
+
+	// count is now 2
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, count)
+
+	// set t1 terms not expired
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t1.OrganizationName, false)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// set t3 terms still expired
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, t3.OrganizationName, true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// count is now 1
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+
+	// setting the expired flag of a non-existing token always returns as if it
+	// did not update (which is fine, it will only be called after a DEP API call
+	// that used this token, so if the token does not exist it would fail the
+	// call).
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, "no-such-token", false)
+	require.NoError(t, err)
+	require.False(t, was)
+	was, err = ds.SetABMTokenTermsExpiredForOrgName(ctx, "no-such-token", true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// count is unaffected
+	count, err = ds.CountABMTokensWithTermsExpired(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+}
+
+func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
+	var randBytes [32]byte
+	_, err := rand.Read(randBytes[:])
+	if err != nil {
+		return nil, fmt.Errorf("generating random bytes: %w", err)
+	}
+	token := base64.StdEncoding.EncodeToString(randBytes[:])
+	raw := fleet.VPPTokenRaw{
+		OrgName: orgName,
+		Token:   token,
+		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
+	}
+	rawJson, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
+	}
+
+	base64Token := base64.StdEncoding.EncodeToString(rawJson)
+
+	return &fleet.VPPTokenData{Token: base64Token, Location: location}, nil
 }

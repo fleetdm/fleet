@@ -740,9 +740,9 @@ type BatchSetMDMAppleProfilesFunc func(ctx context.Context, tmID *uint, profiles
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
-type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []fleet.Host) error
+type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []fleet.Host, abmTokenID uint) error
 
-type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, *uint, error)
+type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device, abmTokenID uint) (int64, *uint, error)
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host) error
 
@@ -863,6 +863,24 @@ type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConf
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
+
+type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error)
+
+type GetVPPTokenFunc func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error)
+
+type UpdateVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenDB) error
+
+type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
+
+type ListVPPTokensFunc func(ctx context.Context) ([]fleet.VPPTokenDB, error)
+
+type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
+
+type UpdateVPPTokenTeamFunc func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error
+
+type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+
+type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
 
 type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
 
@@ -2296,6 +2314,33 @@ type DataStore struct {
 
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
+
+	InsertVPPTokenFunc        InsertVPPTokenFunc
+	InsertVPPTokenFuncInvoked bool
+
+	GetVPPTokenFunc        GetVPPTokenFunc
+	GetVPPTokenFuncInvoked bool
+
+	UpdateVPPTokenFunc        UpdateVPPTokenFunc
+	UpdateVPPTokenFuncInvoked bool
+
+	DeleteVPPTokenFunc        DeleteVPPTokenFunc
+	DeleteVPPTokenFuncInvoked bool
+
+	ListVPPTokensFunc        ListVPPTokensFunc
+	ListVPPTokensFuncInvoked bool
+
+	GetVPPTokenByTeamIDFunc        GetVPPTokenByTeamIDFunc
+	GetVPPTokenByTeamIDFuncInvoked bool
+
+	UpdateVPPTokenTeamFunc        UpdateVPPTokenTeamFunc
+	UpdateVPPTokenTeamFuncInvoked bool
+
+	SetABMTokenTermsExpiredForOrgNameFunc        SetABMTokenTermsExpiredForOrgNameFunc
+	SetABMTokenTermsExpiredForOrgNameFuncInvoked bool
+
+	CountABMTokensWithTermsExpiredFunc        CountABMTokensWithTermsExpiredFunc
+	CountABMTokensWithTermsExpiredFuncInvoked bool
 
 	InsertABMTokenFunc        InsertABMTokenFunc
 	InsertABMTokenFuncInvoked bool
@@ -5069,18 +5114,18 @@ func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	return s.MDMAppleListDevicesFunc(ctx)
 }
 
-func (s *DataStore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host) error {
+func (s *DataStore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint) error {
 	s.mu.Lock()
 	s.UpsertMDMAppleHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpsertMDMAppleHostDEPAssignmentsFunc(ctx, hosts)
+	return s.UpsertMDMAppleHostDEPAssignmentsFunc(ctx, hosts, abmTokenID)
 }
 
-func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, *uint, error) {
+func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint) (int64, *uint, error) {
 	s.mu.Lock()
 	s.IngestMDMAppleDevicesFromDEPSyncFuncInvoked = true
 	s.mu.Unlock()
-	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices)
+	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices, abmTokenID)
 }
 
 func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host) error {
@@ -5501,6 +5546,69 @@ func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error
 	s.SaveABMTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveABMTokenFunc(ctx, tok)
+}
+
+func (s *DataStore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.InsertVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPTokenFunc(ctx, tok, teamID, nullTeam)
+}
+
+func (s *DataStore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenFunc(ctx, tok)
+}
+
+func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.DeleteVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.ListVPPTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListVPPTokensFunc(ctx)
+}
+
+func (s *DataStore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenByTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenByTeamIDFunc(ctx, teamID)
+}
+
+func (s *DataStore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenTeamFunc(ctx, id, teamID, nullTeam)
+}
+
+func (s *DataStore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetABMTokenTermsExpiredForOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenTermsExpiredForOrgNameFunc(ctx, orgName, expired)
+}
+
+func (s *DataStore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.CountABMTokensWithTermsExpiredFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountABMTokensWithTermsExpiredFunc(ctx)
 }
 
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {

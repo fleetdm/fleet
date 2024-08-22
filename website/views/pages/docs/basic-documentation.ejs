@@ -99,15 +99,12 @@
                     {{page.title}}
                   </a>
                   <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
-                    <ul class="p-0 pl-2 mb-2" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                      <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
-                        <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
-                        <li v-for="subpage in section" :key="subpage.title">
-                          <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                            {{subpage.title}}
-                          </a>
-                        </li>
-                      </div>
+                    <ul class="p-0 pl-2 mb-3" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                      <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                        <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                          {{subpage.title}}
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </li>
@@ -139,15 +136,12 @@
             <li v-for="page in findPagesByUrl()" :key="page.title">
               <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
               <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
-                <ul class="p-0 pl-2 mb-2">
-                  <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
-                    <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
-                    <li v-for="subpage in section" :key="subpage.title">
-                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                        {{subpage.title}}
-                      </a>
-                    </li>
-                  </div>
+                <ul class="p-0 pl-2 mb-3">
+                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                      {{subpage.title}}
+                    </a>
+                  </li>
                 </ul>
               </div>
             </li>

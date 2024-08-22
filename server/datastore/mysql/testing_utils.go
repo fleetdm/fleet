@@ -236,14 +236,14 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	t.Cleanup(
 		func() {
-			// Stop slave
+			// Stop replica
 			if out, err := exec.Command(
 				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
 				"-u"+testUsername, "-p"+testPassword,
 				"-e",
-				"STOP SLAVE; RESET SLAVE ALL;",
+				"STOP REPLICA; RESET REPLICA ALL;",
 			).CombinedOutput(); err != nil {
 				t.Log(err)
 				t.Log(string(out))
@@ -263,25 +263,40 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	_, err = ds.primary.ExecContext(ctx, "FLUSH PRIVILEGES")
 	require.NoError(t, err)
 
-	// Retrieve master binary log coordinates
-	ms, err := ds.MasterStatus(ctx)
-	require.NoError(t, err)
-
-	// Get MySQL version
 	var version string
 	err = ds.primary.GetContext(ctx, &version, "SELECT VERSION()")
 	require.NoError(t, err)
-	using57 := strings.HasPrefix(version, "5.7")
-	extraMasterOptions := ""
-	if !using57 {
-		extraMasterOptions = "GET_MASTER_PUBLIC_KEY=1," // needed for MySQL 8.0 caching_sha2_password authentication
-	}
+
+	// Retrieve master binary log coordinates
+	ms, err := ds.MasterStatus(ctx, version)
+	require.NoError(t, err)
 
 	mu.Lock()
 	databasesToReplicate = strings.TrimPrefix(databasesToReplicate+fmt.Sprintf(", `%s`", testName), ",")
 	mu.Unlock()
 
-	// Configure slave and start replication
+	setSourceStmt := fmt.Sprintf(`
+			CHANGE REPLICATION SOURCE TO
+				GET_SOURCE_PUBLIC_KEY=1,
+				SOURCE_HOST='mysql_test',
+				SOURCE_USER='%s',
+				SOURCE_PASSWORD='%s',
+				SOURCE_LOG_FILE='%s',
+				SOURCE_LOG_POS=%d
+		`, replicaUser, replicaPassword, ms.File, ms.Position)
+	if strings.HasPrefix(version, "8.0") {
+		setSourceStmt = fmt.Sprintf(`
+			CHANGE MASTER TO
+				GET_MASTER_PUBLIC_KEY=1,
+				MASTER_HOST='mysql_test',
+				MASTER_USER='%s',
+				MASTER_PASSWORD='%s',
+				MASTER_LOG_FILE='%s',
+				MASTER_LOG_POS=%d
+		`, replicaUser, replicaPassword, ms.File, ms.Position)
+	}
+
+	// Configure replica and start replication
 	if out, err := exec.Command(
 		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
@@ -290,18 +305,12 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		"-e",
 		fmt.Sprintf(
 			`
-			STOP SLAVE;
-			RESET SLAVE ALL;
+			STOP REPLICA;
+			RESET REPLICA ALL;
 			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );
-			CHANGE MASTER TO
-				%s
-				MASTER_HOST='mysql_test',
-				MASTER_USER='%s',
-				MASTER_PASSWORD='%s',
-				MASTER_LOG_FILE='%s',
-				MASTER_LOG_POS=%d;
-			START SLAVE;
-			`, databasesToReplicate, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
+			%s;
+			START REPLICA;
+			`, databasesToReplicate, setSourceStmt,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
@@ -455,7 +464,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		ds = createMySQLDSWithOptions(t, opts)
 		status, err := ds.ReplicaStatus(context.Background())
 		require.NoError(t, err)
-		if status["Replica_SQL_Running"] != "Yes" && status["Slave_SQL_Running"] != "Yes" {
+		if status["Replica_SQL_Running"] != "Yes" {
 			t.Logf("create replica attempt: %d replica status: %+v", attempt, status)
 			if lastErr, ok := status["Last_Error"]; ok && lastErr != "" {
 				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
@@ -796,10 +805,15 @@ type MasterStatus struct {
 	Position uint64
 }
 
-func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
-	rows, err := ds.writer(ctx).Query("SHOW MASTER STATUS")
+func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (MasterStatus, error) {
+	stmt := "SHOW BINARY LOG STATUS"
+	if strings.HasPrefix(mysqlVersion, "8.0") {
+		stmt = "SHOW MASTER STATUS"
+	}
+
+	rows, err := ds.writer(ctx).Query(stmt)
 	if err != nil {
-		return MasterStatus{}, ctxerr.Wrap(ctx, err, "show master status")
+		return MasterStatus{}, ctxerr.Wrap(ctx, err, stmt)
 	}
 	defer rows.Close()
 
@@ -844,7 +858,7 @@ func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
 }
 
 func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
-	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW SLAVE STATUS")
+	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW REPLICA STATUS")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "show replica status")
 	}

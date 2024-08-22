@@ -47,17 +47,28 @@ export default {
     return sendRequest("GET", MDM_APPLE_ABM_PUBLIC_KEY);
   },
 
-  uploadToken: (token: File) => {
-    const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
+  uploadToken: (token: File): Promise<IMdmAbmToken> => {
+    const { MDM_ABM_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
 
-    return sendRequest("POST", MDM_APPLE_BM_TOKEN, formData);
+    return sendRequest("POST", MDM_ABM_TOKENS, formData);
   },
 
-  disableAutomaticEnrollment: () => {
-    const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
-    return sendRequest("DELETE", MDM_APPLE_BM_TOKEN);
+  renewToken: (id: number, token: File): Promise<void> => {
+    const { MDM_ABM_TOKEN_RENEW } = endpoints;
+    const path = MDM_ABM_TOKEN_RENEW(id);
+
+    const formData = new FormData();
+    formData.append("token", token);
+
+    return sendRequest("PATCH", path, formData);
+  },
+
+  deleteToken: (id: number): Promise<void> => {
+    const { MDM_ABM_TOKEN } = endpoints;
+    const path = MDM_ABM_TOKEN(id);
+    return sendRequest("DELETE", path);
   },
 
   getTokens: (): Promise<IMdmAbmToken[]> => {
@@ -70,22 +81,22 @@ export default {
         apple_id: "apple@example.com",
         org_name: "Fleet Device Management Inc.",
         mdm_server_url: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-11-29T00:00:00Z", // TODO: test coverage for invalid dates
+        renew_date: "2023-11-29T00:00:00Z", // TODO: test coverage for invalid dates
         terms_expired: false,
-        macos_team: "💻 Workstations",
-        ios_team: "📱🏢 Company-owned iPhones",
-        ipados_team: "🔳🏢 Company-owned iPads",
+        macos_team: { id: 1, name: "💻 Workstations" },
+        ios_team: { id: 0, name: "No Team" },
+        ipados_team: { id: 3, name: "🔳🏢 Company-owned iPads" },
       },
       {
         id: 2,
         apple_id: "apple@example.com",
         org_name: "Fleet Device Management Inc.",
         mdm_server_url: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-11-29T00:00:00Z",
+        renew_date: "2024-08-29T00:00:00Z",
         terms_expired: false,
-        macos_team: "💻 Workstations",
-        ios_team: "📱🏢 Company-owned iPhones",
-        ipados_team: "🔳🏢 Company-owned iPads",
+        macos_team: { id: 1, name: "💻 Workstations" },
+        ios_team: { id: 0, name: "No Team" },
+        ipados_team: { id: 3, name: "🔳🏢 Company-owned iPads" },
       },
     ]); // TODO: remove when API is ready
   },

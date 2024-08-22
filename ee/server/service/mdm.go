@@ -1269,7 +1269,11 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	// validate the team IDs
-	var macOSTeamName, iOSTeamName, iPadOSTeamName string
+
+	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.NoTeamName}
+	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.NoTeamName}
+	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.NoTeamName}
+
 	if macOSTeamID != nil {
 		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
 		if err != nil {
@@ -1279,7 +1283,8 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 			}
 		}
 
-		macOSTeamName = macOSTeam.Name
+		token.MacOSTeam.Name = macOSTeam.Name
+		token.MacOSTeam.ID = *macOSTeamID
 	}
 
 	if iOSTeamID != nil {
@@ -1290,7 +1295,8 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
 			}
 		}
-		iOSTeamName = iOSTeam.Name
+		token.IOSTeam.Name = iOSTeam.Name
+		token.IOSTeam.ID = *iOSTeamID
 	}
 
 	if iPadOSTeamID != nil {
@@ -1301,20 +1307,13 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
 			}
 		}
-		iPadOSTeamName = iPadOSTeam.Name
+		token.IPadOSTeam.Name = iPadOSTeam.Name
+		token.IPadOSTeam.ID = *iPadOSTeamID
 	}
-
-	token.MacOSDefaultTeamID = macOSTeamID
-	token.IOSDefaultTeamID = iOSTeamID
-	token.IPadOSDefaultTeamID = iPadOSTeamID
 
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
 	}
-
-	token.MacOSTeam = macOSTeamName
-	token.IOSTeam = iOSTeamName
-	token.IPadOSTeam = iPadOSTeamName
 
 	return token, nil
 }

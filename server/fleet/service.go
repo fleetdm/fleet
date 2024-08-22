@@ -712,9 +712,11 @@ type Service interface {
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
-	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
-	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
-	DeleteMDMAppleVPPToken(ctx context.Context) error
+	UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*VPPTokenDB, error)
+	UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) error
+	GetVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
+	DeleteVPPToken(ctx context.Context, tokenID uint) error
+
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
@@ -1073,8 +1075,11 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
-	GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*SoftwareInstaller, error)
-	DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
+	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
+	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
+	GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*SoftwareInstaller, error)
+	DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
+		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
