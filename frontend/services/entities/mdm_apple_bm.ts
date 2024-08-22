@@ -82,9 +82,9 @@ export default {
         mdm_server_url: "https://example.com/mdm/apple/mdm",
         renew_date: "2022-11-27T00:00:00Z", // TODO: test coverage for invalid dates
         terms_expired: false,
-        macos_team: "💻 Workstations",
-        ios_team: "📱🏢 Company-owned iPhones",
-        ipados_team: "🔳🏢 Company-owned iPads",
+        macos_team: { name: "💻 Workstations", id: 1 },
+        ios_team: { name: "📱🏢 Company-owned iPhones", id: 2 },
+        ipados_team: { name: "No team", id: 0 },
       },
     ]); // TODO: remove when API is ready
   },
@@ -99,6 +99,9 @@ export default {
   }) => {
     const { MDM_ABM_TOKEN_TEAMS } = endpoints;
     const path = MDM_ABM_TOKEN_TEAMS(params.tokenId);
+    // return sendRequest("PATCH", path, params.teams);
+
+    console.log("editing abm teams", params);
     // promisify a mock response with a timeout
     await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
       console.log("mock API call done")
