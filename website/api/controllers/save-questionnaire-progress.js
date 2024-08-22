@@ -199,6 +199,7 @@ module.exports = {
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         organization: this.req.me.organization,
         psychologicalStage,
+        psychologicalStageChangedBy: 'Website - Start flow',
         contactSource: 'Website - Sign up',
       }).exec((err)=>{
         if(err){

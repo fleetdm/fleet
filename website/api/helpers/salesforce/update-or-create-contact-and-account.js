@@ -30,6 +30,19 @@ module.exports = {
         '6 - Has team buy-in'
       ]
     },
+    psychologicalStageChangedBy: {
+      type: 'string',
+      isIn: [
+        'Website - Start flow',
+        'Website - Contact forms',
+        'Website - Swag request',
+        'Let\'s get you set up',
+        'Initial qualification meeting',
+        'Dripify',
+        'ABM ads',
+        'Awareness ads',
+      ],
+    },
     contactSource: {
       type: 'string',
       isIn: [
@@ -52,7 +65,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, contactSource, description}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangedBy, contactSource, description}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -98,6 +111,9 @@ module.exports = {
     }
     if(description) {
       valuesToSet.Description = description;
+    }
+    if(psychologicalStageChangedBy) {
+      valuesToSet.Psystage_change_reason__c = psychologicalStageChangedBy;// eslint-disable-line camelcase
     }
 
     let existingContactRecord;
