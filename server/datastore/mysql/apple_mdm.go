@@ -5115,11 +5115,18 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, err
 
 	for _, team := range teams {
 		token := tokens[team.VPPTokenID]
-		if team.TeamID != nil {
+		switch team.NullTeam {
+		case fleet.NullTeamAllTeams:
+			// All teams, there should be no other teams.
+			// Allocate a list to make sure it's not nil
+			token.Teams = make([]fleet.TeamTuple, 0, 1)
+		case fleet.NullTeamNoTeam:
+			token.Teams = append(token.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+		case fleet.NullTeamNone:
+			// Regular team
 			token.Teams = append(token.Teams, fleet.TeamTuple{ID: *team.TeamID, Name: team.TeamName})
-		} else {
-			token.NullTeam = team.NullTeam
 		}
+		tokens[token.ID] = token
 	}
 
 	var outTokens []fleet.VPPTokenDB
