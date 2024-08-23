@@ -5312,7 +5312,7 @@ LEFT OUTER JOIN
 
 	`
 
-	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.NoTeamName})
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}
@@ -5403,7 +5403,7 @@ LEFT OUTER JOIN
 %s
 	`
 
-	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.NoTeamName})
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}
