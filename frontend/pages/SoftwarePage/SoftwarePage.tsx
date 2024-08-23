@@ -37,7 +37,6 @@ import AddSoftwareModal from "./components/AddSoftwareModal";
 import {
   buildSoftwareFilterQueryParams,
   getSoftwareFilterFromQueryParams,
-  buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFilters,
 } from "./SoftwareTitles/SoftwareTable/helpers";
@@ -485,6 +484,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             onExit={toggleSoftwareFiltersModal}
             onSubmit={onApplyVulnFilters}
             vulnFilters={softwareVulnFilters}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </div>
