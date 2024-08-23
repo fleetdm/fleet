@@ -94,13 +94,6 @@ export default {
   }) => {
     const { MDM_ABM_TOKEN_TEAMS } = endpoints;
     const path = MDM_ABM_TOKEN_TEAMS(params.tokenId);
-    // return sendRequest("PATCH", path, params.teams);
-
-    console.log("editing abm teams", params);
-    // promisify a mock response with a timeout
-    await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
-      console.log("mock API call done")
-    );
-    return Promise.resolve(); // TODO: remove when API is ready
+    return sendRequest("PATCH", path, params.teams);
   },
 };
