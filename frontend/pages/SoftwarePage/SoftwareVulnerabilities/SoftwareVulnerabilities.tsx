@@ -112,7 +112,7 @@ const SoftwareVulnerabilities = ({
     refetch: refetchExactMatch,
   } = useQuery<
     IVulnerabilityResponse | null,
-    AxiosError,
+    AxiosError | any, // TODO: figure out type with error reasons
     IVulnerabilityResponse,
     IGetVulnerabilityQueryKey[]
   >(
