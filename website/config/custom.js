@@ -237,6 +237,9 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
+    // 🫧 Bulk operations dashboard
+    'ee/bulk-operations': 'eashaw',
+
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
