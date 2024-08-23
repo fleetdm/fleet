@@ -783,7 +783,7 @@ This endpoint handles over the air (OTA) MDM enrollments
 
 #### Example
 
-`POST /api/v1/fleet/mdm/ota?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+`POST /api/v1/fleet/ota_enrollment?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
 
 ##### Default response
 
