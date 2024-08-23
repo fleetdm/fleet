@@ -157,7 +157,7 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
     // 🫧 Bulk operations dashboard
-    'ee/bulk-operations': 'eashaw',// (catch-all)
+    'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
@@ -236,6 +236,9 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/views': 'eashaw',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
+
+    // 🫧 Bulk operations dashboard
+    'ee/bulk-operations-dashboard': 'eashaw',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
