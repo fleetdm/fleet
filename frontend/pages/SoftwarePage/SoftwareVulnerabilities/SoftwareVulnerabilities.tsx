@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+import { AxiosError } from "axios";
 import softwareVulnAPI, {
   IGetVulnerabilitiesQueryKey,
   IVulnerabilitiesResponse,
@@ -108,11 +109,10 @@ const SoftwareVulnerabilities = ({
   const {
     isLoading: isLoadingExactMatch,
     isFetching: isFetchingExactMatch,
-    isError: isExactMatchError,
     refetch: refetchExactMatch,
   } = useQuery<
     IVulnerabilityResponse | null,
-    any, // TODO: Fix error type
+    AxiosError,
     IVulnerabilityResponse,
     IGetVulnerabilityQueryKey[]
   >(
@@ -195,11 +195,11 @@ const SoftwareVulnerabilities = ({
           // Handle 404 response which is BE validated CVE string but not a known CVE
         } else if (error.status === 404) {
           if (
-            (error?.data?.errors &&
-              error.data.errors[0].reason.includes("This is not known CVE.")) ||
-            error.data.errors[0].reason.includes(
-              "was not found in the datastore"
-            )
+            error?.data?.errors &&
+            (error.data.errors[0].reason.includes("This is not known CVE.") ||
+              error.data.errors[0].reason.includes(
+                "was not found in the datastore"
+              ))
           ) {
             // FE validatation for CVE string
             if (query && !isValidCVEFormat(stripQuotes(query))) {

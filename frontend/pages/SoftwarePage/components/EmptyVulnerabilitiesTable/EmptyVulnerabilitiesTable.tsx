@@ -95,7 +95,12 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
     emptyState.header += " in this team";
   }
 
-  if (isPremiumTier && exploitedFilter) {
+  if (
+    isPremiumTier &&
+    exploitedFilter &&
+    emptyStateReason !== "unknown-cve" &&
+    emptyStateReason !== "invalid-cve"
+  ) {
     emptyState.info =
       "Try removing the exploited vulnerabilities filter to expand your search.";
   }
