@@ -864,7 +864,7 @@ type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.
 
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
-type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error)
+type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
 
 type GetVPPTokenFunc func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error)
 
@@ -5533,11 +5533,11 @@ func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error
 	return s.SaveABMTokenFunc(ctx, tok)
 }
 
-func (s *DataStore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+func (s *DataStore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.InsertVPPTokenFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertVPPTokenFunc(ctx, tok, teamID, nullTeam)
+	return s.InsertVPPTokenFunc(ctx, tok)
 }
 
 func (s *DataStore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
