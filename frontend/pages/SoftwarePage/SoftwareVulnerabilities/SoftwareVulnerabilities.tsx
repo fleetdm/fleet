@@ -12,6 +12,7 @@ import softwareVulnAPI, {
   getVulnerabilities,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
+import { IApiError } from "interfaces/errors";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { stripQuotes } from "utilities/strings/stringUtils";
@@ -112,7 +113,7 @@ const SoftwareVulnerabilities = ({
     refetch: refetchExactMatch,
   } = useQuery<
     IVulnerabilityResponse | null,
-    AxiosError | any, // TODO: figure out type with error reasons
+    AxiosError<IApiError>,
     IVulnerabilityResponse,
     IGetVulnerabilityQueryKey[]
   >(
