@@ -32,6 +32,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
+import { IMdmVppToken } from "interfaces/mdm";
 
 interface IAppProps {
   children: JSX.Element;
@@ -99,8 +100,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-      onSuccess: (data) => {
-        const { abm_tokens } = data;
+      onSuccess: ({ abm_tokens }) => {
         abm_tokens.length &&
           setABMExpiry({
             earliestExpiry: getEarliestExpiry(abm_tokens),
@@ -132,13 +132,17 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   });
 
   // Get the Apple VPP token expiration date
-  useQuery<IMdmVppToken[]>(["vpp_tokens"], () => mdmAppleAPI.getVppTokens(), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-    onSuccess: (data) => {
-      data.length && setVppExpiry(getEarliestExpiry(data));
-    },
-  });
+  useQuery<IGetVppTokensResponse>(
+    ["vpp_tokens"],
+    () => mdmAppleAPI.getVppTokens(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      onSuccess: ({ vpp_tokens }) => {
+        vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
+      },
+    }
+  );
 
   const fetchConfig = async () => {
     try {
