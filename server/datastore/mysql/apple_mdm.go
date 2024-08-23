@@ -5045,6 +5045,8 @@ func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 }
 
 func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	// linter false positive on the word "token" (gosec G101)
+	//nolint:gosec
 	stmtTokens := `
 	SELECT
 		v.id,
