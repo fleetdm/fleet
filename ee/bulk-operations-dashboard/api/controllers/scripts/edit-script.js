@@ -122,15 +122,17 @@ module.exports = {
         });
       }
     } else {
-      for(let scriptId of script.teams){
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'DELETE',
-          baseUrl: sails.config.custom.fleetBaseUrl,
-          url: `/api/v1/fleet/scripts/${scriptId.scriptFleetApid}`,
-          headers: {
-            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-          }
-        });
+      if(script.teams) {
+        for(let scriptId of script.teams){
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'DELETE',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/scripts/${scriptId.scriptFleetApid}`,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            }
+          });
+        }
       }
       for(let teamApid of newTeamIds){
         // Build a request body for the team.

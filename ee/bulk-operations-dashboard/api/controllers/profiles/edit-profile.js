@@ -137,17 +137,19 @@ module.exports = {
         });
       }// After every added team
     } else {
-      // If there is a new profile uploaded, we will need to delete the old profiles, and add the new profile.
-      for(let team of profile.teams) {
-        // console.log(`removing ${profile.name} from team id ${team.teamName}`);
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'DELETE',
-          baseUrl: sails.config.custom.fleetBaseUrl,
-          url: `/api/v1/fleet/configuration_profiles/${team.uuid}`,
-          headers: {
-            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-          }
-        });
+      if(profile.teams) {
+        // If there is a new profile uploaded, we will need to delete the old profiles, and add the new profile.
+        for(let team of profile.teams) {
+          // console.log(`removing ${profile.name} from team id ${team.teamName}`);
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'DELETE',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/configuration_profiles/${team.uuid}`,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            }
+          });
+        }
       }
       for(let teamApid of newTeamIds){
         // console.log(`Adding ${profile.name} to team id ${teamApid}`);
