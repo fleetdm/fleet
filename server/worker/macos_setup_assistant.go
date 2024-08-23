@@ -135,10 +135,6 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 			return nil
 		}
 
-		// TODO(JVE): update this to not used hardcoded name
-		// get serials + abm token org name
-		// make a map of org name -> []serials
-		// make 1 call to AssignProfile per org name, and pass in the serials for that name
 		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: orgs and serials", "taskName", MacosSetupAssistantProfileChanged, "assignSerials", assignSerials)
 		for orgName, serials := range assignSerials {
 			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
