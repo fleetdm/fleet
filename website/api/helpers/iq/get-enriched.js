@@ -258,7 +258,7 @@ module.exports = {
           if (!sails.config.custom.openAiSecret) {
             throw new Error('sails.config.custom.openAiSecret not set.');
           }//•
-      
+
           let prompt = `How many employees does the organization who owns ${emailDomain} have?
     
     Please respond in this form (but instead of 0, put the number of employees, as an integer:
@@ -273,9 +273,11 @@ module.exports = {
             messages: [ { role: 'user', content: prompt } ],// // https://platform.openai.com/docs/guides/chat/introduction
             temperature: 0.7,
             max_tokens: 256//eslint-disable-line camelcase
-          }, { Authorization: `Bearer ${sails.config.custom.openAiSecret}` })
+          }, {
+            Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+          })
           .tolerate((unusedErr)=>{});
-    
+
           if (openAiResponse) {
             try {
               employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content);
