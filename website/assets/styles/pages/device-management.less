@@ -495,24 +495,20 @@
       }
     }
   }
-  [purpose='three-column-features'] {
-    max-width: 1080px;
-    [purpose='feature-row'] {
-      &:not(:last-of-type) {
-        margin-bottom: 60px;
-      }
-      [purpose='feature-item'] {
-        margin-left: 40px;
-        margin-right: 40px;
-        max-width: 266px;
-        width: 33%;
-        p {
-          font-size: 14px;
-          font-weight: 400;
-          line-height: 21px;
-        }
+  [purpose='responsive-feature-row'] {
+    [purpose='feature-item'] {
+      padding-right: 24px;
+      padding-left: 24px;
+      margin-bottom: 64px;
+      p {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 21px;
       }
     }
+  }
+  [purpose='three-column-features'] {
+    max-width: 1080px;
     h2 {
       font-size: 32px;
       line-height: 48px;
@@ -684,6 +680,18 @@
         width: 50%;
       }
     }
+    [purpose='responsive-feature-row'] {
+      [purpose='feature-item'] {
+        padding-right: 24px;
+        padding-left: 24px;
+        margin-bottom: 64px;
+        p {
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 21px;
+        }
+      }
+    }
 
     [purpose='testimonial-videos'] {
       width: 410px;
@@ -780,6 +788,9 @@
         font-size: 42px;
       }
     }
+    [purpose='feature'] {
+      margin-bottom: 80px;
+    }
 
     [purpose='calendar-feature'] {
       [purpose='feature-video'] {
@@ -838,12 +849,16 @@
     }
     [purpose='feature'].flex-column {
       [purpose='feature-text'] {
-        margin-left: auto;
+        width: 100%;
+        margin-left: 0px;
+        margin-right: 0px;
       }
     }
     [purpose='feature'].flex-column-reverse {
       [purpose='feature-text'] {
-        margin-right: auto;
+        width: 100%;
+        margin-left: 0px;
+        margin-right: 0px;
       }
     }
     [purpose='feature-image'] {
@@ -912,6 +927,19 @@
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
         padding-left: 24px;
+      }
+    }
+    [purpose='responsive-feature-row'] {
+      [purpose='feature-item'] {
+        padding-right: 0px;
+        padding-left: 0px;
+        margin-bottom: 64px;
+        text-align: center;
+        p {
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 21px;
+        }
       }
     }
     [purpose='page-section'] {
