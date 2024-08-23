@@ -96,7 +96,7 @@ parasails.registerComponent('fileUpload', {
             <label purpose="file-upload" for="file-upload-input">
               <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose File
             </label>
-            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" accept=".xml,.mobileconfig" @change="changeFileInput($event)"/>
+            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" accept=".xml,.mobileconfig,.json" @change="changeFileInput($event)"/>
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@ parasails.registerComponent('fileUpload', {
         <div class="d-flex flex-row justify-content-start">
           <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
           <div class="d-flex flex-column">
-            <p><strong>{{selectedFileName.replace(/\.(xml|mobileconfig)$/g, '').replace(/^\d{4}-\d{2}-\d{2}_/, '')}}</strong></p>
+            <p><strong>{{selectedFileName.replace(/\.(xml|mobileconfig|json)$/g, '').replace(/^\d{4}-\d{2}-\d{2}_/, '')}}</strong></p>
             <p class="muted" v-if="_.endsWith(selectedFileName, 'xml')">Windows</p>
             <p class="muted" v-else>macOS, iOS, iPadOS</p>
           </div>

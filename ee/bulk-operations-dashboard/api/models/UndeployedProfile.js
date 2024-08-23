@@ -35,6 +35,7 @@ module.exports = {
       isIn: [
         '.mobileconfig',
         '.xml',
+        '.json',
       ],
     },
 
