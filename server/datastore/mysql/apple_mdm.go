@@ -4975,6 +4975,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 	if len(teams) > 0 {
 		for _, team := range teams {
+			team := team
 			if values == "" {
 				values = stmtValues
 			} else {
