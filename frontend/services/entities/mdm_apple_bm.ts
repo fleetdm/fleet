@@ -19,6 +19,10 @@ export interface IGetAbmTokensResponse {
   abm_tokens: IMdmAbmToken[];
 }
 
+export interface IAbmTokenResponse {
+  abm_token: IMdmAbmToken;
+}
+
 export default {
   getAppleBMInfo: (): Promise<IGetAppleBMInfoResponse> => {
     const { MDM_APPLE_BM } = endpoints;
@@ -59,7 +63,7 @@ export default {
     return sendRequest("POST", MDM_ABM_TOKENS, formData);
   },
 
-  renewToken: (id: number, token: File): Promise<void> => {
+  renewToken: (id: number, token: File): Promise<IAbmTokenResponse> => {
     const { MDM_ABM_TOKEN_RENEW } = endpoints;
     const path = MDM_ABM_TOKEN_RENEW(id);
 
@@ -78,30 +82,6 @@ export default {
   getTokens: (): Promise<IGetAbmTokensResponse> => {
     const { MDM_ABM_TOKENS } = endpoints;
     return sendRequest("GET", MDM_ABM_TOKENS);
-    // return Promise.resolve([
-    //   {
-    //     id: 1,
-    //     apple_id: "apple@example.com",
-    //     org_name: "Fleet Device Management Inc.",
-    //     mdm_server_url: "https://example.com/mdm/apple/mdm",
-    //     renew_date: "2023-11-29T00:00:00Z", // TODO: test coverage for invalid dates
-    //     terms_expired: false,
-    //     macos_team: { id: 1, name: "💻 Workstations" },
-    //     ios_team: { id: 0, name: "No Team" },
-    //     ipados_team: { id: 3, name: "🔳🏢 Company-owned iPads" },
-    //   },
-    //   {
-    //     id: 2,
-    //     apple_id: "apple@example.com",
-    //     org_name: "Fleet Device Management Inc.",
-    //     mdm_server_url: "https://example.com/mdm/apple/mdm",
-    //     renew_date: "2024-08-29T00:00:00Z",
-    //     terms_expired: false,
-    //     macos_team: { id: 1, name: "💻 Workstations" },
-    //     ios_team: { id: 0, name: "No Team" },
-    //     ipados_team: { id: 3, name: "🔳🏢 Company-owned iPads" },
-    //   },
-    // ]); // TODO: remove when API is ready
   },
 
   editTeams: async (params: {
