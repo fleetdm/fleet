@@ -1,11 +1,13 @@
 # MDM migration
 
-This section provides instructions for migrating your hosts away from your old MDM solution to Fleet.
+This guide provides instructions for migrating your hosts away from your old MDM solution to Fleet.
+
+> For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
 
 ## Requirements
 
-1. A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet
-2. [Fleet connected to Apple](https://fleetdm.com/guides/macos-mdm-setup)
+- A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet)
+- Fleet is connected to Apple Push Notification service (APNs) and Apple Business Manager (ABM). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
 
 ## Migrate manually enrolled hosts
 
