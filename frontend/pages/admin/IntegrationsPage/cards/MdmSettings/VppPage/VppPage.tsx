@@ -6,7 +6,9 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { IMdmVppToken } from "interfaces/mdm";
-import mdmAppleAPI from "services/entities/mdm_apple";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
 
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -82,15 +84,15 @@ const VppPage = ({ router }: IVppPageProps) => {
     data: vppTokens,
     error: errorVppTokens,
     isLoading,
-    isRefetching,
     refetch,
-  } = useQuery<IMdmVppToken[], AxiosError>(
+  } = useQuery<IGetVppTokensResponse, AxiosError, IMdmVppToken[]>(
     ["vpp_tokens"],
     () => mdmAppleAPI.getVppTokens(),
     {
       refetchOnWindowFocus: false,
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
+      select: (data) => data.vpp_tokens,
     }
   );
 

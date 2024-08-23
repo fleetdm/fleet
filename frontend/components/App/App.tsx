@@ -12,7 +12,6 @@ import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import { authToken, clearToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
-import { IMdmVppToken } from "interfaces/mdm";
 import { QueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import usersAPI from "services/entities/users";
@@ -21,7 +20,9 @@ import hostCountAPI from "services/entities/host_count";
 import mdmAppleBMAPI, {
   IGetAbmTokensResponse,
 } from "services/entities/mdm_apple_bm";
-import mdmAppleAPI from "services/entities/mdm_apple";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
 
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";

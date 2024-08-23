@@ -34,7 +34,7 @@ const DeleteVppModal = ({
       onDeletedToken();
     } catch (e) {
       // TODO: Check API sends back correct error messages
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      renderFlash("error", "Couldn't delete. Please try again.");
       onCancel();
     }
   }, [onCancel, onDeletedToken, renderFlash, tokenId]);
