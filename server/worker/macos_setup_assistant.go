@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -138,13 +140,14 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		// make a map of org name -> []serials
 		// make 1 call to AssignProfile per org name, and pass in the serials for that name
 		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: orgs and serials", "taskName", MacosSetupAssistantProfileChanged, "assignSerials", assignSerials)
-		for tokID, serials := range assignSerials {
-			tok, err := m.Datastore.GetABMTokenByID(ctx, tokID)
+		for orgName, serials := range assignSerials {
+			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
 			}
-			slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: assigning profiles for org ", "taskName", MacosSetupAssistantProfileChanged, "orgName", tok.OrganizationName)
-			resp, err := m.DEPClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			ctx = abmctx.NewContext(ctx, decTok)
+			slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: assigning profiles for org ", "taskName", MacosSetupAssistantProfileChanged, "orgName", orgName)
+			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
 			}
@@ -214,13 +217,13 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 			return nil
 		}
 
-		for tokID, serials := range assignSerials {
-			tok, err := m.Datastore.GetABMTokenByID(ctx, tokID)
+		for orgName, serials := range assignSerials {
+			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
 			}
-			// TODO(JVE): add the decrypted token to the context
-			resp, err := m.DEPClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			ctx = abmctx.NewContext(ctx, decTok)
+			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
 			}
@@ -285,12 +288,14 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 			return nil
 		}
 
-		for tokID, serials := range assignSerials {
-			tok, err := m.Datastore.GetABMTokenByID(ctx, tokID)
+		for orgName, serials := range assignSerials {
+
+			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
 			}
-			resp, err := m.DEPClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			ctx = abmctx.NewContext(ctx, decTok)
+			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
 			}

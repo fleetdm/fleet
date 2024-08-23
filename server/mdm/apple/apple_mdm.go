@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -555,12 +557,14 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			continue
 		}
 
-		for tokID, serials := range assignSerials {
-			tok, err := d.ds.GetABMTokenByID(ctx, tokID)
+		for orgName, serials := range assignSerials {
+			decTok, err := assets.ABMToken(ctx, d.ds, orgName)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting ABM token by id")
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
 			}
-			apiResp, err := depClient.AssignProfile(ctx, tok.OrganizationName, profUUID, serials...)
+			ctx = abmctx.NewContext(ctx, decTok)
+
+			apiResp, err := depClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				level.Error(logger).Log(
 					"msg", "assign profile",
