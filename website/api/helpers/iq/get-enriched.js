@@ -280,8 +280,8 @@ module.exports = {
           if (openAiResponse) {
             try {
               employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content);
-            } catch (err) {
-              sails.log.warn('When trying to parse a JSON report returned from the Open AI API, an error occurred. Error details from JSON.parse: '+err.stack+'\n Report returned from Open AI:'+openAiResponse.choices[0].message.content);
+            } catch (unusedErr) {
+              employer.numberOfEmployees = 1;
             }
           }//ﬁ
         }//ﬁ
