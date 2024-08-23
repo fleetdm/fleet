@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -22,6 +23,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 
+	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
 	kitlog "github.com/go-kit/log"
@@ -31,6 +33,8 @@ import (
 // holds the DEP configuration.
 //
 // Fleet uses only one DEP configuration set for the whole deployment.
+// TODO: this shouldn't be used anywhere after the multiple ABM tokens support is done
+// (this was the "name" of the one and only token before).
 const DEPName = "fleet"
 
 const (
@@ -390,6 +394,8 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return nil
 	}
 
+	abmTokenID := uint(0)
+
 	var addedDevices []godep.Device
 	var deletedSerials []string
 	var modifiedSerials []string
@@ -452,7 +458,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices)
+	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID)
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
@@ -505,7 +511,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
 		}
 
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts); err != nil {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTokenID); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing device")
 		}
 
@@ -620,34 +626,76 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 }
 
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided
-// storage that will flag the AppConfig's AppleBMTermsExpired field
-// whenever the status of the terms changes.
-func NewDEPClient(storage godep.ClientStorage, appCfgUpdater fleet.AppConfigUpdater, logger kitlog.Logger) *godep.Client {
+// storage that will flag the ABM token's terms expired field and the
+// AppConfig's AppleBMTermsExpired field whenever the status of the terms
+// changes.
+func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger kitlog.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
+		// to check for ABM terms expired, we must have an ABM token organization
+		// name and NOT a raw ABM token in the context (as the presence of a raw
+		// ABM token means that the token is new, hasn't been saved in the DB yet
+		// so no point checking for the terms expired as we don't have a row in
+		// abm_tokens to save that flag).
+		orgName := depclient.GetName(ctx)
+		if _, rawTokenPresent := ctxabm.FromContext(ctx); rawTokenPresent || orgName == "" {
+			return reqErr
+		}
+
 		// if the request failed due to terms not signed, or if it succeeded,
-		// update the app config flag accordingly. If it failed for any other
-		// reason, do not update the flag.
+		// update the ABM token's (and possibly the app config's) flag accordingly.
+		// If it failed for any other reason, do not update the flag.
 		termsExpired := reqErr != nil && godep.IsTermsNotSigned(reqErr)
 		if reqErr == nil || termsExpired {
-			appCfg, err := appCfgUpdater.AppConfig(ctx)
+			// get the count of tokens with the flag still set
+			count, err := updater.CountABMTokensWithTermsExpired(ctx)
+			if err != nil {
+				level.Error(logger).Log("msg", "Apple DEP client: failed to get count of tokens with terms expired", "err", err)
+				return reqErr
+			}
+
+			// get the appconfig for the global flag
+			appCfg, err := updater.AppConfig(ctx)
 			if err != nil {
 				level.Error(logger).Log("msg", "Apple DEP client: failed to get app config", "err", err)
 				return reqErr
 			}
 
+			// on API call success, if the global terms expired flag is not set and
+			// the count is 0, no need to do anything else (it means this ABM token
+			// already had the flag cleared).
+			if reqErr == nil && count == 0 && !appCfg.MDM.AppleBMTermsExpired {
+				return reqErr
+			}
+
+			// otherwise, update the specific ABM token's flag
+			wasSet, err := updater.SetABMTokenTermsExpiredForOrgName(ctx, orgName, termsExpired)
+			if err != nil {
+				level.Error(logger).Log("msg", "Apple DEP client: failed to update terms expired of ABM token", "err", err)
+				return reqErr
+			}
+
+			// update the count of ABM tokens with the flag set accordingly
+			stillSetCount := count
+			if wasSet && !termsExpired {
+				stillSetCount--
+			} else if !wasSet && termsExpired {
+				stillSetCount++
+			}
+
 			var mustSaveAppCfg bool
-			if termsExpired && !appCfg.MDM.AppleBMTermsExpired {
+			if stillSetCount > 0 && !appCfg.MDM.AppleBMTermsExpired {
 				// flag the AppConfig that the terms have changed and must be accepted
+				// for at least one token
 				appCfg.MDM.AppleBMTermsExpired = true
 				mustSaveAppCfg = true
-			} else if reqErr == nil && appCfg.MDM.AppleBMTermsExpired {
-				// flag the AppConfig that the terms have been accepted
+			} else if stillSetCount == 0 && appCfg.MDM.AppleBMTermsExpired {
+				// flag the AppConfig that the terms have been accepted for all tokens
 				appCfg.MDM.AppleBMTermsExpired = false
 				mustSaveAppCfg = true
 			}
 
 			if mustSaveAppCfg {
-				if err := appCfgUpdater.SaveAppConfig(ctx, appCfg); err != nil {
+				if err := updater.SaveAppConfig(ctx, appCfg); err != nil {
 					level.Error(logger).Log("msg", "Apple DEP client: failed to save app config", "err", err)
 				}
 				level.Info(logger).Log("msg", "Apple DEP client: updated app config Terms Expired flag",

@@ -64,9 +64,9 @@ import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExper
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleAutomaticEnrollmentPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
-import VppSetupPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppSetupPage";
+import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
+import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
@@ -189,15 +189,23 @@ const routes = (
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={AppleMdmPage} />
+            {/* This redirect is used to handle old apple automatic enrollments page */}
+            <Redirect
+              from="integrations/automatic-enrollment/apple"
+              to="integrations/mdm/abm"
+            />
             <Route
-              path="integrations/automatic-enrollment/apple"
-              component={AppleAutomaticEnrollmentPage}
+              path="integrations/mdm/abm"
+              component={AppleBusinessManagerPage}
             />
             <Route
               path="integrations/automatic-enrollment/windows"
               component={WindowsAutomaticEnrollmentPage}
             />
-            <Route path="integrations/vpp/setup" component={VppSetupPage} />
+            {/* This redirect is used to handle old vpp setup page */}
+            <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
+            <Route path="integrations/mdm/vpp" component={VppPage} />
+
             <Route path="teams" component={TeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={UsersPage} />

@@ -26,12 +26,15 @@ import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+  downloadFile,
 } from "./helpers";
 
 const baseClass = "software-package-card";
@@ -254,43 +257,20 @@ const SoftwarePackageCard = ({
 
   const onDownloadClick = useCallback(async () => {
     try {
-      const resp = await softwareAPI.downloadSoftwarePackage(
+      const resp = await softwareAPI.getSoftwarePackageToken(
         softwareId,
         teamId
       );
-      const contentLength = parseInt(resp.headers["content-length"], 10);
-      if (contentLength !== resp.data.size) {
-        throw new Error(
-          `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
-        );
+      if (!resp.token) {
+        throw new Error("No download token returned");
       }
-
-      let filename = name;
-      try {
-        const cd = parse(resp.headers["content-disposition"]);
-        if (cd.parameters.filename) {
-          filename = cd.parameters.filename;
-        }
-      } catch (e) {
-        // TODO: Refactor this component's props so we can derive a file extension from the `source`
-        // property from title detail response.
-        //
-        // For now, we'll just use the software name prop as the filename if we can't parse the
-        // content-disposition header.
-      }
-
-      const file = new File([resp.data], filename, {
-        type: "application/octet-stream",
-      });
-      if (file.size === 0) {
-        throw new Error("Downloaded file is empty");
-      }
-      if (file.size !== resp.data.size) {
-        throw new Error(
-          `File size (${file.size}) does not match expected size (${resp.data.size})`
-        );
-      }
-      FileSaver.saveAs(file);
+      // Now that we received the download token, we construct the download URL.
+      const { origin } = global.window.location;
+      const url = `${origin}${URL_PREFIX}/api${endpoints.SOFTWARE_PACKAGE_TOKEN(
+        softwareId
+      )}/${resp.token}`;
+      // The download occurs without any additional authentication.
+      downloadFile(url, name);
     } catch (e) {
       renderFlash("error", "Couldn't download. Please try again.");
     }

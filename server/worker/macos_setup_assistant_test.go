@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,7 +41,12 @@ func TestMacosSetupAssistant(t *testing.T) {
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
 		})
 		require.NoError(t, err)
-		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+
+		encTok := uuid.NewString()
+		abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+		require.NotEmpty(t, abmToken.ID)
+		require.NoError(t, err)
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 		require.NoError(t, err)
 		hosts[i] = h
 		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)

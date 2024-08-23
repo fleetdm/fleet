@@ -16,10 +16,9 @@ const AppleBMRenewalMessage = ({ expired }: IAppleBMRenewalMessageProps) => {
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/learn-more-about/renew-abm" // TODO: /settings/integrations/mdm/abm
+          url="/settings/integrations/mdm/abm"
           text="Renew ABM"
-          className={`${baseClass}__new-tab`}
-          newTab
+          className={`${baseClass}`}
           color="core-fleet-black"
           iconColor="core-fleet-black"
         />

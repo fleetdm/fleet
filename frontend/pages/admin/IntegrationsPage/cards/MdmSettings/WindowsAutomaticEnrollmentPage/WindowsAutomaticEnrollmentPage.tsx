@@ -26,8 +26,8 @@ const WindowsAutomaticEnrollmentPage = () => {
     <MainContent className={baseClass}>
       <>
         <BackLink
-          text="Back to automatic enrollment"
-          path={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT}
+          text="Back to MDM"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-automatic-enrollment`}
         />
         <h1>Azure Active Directory</h1>
