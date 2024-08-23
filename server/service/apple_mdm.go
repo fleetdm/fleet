@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	cms "github.com/github/smimesign/ietf-cms"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -4148,4 +4149,155 @@ func (svc *Service) DisableABM(ctx context.Context) error {
 
 	appCfg.MDM.AppleBMEnabledAndConfigured = false
 	return svc.ds.SaveAppConfig(ctx, appCfg)
+}
+
+type mdmAppleOTARequest struct {
+	EnrollSecret string `query:"enroll_secret"`
+	UDID         string `plist:"UDID"`
+	Serial       string `plist:"SERIAL"`
+	Version      string `plist:"VERSION"`
+	Product      string `plist:"PRODUCT"`
+	Certificates []*x509.Certificate
+}
+
+func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	rawData, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	signedData, err := cms.ParseSignedData(rawData)
+	if err != nil {
+		return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
+	}
+	data, err := signedData.GetData()
+	if err != nil {
+		return nil, fmt.Errorf("could not get profile data from the signed mobileconfig: %w", err)
+	}
+	certificates, err := signedData.GetCertificates()
+	if err != nil {
+		return nil, err
+	}
+	var request mdmAppleOTARequest
+	err = plist.Unmarshal(data, &request)
+	if err != nil {
+		return nil, err
+	}
+	request.EnrollSecret = r.URL.Query().Get("enroll_secret")
+	request.Certificates = certificates
+	return &request, nil
+}
+
+type mdmAppleOTAResponse struct {
+	Err error `json:"error,omitempty"`
+	xml []byte
+}
+
+func (r mdmAppleOTAResponse) error() error { return r.Err }
+
+func (r mdmAppleOTAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", r.xml))
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if _, err := w.Write(r.xml); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*mdmAppleOTARequest)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req)
+	if err != nil {
+		return mdmAppleGetInstallerResponse{Err: err}, nil
+	}
+	return mdmAppleOTAResponse{xml: xml}, nil
+}
+
+func (svc *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, enrollment any) ([]byte, error) {
+	// TODO: use proper type here
+	enrollInfo := enrollment.(*mdmAppleOTARequest)
+
+	// Authorization is performed via the enroll secret
+	if _, err := svc.ds.VerifyEnrollSecret(ctx, enrollInfo.EnrollSecret); err != nil {
+		return nil, &authz.Forbidden{}
+	}
+	svc.authz.SkipAuthorization(ctx)
+
+	// TODO: from the docs
+	//
+	// > Security Note:  The reference implementation does not verify the signer
+	// > here. You should verify it against a trust store made up of intermediates
+	// > from the device certificate authority up to the root CA and the hierarchy
+	// > you'll use to issue profile service identities.
+	certVerifier := mdmcrypto.NewSCEPVerifier(svc.ds)
+	var verified bool
+	for _, cert := range enrollInfo.Certificates {
+		if err := certVerifier.Verify(cert); err == nil {
+			verified = true
+			break
+		}
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	fleetURL := appCfg.ServerSettings.ServerURL
+
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	}
+	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
+
+	if !verified {
+		scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+		if err != nil {
+			return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+		}
+
+		var buf bytes.Buffer
+		if err := apple_mdm.OTASCEPTemplate.Execute(&buf, struct {
+			SCEPURL       string
+			SCEPChallenge string
+		}{
+			SCEPURL:       scepURL,
+			SCEPChallenge: scepChallenge,
+		}); err != nil {
+			return nil, fmt.Errorf("execute template: %w", err)
+		}
+		return buf.Bytes(), nil
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	topic, err := svc.mdmPushCertTopic(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	}
+
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		topic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
+	}
+
+	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	// TODO: before returning, create a host and assign the host to a team.
+	// we already have logic for this for ADE enrollments, see `IngestMDMAppleDevicesFromDEPSync`
+
+	return signed, nil
 }

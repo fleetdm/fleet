@@ -655,6 +655,8 @@ type Service interface {
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
 
+	MDMAppleProcessOTAEnrollment(ctx context.Context, enrollment any) ([]byte, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 

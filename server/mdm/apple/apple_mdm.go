@@ -659,6 +659,62 @@ func NewDEPClient(storage godep.ClientStorage, appCfgUpdater fleet.AppConfigUpda
 	}))
 }
 
+var OTASCEPTemplate = template.Must(template.New("").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadIdentifier</key>
+    <string>Ignored</string>
+    <key>PayloadUUID</key>
+    <string>Ignored</string>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>PayloadContent</key>
+        <dict>
+          <key>Key Type</key>
+          <string>RSA</string>
+          <key>Challenge</key>
+          <string>{{ .SCEPChallenge }}</string>
+          <key>Key Usage</key>
+          <integer>5</integer>
+          <key>Keysize</key>
+          <integer>2048</integer>
+          <key>URL</key>
+          <string>{{ .SCEPURL }}</string>
+          <key>Subject</key>
+          <array>
+            <array>
+              <array>
+                <string>O</string>
+                <string>Fleet</string>
+              </array>
+            </array>
+            <array>
+              <array>
+                <string>CN</string>
+                <string>Fleet Identity</string>
+              </array>
+            </array>
+          </array>
+        </dict>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.scep</string>
+        <key>PayloadType</key>
+        <string>com.apple.security.scep</string>
+        <key>PayloadUUID</key>
+        <string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
+    </array>
+  </dict>
+</plist>`))
+
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and
