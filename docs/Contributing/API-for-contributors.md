@@ -770,7 +770,7 @@ If the credentials are valid, the server redirects the client to the Fleet UI. T
 
 This endpoint handles over the air (OTA) MDM enrollments
 
-`POST /api/v1/fleet/mdm/ota`
+`POST /api/v1/fleet/ota_enrollment`
 
 #### Parameters
 
