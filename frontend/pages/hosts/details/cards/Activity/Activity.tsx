@@ -26,7 +26,6 @@ export type ShowActivityDetailsHandler = (
   data: IShowActivityDetailsData
 ) => void;
 
-
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
