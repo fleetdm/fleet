@@ -779,7 +779,7 @@ This endpoint handles over the air (OTA) MDM enrollments
 | enroll_secret       | string | url  | **Required** Assigns the host to a team with a matching enroll secret                                                                                                                                                                                                                 |
 | XML device response | XML    | body | **Required**. The XML response from the device. Fields are documented [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) |
 
-> Note: enroll secrets can contain special characters. Ensure any special characters are properly escaped.
+> Note: enroll secrets can contain special characters. Ensure any special characters are [properly escaped](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding).
 
 #### Example
 
