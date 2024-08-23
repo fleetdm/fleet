@@ -95,9 +95,9 @@
             <div class="container-fluid px-0 pt-4">
               <ul class="px-0 mb-0 pb-3">
                 <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
-                  <a :href="page.url" class="font-weight-bold" :class="[[isCurrentSection(page) ? 'topic active' : '' ]]">
+                  <span class="font-weight-bold">
                     {{page.title}}
-                  </a>
+                  </span>
                   <div purpose="expanded-nav" class="pt-3">
                     <ul class="p-0 pl-2 mb-3" v-if="!_.isEmpty(findPagesByUrl(page.url))">
                       <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
@@ -135,7 +135,7 @@
         <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-3 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
-              <a :href="page.url" class="font-weight-bold pb-3" :class="[[isCurrentSection(page) ? 'topic active' : '' ]]">{{page.title}}</a>
+              <span class="font-weight-bold pb-3">{{page.title}}</span>
               <div purpose="expanded-nav" class="pt-3" >
                 <ul class="p-0 pl-2 mb-3">
                   <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
