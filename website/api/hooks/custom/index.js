@@ -153,7 +153,7 @@ will be disabled and/or hidden in the UI.
             // within 30 minutes of visiting the website from an ad, their psychological
             // stage change will be attributed to the ad campaign that brought them here.
             if(req.param('utm_source') && req.param('utm_campaign')){
-              req.session.adCampaignId = `${req.param('utm_source')} - ${req.param('utm_campaign')}`;
+              req.session.adCampaignId = `${req.param('utm_source')} - ${req.param('utm_campaign')}`;// EX: Linkedin - MDM
               req.session.visitedSiteFromAdAt = Date.now();
             }
 
