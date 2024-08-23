@@ -5013,7 +5013,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "could not begin transaction to update vpp token teams")
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
