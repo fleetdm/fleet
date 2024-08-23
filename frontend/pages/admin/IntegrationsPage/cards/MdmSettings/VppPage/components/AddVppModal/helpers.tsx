@@ -8,8 +8,8 @@ const generateDuplicateMessage = (msg: string) => {
   const orgName = msg.split("'")[1];
   return (
     <>
-      Couldn&apos;t add. There&apos;s already an ABM connection for the{" "}
-      <b>{orgName}</b> organization.
+      Couldn&apos;t add. There&apos;s already a VPP connection for the{" "}
+      <b>{orgName}</b> location.
     </>
   );
 };
@@ -17,7 +17,7 @@ const generateDuplicateMessage = (msg: string) => {
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
   const duplicateEntryReason = getErrorReason(err, {
-    reasonIncludes: "already exists",
+    reasonIncludes: "Duplicate entry",
   });
   const invalidTokenReason = getErrorReason(err, {
     reasonIncludes: "invalid",
