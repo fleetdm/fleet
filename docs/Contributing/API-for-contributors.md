@@ -537,6 +537,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
@@ -764,6 +765,34 @@ If the credentials are valid, the server redirects the client to the Fleet UI. T
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+### Over the air enrollment
+
+This endpoint handles over the air (OTA) MDM enrollments
+
+`POST /api/v1/fleet/mdm/ota`
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                                                                                                                                                                                                                                                                        |
+| ------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enroll_secret       | string | url  | **Required** Assigns the host to a team with a matching enroll secret                                                                                                                                                                                                                 |
+| XML device response | XML    | body | **Required**. The XML response from the device. Fields are documented [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) |
+
+> Note: enroll secrets can contain special characters. Ensure any special characters are properly escaped.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/ota?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+Per [the spec](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1), the response is different depending on the signature of the XML device response:
+
+- If the body is signed with a certificate that can be validated by our root SCEP certificate, it returns an enrollment profile.
+- Otherwise, it returns a SCEP payload.
 
 ### Preassign profiles to devices
 
