@@ -18,6 +18,7 @@ import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
 import DeleteVppModal from "./components/DeleteVppModal";
 import VppTable from "./components/VppTable";
+import EditTeamsVppModal from "./components/EditTeamsVppModal";
 
 const baseClass = "vpp-page";
 
@@ -73,6 +74,7 @@ const VppPage = ({ router }: IVppPageProps) => {
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddVppModal, setShowAddVppModal] = useState(false);
+  const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
 
   const selectedToken = useRef<IMdmVppToken | null>(null);
 
@@ -92,9 +94,21 @@ const VppPage = ({ router }: IVppPageProps) => {
     }
   );
 
-  const onEditTokenTeam = (token: IMdmVppToken) => {
-    console.log(token);
+  const onEditTokenTeams = (token: IMdmVppToken) => {
+    selectedToken.current = token;
+    setShowEditTeamsModal(true);
   };
+
+  const onCancelEditTokenTeams = useCallback(() => {
+    selectedToken.current = null;
+    setShowEditTeamsModal(false);
+  }, []);
+
+  const onEditedTeams = useCallback(() => {
+    selectedToken.current = null;
+    refetch();
+    setShowEditTeamsModal(false);
+  }, [refetch]);
 
   const onAddVpp = () => {
     setShowAddVppModal(true);
@@ -170,7 +184,7 @@ const VppPage = ({ router }: IVppPageProps) => {
           </p>
           <VppTable
             vppTokens={vppTokens}
-            onEditTokenTeam={onEditTokenTeam}
+            onEditTokenTeam={onEditTokenTeams}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
           />
@@ -221,6 +235,14 @@ const VppPage = ({ router }: IVppPageProps) => {
           tokenId={selectedToken.current.id}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
+        />
+      )}
+      {showEditTeamsModal && selectedToken.current && (
+        <EditTeamsVppModal
+          currentToken={selectedToken.current}
+          tokens={vppTokens || []}
+          onCancel={onCancelEditTokenTeams}
+          onSuccess={onEditedTeams}
         />
       )}
     </MainContent>
