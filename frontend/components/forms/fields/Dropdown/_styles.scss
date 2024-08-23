@@ -70,9 +70,10 @@
 
     &:hover:not(.is-disabled) {
       box-shadow: none;
-      border: 1px solid $core-vibrant-blue;
+      border-color: $core-vibrant-blue;
     }
   }
+
   .Select-control {
     background-color: $ui-light-grey;
     border: 0;
