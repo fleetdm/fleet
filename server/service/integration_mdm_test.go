@@ -66,10 +66,10 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.mozilla.org/pkcs7"
 )
 
 func TestIntegrationsMDM(t *testing.T) {
@@ -10992,4 +10992,146 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	err = plist.NewDecoder(bytes.NewReader(prof.Mobileconfig)).Decode(&parsedData)
 	require.NoError(t, err)
 	require.Equal(t, enrollSecretWithInvalidChars, parsedData.PayloadContent[0].EnrollSecret)
+}
+
+func (s *integrationMDMTestSuite) TestOTAEnrollment() {
+	t := s.T()
+
+	// create a global enroll secret
+	globalSecret := "global_secret"
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	reqBody := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PRODUCT</key>
+	<string></string>
+	<key>SERIAL</key>
+	<string>foo</string>
+	<key>UDID</key>
+	<string></string>
+	<key>VERSION</key>
+	<string></string>
+</dict>
+</plist>`)
+
+	// request with no enroll secret
+	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusBadRequest)
+	errMsg := extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "enroll_secret query parameter is required")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request with no body
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "invalid request body")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request with unsigned body
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", reqBody, http.StatusBadRequest)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "invalid request body")
+	require.NoError(t, httpResp.Body.Close())
+
+	cert, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	signedData, err := pkcs7.NewSignedData(reqBody)
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signedReqBody, err := signedData.Finish()
+	require.NoError(t, err)
+
+	// request with invalid apple signature
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "forbidden")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request with invalid device signature
+	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "forbidden")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request without serial number
+	signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SERIAL</key>
+	<string></string>
+</dict>
+</plist>`))
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signedReqBody, err = signedData.Finish()
+	require.NoError(t, err)
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusBadRequest)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "SERIAL is required")
+	require.NoError(t, httpResp.Body.Close())
+
+	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+		foundInstallFleetdCommand := false
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+				foundInstallFleetdCommand = true
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.Equal(t, wantCommand, foundInstallFleetdCommand)
+	}
+
+	hwModel := "MacBookPro16,1"
+	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		globalSecret,
+		hwModel,
+	)
+	require.NoError(t, mdmDevice.Enroll())
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, true)
+
+	var hostByIdentifierResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
+	require.Nil(t, hostByIdentifierResp.Host.TeamID)
+
+	// create a team with a different enroll secret
+	var specResp applyTeamSpecsResponse
+	teamSecret := "team_secret"
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}}}}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+	hwModel = "iPad13,16"
+	mdmDevice = mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		teamSecret,
+		hwModel,
+	)
+	require.NoError(t, mdmDevice.Enroll())
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, false)
+
+	hostByIdentifierResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
+	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
+	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 }

@@ -138,7 +138,7 @@ var OTAMobileConfigTemplate = template.Must(template.New("").Funcs(template.Func
         <string>UDID</string>
         <string>VERSION</string>
         <string>PRODUCT</string>
-	    <string>SERIAL</string>
+	<string>SERIAL</string>
       </array>
     </dict>
     <key>PayloadOrganization</key>
