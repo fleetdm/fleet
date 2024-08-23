@@ -147,7 +147,11 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
-            // Check for query parameters set by ad clicks:
+            // Check for query parameters set by ad clicks.
+            // This is used to track the reason behind a psychological stage change.
+            // If the user performs any action that causes a stage change
+            // within 30 minutes of visiting the website from an ad, their psychological
+            // stage change will be attributed to the ad campaign that brought them here.
             if(req.param('utm_source') && req.param('utm_campaign')){
               req.session.adCampaignId = `${req.param('utm_source')} - ${req.param('utm_campaign')}`;
               req.session.visitedSiteFromAdAt = Date.now();
