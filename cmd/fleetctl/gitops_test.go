@@ -2396,9 +2396,7 @@ software:
 						{
 							Location: "Fleet Device Management Inc.",
 							Teams: []string{
-								"💻 Workstations",
-								"📱🏢 Company-owned iPhones",
-								"No team",
+								"All teams",
 							},
 						},
 					},
@@ -2447,23 +2445,14 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
+				assert.ErrorContains(t, err, "token with location Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
-				assert.Contains(t, out, "[!] gitops dry run succeeded")
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams:    []string{},
-						},
-					},
-				)
-				assert.Contains(t, out, "[!] gitops succeeded")
+				assert.ErrorContains(t, err, "token with location Does not exist doesn't exist")
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 		},
 	}
