@@ -152,8 +152,8 @@ will be disabled and/or hidden in the UI.
             // If the user performs any action that causes a stage change
             // within 30 minutes of visiting the website from an ad, their psychological
             // stage change will be attributed to the ad campaign that brought them here.
-            if(req.param('utm_source') && req.param('utm_campaign')){
-              req.session.adCampaignId = `${req.param('utm_source')} - ${req.param('utm_campaign')}`;// EX: Linkedin - MDM
+            if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
+              req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${req.param('creative_id')}`;// EX: Linkedin - 1245983829 - 41u3985237
               req.session.visitedSiteFromAdAt = Date.now();
             }
 

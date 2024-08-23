@@ -204,11 +204,11 @@ module.exports = {
     // Only update CRM records if the user's psychological stage changes.
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
-      if(this.req.session.adCampaignId && this.req.session.visitedSiteFromAdAt) {
+      if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
         let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
-        // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignID stored in their session.
+        // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
         if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
-          psychologicalStageChangeReason = this.req.session.adCampaignId;
+          psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }
       // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
