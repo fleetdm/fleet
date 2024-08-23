@@ -20,12 +20,14 @@ interface ISoftwareFiltersModalProps {
   onExit: () => void;
   onSubmit: (vulnFilters: ISoftwareVulnFilters) => void;
   vulnFilters: ISoftwareVulnFiltersParams;
+  isPremiumTier: boolean;
 }
 
 const SoftwareFiltersModal = ({
   onExit,
   onSubmit,
   vulnFilters,
+  isPremiumTier,
 }: ISoftwareFiltersModalProps) => {
   const [vulnSoftwareFilterEnabled, setVulnSoftwareFilterEnabled] = useState(
     vulnFilters.vulnerable || false
@@ -50,7 +52,7 @@ const SoftwareFiltersModal = ({
   const onApplyFilters = () => {
     onSubmit({
       vulnerable: vulnSoftwareFilterEnabled,
-      exploit: hasKnownExploit,
+      exploit: hasKnownExploit || undefined,
       min_cvss_score: severity?.minSeverity || undefined,
       max_cvss_score: severity?.maxSeverity || undefined,
     });
@@ -78,27 +80,31 @@ const SoftwareFiltersModal = ({
           inactiveText="Vulnerable software"
           activeText="Vulnerable software"
         />
-        <Dropdown
-          label={renderSeverityLabel()}
-          options={SEVERITY_DROPDOWN_OPTIONS}
-          value={severity}
-          onChange={onChangeSeverity}
-          placeholder="Any severity"
-          className={`${baseClass}__select-severity`}
-          disabled={!vulnSoftwareFilterEnabled}
-        />
-        <Checkbox
-          onChange={({ value }: { value: boolean }) =>
-            setHasKnownExploit(value)
-          }
-          name="hasKnownExploit"
-          value={hasKnownExploit}
-          parseTarget
-          helpText="Software has vulnerabilities that have been actively exploited in the wild."
-          disabled={!vulnSoftwareFilterEnabled}
-        >
-          Has known exploit
-        </Checkbox>
+        {isPremiumTier && (
+          <Dropdown
+            label={renderSeverityLabel()}
+            options={SEVERITY_DROPDOWN_OPTIONS}
+            value={severity}
+            onChange={onChangeSeverity}
+            placeholder="Any severity"
+            className={`${baseClass}__select-severity`}
+            disabled={!vulnSoftwareFilterEnabled}
+          />
+        )}
+        {isPremiumTier && (
+          <Checkbox
+            onChange={({ value }: { value: boolean }) =>
+              setHasKnownExploit(value)
+            }
+            name="hasKnownExploit"
+            value={hasKnownExploit}
+            parseTarget
+            helpText="Software has vulnerabilities that have been actively exploited in the wild."
+            disabled={!vulnSoftwareFilterEnabled}
+          >
+            Has known exploit
+          </Checkbox>
+        )}
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onApplyFilters}>
             Apply
