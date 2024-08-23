@@ -8,7 +8,9 @@ import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { IMdmAbmToken } from "interfaces/mdm";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
+import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
 
 import BackLink from "components/BackLink";
@@ -21,6 +23,7 @@ import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
 import RenewAbmModal from "./components/RenewAbmModal";
 import DeleteAbmModal from "./components/DeleteAbmModal";
+import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -73,6 +76,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
+  const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
 
   const selectedToken = useRef<IMdmAbmToken | null>(null);
 
@@ -94,8 +98,19 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
   const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
     selectedToken.current = abmToken;
-    // TODO: Show edit team modal
+    setShowEditTeamsModal(true);
   };
+
+  const onCancelEditTeam = useCallback(() => {
+    selectedToken.current = null;
+    setShowEditTeamsModal(false);
+  }, []);
+
+  const onEditedTeam = useCallback(() => {
+    selectedToken.current = null;
+    refetch();
+    setShowEditTeamsModal(false);
+  }, [refetch]);
 
   const onAddAbm = () => {
     setShowAddAbmModal(true);
@@ -226,6 +241,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           tokenId={selectedToken.current.id}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
+        />
+      )}
+      {showEditTeamsModal && selectedToken.current && (
+        <EditTeamsAbmModal
+          token={selectedToken.current}
+          onCancel={onCancelEditTeam}
+          onSuccess={onEditedTeam}
         />
       )}
     </MainContent>
