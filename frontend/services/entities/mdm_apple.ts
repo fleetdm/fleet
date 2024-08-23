@@ -130,20 +130,8 @@ export default {
     tokenId: number;
     teamIds: number[] | null;
   }) => {
-    // const { MDM_VPP_TOKEN } = endpoints;
-    // const path = MDM_VPP_TOKEN(id);
-    // return sendRequest("PATCH", path, { teams: teamIds });
-    console.log(
-      "Editing teams for token id",
-      params.tokenId,
-      "with data:",
-      params.teamIds
-    );
-    // promisify a mock response with a timeout
-    await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
-      console.log("done")
-    );
-    console.log("Teams edited successfully");
-    return Promise.resolve();
+    const { MDM_VPP_TOKEN_TEAMS } = endpoints;
+    const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
+    return sendRequest("PATCH", path, { teams: params.teamIds });
   },
 };
