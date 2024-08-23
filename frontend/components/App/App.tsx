@@ -100,10 +100,13 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
       onSuccess: (data) => {
         const { abm_tokens } = data;
-        setABMExpiry({
-          earliestExpiry: getEarliestExpiry(abm_tokens),
-          needsAbmTermsRenewal: abm_tokens.some((token) => token.terms_expired),
-        });
+        abm_tokens.length &&
+          setABMExpiry({
+            earliestExpiry: getEarliestExpiry(abm_tokens),
+            needsAbmTermsRenewal: abm_tokens.some(
+              (token) => token.terms_expired
+            ),
+          });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
       // API behaved this way when the token is already expired or invalid.
@@ -127,12 +130,12 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     },
   });
 
-  // Get the Apple Push VPP token expiration date
+  // Get the Apple VPP token expiration date
   useQuery<IMdmVppToken[]>(["vpp_tokens"], () => mdmAppleAPI.getVppTokens(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
     onSuccess: (data) => {
-      setVppExpiry(getEarliestExpiry(data));
+      data.length && setVppExpiry(getEarliestExpiry(data));
     },
   });
 
