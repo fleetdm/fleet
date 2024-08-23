@@ -263,10 +263,9 @@ module.exports = {
     
     Please respond in this form (but instead of 0, put the number of employees, as an integer:
     {
-      employees: 0
+      "employees": 0
     }`;
-      
-          let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
+          let BASE_MODEL = 'gpt-4o';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
           // [?] API: https://platform.openai.com/docs/api-reference/chat/create
           let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
             model: BASE_MODEL,
