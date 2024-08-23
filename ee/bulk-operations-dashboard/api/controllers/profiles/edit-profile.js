@@ -89,7 +89,7 @@ module.exports = {
     } else if (!newProfile && !profile.teams){// Undeployed profiles are stored in the app's database.
       // console.log('editing an undeployed profile!');
       profileContents = profile.profileContents;
-      filename = profile.name + profile.profileType;
+      filename = profile.name;
       extension = profile.profileType;
     }
     //  ╔═╗╔═╗╔═╗╦╔═╗╔╗╔  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
