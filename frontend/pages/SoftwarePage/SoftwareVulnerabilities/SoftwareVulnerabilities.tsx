@@ -111,7 +111,7 @@ const SoftwareVulnerabilities = ({
     isError: isExactMatchError,
     refetch: refetchExactMatch,
   } = useQuery<
-    IVulnerabilityResponse,
+    IVulnerabilityResponse | null,
     any, // TODO: Fix error type
     IVulnerabilityResponse,
     IGetVulnerabilityQueryKey[]
@@ -130,8 +130,24 @@ const SoftwareVulnerabilities = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
       onSuccess: (data) => {
+        // Handle 204 response which doesn't return data if it is a known CVE but doesn't exist in response
+        if (!data) {
+          setTableData({
+            count: 0,
+            counts_updated_at: "",
+            vulnerabilities: [],
+            meta: {
+              has_next_results: false,
+              has_previous_results: false,
+            },
+          });
+          setEmptyStateReason("known-vuln");
+        }
         // If filtering for exploited vulns, hide vulnerability if cisa_known_exploit is false
-        if (queryParams.exploit && !data.vulnerability.cisa_known_exploit) {
+        else if (
+          queryParams.exploit &&
+          !data.vulnerability.cisa_known_exploit
+        ) {
           setTableData({
             count: 0,
             counts_updated_at: "",
@@ -142,6 +158,7 @@ const SoftwareVulnerabilities = ({
             },
           });
           setEmptyStateReason("no-matching-items");
+          // Otherwise return IVulnerabilityResponse as IVulnerabilitiesResponse format
         } else {
           setTableData({
             count: 1,
@@ -155,7 +172,7 @@ const SoftwareVulnerabilities = ({
         }
       },
       onError: (error) => {
-        console.log("error", error);
+        // Handle 400 response which is an invalid CVE format
         if (error.status === 400) {
           if (
             error?.data?.errors &&
@@ -174,6 +191,8 @@ const SoftwareVulnerabilities = ({
             });
             setEmptyStateReason("invalid-cve");
           }
+
+          // Handle 404 response which is BE validated CVE string but not a known CVE
         } else if (error.status === 404) {
           if (
             (error?.data?.errors &&
@@ -182,7 +201,7 @@ const SoftwareVulnerabilities = ({
               "was not found in the datastore"
             )
           ) {
-            // Frontend CVE validation
+            // FE validatation for CVE string
             if (query && !isValidCVEFormat(stripQuotes(query))) {
               setEmptyStateReason("invalid-cve");
             } else {
@@ -198,17 +217,6 @@ const SoftwareVulnerabilities = ({
               has_previous_results: false,
             },
           });
-        } else if (error.status === 204) {
-          setTableData({
-            count: 0,
-            counts_updated_at: "",
-            vulnerabilities: [],
-            meta: {
-              has_next_results: false,
-              has_previous_results: false,
-            },
-          });
-          setEmptyStateReason("known-vuln");
         }
       },
       enabled: isExactMatchQuery && isSoftwareEnabled,
@@ -231,6 +239,10 @@ const SoftwareVulnerabilities = ({
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
+  console.log("isFetching", isFetching);
+  console.log("isFetchingExactMatch,", isFetchingExactMatch);
+  console.log("isLoading", isLoading);
+  console.log("isLoadingExactMatch,", isLoadingExactMatch);
   return (
     <div className={baseClass}>
       <SoftwareVulnerabilitiesTable
