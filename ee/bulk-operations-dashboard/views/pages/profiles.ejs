@@ -102,7 +102,7 @@
         </div>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <cloud-error v-if="cloudError && cloudError !== 'payloadIdentifierDoesNotMatch'"></cloud-error>
-          <ajax-button :syncing.sync="syncing" type="submit">Save</ajax-button>
+          <ajax-button :syncing.sync="syncing" purpose="modal-button" type="submit">Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -119,7 +119,7 @@
     <ajax-form :handle-submitting="handleSubmittingDeleteProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
     <cloud-error v-if="cloudError"></cloud-error>
     <div class="d-flex flex-row justify-content-end align-items-center">
-      <a class="text-danger mr-3" @click="closeModal()">Cancel</a>
+      <a class="mr-3" style="color: #D66C7B; cursor: pointer;" @click="closeModal()">Cancel</a>
       <ajax-button class="btn" purpose="delete-button" :syncing.sync="syncing">Delete</ajax-button>
     </div>
     </ajax-form>
@@ -145,7 +145,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <a purpose="cancel-button" @click="closeModal()">Cancel</a>
-          <ajax-button :syncing.sync="syncing" :disabled="!formData.newProfile" type="submit">Add</ajax-button>
+          <ajax-button :syncing.sync="syncing" purpose="modal-button" :disabled="!formData.newProfile" type="submit">Add</ajax-button>
         </div>
       </ajax-form>
     </div>
