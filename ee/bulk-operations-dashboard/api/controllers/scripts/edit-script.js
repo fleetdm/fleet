@@ -69,7 +69,7 @@ module.exports = {
     } else if (!newScript && !script.teams){// Undeployed profiles are stored in the app's database.
       // console.log('editing an undeployed profile!');
       scriptContents = script.scriptContents;
-      filename = script.name + script.scriptType;
+      filename = script.name;
       extension = script.scriptType;
     }
 
