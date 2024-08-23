@@ -15,6 +15,10 @@ export interface IGetAppleBMInfoResponse {
   renew_date: string;
 }
 
+export interface IGetAbmTokensResponse {
+  abm_tokens: IMdmAbmToken[];
+}
+
 export default {
   getAppleBMInfo: (): Promise<IGetAppleBMInfoResponse> => {
     const { MDM_APPLE_BM } = endpoints;
@@ -71,22 +75,33 @@ export default {
     return sendRequest("DELETE", path);
   },
 
-  getTokens: (): Promise<IMdmAbmToken[]> => {
+  getTokens: (): Promise<IGetAbmTokensResponse> => {
     const { MDM_ABM_TOKENS } = endpoints;
-    // return sendRequest("GET", MDM_ABM_TOKENS);
-    return Promise.resolve([
-      {
-        id: 1,
-        apple_id: "apple@example.com",
-        org_name: "Fleet Device Management Inc.",
-        mdm_server_url: "https://example.com/mdm/apple/mdm",
-        renew_date: "2022-11-27T00:00:00Z", // TODO: test coverage for invalid dates
-        terms_expired: false,
-        macos_team: { name: "💻 Workstations", id: 1 },
-        ios_team: { name: "📱🏢 Company-owned iPhones", id: 2 },
-        ipados_team: { name: "No team", id: 0 },
-      },
-    ]); // TODO: remove when API is ready
+    return sendRequest("GET", MDM_ABM_TOKENS);
+    // return Promise.resolve([
+    //   {
+    //     id: 1,
+    //     apple_id: "apple@example.com",
+    //     org_name: "Fleet Device Management Inc.",
+    //     mdm_server_url: "https://example.com/mdm/apple/mdm",
+    //     renew_date: "2023-11-29T00:00:00Z", // TODO: test coverage for invalid dates
+    //     terms_expired: false,
+    //     macos_team: { id: 1, name: "💻 Workstations" },
+    //     ios_team: { id: 0, name: "No Team" },
+    //     ipados_team: { id: 3, name: "🔳🏢 Company-owned iPads" },
+    //   },
+    //   {
+    //     id: 2,
+    //     apple_id: "apple@example.com",
+    //     org_name: "Fleet Device Management Inc.",
+    //     mdm_server_url: "https://example.com/mdm/apple/mdm",
+    //     renew_date: "2024-08-29T00:00:00Z",
+    //     terms_expired: false,
+    //     macos_team: { id: 1, name: "💻 Workstations" },
+    //     ios_team: { id: 0, name: "No Team" },
+    //     ipados_team: { id: 3, name: "🔳🏢 Company-owned iPads" },
+    //   },
+    // ]); // TODO: remove when API is ready
   },
 
   editTeams: async (params: {

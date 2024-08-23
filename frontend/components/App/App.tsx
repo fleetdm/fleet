@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AxiosError, AxiosResponse } from "axios";
 import { useQuery } from "react-query";
+import { ErrorBoundary } from "react-error-boundary";
+import { isBefore } from "date-fns";
 
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
@@ -10,25 +12,25 @@ import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import { authToken, clearToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
-
+import { IMdmVppToken } from "interfaces/mdm";
+import { QueryParams } from "utilities/url";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
-import mdmAppleBMAPI from "services/entities/mdm_apple_bm";
+import mdmAppleBMAPI, {
+  IGetAbmTokensResponse,
+} from "services/entities/mdm_apple_bm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
-import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
 // @ts-ignore
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
+
 import Spinner from "components/Spinner";
-import { QueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
-import { isBefore } from "date-fns";
 
 interface IAppProps {
   children: JSX.Element;
@@ -90,16 +92,17 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   // warnings to the user about various token expirations.
 
   // Get the ABM tokens
-  useQuery<IMdmAbmToken[], AxiosError>(
+  useQuery<IGetAbmTokensResponse, AxiosError>(
     ["abm_tokens"],
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
       onSuccess: (data) => {
+        const { abm_tokens } = data;
         setABMExpiry({
-          earliestExpiry: getEarliestExpiry(data),
-          needsAbmTermsRenewal: data.some((token) => token.terms_expired),
+          earliestExpiry: getEarliestExpiry(abm_tokens),
+          needsAbmTermsRenewal: abm_tokens.some((token) => token.terms_expired),
         });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
