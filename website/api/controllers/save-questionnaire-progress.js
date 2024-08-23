@@ -203,6 +203,15 @@ module.exports = {
     }
     // Only update CRM records if the user's psychological stage changes.
     if(psychologicalStage !== userRecord.psychologicalStage) {
+      let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
+      if(this.req.session.adCampaignId && this.req.session.visitedSiteFromAdAt) {
+        console.log(this.req.session.visitedSiteFromAdAt);
+        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+          psychologicalStageChangeReason = this.req.session.adCampaignId;
+        }
+      }
+      console.log(psychologicalStageChangeReason);
       // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
       psychologicalStageLastChangedAt = Date.now();
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
@@ -212,7 +221,7 @@ module.exports = {
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         organization: this.req.me.organization,
         psychologicalStage,
-        psychologicalStageChangedBy: 'Website - Start flow',
+        psychologicalStageChangeReason,
         getStartedResponses: questionnaireProgressAsAFormattedString,
         contactSource: 'Website - Sign up',
       }).exec((err)=>{

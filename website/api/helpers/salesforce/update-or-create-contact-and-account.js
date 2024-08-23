@@ -30,19 +30,9 @@ module.exports = {
         '6 - Has team buy-in'
       ]
     },
-    psychologicalStageChangedBy: {
+    psychologicalStageChangeReason: {
       type: 'string',
-      isIn: [
-        'Website - Organic start flow',
-        'Manual',
-        'Dripify',
-        // 'Website - Contact forms',
-        // 'Website - Swag request',
-        // 'Google ads - 82g28ghdsgcampaignid',
-        // 'LinkedIn ads - 82g28ghdsgcampaignid',
-        // 'LinkedIn ads - 82g28ghdsgcampaignid',
-        // 'LinkedIn ads - 82g28ghdsgcampaignid',
-      ],
+      example: 'Website - Organic start flow'
     },
     contactSource: {
       type: 'string',
@@ -70,7 +60,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangedBy, contactSource, description, getStartedResponses}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -120,8 +110,8 @@ module.exports = {
     if(description) {
       valuesToSet.Description = description;
     }
-    if(psychologicalStageChangedBy) {
-      valuesToSet.Psystage_change_reason__c = psychologicalStageChangedBy;// eslint-disable-line camelcase
+    if(psychologicalStageChangeReason) {
+      valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
     }
 
     let existingContactRecord;
@@ -142,12 +132,6 @@ module.exports = {
       // If a description was provided and the contact has a description, append the new description to it.
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
-      }
-      if(psychologicalStage && existingContactRecord.Stage__c) {
-        // If the existing Contact record has a psychological stage and the psychological stage was previously set by the start flow, set the new psychological stage.
-        if(psychologicalStageChangedBy && psychologicalStageChangedBy === 'Website - Start flow' && existingContactRecord.Psystage_change_reason__c === 'Website - Start flow') {
-          valuesToSet.Stage__c = psychologicalStage; // eslint-disable-line camelcase
-        }
       }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.

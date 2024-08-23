@@ -147,6 +147,12 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
+            // Check for query parameters set by ad clicks:
+            if(req.param('utm_source') && req.param('utm_campaign')){
+              req.session.adCampaignId = `${req.param('utm_source')} - ${req.param('utm_campaign')}`;
+              req.session.visitedSiteFromAdAt = Date.now();
+            }
+
             // Check for website personalization parameter, and if valid, absorb it in the session.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
