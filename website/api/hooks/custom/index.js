@@ -155,7 +155,6 @@ will be disabled and/or hidden in the UI.
             if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
               req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
               // Example adAttributionString: Linkedin - 1245983829 - 41u3985237
-              console.log(req.session.adAttributionString);
               req.session.visitedSiteFromAdAt = Date.now();
             }
 
