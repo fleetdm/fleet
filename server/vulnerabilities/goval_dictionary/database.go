@@ -42,6 +42,7 @@ func (db Database) Eval(software []fleet.Software, logger kitlog.Logger) []fleet
 					level.Error(logger).Log(
 						"msg", "could not read package vulnerability result",
 						"package", swItem.Name,
+						"arch", swItem.Arch,
 						"platform", db.platform,
 						"err", err,
 					)
@@ -75,6 +76,7 @@ func (db Database) Eval(software []fleet.Software, logger kitlog.Logger) []fleet
 			level.Error(logger).Log(
 				"msg", "could not read package vulnerabilities",
 				"package", swItem.Name,
+				"arch", swItem.Arch,
 				"platform", db.platform,
 				"err", err,
 			)
