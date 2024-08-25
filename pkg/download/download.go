@@ -79,6 +79,12 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode == http.StatusNotFound {
+			return backoff.Permanent(fmt.Errorf("url returned not found"))
+		} else if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+		}
+
 		r := io.Reader(resp.Body)
 
 		// extract (optional)
