@@ -113,7 +113,7 @@ jobs:
     - name: Run Go Tests
       run: |
         if [[ "${{ matrix.suite }}" == "core" ]]; then
-          RUN_TESTS_ARG='-skip=^TestIntegrations -skip=^TestUp_'
+          RUN_TESTS_ARG='-skip=^(TestIntegrations|TestUp)'
         elif [[ "${{ matrix.suite }}" == "integration" ]]; then
           RUN_TESTS_ARG='-run=^TestIntegrations'
         else
