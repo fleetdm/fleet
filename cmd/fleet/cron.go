@@ -347,7 +347,8 @@ func checkOvalVulnerabilities(
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
-		if r == nil && err == nil { // skip metrics/logging when unsupported version
+		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
+			level.Debug(logger).Log("msg", "oval-analysis-unsupported", "platform", version.Name)
 			continue
 		}
 
@@ -398,7 +399,8 @@ func checkGovalDictionaryVulnerabilities(
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns)
-		if r == nil && err == nil { // skip metrics/logging when unsupported version
+		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
+			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue
 		}
 		elapsed := time.Since(start)

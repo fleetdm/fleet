@@ -3,6 +3,7 @@ package goval_dictionary
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -13,6 +14,8 @@ const (
 	hostsBatchSize = 500
 	vulnBatchSize  = 500
 )
+
+var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
 // Analyze scans all hosts for vulnerabilities based on the sqlite output of goval-dictionary
 // for their platform,  inserting any new vulnerabilities and deleting anything patched.
@@ -27,7 +30,7 @@ func Analyze(
 	platform := oval.NewPlatform(ver.Platform, ver.Name)
 	source := fleet.GovalDictionarySource
 	if !platform.IsGovalDictionarySupported() {
-		return nil, nil
+		return nil, ErrUnsupportedPlatform
 	}
 	db, err := loadDb(platform, vulnPath)
 	if err != nil {
@@ -60,7 +63,7 @@ func Analyze(
 				return nil, err
 			}
 
-			vulnerabilities, err := db.Eval(ver, software)
+			vulnerabilities, err := db.Eval(software)
 			if err != nil {
 				return nil, err
 			}
@@ -116,7 +119,7 @@ func Analyze(
 }
 
 // loadDb returns the latest goval_dictionary database for the given platform.
-func loadDb(platform oval.Platform, vulnPath string) (VulnDataSource, error) {
+func loadDb(platform oval.Platform, vulnPath string) (*Database, error) {
 	if !platform.IsGovalDictionarySupported() {
 		return nil, fmt.Errorf("platform %q not supported", platform)
 	}
@@ -132,6 +135,6 @@ func loadDb(platform oval.Platform, vulnPath string) (VulnDataSource, error) {
 		return nil, err
 	}
 
-	db := NewDB(sqlite)
+	db := NewDB(sqlite, platform)
 	return db, nil
 }
