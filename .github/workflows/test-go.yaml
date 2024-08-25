@@ -167,11 +167,15 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
+    - name: Create mysql identifier without colon
+      run: |
+        echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
+
     - name: Upload test log
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
-        name: ${{ matrix.suite }}-${{ matrix.mysql }}-test-log
+        name: ${{ matrix.suite }}-${MATRIX_MYSQL_ID}-test-log
         path: /tmp/gotest.log
         if-no-files-found: error
 
@@ -179,5 +183,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
-        name: ${{ matrix.suite }}-${{ matrix.mysql }}-summary-test-log
+        name: ${{ matrix.suite }}-${MATRIX_MYSQL_ID}-summary-test-log
         path: /tmp/summary.txt
