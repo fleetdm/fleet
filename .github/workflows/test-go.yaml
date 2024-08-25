@@ -42,7 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration", "core"]
+        suite: ["integration", "core", "migrations"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:8.0.36", "mysql:8.4.2"]
@@ -116,6 +116,8 @@ jobs:
           RUN_TESTS_ARG='-skip "^(TestIntegrations|TestUp_)"'
         elif [[ "${{ matrix.suite }}" == "integration" ]]; then
           RUN_TESTS_ARG='-run=^TestIntegrations'
+        elif [[ "${{ matrix.suite }}" == "migrations" ]]; then
+          RUN_TESTS_ARG='-run=^TestUp_'
         else
           RUN_TESTS_ARG=''
         fi
@@ -173,6 +175,14 @@ jobs:
       with:
         name: test-log
         path: /tmp/gotest.log
+        if-no-files-found: error
+
+    - name: Upload JSON result
+      if: always()
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      with:
+        name: result.json
+        path: /tmp/result.json
         if-no-files-found: error
 
     - name: Upload summary test log
