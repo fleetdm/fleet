@@ -33,7 +33,7 @@ func (db Database) Eval(software []fleet.Software, logger kitlog.Logger) []fleet
 		err := func() error {
 			affectedSoftwareRows, err := db.sqlite.Query(searchStmt, swItem.Name, swItem.Arch)
 			if err != nil {
-				return fmt.Errorf("could not query database for package %s: %w", swItem.Name, err)
+				return fmt.Errorf("could not query database: %w", err)
 			}
 			defer affectedSoftwareRows.Close()
 			for affectedSoftwareRows.Next() {
