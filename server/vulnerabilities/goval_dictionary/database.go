@@ -2,11 +2,12 @@ package goval_dictionary
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"strings"
 )
 
@@ -20,8 +21,8 @@ type Database struct {
 }
 
 // Eval evaluates the current goval_dictionary database against an OS version and a list of installed software,
-// returns all software vulnerabilities found.
-func (db Database) Eval(software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
+// returns all software vulnerabilities found. Logs on any errors so we return as many vulnerabilities as we can.
+func (db Database) Eval(software []fleet.Software, logger kitlog.Logger) []fleet.SoftwareVulnerability {
 	searchStmt := `SELECT packages.version, cves.cve_id 
 		FROM packages join definitions on definitions.id = packages.definition_id
 		JOIN advisories ON advisories.definition_id = definitions.id JOIN cves ON cves.advisory_id = advisories.id
@@ -29,39 +30,56 @@ func (db Database) Eval(software []fleet.Software) ([]fleet.SoftwareVulnerabilit
 	vulnerabilities := make([]fleet.SoftwareVulnerability, 0)
 
 	for _, swItem := range software {
-		affectedSoftwareRows, err := db.sqlite.Query(searchStmt, swItem.Name, swItem.Arch)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue // No vulns for this package-OS combo
-		}
+		err := func() error {
+			affectedSoftwareRows, err := db.sqlite.Query(searchStmt, swItem.Name, swItem.Arch)
+			if err != nil {
+				return fmt.Errorf("could not query database for package %s: %w", swItem.Name, err)
+			}
+			defer affectedSoftwareRows.Close()
+			for affectedSoftwareRows.Next() {
+				var fixedVersionWithEpochPrefix, cve string
+				if err := affectedSoftwareRows.Scan(&fixedVersionWithEpochPrefix, &cve); err != nil {
+					level.Error(logger).Log(
+						"msg", "could not read package vulnerability result",
+						"package", swItem.Name,
+						"platform", db.platform,
+						"err", err,
+					)
+					continue
+				}
+
+				var currentVersion string
+				if swItem.Release != "" {
+					currentVersion = fmt.Sprintf("%s-%s", swItem.Version, swItem.Release)
+				} else {
+					currentVersion = swItem.Version
+				}
+				fixedVersion := strings.Split(fixedVersionWithEpochPrefix, ":")[1]
+
+				if utils.Rpmvercmp(currentVersion, fixedVersion) < 0 {
+					vulnerabilities = append(vulnerabilities, fleet.SoftwareVulnerability{
+						SoftwareID:        swItem.ID,
+						CVE:               cve,
+						ResolvedInVersion: &fixedVersion,
+					})
+				}
+			}
+
+			if affectedSoftwareRows.Err() != nil {
+				return affectedSoftwareRows.Err()
+			}
+
+			return nil
+		}()
 		if err != nil {
-			return nil, fmt.Errorf("could not query goval_dictionary database for package %s", swItem.Name)
-		}
-		defer affectedSoftwareRows.Close()
-		for affectedSoftwareRows.Next() {
-			var fixedVersionWithEpochPrefix, cve string
-			if err := affectedSoftwareRows.Scan(&fixedVersionWithEpochPrefix, &cve); err != nil {
-				return nil, fmt.Errorf("could not read package vulnerability result %s", swItem.Name)
-			} else if affectedSoftwareRows.Err() != nil {
-				return nil, affectedSoftwareRows.Err()
-			}
-
-			var currentVersion string
-			if swItem.Release != "" {
-				currentVersion = fmt.Sprintf("%s-%s", swItem.Version, swItem.Release)
-			} else {
-				currentVersion = swItem.Version
-			}
-			fixedVersion := strings.Split(fixedVersionWithEpochPrefix, ":")[1]
-
-			if utils.Rpmvercmp(currentVersion, fixedVersion) < 0 {
-				vulnerabilities = append(vulnerabilities, fleet.SoftwareVulnerability{
-					SoftwareID:        swItem.ID,
-					CVE:               cve,
-					ResolvedInVersion: &fixedVersion,
-				})
-			}
+			level.Error(logger).Log(
+				"msg", "could not read package vulnerabilities",
+				"package", swItem.Name,
+				"platform", db.platform,
+				"err", err,
+			)
 		}
 	}
 
-	return vulnerabilities, nil
+	return vulnerabilities
 }

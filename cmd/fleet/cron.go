@@ -386,7 +386,7 @@ func checkGovalDictionaryVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync on disk goval_dictionary sqlite with current OS Versions.
-		downloaded, err := goval_dictionary.Refresh(ctx, versions, vulnPath)
+		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
 		if err != nil {
 			errHandler(ctx, logger, "updating goval_dictionary databases", err)
 		}
@@ -398,7 +398,7 @@ func checkGovalDictionaryVulnerabilities(
 	// Analyze all supported os versions using the synced goval_dictionary definitions.
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
 			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue
