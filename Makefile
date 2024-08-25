@@ -138,8 +138,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go run gotest.tools/gotestsum@latest --jsonfile result.json -- -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
-	go run gotest.tools/gotestsum@latest tool slowest --jsonfile result.json
+	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...

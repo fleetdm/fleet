@@ -171,21 +171,13 @@ jobs:
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
-        name: test-log
+        name: ${{ matrix.suite }}-${{ matrix.mysql }}-test-log
         path: /tmp/gotest.log
-        if-no-files-found: error
-
-    - name: Upload JSON result
-      if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: result.json
-        path: ./result.json
         if-no-files-found: error
 
     - name: Upload summary test log
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
-        name: summary-test-log
+        name: ${{ matrix.suite }}-${{ matrix.mysql }}-summary-test-log
         path: /tmp/summary.txt
