@@ -38,9 +38,8 @@ func Sync(dstDir string, platforms []oval.Platform) error {
 	}
 
 	for _, platform := range platforms {
-		err := downloadDatabase(platform, dwn, basePath, dstDir)
-		if err != nil {
-			return fmt.Errorf("downloadDefinitions: %w", err)
+		if err := downloadDatabase(platform, dwn, basePath, dstDir); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -53,8 +52,7 @@ func downloadDatabase(
 	vulnDir string,
 ) error {
 	dstPath := filepath.Join(vulnDir, platform.ToGovalDictionaryFilename())
-	err := downloader(basePath+string(platform)+".sqlite3.xz", dstPath)
-	if err != nil {
+	if err := downloader(basePath+string(platform)+".sqlite3.xz", dstPath); err != nil {
 		return err
 	}
 
@@ -68,8 +66,7 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 			return fmt.Errorf("url parse: %w", err)
 		}
 
-		err = download.DownloadAndExtract(client, parsedUrl, dstPath)
-		if err != nil {
+		if err = download.DownloadAndExtract(client, parsedUrl, dstPath); err != nil {
 			return fmt.Errorf("download and extract url %s: %w", parsedUrl, err)
 		}
 
