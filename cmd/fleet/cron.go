@@ -347,6 +347,10 @@ func checkOvalVulnerabilities(
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		if r == nil && err == nil { // skip metrics/logging when unsupported version
+			continue
+		}
+
 		elapsed := time.Since(start)
 		level.Debug(logger).Log(
 			"msg", "oval-analysis-done",
@@ -394,6 +398,9 @@ func checkGovalDictionaryVulnerabilities(
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		if r == nil && err == nil { // skip metrics/logging when unsupported version
+			continue
+		}
 		elapsed := time.Since(start)
 		level.Debug(logger).Log(
 			"msg", "goval_dictionary-analysis-done",

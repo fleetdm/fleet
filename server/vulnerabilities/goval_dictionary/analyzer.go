@@ -14,6 +14,9 @@ const (
 	vulnBatchSize  = 500
 )
 
+// Analyze scans all hosts for vulnerabilities based on the sqlite output of goval-dictionary
+// for their platform,  inserting any new vulnerabilities and deleting anything patched.
+// Returns nil, nil when the platform isn't supported.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
