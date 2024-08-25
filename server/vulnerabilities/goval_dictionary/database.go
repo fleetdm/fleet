@@ -26,7 +26,7 @@ func (db Database) Eval(software []fleet.Software, logger kitlog.Logger) []fleet
 	searchStmt := `SELECT packages.version, cves.cve_id 
 		FROM packages join definitions on definitions.id = packages.definition_id
 		JOIN advisories ON advisories.definition_id = definitions.id JOIN cves ON cves.advisory_id = advisories.id
-		WHERE packages.name = ? AND packages.arch = ?`
+		WHERE packages.name = ? AND packages.arch = ? ORDER BY cve_id, version`
 	vulnerabilities := make([]fleet.SoftwareVulnerability, 0)
 
 	for _, swItem := range software {
