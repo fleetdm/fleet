@@ -220,10 +220,13 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint `query:"team_id,optional"`
-	VulnerableOnly      bool  `query:"vulnerable,optional"`
-	AvailableForInstall bool  `query:"available_for_install,optional"`
-	SelfServiceOnly     bool  `query:"self_service,optional"`
+	TeamID              *uint   `query:"team_id,optional"`
+	VulnerableOnly      bool    `query:"vulnerable,optional"`
+	AvailableForInstall bool    `query:"available_for_install,optional"`
+	SelfServiceOnly     bool    `query:"self_service,optional"`
+	KnownExploit        bool    `query:"exploit,optional"`
+	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -292,6 +295,9 @@ type SoftwareListOptions struct {
 	TeamID           *uint `query:"team_id,optional"`
 	VulnerableOnly   bool  `query:"vulnerable,optional"`
 	IncludeCVEScores bool
+	KnownExploit     bool    `query:"exploit,optional"`
+	MinimumCVSS      float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS      float64 `query:"max_cvss_score,optional"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
@@ -420,10 +426,12 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 }
 
 type VPPBatchPayload struct {
-	AppStoreID string `json:"app_store_id"`
+	AppStoreID  string `json:"app_store_id"`
+	SelfService bool   `json:"self_service"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID string              `json:"app_store_id"`
-	Platform   AppleDevicePlatform `json:"platform"`
+	AppStoreID  string              `json:"app_store_id"`
+	SelfService bool                `json:"self_service"`
+	Platform    AppleDevicePlatform `json:"platform"`
 }

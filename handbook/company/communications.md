@@ -133,11 +133,10 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers expect a timely follow-up from Fleet based on the conversations that they had at the event.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
-1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
-3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
+1. Once a list of badge scans is available, Fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
+2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
 
 
 ### Podcast
@@ -719,10 +718,10 @@ Before spending any money on an offsite, inviting people, booking travel, or oth
     - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
     - a detailed agenda of how time will be spent
   - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - **Iteration:** The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
+  - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
 
-After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
-  - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
+After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
+  - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
   - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
 
@@ -942,6 +941,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - make sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google Drive folder.
+- make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
 
 
 
@@ -1118,20 +1118,49 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
-### Headings
+### Headings and titles
 
-Headings help readers quickly scan content to find what they need and guide readers through your writing. Organize page content using clear headings specific to the topic they describe. 
+Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
 
-While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document.
+#### Static headings
 
-Keep headings brief, organized, and in a logical order:
+Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+
+#### Task-based headings
+
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+
+#### Avoid _-ing_ verb forms in headings
+
+Avoid starting a heading with _-ing_ verb form, if possible.
+
+_-ing_ verb forms are more difficult for non-native English readers to understand, translate inconsistently, and increase character counts in limit spaces, such as in docs navigation.
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Configure a log destination” | “Configuring a log destination” |
+
+#### Avoid vague verbs in headings
+
+Were possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Log destinations” | “Understand log destinations.” |
+
+
+#### Avoid code in headings
+
+While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document. That aside, it doesn't render well on the website.
+
+#### Heading hierarchy 
+
+Use heading tags to structure your content hierarchically. Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
+
 - H1: Page title
 - H2: Main headings
 - H3: Subheadings
 - H4: Sub-subheadings
-
-Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
-
 
 #### Punctuation in headings
 
@@ -1311,6 +1340,33 @@ Markdown is a simple formatting syntax used to write content on the web. In orde
 
 ### Headings
 
+Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
+
+```
+...previous content.
+
+
+### New heading
+
+Related content... 
+```
+
+
+#### Nested headings
+
+Wherever possible, avoid creating nested headings. For example:
+
+```
+## Things
+
+### Thing 1
+
+Hi my name is Thing 1
+```
+
+
+#### Heading levels
+
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 | Markdown | Rendered heading |
 |:--------------------|:-----------------------------|
@@ -1371,8 +1427,6 @@ line two
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
 | <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
 
-Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item, as shown in the example below.
-
 **Markdown:**
 
 ```
@@ -1388,26 +1442,6 @@ Paragraph about item one
 1. Item one
 
 Paragraph about item one
-
-2. Item two
-
-To make sure that ordered lists increment correctly, you can indent the content nested within the list. For example, the same ordered list with indentation:
-
-**Markdown:**
-
-```
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-```
-
-**Rendered output:**
-
-1. Item one
-
-   Paragraph about item one
 
 2. Item two
 

@@ -69,6 +69,7 @@ func TestSoftware(t *testing.T) {
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
+		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3714,24 +3715,25 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// add VPP apps, one for both no team and team, and two for no-team only.
 	va1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}, Name: "vpp2",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}}, Name: "vpp2",
 			BundleIdentifier: "com.app.vpp2"}, nil)
 	require.NoError(t, err)
+	// create vpp3 app that allows self-service
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, Name: "vpp3",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3",
 			BundleIdentifier: "com.app.vpp3"}, nil)
 	require.NoError(t, err)
 	vpp2, vpp3 := va2.AdamID, va3.AdamID
@@ -3756,13 +3758,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -3776,7 +3778,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(true)},
 	}
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
 	expectedAvailableOnly["vpp2apps"] = expected["vpp2apps"]
@@ -3807,7 +3809,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			Name:        "vpp1",
 			Source:      "apps",
 			Status:      expectStatus(fleet.SoftwareInstallerPending),
-			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
+			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
 		},
 	}, sw, true)
 
@@ -3881,14 +3883,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 11},
 		},
 		{
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
-			wantNames: []string{byNSV[b].Name, i0.Name},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{byNSV[b].Name, i0.Name, "vpp3"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 3},
 		},
 		{
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
 			wantNames: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 2},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 3},
 		},
 		{
 			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 4}, OnlyAvailableForInstall: true},
@@ -4114,32 +4116,32 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 
 	// add VPP apps, one for both no team and team, and three for no-team only.
 	va1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.IOSPlatform}, Name: "vpp2",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.IOSPlatform}}, Name: "vpp2",
 			BundleIdentifier: "com.app.vpp2"}, nil)
 	require.NoError(t, err)
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.IOSPlatform}, Name: "vpp3",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.IOSPlatform}}, Name: "vpp3",
 			BundleIdentifier: "com.app.vpp3"}, nil)
 	require.NoError(t, err)
 	va4, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_4", Platform: fleet.IOSPlatform}, Name: "vpp4",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_4", Platform: fleet.IOSPlatform}}, Name: "vpp4",
 			BundleIdentifier: "com.app.vpp4"}, nil)
 	require.NoError(t, err)
 	vpp2, vpp3, vpp4 := va2.AdamID, va3.AdamID, va4.AdamID
@@ -4160,13 +4162,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -4180,13 +4182,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(false)},
 	}
 	expected["vpp4ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp4",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, SelfService: ptr.Bool(false)},
 	}
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly["vpp1ios_apps"] = expected["vpp1ios_apps"]
@@ -4207,7 +4209,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly))}, meta)
 	compareResults(expectedAvailableOnly, sw, true)
 	opts.OnlyAvailableForInstall = false
-
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
@@ -4398,7 +4399,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 
 	// add a VPP app for team 1
 	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1"}, &team1.ID)
 	require.NoError(t, err)
 
@@ -4503,7 +4504,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 
 	// add a VPP app for team 1
 	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1", LatestVersion: "1.0"}, &team1.ID)
 	require.NoError(t, err)
 
@@ -4557,5 +4558,442 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 		require.Equal(t, sw[1].Name, "vpp1")
 		require.Nil(t, sw[1].AppStoreApp)
 		require.Nil(t, sw[1].SoftwarePackage)
+	}
+}
+
+func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "chrome", Version: "0.0.1", Source: "apps"},
+		{Name: "chrome", Version: "0.0.3", Source: "apps"},
+		{Name: "safari", Version: "0.0.3", Source: "apps"},
+		{Name: "safari", Version: "0.0.1", Source: "apps"},
+		{Name: "firefox", Version: "0.0.3", Source: "apps"},
+		{Name: "edge", Version: "0.0.3", Source: "apps"},
+		{Name: "brave", Version: "0.0.3", Source: "apps"},
+		{Name: "opera", Version: "0.0.3", Source: "apps"},
+		{Name: "internet explorer", Version: "0.0.3", Source: "apps"},
+		{Name: "netscape", Version: "0.0.3", Source: "apps"},
+	}
+
+	sw, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	var chrome001 uint
+	var safari001 uint
+	var firefox003 uint
+	var edge003 uint
+	var brave003 uint
+	var opera003 uint
+	var ie003 uint
+	for s := range sw.Inserted {
+		switch {
+		case sw.Inserted[s].Name == "chrome" && sw.Inserted[s].Version == "0.0.1":
+			chrome001 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "safari" && sw.Inserted[s].Version == "0.0.1":
+			safari001 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "firefox" && sw.Inserted[s].Version == "0.0.3":
+			firefox003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "edge" && sw.Inserted[s].Version == "0.0.3":
+			edge003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "brave" && sw.Inserted[s].Version == "0.0.3":
+			brave003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "opera" && sw.Inserted[s].Version == "0.0.3":
+			opera003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "internet explorer" && sw.Inserted[s].Version == "0.0.3":
+			ie003 = sw.Inserted[s].ID
+		}
+	}
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: chrome001,
+		CVE:        "CVE-2024-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: safari001,
+		CVE:        "CVE-2024-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: firefox003,
+		CVE:        "CVE-2024-1236",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: edge003,
+		CVE:        "CVE-2024-1237",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: brave003,
+		CVE:        "CVE-2024-1238",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: opera003,
+		CVE:        "CVE-2024-1239",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: ie003,
+		CVE:        "CVE-2024-1240",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	err = ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{
+			// chrome
+			CVE:              "CVE-2024-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+		{
+			// safari
+			CVE:              "CVE-2024-1235",
+			CVSSScore:        ptr.Float64(7.5),
+			CISAKnownExploit: ptr.Bool(false),
+		},
+		{
+			// firefox
+			CVE:              "CVE-2024-1236",
+			CVSSScore:        ptr.Float64(8.0),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+		{
+			// edge
+			CVE:              "CVE-2024-1237",
+			CVSSScore:        ptr.Float64(8.0),
+			CISAKnownExploit: ptr.Bool(false),
+		},
+		{
+			// brave
+			CVE:              "CVE-2024-1238",
+			CVSSScore:        ptr.Float64(9.0),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+		// CVE-2024-1239 for opera has no CVE Meta
+		{
+			// internet explorer
+			CVE:              "CVE-2024-1240",
+			CVSSScore:        nil,
+			CISAKnownExploit: nil,
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	type swVersion struct {
+		Name    string
+		Version string
+	}
+
+	tc := []struct {
+		name     string
+		opts     fleet.SoftwareListOptions
+		expected []swVersion
+		err      error
+	}{
+		{
+			name: "vulnerable only",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:    fleet.ListOptions{OrderKey: "name"},
+				VulnerableOnly: true,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "edge",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "internet explorer",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "opera",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "safari",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "known exploit true",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				KnownExploit:     true,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 8.0",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      8.0,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "edge",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 7.9",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      7.9,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "edge",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 8.0 and known exploit",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      8.0,
+				KnownExploit:     true,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 7.5 and known exploit",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      7.5,
+				KnownExploit:     true,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+			},
+		},
+		{
+			name: "maximum cvss 7.5",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MaximumCVSS:      7.5,
+			},
+			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "safari",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "maximum cvss 7.6",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MaximumCVSS:      7.6,
+			},
+			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "safari",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "maximum cvss 7.5 and known exploit",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MaximumCVSS:      7.5,
+				KnownExploit:     true,
+			},
+			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 7.5 and maximum cvss 8.0",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      7.5,
+				MaximumCVSS:      8.0,
+			},
+			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "edge",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "safari",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 7.5 and maximum cvss 8.0 and known exploit",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      7.5,
+				MaximumCVSS:      8.0,
+				KnownExploit:     true,
+			},
+			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+			},
+		},
+		{
+			name: "err if vulnerableOnly is not set with MinimumCVSS",
+			opts: fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{},
+				MinimumCVSS: 7.5,
+			},
+			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
+		{
+			name: "err if vulnerableOnly is not set with MaximumCVSS",
+			opts: fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{},
+				MaximumCVSS: 7.5,
+			},
+			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
+		{
+			name: "err if vulnerableOnly is not set with KnownExploit",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:  fleet.ListOptions{},
+				KnownExploit: true,
+			},
+			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			sw, _, err := ds.ListSoftware(ctx, tt.opts)
+			if tt.err != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.err, err)
+				return
+			}
+			require.Len(t, sw, len(tt.expected))
+			for i, s := range sw {
+				require.Equal(t, tt.expected[i].Name, s.Name)
+				require.Equal(t, tt.expected[i].Version, s.Version)
+			}
+			count, err := ds.CountSoftware(ctx, tt.opts)
+			require.NoError(t, err)
+			require.Equal(t, len(tt.expected), count)
+		})
 	}
 }
