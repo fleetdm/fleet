@@ -413,7 +413,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		}
 	}
 	if len(deletedTitles) > 0 {
-		installedTitles, err := getInstalledSoftwareTitles(ctx, tx, hostID)
+		installedTitles, err := getInstalledByFleetSoftwareTitles(ctx, tx, hostID)
 		if err != nil {
 			return err
 		}
@@ -2656,7 +2656,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	return nil
 }
 
-func getInstalledSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
+func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
 	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
 	const stmt = `
 SELECT
@@ -2669,7 +2669,10 @@ SELECT
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = ? AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0
+WHERE hsi.removed = 0 AND 
+	-- :software_status_installed
+	((hsi.post_install_script_exit_code IS NOT NULL AND hsi.post_install_script_exit_code = 0) OR
+	(hsi.install_script_exit_code IS NOT NULL AND hsi.install_script_exit_code = 0))
 
 UNION
 
