@@ -2207,9 +2207,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		`
 	}
 
-	var softwareIsInstalledOnHostClause string
-	if !opts.OnlyAvailableForInstall {
-		softwareIsInstalledOnHostClause = `
+	softwareIsInstalledOnHostClause := `
 			EXISTS (
 				SELECT 1
 				FROM
@@ -2220,6 +2218,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR `
+	if opts.OnlyAvailableForInstall {
+		// Get software that has a package/VPP installer but was not installed with Fleet
+		softwareIsInstalledOnHostClause = ` status IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND ` + softwareIsInstalledOnHostClause
 	}
 
 	// this statement lists only the software that is reported as installed on
