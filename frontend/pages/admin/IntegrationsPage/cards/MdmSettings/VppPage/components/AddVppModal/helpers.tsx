@@ -2,7 +2,7 @@ import React from "react";
 
 import { getErrorReason } from "interfaces/errors";
 
-const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
+const DEFAULT_ERROR_MESSAGE = "Couldn’t add. Please try again.";
 
 const generateDuplicateMessage = (msg: string) => {
   const orgName = msg.split("'")[1];
