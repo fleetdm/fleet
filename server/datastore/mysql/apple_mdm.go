@@ -908,7 +908,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	}
 
 	args := []interface{}{nil}
-	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+	if name := appCfg.MDM.DeprecatedAppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(ctx, name)
 		switch {
 		case fleet.IsNotFound(err):

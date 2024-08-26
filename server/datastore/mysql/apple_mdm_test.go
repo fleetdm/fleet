@@ -676,7 +676,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	// assign the team as the default team for DEP devices
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.AppleBMDefaultTeam = team.Name
+	ac.MDM.DeprecatedAppleBMDefaultTeam = team.Name
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -700,7 +700,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		}
 	}
 
-	ac.MDM.AppleBMDefaultTeam = "non-existent"
+	ac.MDM.DeprecatedAppleBMDefaultTeam = "non-existent"
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 

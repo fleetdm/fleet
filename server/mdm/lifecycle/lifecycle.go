@@ -253,7 +253,7 @@ func (t *HostLifecycle) restorePendingDEPHost(ctx context.Context, host *fleet.H
 
 func (t *HostLifecycle) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *fleet.AppConfig) (*uint, error) {
 	var tmID *uint
-	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+	if name := appCfg.MDM.DeprecatedAppleBMDefaultTeam; name != "" {
 		team, err := t.ds.TeamByName(ctx, name)
 		switch {
 		case fleet.IsNotFound(err):

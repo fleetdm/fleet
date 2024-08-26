@@ -15,6 +15,14 @@ export interface IGetAppleBMInfoResponse {
   renew_date: string;
 }
 
+export interface IGetAbmTokensResponse {
+  abm_tokens: IMdmAbmToken[];
+}
+
+export interface IAbmTokenResponse {
+  abm_token: IMdmAbmToken;
+}
+
 export default {
   getAppleBMInfo: (): Promise<IGetAppleBMInfoResponse> => {
     const { MDM_APPLE_BM } = endpoints;
@@ -55,7 +63,7 @@ export default {
     return sendRequest("POST", MDM_ABM_TOKENS, formData);
   },
 
-  renewToken: (id: number, token: File): Promise<void> => {
+  renewToken: (id: number, token: File): Promise<IAbmTokenResponse> => {
     const { MDM_ABM_TOKEN_RENEW } = endpoints;
     const path = MDM_ABM_TOKEN_RENEW(id);
 
@@ -71,22 +79,9 @@ export default {
     return sendRequest("DELETE", path);
   },
 
-  getTokens: (): Promise<IMdmAbmToken[]> => {
+  getTokens: (): Promise<IGetAbmTokensResponse> => {
     const { MDM_ABM_TOKENS } = endpoints;
-    // return sendRequest("GET", MDM_ABM_TOKENS);
-    return Promise.resolve([
-      {
-        id: 1,
-        apple_id: "apple@example.com",
-        org_name: "Fleet Device Management Inc.",
-        mdm_server_url: "https://example.com/mdm/apple/mdm",
-        renew_date: "2022-11-27T00:00:00Z", // TODO: test coverage for invalid dates
-        terms_expired: false,
-        macos_team: { name: "💻 Workstations", id: 1 },
-        ios_team: { name: "📱🏢 Company-owned iPhones", id: 2 },
-        ipados_team: { name: "No team", id: 0 },
-      },
-    ]); // TODO: remove when API is ready
+    return sendRequest("GET", MDM_ABM_TOKENS);
   },
 
   editTeams: async (params: {
@@ -99,13 +94,6 @@ export default {
   }) => {
     const { MDM_ABM_TOKEN_TEAMS } = endpoints;
     const path = MDM_ABM_TOKEN_TEAMS(params.tokenId);
-    // return sendRequest("PATCH", path, params.teams);
-
-    console.log("editing abm teams", params);
-    // promisify a mock response with a timeout
-    await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
-      console.log("mock API call done")
-    );
-    return Promise.resolve(); // TODO: remove when API is ready
+    return sendRequest("PATCH", path, params.teams);
   },
 };

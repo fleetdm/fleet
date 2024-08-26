@@ -1,8 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
-import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
-import { getErrorReason } from "interfaces/errors";
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
 
 import Modal from "components/Modal";
@@ -11,6 +9,7 @@ import FileUploader from "components/FileUploader";
 import CustomLink from "components/CustomLink";
 import { FileDetails } from "components/FileUploader/FileUploader";
 import DownloadABMKey from "pages/admin/components/DownloadFileButtons/DownloadABMKey";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "add-abm-modal";
 
@@ -45,9 +44,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
       renderFlash("success", "Added successfully.");
       onAdded();
     } catch (e) {
-      // TODO: ensure API is sending back the correct err messages
-      const msg = getErrorReason(e);
-      renderFlash("error", msg);
+      renderFlash("error", getErrorMessage(e));
       onCancel();
     } finally {
       setIsUploading(false);

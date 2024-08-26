@@ -2707,7 +2707,7 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 type getVPPTokensRequest struct{}
 
 type getVPPTokensResponse struct {
-	Tokens []*fleet.VPPTokenDB `json:"tokens,omitempty"`
+	Tokens []*fleet.VPPTokenDB `json:"vpp_tokens"`
 	Err    error               `json:"error,omitempty"`
 }
 
@@ -2717,6 +2717,10 @@ func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer,
 	tokens, err := svc.GetVPPTokens(ctx)
 	if err != nil {
 		return getVPPTokensResponse{Err: err}, nil
+	}
+
+	if tokens == nil {
+		tokens = []*fleet.VPPTokenDB{}
 	}
 
 	return getVPPTokensResponse{Tokens: tokens}, nil

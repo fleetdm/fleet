@@ -67,7 +67,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	appleBM.AppleID = abmToken.AppleID
 	appleBM.OrgName = abmToken.OrganizationName
 	appleBM.RenewDate = abmToken.RenewAt
-	appleBM.DefaultTeam = appCfg.MDM.AppleBMDefaultTeam
+	appleBM.DefaultTeam = appCfg.MDM.DeprecatedAppleBMDefaultTeam
 	appleBM.MDMServerURL = mdmServerURL
 
 	return &appleBM, nil
