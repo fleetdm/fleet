@@ -40,8 +40,8 @@ func TestDBMigrationsVPPToken(t *testing.T) {
 	require.NoError(t, err)
 	encTok, err := mysql.EncryptWithPrivateKey(t, ds, tok)
 	require.NoError(t, err)
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		const insVPP = `
+
+	const insVPP = `
 INSERT INTO vpp_tokens
 	(
 		organization_name,
@@ -54,12 +54,8 @@ INSERT INTO vpp_tokens
 VALUES
 	('', '', DATE('2000-01-01'), ?, NULL, 'allteams')
 `
-		_, err := q.ExecContext(ctx, insVPP, encTok)
-		if err != nil {
-			return err
-		}
 
-		const insJob = `
+	const insJob = `
 INSERT INTO jobs (
 		name,
 		args,
@@ -71,6 +67,12 @@ INSERT INTO jobs (
 )
 VALUES (?, ?, ?, '', ?, ?, ?)
 `
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, insVPP, encTok)
+		if err != nil {
+			return err
+		}
+
 		argsJSON, err := json.Marshal(dbMigrationArgs{Task: DBMigrateVPPTokenTask})
 		if err != nil {
 			return fmt.Errorf("failed to JSON marshal the job arguments: %w", err)
@@ -109,18 +111,6 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 
 	// enqueue a DB migration job with an unknown task
 	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		const insJob = `
-INSERT INTO jobs (
-    name,
-    args,
-    state,
-		error,
-    not_before,
-		created_at,
-		updated_at
-)
-VALUES (?, ?, ?, '', ?, ?, ?)
-`
 		argsJSON, err := json.Marshal(dbMigrationArgs{Task: DBMigrationTask("no-such-task")})
 		if err != nil {
 			return fmt.Errorf("failed to JSON marshal the job arguments: %w", err)
