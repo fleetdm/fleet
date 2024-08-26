@@ -4,7 +4,7 @@
   <div purpose="continue-banner" id="start-cta" class="d-flex justify-content-end">
     <div purpose="banner-body" class="d-flex flex-row align-items-center invisible <%- collapseStartCta ? 'collapsed' : ''%>">
       <div purpose="banner-image-background">
-        <div purpose="banner-image">
+        <div purpose="banner-image" class="<%=['2 - Aware'].includes(me.psychologicalStage) ? 'stage-two' : ['3 - Intrigued'].includes(me.psychologicalStage) ? 'stage-three' : ['4 - Has use case'].includes(me.psychologicalStage) ? 'stage-four' : ['5 - Personally confident'].includes(me.psychologicalStage) ? 'stage-five' : ['6 - Has team buy-in'].includes(me.psychologicalStage) ? 'stage-six' : ''%>">
         </div>
       </div>
       <div purpose="banner-text" class="d-flex flex-column justify-content-center">

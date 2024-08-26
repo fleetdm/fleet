@@ -124,7 +124,7 @@ const Software = ({
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}
-                      softwareFilter="vulnerableSoftware"
+                      vulnFilters={{ vulnerable: true }}
                     />
                   )}
                   showMarkAllPages={false}

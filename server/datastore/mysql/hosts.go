@@ -1042,7 +1042,7 @@ func (ds *Datastore) applyHostFilters(
 			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
 			switch {
 			case fleet.IsNotFound(err):
-				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
@@ -3655,6 +3655,18 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
+func (ds *Datastore) UpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	enrolled bool,
+) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm SET enrolled = ? WHERE host_id = ?`, enrolled, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host_mdm.enrolled")
+	}
+	return nil
+}
+
 func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,
@@ -5033,6 +5045,18 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	}
 
 	return counts, nil
+}
+
+func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+		SELECT count(*) FROM host_orbit_info WHERE desktop_version IS NOT NULL
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {

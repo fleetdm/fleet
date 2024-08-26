@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -567,9 +568,14 @@ func translateSoftwareToCPEWithIterator(
 	return nil
 }
 
+var allowedNonASCII = []int32{
+	'–', // en dash
+	'—', // em dash
+}
+
 func containsNonASCII(s string) bool {
 	for _, char := range s {
-		if char > unicode.MaxASCII {
+		if char > unicode.MaxASCII && !slices.Contains(allowedNonASCII, char) {
 			return true
 		}
 	}

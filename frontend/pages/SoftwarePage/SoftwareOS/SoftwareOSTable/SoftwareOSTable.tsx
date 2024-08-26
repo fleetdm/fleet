@@ -150,7 +150,7 @@ const SoftwareOSTable = ({
     );
   };
 
-  const renderTableFooter = () => {
+  const renderTableHelpText = () => {
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
@@ -189,7 +189,7 @@ const SoftwareOSTable = ({
         onQueryChange={onQueryChange}
         stackControls
         renderCount={renderSoftwareCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}

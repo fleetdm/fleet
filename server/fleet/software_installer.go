@@ -20,7 +20,7 @@ type SoftwareInstallerStore interface {
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
-	Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error)
+	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
@@ -40,7 +40,7 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 	return false, errors.New("software installer store not properly configured")
 }
 
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
 	// do not fail for the failing store's cleanup, as unlike the other store
 	// methods, this will be called even if software installers are otherwise not
 	// used (by the cron job).
@@ -408,4 +408,10 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	default:
 		return SoftwareInstallerPending
 	}
+}
+
+// SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
+type SoftwareInstallerTokenMetadata struct {
+	TitleID uint `json:"title_id"`
+	TeamID  uint `json:"team_id"`
 }

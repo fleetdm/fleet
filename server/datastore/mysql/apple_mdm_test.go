@@ -6,6 +6,7 @@ import (
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -81,9 +83,12 @@ func TestMDMApple(t *testing.T) {
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
+		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
+		{"HostMDMCommands", testHostMDMCommands},
 	}
 
 	for _, c := range cases {
+		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 
@@ -3140,7 +3145,7 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	var aerr fleet.AlreadyExistsError
 
-	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{})
+	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{}, nil)
 	require.Error(t, err)
 
 	bp1 := &fleet.MDMAppleBootstrapPackage{
@@ -3150,10 +3155,10 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
 	require.NoError(t, err)
 
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
 	require.ErrorAs(t, err, &aerr)
 
 	bp2 := &fleet.MDMAppleBootstrapPackage{
@@ -3163,7 +3168,7 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2, nil)
 	require.NoError(t, err)
 
 	meta, err := ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
@@ -3177,11 +3182,11 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
 
-	bytes, err := ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token)
+	bytes, err := ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token, nil)
 	require.NoError(t, err)
 	require.Equal(t, bp1.Bytes, bytes.Bytes)
 
-	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake")
+	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake", nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bytes)
 
@@ -4061,7 +4066,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP, nil)
 	require.NoError(t, err)
 	checkStoredBP(noTeamID, nil, false, defaultBP)   // default bootstrap package is stored
 	checkStoredBP(teamID, sql.ErrNoRows, false, nil) // no bootstrap package yet for team
@@ -4091,7 +4096,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 		Bytes:  []byte("new content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP2)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP2, nil)
 	require.NoError(t, err)
 	checkStoredBP(noTeamID, nil, false, defaultBP2)
 	// set bootstrap package url in app config
@@ -4511,7 +4516,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		Sha256: sha256.New().Sum(nil),
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
-	})
+	}, nil)
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
 	require.NoError(t, err)
@@ -5692,9 +5697,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	}
 
 	// Test with no hosts.
-	uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Create a placeholder macOS host.
 	_ = newHost("darwin")
@@ -5709,9 +5714,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(2), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Now simulate the initial MDM checkin of the devices.
 	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
@@ -5738,13 +5743,16 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, iPadOS0, false)
 
 	// Test with hosts but empty state in nanomdm command tables.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 2)
+	require.Len(t, devices, 2)
+	uuids := []string{devices[0].UUID, devices[1].UUID}
 	sort.Slice(uuids, func(i, j int) bool {
 		return uuids[i] < uuids[j]
 	})
-	require.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Empty(t, devices[0].CommandsAlreadySent)
+	assert.Empty(t, devices[1].CommandsAlreadySent)
 
 	// Set iOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5753,10 +5761,10 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device should not be returned because it was refetched recently
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iPadOS0_UUID")
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
 
 	// Set iPadOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5765,9 +5773,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// Both devices are up-to-date thus none should be returned.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, devices)
 
 	// Set iOS detail_updated_at as 2 hours in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5776,10 +5784,23 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device be returned because it is out of date.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iOS0_UUID")
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iOS0_UUID")
+	assert.Empty(t, devices[0].CommandsAlreadySent)
+
+	// Update commands already sent to the devices and check that they are returned.
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+		HostID:      iOS0.ID,
+		CommandType: "my-command",
+	}}))
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iOS0_UUID")
+	require.Len(t, devices[0].CommandsAlreadySent, 1)
+	assert.Equal(t, "my-command", devices[0].CommandsAlreadySent[0])
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -6001,6 +6022,7 @@ func testGetHostUUIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID}, uuids)
 }
+
 func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -6142,4 +6164,428 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 		require.NotNil(t, gotProfs[0].Status)
 		require.Equal(t, fleet.MDMDeliveryVerified, *gotProfs[0].Status)
 	}
+}
+
+func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	var nfe fleet.NotFoundError
+	var aerr fleet.AlreadyExistsError
+
+	hashContent := func(content string) []byte {
+		h := sha256.New()
+		_, err := h.Write([]byte(content))
+		require.NoError(t, err)
+		return h.Sum(nil)
+	}
+
+	bpMatchesWithoutContent := func(want, got *fleet.MDMAppleBootstrapPackage) {
+		// make local copies so we don't alter the caller's structs
+		w, g := *want, *got
+		w.Bytes, g.Bytes = nil, nil
+		w.CreatedAt, g.CreatedAt = time.Time{}, time.Time{}
+		w.UpdatedAt, g.UpdatedAt = time.Time{}, time.Time{}
+		require.Equal(t, w, g)
+	}
+
+	pkgStore := s3.SetupTestBootstrapPackageStore(t, "mdm-apple-bootstrap-package-test", "")
+
+	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{}, pkgStore)
+	require.Error(t, err)
+
+	// associate bp1 with no team
+	bp1 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   "bp1",
+		Sha256: hashContent("bp1"),
+		Bytes:  []byte("bp1"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, pkgStore)
+	require.NoError(t, err)
+
+	// try to store bp1 again, fails as it already exists
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, pkgStore)
+	require.ErrorAs(t, err, &aerr)
+
+	// associate bp2 with team id 2
+	bp2 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(2),
+		Name:   "bp2",
+		Sha256: hashContent("bp2"),
+		Bytes:  []byte("bp2"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2, pkgStore)
+	require.NoError(t, err)
+
+	// associate the same content as bp1 with team id 1, via a copy
+	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, &fleet.AppConfig{}, 1)
+	require.NoError(t, err)
+
+	// get bp for no team
+	meta, err := ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+	require.NoError(t, err)
+	bpMatchesWithoutContent(bp1, meta)
+
+	// get for team 1, token differs due to the copy, rest is the same
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 1)
+	require.NoError(t, err)
+	require.NotEqual(t, bp1.Token, meta.Token)
+	bp1b := *bp1
+	bp1b.Token = meta.Token
+	bp1b.TeamID = 1
+	bpMatchesWithoutContent(&bp1b, meta)
+
+	// get for team 2
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 2)
+	require.NoError(t, err)
+	bpMatchesWithoutContent(bp2, meta)
+
+	// get for team 3, does not exist
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 3)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, meta)
+
+	// get content for no team
+	bpContent, err := ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp1.Bytes, bpContent.Bytes)
+
+	// get content for team 1 (copy of no team)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1b.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp1b.Bytes, bpContent.Bytes)
+	require.Equal(t, bp1.Bytes, bpContent.Bytes)
+
+	// get content for team 2
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp2.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp2.Bytes, bpContent.Bytes)
+
+	// get content with invalid token
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "no-such-token", pkgStore)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, bpContent)
+
+	// delete bp for no team and team 2
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	require.NoError(t, err)
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 2)
+	require.NoError(t, err)
+
+	// run the cleanup job
+	err = ds.CleanupUnusedBootstrapPackages(ctx, pkgStore, time.Now())
+	require.NoError(t, err)
+
+	// team 1 can still be retrieved (it shares the same contents)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1b.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp1b.Bytes, bpContent.Bytes)
+
+	// team 0 and 2 don't exist anymore
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, meta)
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 2)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, meta)
+
+	ok, err := pkgStore.Exists(ctx, hex.EncodeToString(bp1.Sha256))
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = pkgStore.Exists(ctx, hex.EncodeToString(bp2.Sha256))
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	// delete team 1
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 1)
+	require.NoError(t, err)
+
+	// force a team 3 bp to be saved in the DB (simulates upgrading to the new
+	// S3-based storage with already-saved bps in the DB)
+	bp3 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(3),
+		Name:   "bp3",
+		Sha256: hashContent("bp3"),
+		Bytes:  []byte("bp3"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp3, nil) // passing a nil pkgStore to force save in the DB
+	require.NoError(t, err)
+
+	// metadata can be read
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 3)
+	require.NoError(t, err)
+	bpMatchesWithoutContent(bp3, meta)
+
+	// content will be retrieved correctly from the DB even if we pass a pkgStore
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp3.Bytes, bpContent.Bytes)
+
+	// run the cleanup job
+	err = ds.CleanupUnusedBootstrapPackages(ctx, pkgStore, time.Now())
+	require.NoError(t, err)
+
+	ok, err = pkgStore.Exists(ctx, hex.EncodeToString(bp1.Sha256))
+	require.NoError(t, err)
+	require.False(t, ok)
+	ok, err = pkgStore.Exists(ctx, hex.EncodeToString(bp2.Sha256))
+	require.NoError(t, err)
+	require.False(t, ok)
+	// bp3 does not exist in the S3 store
+	ok, err = pkgStore.Exists(ctx, hex.EncodeToString(bp3.Sha256))
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	// so it can still be retrieved from the DB
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp3.Bytes, bpContent.Bytes)
+
+	// it can be deleted without problem
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 3)
+	require.NoError(t, err)
+
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, bpContent)
+}
+
+func testHostMDMCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	addHostMDMCommandsBatchSizeOrig := addHostMDMCommandsBatchSize
+	addHostMDMCommandsBatchSize = 2
+	t.Cleanup(func() {
+		addHostMDMCommandsBatchSize = addHostMDMCommandsBatchSizeOrig
+	})
+
+	// create a host
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	hostCommands := []fleet.HostMDMCommand{
+		{
+			HostID:      h.ID,
+			CommandType: "command-1",
+		},
+		{
+			HostID:      h.ID,
+			CommandType: "command-2",
+		},
+		{
+			HostID:      h.ID,
+			CommandType: "command-3",
+		},
+	}
+
+	badHostID := h.ID + 1
+	allCommands := append(hostCommands, fleet.HostMDMCommand{
+		HostID:      badHostID,
+		CommandType: "command-1",
+	})
+	err = ds.AddHostMDMCommands(ctx, allCommands)
+	require.NoError(t, err)
+
+	commands, err := ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands, commands)
+
+	// Remove a command
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, hostCommands[0]))
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	// Clean up commands, and make sure badHost commands have been removed, but others remain.
+	commands, err = ds.GetHostMDMCommands(ctx, badHostID)
+	require.NoError(t, err)
+	assert.Len(t, commands, 1)
+
+	require.NoError(t, ds.CleanupHostMDMCommands(ctx))
+	commands, err = ds.GetHostMDMCommands(ctx, badHostID)
+	require.NoError(t, err)
+	assert.Empty(t, commands)
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+}
+
+func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	keys := []string{"ios", "ipados", "macos"}
+	devicesByKey := map[string]godep.Device{
+		"ios":    {SerialNumber: "dep-serial-ios-updates", DeviceFamily: "iPhone"},
+		"ipados": {SerialNumber: "dep-serial-ipados-updates", DeviceFamily: "iPad"},
+		"macos":  {SerialNumber: "dep-serial-macos-updates", DeviceFamily: "Mac"},
+	}
+
+	getConfigSettings := func(teamID uint, key string) *fleet.AppleOSUpdateSettings {
+		var settings fleet.AppleOSUpdateSettings
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := fmt.Sprintf(`SELECT json_value->'$.mdm.%s_updates' FROM app_config_json`, key)
+			if teamID > 0 {
+				stmt = fmt.Sprintf(`SELECT config->'$.mdm.%s_updates' FROM teams WHERE id = %d`, key, teamID)
+			}
+			var raw json.RawMessage
+			if err := sqlx.GetContext(context.Background(), q, &raw, stmt); err != nil {
+				return err
+			}
+			if err := json.Unmarshal(raw, &settings); err != nil {
+				return err
+			}
+			return nil
+		})
+		return &settings
+	}
+
+	setConfigSettings := func(teamID uint, key string, minVersion string) {
+		var mv *string
+		if minVersion != "" {
+			mv = &minVersion
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := fmt.Sprintf(`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.%s_updates.minimum_version', ?)`, key)
+			if teamID > 0 {
+				stmt = fmt.Sprintf(`UPDATE teams SET config = JSON_SET(config, '$.mdm.%s_updates.minimum_version', ?) WHERE id = %d`, key, teamID)
+			}
+			if _, err := q.ExecContext(context.Background(), stmt, mv); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	checkExpectedVersion := func(t *testing.T, gotSettings *fleet.AppleOSUpdateSettings, expectedVersion string) {
+		if expectedVersion == "" {
+			require.True(t, gotSettings.MinimumVersion.Set)
+			require.False(t, gotSettings.MinimumVersion.Valid)
+			require.Empty(t, gotSettings.MinimumVersion.Value)
+		} else {
+			require.True(t, gotSettings.MinimumVersion.Set)
+			require.True(t, gotSettings.MinimumVersion.Valid)
+			require.Equal(t, expectedVersion, gotSettings.MinimumVersion.Value)
+		}
+	}
+
+	checkDevice := func(t *testing.T, teamID uint, key string, wantVersion string) {
+		checkExpectedVersion(t, getConfigSettings(teamID, key), wantVersion)
+		gotSettings, err := ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey[key].SerialNumber)
+		require.NoError(t, err)
+		checkExpectedVersion(t, gotSettings, wantVersion)
+	}
+
+	// empty global settings to start
+	for _, key := range keys {
+		checkExpectedVersion(t, getConfigSettings(0, key), "")
+	}
+
+	// ingest some test devices
+	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(context.Background(), []godep.Device{devicesByKey["ios"], devicesByKey["ipados"], devicesByKey["macos"]})
+	require.NoError(t, err)
+	require.Equal(t, int64(3), n)
+	hostIDsByKey := map[string]uint{}
+	for key, device := range devicesByKey {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			var hid uint
+			err = sqlx.GetContext(context.Background(), q, &hid, "SELECT id FROM hosts WHERE hardware_serial = ?", device.SerialNumber)
+			require.NoError(t, err)
+			hostIDsByKey[key] = hid
+			return nil
+		})
+	}
+
+	// not set in global config, so devics should return empty
+	checkDevice(t, 0, "ios", "")
+	checkDevice(t, 0, "ipados", "")
+	checkDevice(t, 0, "macos", "")
+
+	// set the minimum version for ios
+	setConfigSettings(0, "ios", "17.1")
+	checkDevice(t, 0, "ios", "17.1")
+	checkDevice(t, 0, "ipados", "") // no change
+	checkDevice(t, 0, "macos", "")  // no change
+
+	// set the minimum version for ipados
+	setConfigSettings(0, "ipados", "17.2")
+	checkDevice(t, 0, "ios", "17.1") // no change
+	checkDevice(t, 0, "ipados", "17.2")
+	checkDevice(t, 0, "macos", "") // no change
+
+	// set the minimum version for macos
+	setConfigSettings(0, "macos", "14.5")
+	checkDevice(t, 0, "ios", "17.1")    // no change
+	checkDevice(t, 0, "ipados", "17.2") // no change
+	checkDevice(t, 0, "macos", "14.5")
+
+	// create a team
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// empty team settings to start
+	for _, key := range keys {
+		checkExpectedVersion(t, getConfigSettings(team.ID, key), "")
+	}
+
+	// transfer ios and ipados to the team
+	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hostIDsByKey["ios"], hostIDsByKey["ipados"]})
+	require.NoError(t, err)
+
+	checkDevice(t, team.ID, "ios", "")    // team settings are empty to start
+	checkDevice(t, team.ID, "ipados", "") // team settings are empty to start
+	checkDevice(t, 0, "macos", "14.5")    // no change, still global
+
+	setConfigSettings(team.ID, "ios", "17.3")
+	checkDevice(t, team.ID, "ios", "17.3") // team settings are set for ios
+	checkDevice(t, team.ID, "ipados", "")  // team settings are empty for ipados
+	checkDevice(t, 0, "macos", "14.5")     // no change, still global
+
+	setConfigSettings(team.ID, "ipados", "17.4")
+	checkDevice(t, team.ID, "ios", "17.3")    // no change in team settings for ios
+	checkDevice(t, team.ID, "ipados", "17.4") // team settings are set for ipados
+	checkDevice(t, 0, "macos", "14.5")        // no change, still global
+
+	// transfer macos to the team
+	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hostIDsByKey["macos"]})
+	require.NoError(t, err)
+	checkDevice(t, team.ID, "macos", "") // team settings are empty for macos
+
+	setConfigSettings(team.ID, "macos", "14.6")
+	checkDevice(t, team.ID, "macos", "14.6") // team settings are set for macos
+
+	// create a non-DEP host
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:  ptr.String("non-dep-osquery-id"),
+		NodeKey:        ptr.String("non-dep-node-key"),
+		UUID:           "non-dep-uuid",
+		Hostname:       "non-dep-hostname",
+		Platform:       "macos",
+		HardwareSerial: "non-dep-serial",
+	})
+
+	// non-DEP host should return not found
+	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), "non-dep-serial")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// deleted DEP host should return not found
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?", hostIDsByKey["macos"])
+		return err
+	})
+	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

@@ -252,6 +252,39 @@ module.exports = {
         if (emailDomain && employer.emailDomain && employer.emailDomain !== emailDomain) {
           sails.log.info(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
         }//ﬁ
+
+        // Use OpenAI to try and enrich some additional data, if it's missing.
+        if (!employer.numberOfEmployees) {
+          if (!sails.config.custom.openAiSecret) {
+            throw new Error('sails.config.custom.openAiSecret not set.');
+          }//•
+
+          let prompt = `How many employees does the organization who owns ${emailDomain} have?
+    
+    Please respond in this form (but instead of 0, put the number of employees, as an integer:
+    {
+      "employees": 0
+    }`;
+          let BASE_MODEL = 'gpt-4o';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
+          // [?] API: https://platform.openai.com/docs/api-reference/chat/create
+          let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
+            model: BASE_MODEL,
+            messages: [ { role: 'user', content: prompt } ],// // https://platform.openai.com/docs/guides/chat/introduction
+            temperature: 0.7,
+            max_tokens: 256//eslint-disable-line camelcase
+          }, {
+            Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+          })
+          .tolerate((unusedErr)=>{});
+
+          if (openAiResponse) {
+            try {
+              employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content);
+            } catch (unusedErr) {
+              employer.numberOfEmployees = 1;
+            }
+          }//ﬁ
+        }//ﬁ
       }//ﬁ
     }//ﬁ
 

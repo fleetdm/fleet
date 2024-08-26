@@ -26,7 +26,6 @@ variable "fleet_config" {
     extra_iam_policies           = optional(list(string), [])
     extra_execution_iam_policies = optional(list(string), [])
     extra_secrets                = optional(map(string), {})
-    security_groups              = optional(list(string), null)
     security_group_name          = optional(string, "fleet")
     iam_role_arn                 = optional(string, null)
     repository_credentials       = optional(string, "")
@@ -130,7 +129,6 @@ variable "fleet_config" {
     extra_iam_policies           = []
     extra_execution_iam_policies = []
     extra_secrets                = {}
-    security_groups              = null
     security_group_name          = "fleet"
     iam_role_arn                 = null
     repository_credentials       = ""

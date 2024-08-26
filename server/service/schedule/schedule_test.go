@@ -590,6 +590,7 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 }
 
 func TestTriggerSingleInstance(t *testing.T) {
+	t.Parallel()
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	name := "test_trigger_single_instance"
