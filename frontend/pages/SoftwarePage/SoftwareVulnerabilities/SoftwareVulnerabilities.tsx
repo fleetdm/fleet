@@ -173,7 +173,7 @@ const SoftwareVulnerabilities = ({
           });
         }
       },
-      onError: (error) => {
+      onError: (error: AxiosError<IApiError>) => {
         // Handle 400 response which is an invalid CVE format
         if (error.status === 400) {
           if (
