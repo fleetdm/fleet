@@ -1803,8 +1803,8 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
-	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) error {
-		return nil
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{}, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

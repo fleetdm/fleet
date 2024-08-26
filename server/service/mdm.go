@@ -2644,6 +2644,112 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 }
 
 ////////////////////////////////////////////////////
+// PATCH /api/_version_/fleet/vpp_tokens/renew/%d //
+////////////////////////////////////////////////////
+
+type patchVPPTokenRenewRequest struct {
+	File *multipart.FileHeader
+}
+
+func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := patchVPPTokenRenewRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+		return nil, &fleet.BadRequestError{
+			Message:     "token multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	decoded.File = r.MultipartForm.File["token"][0]
+
+	return &decoded, nil
+}
+
+type patchVPPTokenRenewResponse struct {
+	Err   error             `json:"error,omitempty"`
+	Token *fleet.VPPTokenDB `json:"token,omitempty"`
+}
+
+func (r patchVPPTokenRenewResponse) Status() int { return http.StatusAccepted }
+
+func (r patchVPPTokenRenewResponse) error() error {
+	return r.Err
+}
+
+func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadVPPTokenRequest)
+	file, err := req.File.Open()
+	if err != nil {
+		return patchVPPTokenRenewResponse{Err: err}, nil
+	}
+	defer file.Close()
+
+	tok, err := svc.UploadVPPToken(ctx, file)
+	if err != nil {
+		return patchVPPTokenRenewResponse{Err: err}, nil
+	}
+
+	return patchVPPTokenRenewResponse{Token: tok}, nil
+}
+
+func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	if token == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+	}
+
+	tokenBytes, err := io.ReadAll(token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
+	}
+
+	locName, err := vpp.GetConfig(string(tokenBytes))
+	if err != nil {
+		var vppErr *vpp.ErrorResponse
+		if errors.As(err, &vppErr) {
+			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			if vppErr.ErrorNumber == 9622 {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+	}
+
+	data := fleet.VPPTokenData{
+		Token:    string(tokenBytes),
+		Location: locName,
+	}
+
+	tok, err := svc.ds.UpdateVPPToken(ctx, tokenID, &data)
+	if err != nil {
+		ctxerr.Wrap(ctx, err, "updating vpp token")
+	}
+
+	return tok, nil
+}
+
+////////////////////////////////////////////////////
 // PATCH /api/_version_/fleet/vpp_tokens/%d/teams //
 ////////////////////////////////////////////////////
 
@@ -2653,7 +2759,8 @@ type patchVPPTokensTeamsRequest struct {
 }
 
 type patchVPPTokensTeamsResponse struct {
-	Err error `json:"error,omitempty"`
+	Token *fleet.VPPTokenDB `json:"token,omitempty"`
+	Err   error             `json:"error,omitempty"`
 }
 
 func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
@@ -2661,26 +2768,24 @@ func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
 func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*patchVPPTokensTeamsRequest)
 
-	if err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamIDs); err != nil {
+	tok, err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamIDs)
+	if err != nil {
 		return patchVPPTokensTeamsResponse{Err: err}, nil
 	}
-	return patchVPPTokensTeamsResponse{}, nil
+	return patchVPPTokensTeamsResponse{Token: tok}, nil
 }
 
-func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) error {
+func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) (*fleet.VPPTokenDB, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
-	if teamIDs != nil && len(teamIDs) > 1 {
-		return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New("A VPP token can only belong to one team"), http.StatusBadRequest))
+	tok, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
 
-	if err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating vpp token team")
-	}
-
-	return nil
+	return tok, nil
 }
 
 ///////////////////////////////////////////////

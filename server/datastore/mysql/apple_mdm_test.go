@@ -6561,6 +6561,11 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
 	require.NoError(t, err)
 
+	orgName6 := "Dixie Kong"
+	location6 := "Dixie's Island"
+	dataToken6, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName6, location6)
+	require.NoError(t, err)
+
 	// No assignments / disabled token
 	tok, err := ds.InsertVPPToken(ctx, dataToken)
 	tokID := tok.ID
@@ -6601,8 +6606,15 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Nil(t, teamTok)
 
 	// Assign to all teams
-	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	upTok, err := ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
 	assert.NoError(t, err)
+	assert.Equal(t, tokID, upTok.ID)
+	assert.Equal(t, dataToken.Location, upTok.Location)
+	assert.Equal(t, dataToken.Token, upTok.Token)
+	assert.Equal(t, orgName, upTok.OrgName)
+	assert.Equal(t, location, upTok.Location)
+	assert.NotNil(t, upTok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.Len(t, upTok.Teams, 0)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -6645,8 +6657,12 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, teamTok.Teams, 0)
 
 	// Assign to team "No Team"
-	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
 	assert.NoError(t, err)
+	assert.Len(t, upTok.Teams, 1)
+	assert.Equal(t, tokID, upTok.ID)
+	assert.Equal(t, uint(0), upTok.Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, upTok.Teams[0].Name)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -6679,8 +6695,11 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Assign to normal team
-	err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
 	assert.NoError(t, err)
+	assert.Len(t, upTok.Teams, 1)
+	assert.Equal(t, team.ID, upTok.Teams[0].ID)
+	assert.Equal(t, team.Name, upTok.Teams[0].Name)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -6711,9 +6730,35 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
 	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
 
-	// Assign back to no team / disabled
-	err = ds.UpdateVPPTokenTeams(ctx, tokID, nil)
+	// Renew flow
+	upTok, err = ds.UpdateVPPToken(ctx, tokID, dataToken6)
 	assert.NoError(t, err)
+	assert.Equal(t, tokID, upTok.ID)
+	assert.Equal(t, dataToken6.Location, upTok.Location)
+	assert.Equal(t, dataToken6.Token, upTok.Token)
+	assert.Equal(t, orgName6, upTok.OrgName)
+	assert.Equal(t, location6, upTok.Location)
+	assert.NotNil(t, upTok.Teams)
+	assert.Len(t, upTok.Teams, 1)
+	assert.Equal(t, team.ID, upTok.Teams[0].ID)
+	assert.Equal(t, team.Name, upTok.Teams[0].Name)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, tok.ID)
+	assert.Equal(t, dataToken6.Location, tok.Location)
+	assert.Equal(t, dataToken6.Token, tok.Token)
+	assert.Equal(t, orgName6, tok.OrgName)
+	assert.Equal(t, location6, tok.Location)
+	assert.NotNil(t, tok.Teams)
+	assert.Len(t, tok.Teams, 1)
+	assert.Equal(t, team.ID, tok.Teams[0].ID)
+	assert.Equal(t, team.Name, tok.Teams[0].Name)
+
+	// Assign back to no team / disabled
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokID, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, upTok.Teams)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -6738,7 +6783,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	// Multiple tokens and constraints tests
 	tokNone, err := ds.InsertVPPToken(ctx, dataToken)
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, nil)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, nil)
 	assert.NoError(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -6750,9 +6795,9 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	tokAll, err := ds.InsertVPPToken(ctx, dataToken2)
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
 	assert.NoError(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -6761,9 +6806,9 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	tokTeam, err := ds.InsertVPPToken(ctx, dataToken3)
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
 	assert.Error(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -6772,15 +6817,15 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	tokTeams, err := ds.InsertVPPToken(ctx, dataToken4)
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
 	assert.Error(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
 	assert.Error(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, 0})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, 0})
 	assert.Error(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	assert.NoError(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -6795,11 +6840,11 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	tokBadConstraint, err := ds.InsertVPPToken(ctx, dataToken5)
 	assert.NoError(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{})
 	assert.Error(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{team.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{team.ID})
 	assert.Error(t, err)
-	err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{0})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{0})
 	assert.Error(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -6871,7 +6916,7 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 
 	////
-	err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
 	assert.NoError(t, err)
 
 	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)

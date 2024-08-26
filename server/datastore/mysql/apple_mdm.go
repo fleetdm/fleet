@@ -4767,6 +4767,74 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	VALUES (?, ?, ?, ?)
 `
 
+	vppTokenDB, err := vppTokenDataToVppTokenDB(ctx, tok)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "translating vpp token to db representation")
+	}
+
+	tokEnc, err := encrypt([]byte(vppTokenDB.Token), ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		insertStmt,
+		vppTokenDB.OrgName,
+		vppTokenDB.Location,
+		vppTokenDB.RenewDate,
+		tokEnc,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
+	}
+
+	id, _ := res.LastInsertId()
+
+	vppTokenDB.ID = uint(id)
+
+	return vppTokenDB, nil
+}
+
+func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
+	stmt := `
+	UPDATE vpp_tokens
+	SET
+		organization_name = ?,
+		location = ?,
+		renew_at = ?,
+		token = ?
+	WHERE
+		id = ?
+`
+
+	vppTokenDB, err := vppTokenDataToVppTokenDB(ctx, tok)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "translating vpp token to db representation")
+	}
+
+	tokEnc, err := encrypt([]byte(vppTokenDB.Token), ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		vppTokenDB.OrgName,
+		vppTokenDB.Location,
+		vppTokenDB.RenewDate,
+		tokEnc,
+		tokenID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
+	}
+
+	return ds.GetVPPToken(ctx, tokenID)
+}
+
+func vppTokenDataToVppTokenDB(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
@@ -4783,33 +4851,12 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	}
 	exp = exp.UTC()
 
-	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
-	}
-
 	vppTokenDB := &fleet.VPPTokenDB{
 		OrgName:   tokRaw.OrgName,
 		Location:  tok.Location,
 		RenewDate: exp,
 		Token:     tok.Token,
 	}
-
-	res, err := ds.writer(ctx).ExecContext(
-		ctx,
-		insertStmt,
-		vppTokenDB.OrgName,
-		vppTokenDB.Location,
-		exp,
-		tokEnc,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
-	}
-
-	id, _ := res.LastInsertId()
-
-	vppTokenDB.ID = uint(id)
 
 	return vppTokenDB, nil
 }
@@ -4956,7 +5003,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	return tok, nil
 }
 
-func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) error {
+func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 	stmtRemove := `DELETE FROM vpp_token_teams WHERE vpp_token_id = ?`
 	stmtInsert := `
 	INSERT INTO
@@ -5003,7 +5050,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	stmtInsertFull := stmtInsert + values
 
 	if err := ds.checkVPPNullTeam(ctx, &id, nullTeamCheck); err != nil {
-		return ctxerr.Wrap(ctx, err, "vpp token null team check")
+		return nil, ctxerr.Wrap(ctx, err, "vpp token null team check")
 	}
 
 	///////////////////////
@@ -5011,28 +5058,28 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	///////////////////////
 	tx, err := ds.writer(ctx).BeginTx(ctx, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "could not begin transaction to update vpp token teams")
+		return nil, ctxerr.Wrap(ctx, err, "could not begin transaction to update vpp token teams")
 	}
 	defer tx.Rollback() //nolint:errcheck
 
 	if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
+		return nil, ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 	}
 
 	if len(args) > 0 {
 		if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating vpp token team")
+			return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return ctxerr.Wrap(ctx, err, "comitting update vpp token data")
+		return nil, ctxerr.Wrap(ctx, err, "comitting update vpp token data")
 	}
 	////////////////////////
 	// COMMIT TRANSACTION //
 	////////////////////////
 
-	return nil
+	return ds.GetVPPToken(ctx, id)
 }
 
 func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
