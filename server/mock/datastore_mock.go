@@ -250,7 +250,15 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
-type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
+type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
+
+type AddHostMDMCommandsFunc func(ctx context.Context, commands []fleet.HostMDMCommand) error
+
+type GetHostMDMCommandsFunc func(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error)
+
+type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCommand) error
+
+type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
@@ -604,6 +612,8 @@ type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version str
 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
 
+type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) error
+
 type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
@@ -850,6 +860,8 @@ type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string,
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
 
+type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
+
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
@@ -982,7 +994,7 @@ type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*f
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
-type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error)
+type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error)
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
@@ -1004,13 +1016,13 @@ type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform str
 
 type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
 
-type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error)
+type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error)
 
-type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppID) error
+type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
-type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string) error
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
@@ -1362,6 +1374,18 @@ type DataStore struct {
 
 	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
 	ListIOSAndIPadOSToRefetchFuncInvoked bool
+
+	AddHostMDMCommandsFunc        AddHostMDMCommandsFunc
+	AddHostMDMCommandsFuncInvoked bool
+
+	GetHostMDMCommandsFunc        GetHostMDMCommandsFunc
+	GetHostMDMCommandsFuncInvoked bool
+
+	RemoveHostMDMCommandFunc        RemoveHostMDMCommandFunc
+	RemoveHostMDMCommandFuncInvoked bool
+
+	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
+	CleanupHostMDMCommandsFuncInvoked bool
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
@@ -1891,6 +1915,9 @@ type DataStore struct {
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
 
+	UpdateMDMDataFunc        UpdateMDMDataFunc
+	UpdateMDMDataFuncInvoked bool
+
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
 
@@ -2259,6 +2286,9 @@ type DataStore struct {
 
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
+
+	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
+	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
 
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
@@ -3314,11 +3344,39 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error) {
+func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error) {
 	s.mu.Lock()
 	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
+}
+
+func (s *DataStore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	s.mu.Lock()
+	s.AddHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AddHostMDMCommandsFunc(ctx, commands)
+}
+
+func (s *DataStore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
+	s.mu.Lock()
+	s.GetHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMCommandsFunc(ctx, hostID)
+}
+
+func (s *DataStore) RemoveHostMDMCommand(ctx context.Context, command fleet.HostMDMCommand) error {
+	s.mu.Lock()
+	s.RemoveHostMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveHostMDMCommandFunc(ctx, command)
+}
+
+func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostMDMCommandsFunc(ctx)
 }
 
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -4553,6 +4611,13 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServe
 	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name, fleetEnrollRef)
 }
 
+func (s *DataStore) UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error {
+	s.mu.Lock()
+	s.UpdateMDMDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMDataFunc(ctx, hostID, enrolled)
+}
+
 func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = true
@@ -5414,6 +5479,13 @@ func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUU
 	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
 }
 
+func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error) {
+	s.mu.Lock()
+	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
+}
+
 func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
 	s.mu.Lock()
 	s.InsertMDMConfigAssetsFuncInvoked = true
@@ -5876,11 +5948,11 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
-func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error) {
+func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.GetVPPAppByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
+	return s.GetVPPAppByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
@@ -5953,14 +6025,14 @@ func (s *DataStore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp
 	return s.BatchInsertVPPAppsFunc(ctx, apps)
 }
 
-func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
+func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	s.mu.Lock()
 	s.GetAssignedVPPAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAssignedVPPAppsFunc(ctx, teamID)
 }
 
-func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppID) error {
+func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error {
 	s.mu.Lock()
 	s.SetTeamVPPAppsFuncInvoked = true
 	s.mu.Unlock()
@@ -5974,11 +6046,11 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
-func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string) error {
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, appID, commandUUID, associatedEventID)
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, selfService)
 }
 
 func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {

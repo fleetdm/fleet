@@ -82,6 +82,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it

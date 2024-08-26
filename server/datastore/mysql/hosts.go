@@ -1042,7 +1042,7 @@ func (ds *Datastore) applyHostFilters(
 			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
 			switch {
 			case fleet.IsNotFound(err):
-				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
@@ -3653,6 +3653,18 @@ func (ds *Datastore) SetOrUpdateMDMData(
 		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, host_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, hostID,
 	)
+}
+
+func (ds *Datastore) UpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	enrolled bool,
+) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm SET enrolled = ? WHERE host_id = ?`, enrolled, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host_mdm.enrolled")
+	}
+	return nil
 }
 
 func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(

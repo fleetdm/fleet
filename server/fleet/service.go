@@ -653,7 +653,7 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	AddAppStoreApp(ctx context.Context, teamID *uint, appID VPPAppID) error
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -661,15 +661,13 @@ type Service interface {
 	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
 	// ListVulnerability returns a vulnerability based on the provided CVE.
-	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (*VulnerabilityWithMetadata, error)
+	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *VulnerabilityWithMetadata, known bool, err error)
 	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
 	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
 	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
 	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
-	// IsCVEKnownToFleet returns whether the provided CVE is known to Fleet.
-	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -920,6 +918,9 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
 
+	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
+	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
@@ -1064,8 +1065,11 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
-	GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*SoftwareInstaller, error)
-	DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
+	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
+	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
+	GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*SoftwareInstaller, error)
+	DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
+		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
