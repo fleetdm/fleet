@@ -10,6 +10,7 @@ import FileUploader from "components/FileUploader";
 import { FileDetails } from "components/FileUploader/FileUploader";
 
 import VppSetupSteps from "../VppSetupSteps";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "add-vpp-modal";
 
@@ -44,9 +45,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
       renderFlash("success", "Added successfully.");
       onAdded();
     } catch (e) {
-      // TODO: ensure API is sending back the correct err messages
-      const msg = getErrorReason(e);
-      renderFlash("error", msg);
+      renderFlash("error", getErrorMessage(e));
       onCancel();
     } finally {
       setIsUploading(false);

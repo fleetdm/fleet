@@ -8,10 +8,10 @@ import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
-import { IMdmAbmToken, IMdmAppleBm } from "interfaces/mdm";
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import { IMdmAbmToken } from "interfaces/mdm";
+import mdmAbmAPI, {
+  IGetAbmTokensResponse,
+} from "services/entities/mdm_apple_bm";
 
 import BackLink from "components/BackLink";
 import Button from "components/buttons/Button";
@@ -86,13 +86,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     isLoading,
     isRefetching,
     refetch,
-  } = useQuery<IMdmAbmToken[], AxiosError>(
+  } = useQuery<IGetAbmTokensResponse, AxiosError, IMdmAbmToken[]>(
     ["abmTokens"],
     () => mdmAbmAPI.getTokens(),
     {
       refetchOnWindowFocus: false,
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
+      select: (data) => data?.abm_tokens,
     }
   );
 

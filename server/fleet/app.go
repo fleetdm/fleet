@@ -120,9 +120,24 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDMAppleABMAssignmentInfo represents an user definition of the association
+// between an ABM token (via organization name) and the teams used to associate
+// hosts when they're ingested during the ABM sync.
+type MDMAppleABMAssignmentInfo struct {
+	OrganizationName string `json:"organization_name"`
+	MacOSTeam        string `json:"macos_team"`
+	IOSTeam          string `json:"ios_team"`
+	IpadOSTeam       string `json:"ipados_team"`
+}
+
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
-	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	// Deprecated: use AppleBussinessManager instead
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+
+	// AppleBussinessManager defines the associations between ABM tokens
+	// and the teams used to assign hosts when they're ingested from ABM.
+	AppleBussinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -611,6 +626,15 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
+	if c.MDM.AppleBussinessManager.Set {
+		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBussinessManager.Value))
+		for i, s := range c.MDM.AppleBussinessManager.Value {
+			abm[i] = s
+		}
+		clone.MDM.AppleBussinessManager = optjson.SetSlice(abm)
+
+	}
+
 	return &clone
 }
 
@@ -835,7 +859,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-
+	if c.MDM.AppleBussinessManager.Set {
+		c.MDM.DeprecatedAppleBMDefaultTeam = ""
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)

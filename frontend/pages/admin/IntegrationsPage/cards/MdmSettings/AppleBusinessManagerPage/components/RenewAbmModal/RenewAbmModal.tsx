@@ -12,6 +12,8 @@ import {
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 
+import { getErrorMessage } from "./helpers";
+
 const baseClass = "renew-abm-modal";
 
 interface IRenewAbmModalProps {
@@ -52,13 +54,7 @@ const RenewAbmModal = ({
       setIsUploading(false);
       onRenewedToken();
     } catch (e) {
-      // TODO: figure out what error message will be sent from API.
-      const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("valid token")) {
-        renderFlash("error", msg);
-      } else {
-        renderFlash("error", "Couldn’t renew. Please try again.");
-      }
+      renderFlash("error", getErrorMessage(e));
       onCancel();
       setIsUploading(false);
     }
