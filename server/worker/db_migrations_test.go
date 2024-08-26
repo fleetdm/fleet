@@ -61,11 +61,11 @@ VALUES
 
 		const insJob = `
 INSERT INTO jobs (
-    name,
-    args,
-    state,
+		name,
+		args,
+		state,
 		error,
-    not_before,
+		not_before,
 		created_at,
 		updated_at
 )
