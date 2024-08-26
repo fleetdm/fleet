@@ -33,6 +33,8 @@ func SetABMTokenMetadata(
 	return SetDecryptedABMTokenMetadata(ctx, abmToken, decryptedToken, depStorage, ds, logger)
 }
 
+const UnsavedABMTokenOrgName = "new_abm_token"
+
 func SetDecryptedABMTokenMetadata(
 	ctx context.Context,
 	abmToken *fleet.ABMToken,
@@ -51,7 +53,7 @@ func SetDecryptedABMTokenMetadata(
 		// that downstream we know it's not in the datastore.
 		ctx = abmctx.NewContext(ctx, decryptedToken)
 		// We don't have an org name, but the depClient expects an org name, so we set this fake one.
-		orgName = "new_abm_token"
+		orgName = UnsavedABMTokenOrgName
 	}
 
 	res, err := depClient.AccountDetail(ctx, orgName)

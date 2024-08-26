@@ -693,7 +693,7 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
-func SetTestABMAssets(t testing.TB, ds *Datastore) {
+func SetTestABMAssets(t testing.TB, ds *Datastore) []byte {
 	apnsCert, apnsKey, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
@@ -702,7 +702,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes}, // TODO: should not be stored here, once tests have been updated
 		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
 		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
 		{Name: fleet.MDMAssetCACert, Value: certPEM},
@@ -718,6 +718,8 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	err = ds.SaveAppConfig(context.Background(), appCfg)
 	require.NoError(t, err)
+
+	return tokenBytes
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
