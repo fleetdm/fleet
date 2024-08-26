@@ -503,6 +503,12 @@ func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) erro
 	return fn(ds.primary)
 }
 
+// EncryptWithPrivateKey encrypts data with the server private key associated
+// with the Datastore.
+func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, error) {
+	return encrypt(data, ds.serverPrivateKey)
+}
+
 // TruncateTables truncates the specified tables, in order, using ds.writer.
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except

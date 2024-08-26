@@ -690,7 +690,7 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) 
 		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
 	}
 
-	if err := ds.checkVPPNullTeam(ctx, tok.TeamID, tok.NullTeam); err != nil {
+	if err := ds.checkVPPNullTeam(ctx, &tok.ID, tok.NullTeam); err != nil {
 		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
 	}
 

@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -6538,27 +6536,27 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	orgName := "Donkey Kong"
 	location := "Jungle"
-	dataToken, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName, location)
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName, location)
 	require.NoError(t, err)
 
 	orgName2 := "Diddy Kong"
 	location2 := "Mines"
-	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName2, location2)
 	require.NoError(t, err)
 
 	orgName3 := "Cranky Cong"
 	location3 := "Cranky's Cabin"
-	dataToken3, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName3, location3)
+	dataToken3, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName3, location3)
 	require.NoError(t, err)
 
 	orgName4 := "Funky Kong"
 	location4 := "Funky's Fishing Shack"
-	dataToken4, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName4, location4)
+	dataToken4, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName4, location4)
 	require.NoError(t, err)
 
 	orgName5 := "Lanky Kong"
 	location5 := "Lanky Kong's Pool"
-	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
+	dataToken5, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName5, location5)
 	_ = dataToken5
 	require.NoError(t, err)
 
@@ -6803,26 +6801,4 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	count, err = ds.CountABMTokensWithTermsExpired(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, count)
-}
-
-func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
-	var randBytes [32]byte
-	_, err := rand.Read(randBytes[:])
-	if err != nil {
-		return nil, fmt.Errorf("generating random bytes: %w", err)
-	}
-	token := base64.StdEncoding.EncodeToString(randBytes[:])
-	raw := fleet.VPPTokenRaw{
-		OrgName: orgName,
-		Token:   token,
-		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
-	}
-	rawJson, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
-	}
-
-	base64Token := base64.StdEncoding.EncodeToString(rawJson)
-
-	return &fleet.VPPTokenData{Token: base64Token, Location: location}, nil
 }
