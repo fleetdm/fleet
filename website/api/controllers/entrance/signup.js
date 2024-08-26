@@ -144,7 +144,7 @@ the account verification message.)`,
       firstName: firstName,
       lastName: lastName,
       organization: organization,
-      leadSource: 'Website - Sign up'
+      contactSource: 'Website - Sign up'
     }).exec((err)=>{
       if(err){
         sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);

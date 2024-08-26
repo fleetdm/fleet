@@ -19,9 +19,22 @@ export interface IVppApp {
   platform: ApplePlatform;
 }
 
+interface IAddVppAppPostBody {
+  app_store_id: string;
+  team_id: number;
+  platform: ApplePlatform;
+  self_service?: boolean;
+}
+
 export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
+
+export interface IUploadVppTokenReponse {
+  vpp_token: IMdmVppToken;
+}
+
+export type IRenewVppTokenResponse = IUploadVppTokenReponse;
 
 export default {
   getAppleAPNInfo: () => {
@@ -52,13 +65,6 @@ export default {
     return sendRequest("GET", MDM_APPLE_VPP);
   },
 
-  uploadVppToken: (token: File) => {
-    const { MDM_APPLE_VPP_TOKEN } = endpoints;
-    const formData = new FormData();
-    formData.append("token", token);
-    return sendRequest("POST", MDM_APPLE_VPP_TOKEN, formData);
-  },
-
   disableVpp: () => {
     const { MDM_APPLE_VPP_TOKEN } = endpoints;
     return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
@@ -70,13 +76,24 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVppApp: (teamId: number, appStoreId: string, platform: ApplePlatform) => {
+  addVppApp: (
+    teamId: number,
+    appStoreId: string,
+    platform: ApplePlatform,
+    isSelfService: boolean
+  ) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    return sendRequest("POST", MDM_APPLE_VPP_APPS, {
+    const postBody: IAddVppAppPostBody = {
       app_store_id: appStoreId,
       team_id: teamId,
       platform,
-    });
+    };
+
+    if (isSelfService) {
+      postBody.self_service = isSelfService;
+    }
+
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
   },
 
   getVppTokens: (): Promise<IMdmVppToken[]> => {
@@ -84,18 +101,89 @@ export default {
     // return sendRequest("GET", MDM_VPP_TOKENS);
     return Promise.resolve([
       {
-        id: 1,
+        id: 2,
         org_name: "Fleet Device Management Inc.",
         location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-11-29T00:00:00Z",
-        terms_expired: false,
+        renew_date: "2024-08-29T00:00:00Z",
         teams: [
-          "💻 Workstations",
-          "💻🐣 Workstations (canary)",
-          "📱🏢 Company-owned iPhones",
-          "🔳🏢 Company-owned iPads",
+          { id: 1, name: "💻 Workstations" },
+          { id: 2, name: "💻🐣 Workstations (canary)" },
+          { id: 3, name: "📱🏢 Company-owned iPhones" },
         ],
       },
-    ]); // TODO: remove when API is ready
+      {
+        id: 3,
+        org_name: "Fleet Device Management Inc.",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2025-08-29T00:00:00Z",
+        teams: [{ id: 1, name: "💻 Workstations" }],
+      },
+      {
+        id: 4,
+        org_name: "Fleet Device Management Inc.",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2025-08-29T00:00:00Z",
+        teams: null, // unassigned
+      },
+      // {
+      //   id: 1337,
+      //   org_name: "Fleet Device Management Inc.",
+      //   location: "https://example.com/mdm/apple/mdm",
+      //   renew_date: "2025-08-29T00:00:00Z",
+      //   teams: [], // all teams
+      // },
+      {
+        id: 6,
+        org_name: "Fleet Device Management Inc.",
+        location: "https://example.com/mdm/apple/mdm",
+        renew_date: "2025-08-29T00:00:00Z",
+        teams: [
+          { id: 0, name: "No Team" },
+          { id: 1, name: "💻 Workstations" },
+        ],
+      },
+    ]);
+  },
+
+  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+    const { MDM_VPP_TOKENS } = endpoints;
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("POST", MDM_VPP_TOKENS, formData);
+  },
+
+  renewVppToken(id: number, token: File): Promise<IRenewVppTokenResponse> {
+    const { MDM_VPP_TOKENS_RENEW } = endpoints;
+    const path = MDM_VPP_TOKENS_RENEW(id);
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("PATCH", path, formData);
+  },
+
+  deleteVppToken: (id: number): Promise<void> => {
+    const { MDM_VPP_TOKEN } = endpoints;
+    const path = MDM_VPP_TOKEN(id);
+    return sendRequest("DELETE", path);
+  },
+
+  editVppTeams: async (params: {
+    tokenId: number;
+    teamIds: number[] | null;
+  }) => {
+    // const { MDM_VPP_TOKEN } = endpoints;
+    // const path = MDM_VPP_TOKEN(id);
+    // return sendRequest("PATCH", path, { teams: teamIds });
+    console.log(
+      "Editing teams for token id",
+      params.tokenId,
+      "with data:",
+      params.teamIds
+    );
+    // promisify a mock response with a timeout
+    await new Promise((resolve) => setTimeout(resolve, 3000)).then(() =>
+      console.log("done")
+    );
+    console.log("Teams edited successfully");
+    return Promise.resolve();
   },
 };

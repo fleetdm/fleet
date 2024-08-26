@@ -282,17 +282,21 @@ Follow these steps to archive any document:
 ### Schedule CEO interview
 
 Use the following steps to schedule an interview between a candidate and the CEO:
-1. Reach out to the candidate via email to find a time when the CEO and the canidate are both available.
-   > This entire process takes an hour for the CEO. A 30 minute interview followed by a 30 minute "¶¶ Postgame". Be sure to offer times that accommodate for this.
-3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc).
-4. Move the document to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
-5. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`.
+1. Once you receive a [CEO interview request](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member), apply the "eyes" (👀) emoji to the Slack post to acknowledge you've seen the request.
+2. Reach out to the candidate via email to find a time when the CEO and candidate are both available.
+   > This entire process takes an hour for the CEO: a 30-minute interview followed by a 30-minute "¶¶ Postgame" Be sure to offer times that accommodate this.
+3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc) and move it to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
+4. Prep the CEO interview doc:
+   - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
-6. Create a Google Calendar event at a time when the CEO and the canidate are both available.
+   - Share the CEO interview doc with the hiring manager as a "Commenter".
+5. Link the CEO interview doc at the top of the "feedback" doc shared in the CEO interview request
+6. Create a Google Calendar event at a time when the CEO and the candidate are both available.
    - Create a Google Calendar event matching the title of the interview doc.
-   - Add the interveiw doc to the calendar event desription as the agenda (i.e. `Agenda: INTERVIEW_DOC_FULL_URL`) and save the calendar event.
-7. Schedule a 30 minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
+   - Add the interview doc to the calendar event description as the agenda (i.e. `Agenda: INTERVIEW_DOC_FULL_URL`) and save the calendar event.
+7. Schedule a 30-minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
+8. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed. 
 
 
 ### Program the CEO to do something

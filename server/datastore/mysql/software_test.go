@@ -4990,6 +4990,9 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				require.Equal(t, tt.expected[i].Name, s.Name)
 				require.Equal(t, tt.expected[i].Version, s.Version)
 			}
+			count, err := ds.CountSoftware(ctx, tt.opts)
+			require.NoError(t, err)
+			require.Equal(t, len(tt.expected), count)
 		})
 	}
 }

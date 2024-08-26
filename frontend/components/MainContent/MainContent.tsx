@@ -65,11 +65,10 @@ const MainContent = ({
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {
         banner = <AppleBMTermsMessage />;
-      } else if (isFleetLicenseExpired) {
-        // TODO: confirm where license banner should rank in priority
-        banner = <LicenseExpirationBanner />;
       } else if (isVppExpired || willVppExpire) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
+      } else if (isFleetLicenseExpired) {
+        banner = <LicenseExpirationBanner />;
       }
     }
 

@@ -2184,7 +2184,6 @@ software:
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 		})
 	}
-
 }
 
 func TestVPPGitOps(t *testing.T) {
@@ -2508,5 +2507,4 @@ software:
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 		})
 	}
-
 }

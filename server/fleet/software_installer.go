@@ -409,3 +409,9 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallerPending
 	}
 }
+
+// SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
+type SoftwareInstallerTokenMetadata struct {
+	TitleID uint `json:"title_id"`
+	TeamID  uint `json:"team_id"`
+}

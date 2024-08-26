@@ -45,6 +45,60 @@ When you collect data with Fleet, the [performance impact](https://fleetdm.com/r
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
+## What browsers does Fleet supported?
+
+Fleet supports the latest, stable releases of all major browsers and platforms.
+
+We test each browser on Windows whenever possible, because our engineering team primarily uses macOS.
+
+**Note:** This information also applies to [fleetdm.com](https://www.fleetdm.com).
+
+### Desktop
+
+- Chrome
+- Firefox
+- Edge
+- Safari (macOS only)
+
+### Mobile
+
+- Mobile Safari on iOS
+- Mobile Chrome on Android
+
+### Note
+> - Mobile web is not yet supported in the Fleet product.
+> - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
+
+## What host operating systems does Fleet support?
+
+Fleet supports the following operating system versions on hosts. 
+
+| OS      | Supported version(s)                    |
+| :------ | :-------------------------------------  |
+| macOS   | 13+ (Ventura)                           |
+| Windows | Pro and Enterprise 10+, Server 2012+    |
+| Linux   | CentOS 7.1+,  Ubuntu 20.04+, Fedora 38+ |
+| ChromeOS | 112.0.5615.134+                        |
+
+While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them. 
+
+## Some notes on compatibility
+
+### Tables
+Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
+
+If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
+
+### Linux
+
+Fleet Desktop is supported on Ubuntu and Fedora. 
+
+Fedora requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+
+On Ubuntu, Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported. Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
+
+The `fleetctl package` command is not supported on DISA-STIG distribution.
+
 ## Is Fleet MIT licensed?
 
 Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
@@ -71,7 +125,7 @@ Different portions of the Fleet software are licensed differently, as noted in t
 
 ## How do I contact Fleet for support?
 
-A lot of questions can be answered [in the documentation](https://fleetdm.com/docs).
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs) or [guides](https://fleetdm.com/guides).
 
 To get help from the community, visit https://fleetdm.com/support.
 
