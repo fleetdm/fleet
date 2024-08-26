@@ -2686,10 +2686,11 @@ SELECT
 FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = ? AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
-WHERE hvsi.removed = 0
+INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE hvsi.removed = 0 AND ncr.status = ?
 `
 	var titles []fleet.SoftwareTitle
-	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID, fleet.MDMAppleStatusAcknowledged); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get installed software titles")
 	}
 	return titles, nil
