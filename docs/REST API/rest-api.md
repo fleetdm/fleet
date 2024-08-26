@@ -9189,6 +9189,31 @@ Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or
 
 `Status: 202`
 
+### Uninstall package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` added to be uninstalled.
+
+`POST /api/v1/fleet/hosts/:id/software/uninstall/:software_title_id`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| id                | integer    | path | **Required**. The host's ID.                     |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/uinstall/3435`
+
+##### Default response
+
+`Status: 202`
+
 ### Get package install result
 
 _Available in Fleet Premium._
