@@ -750,7 +750,7 @@
 - industryName: Teams
   friendlyName: Manage different endpoints differently
   documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
-  description: Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
+  description: Teams are what Fleet calls baselines, kinda like security groups or images. Every host in a team matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
