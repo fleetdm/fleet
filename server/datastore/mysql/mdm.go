@@ -499,11 +499,9 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
-	level.Info(ds.logger).Log("msg", "about to batch set windows profiels")
 	if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
-	level.Info(ds.logger).Log("msg", "completed batch set windows profiels")
 
 	const defaultBatchSize = 1000
 	batchSize := defaultBatchSize
@@ -515,11 +513,9 @@ WHERE
 	// (and my hunch is that we could even do the same for
 	// profiles) but this could be optimized to use only a provided
 	// set of host uuids.
-	level.Info(ds.logger).Log("msg", "about to batch set declarations for all hosts")
 	if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
-	level.Info(ds.logger).Log("msg", "completed batch set declarations for all hosts")
 
 	return nil
 }
