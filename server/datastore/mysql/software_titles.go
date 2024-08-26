@@ -13,18 +13,24 @@ import (
 )
 
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-	var teamFilter string // used to filter software titles host counts by team
+	var (
+		teamFilter                            string // used to filter software titles host counts by team
+		softwareInstallerGlobalOrTeamIDFilter string
+		vppAppsTeamsGlobalOrTeamIDFilter      string
+	)
+
 	if teamID != nil {
-		teamFilter = fmt.Sprintf("sthc.team_id = %d", *teamID)
+		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
+		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
+		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
+		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 	}
 
-	var tmID uint // used to filter software installers by team
-	if teamID != nil {
-		tmID = *teamID
-	}
-
+	// Select software title but filter out if the software has zero host counts
+	// and it's not an installer or VPP app.
 	selectSoftwareTitleStmt := fmt.Sprintf(`
 SELECT
 	st.id,
@@ -32,15 +38,15 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
-	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
-	MAX(sthc.updated_at)  as counts_updated_at,
+	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
-	COUNT(vat.adam_id) as vpp_apps_count
+	COUNT(vat.adam_id) AS vpp_apps_count
 FROM software_titles st
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
-LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
+LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 WHERE st.id = ? AND
 	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
 GROUP BY
@@ -49,10 +55,10 @@ GROUP BY
 	st.source,
 	st.browser,
 	st.bundle_identifier
-	`, teamFilter,
+	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, tmID, tmID, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}
@@ -173,7 +179,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	// (like a JSON) object for nested arrays.
 	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
 		titleIDs,
-		nil,
+		opt.TeamID,
 		tmFilter,
 		false,
 	)
@@ -262,10 +268,10 @@ SELECT
 	vap.latest_version as vpp_app_version,
 	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
-LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 -- placeholder for JOIN on software/software_cve
 %s
 -- placeholder for optional extra WHERE filter
@@ -279,9 +285,24 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		cveJoinType = "INNER"
 	}
 
-	args := []any{0, 0, 0}
-	if opt.TeamID != nil {
-		args[0], args[1], args[2] = *opt.TeamID, *opt.TeamID, *opt.TeamID
+	countsJoin := "TRUE"
+	softwareInstallersJoinCond := "TRUE"
+	vppAppsTeamsJoinCond := "TRUE"
+	includeVPPAppsAndSoftwareInstallers := "TRUE"
+	switch {
+	case opt.TeamID == nil:
+		countsJoin = "sthc.team_id = 0 AND sthc.global_stats = 1"
+		// When opt.TeamID is nil (aka "All teams") we do not include VPP-apps/installers
+		// that are not installed on any host.
+		includeVPPAppsAndSoftwareInstallers = "FALSE"
+	case *opt.TeamID == 0:
+		countsJoin = "sthc.team_id = 0 AND sthc.global_stats = 0"
+		softwareInstallersJoinCond = fmt.Sprintf("si.global_or_team_id = %d", *opt.TeamID)
+		vppAppsTeamsJoinCond = fmt.Sprintf("vat.global_or_team_id = %d", *opt.TeamID)
+	case *opt.TeamID > 0:
+		countsJoin = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *opt.TeamID)
+		softwareInstallersJoinCond = fmt.Sprintf("si.global_or_team_id = %d", *opt.TeamID)
+		vppAppsTeamsJoinCond = fmt.Sprintf("vat.global_or_team_id = %d", *opt.TeamID)
 	}
 
 	additionalWhere := "TRUE"
@@ -299,6 +320,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		`, cveJoinType)
 	}
 
+	var args []any
 	if match != "" {
 		additionalWhere = " (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)
@@ -306,9 +328,9 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	}
 
 	// default to "a software installer or VPP app exists", and see next condition.
-	defaultFilter := `
-		(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)
-	`
+	defaultFilter := fmt.Sprintf(`
+		((si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s)
+	`, includeVPPAppsAndSoftwareInstallers)
 
 	// add software installed for hosts if any of this is true:
 	//
@@ -321,7 +343,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		defaultFilter += ` AND si.self_service = 1 `
 	}
 
-	stmt = fmt.Sprintf(stmt, softwareJoin, additionalWhere, defaultFilter)
+	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args
 }
 
@@ -342,7 +364,7 @@ SELECT
 	%s -- placeholder for optional host_counts
 	CONCAT('[', GROUP_CONCAT(JSON_QUOTE(scve.cve) SEPARATOR ','), ']') as vulnerabilities
 FROM software s
-LEFT JOIN software_host_counts shc ON shc.software_id = s.id
+LEFT JOIN software_host_counts shc ON shc.software_id = s.id AND %s
 LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
 AND %s
@@ -354,7 +376,17 @@ GROUP BY s.id`
 		extraSelect = "MAX(shc.hosts_count) AS hosts_count,"
 	}
 
-	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, teamFilter)
+	countsJoin := "TRUE"
+	switch {
+	case teamID == nil:
+		countsJoin = "shc.team_id = 0 AND shc.global_stats = 1"
+	case *teamID == 0:
+		countsJoin = "shc.team_id = 0 AND shc.global_stats = 0"
+	case *teamID > 0:
+		countsJoin = fmt.Sprintf("shc.team_id = %d AND shc.global_stats = 0", *teamID)
+	}
+
+	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, countsJoin, teamFilter)
 
 	selectVersionsStmt, args, err := sqlx.In(selectVersionsStmt, titleIDs)
 	if err != nil {
@@ -376,6 +408,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
             SELECT
                 COUNT(DISTINCT hs.host_id),
                 0 as team_id,
+				1 as global_stats,
                 st.id as software_title_id
             FROM software_titles st
             JOIN software s ON s.title_id = st.id
@@ -386,6 +419,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
             SELECT
                 COUNT(DISTINCT hs.host_id),
                 h.team_id,
+				0 as global_stats,
                 st.id as software_title_id
             FROM software_titles st
             JOIN software s ON s.title_id = st.id
@@ -394,16 +428,29 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
             WHERE h.team_id IS NOT NULL AND hs.software_id > 0
             GROUP BY st.id, h.team_id`
 
+		noTeamCountsStmt = `
+			SELECT
+				COUNT(DISTINCT hs.host_id),
+				0 as team_id,
+				0 as global_stats,
+				st.id as software_title_id
+			FROM software_titles st
+			JOIN software s ON s.title_id = st.id
+			JOIN host_software hs ON hs.software_id = s.id
+			INNER JOIN hosts h ON hs.host_id = h.id
+			WHERE h.team_id IS NULL AND hs.software_id > 0
+			GROUP BY st.id`
+
 		insertStmt = `
             INSERT INTO software_titles_host_counts
-                (software_title_id, hosts_count, team_id, updated_at)
+                (software_title_id, hosts_count, team_id, global_stats, updated_at)
             VALUES
                 %s
             ON DUPLICATE KEY UPDATE
                 hosts_count = VALUES(hosts_count),
                 updated_at = VALUES(updated_at)`
 
-		valuesPart = `(?, ?, ?, ?),`
+		valuesPart = `(?, ?, ?, ?, ?),`
 
 		cleanupOrphanedStmt = `
             DELETE sthc
@@ -428,8 +475,8 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 	}
 
 	// next get a cursor for the global and team counts for each software
-	stmtLabel := []string{"global", "team"}
-	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
+	stmtLabel := []string{"global", "team", "no_team"}
+	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt, noTeamCountsStmt} {
 		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
@@ -446,14 +493,15 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 			var (
 				count  int
 				teamID uint
+				gstats bool
 				sid    uint
 			)
 
-			if err := rows.Scan(&count, &teamID, &sid); err != nil {
+			if err := rows.Scan(&count, &teamID, &gstats, &sid); err != nil {
 				return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 			}
 
-			args = append(args, sid, count, teamID, updatedAt)
+			args = append(args, sid, count, teamID, gstats, updatedAt)
 			batchCount++
 
 			if batchCount == batchSize {

@@ -80,10 +80,10 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	// default is no team
 	val, ok := r.MultipartForm.Value["team_id"]
-	if ok && len(val) > 0 {
-		teamID, err := strconv.Atoi(val[0])
+	if ok {
+		teamID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid team_id: %s", val[0])}
 		}
 		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
@@ -318,7 +318,7 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                           `json:"-" query:"team_name"`
+	TeamName string                           `json:"-" query:"team_name,optional"`
 	DryRun   bool                             `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Software []fleet.SoftwareInstallerPayload `json:"software"`
 }

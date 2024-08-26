@@ -92,7 +92,7 @@ Any change to fleetdm.com follows the same process as [making changes](https://f
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
-The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.
+The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
 
 ## Marketing programs
@@ -133,7 +133,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Digital Marketing Manager to make sure this process is followed.
+Eventgoers expect a timely follow-up from Fleet based on the conversations that they had at the event.
 
 1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
@@ -454,7 +454,7 @@ Any Fleetie can follow the process below to add a priority label to an issue.
 
 Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
 
-We use the following story points to estimate website tasks:
+We use the following story points to estimate tasks:
 
 | Story point | Time |
 |:---|:--------------|
@@ -464,6 +464,8 @@ We use the following story points to estimate website tasks:
 | 5  | 2 to 3 days   |
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
+
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
 
 
 ### Making a pull request
@@ -1042,7 +1044,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 ### What would Mister Rogers say?
 
-[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
 Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
 
@@ -1217,6 +1219,7 @@ Sometimes numerals seem out of place. If an expression typically spells out the 
 - First impression
 - Third-party integration
 - All-in-one platform
+
 Numbers over 3 digits get commas:
 - 999
 - 1,000
@@ -1228,6 +1231,7 @@ Numbers over 3 digits get commas:
 Use numerals and am or pm without a space in between:
 - 7am
 - 7:30pm
+
 Use a hyphen between times to indicate a time period:
 - 7am–10:30pm
 
@@ -1617,7 +1621,7 @@ This glossary provides definitions to commonly used terms within our space.
 | **open source** | Software with intentionally public code for the sake of transparency. |
 | **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
 | **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
-| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **out-of-policy device** | A device that fails any security or vulnerability policy created in Fleet. |
 | **permissions** | Users have different abilities depending on the access level they have. |
 | **platform** | Any software or hardware for hosting an application, data, or service. |
 | **policies** | Yes or no questions you can ask using Fleet about your host devices. |

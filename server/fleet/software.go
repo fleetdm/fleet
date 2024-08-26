@@ -240,6 +240,11 @@ type HostSoftwareTitleListOptions struct {
 	// install (but not currently installed on the host) should be returned.
 	IncludeAvailableForInstall bool
 
+	// OnlyAvailableForInstall is set via a query argument that limits the
+	// returned software titles to only those that are available for install on
+	// the host.
+	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
+
 	VulnerableOnly bool `query:"vulnerable,optional"`
 }
 
@@ -416,4 +421,9 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 
 type VPPBatchPayload struct {
 	AppStoreID string `json:"app_store_id"`
+}
+
+type VPPBatchPayloadWithPlatform struct {
+	AppStoreID string              `json:"app_store_id"`
+	Platform   AppleDevicePlatform `json:"platform"`
 }

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,6 +90,14 @@ func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
+	}
+
+	// Send all micromdm repo requests to the existing server
+	if strings.HasPrefix(r.URL.Path, "/repo") {
+		log.Printf("%s %s -> Existing (Repo)", r.Method, r.URL.String())
+		m.existingProxy.ServeHTTP(w, r)
+		return
+
 	}
 
 	// Read the body of the request
@@ -313,34 +322,12 @@ func main() {
 	serverAddr := flag.String("server-address", ":8080", "Address for server to listen on")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	logSkipped := flag.Bool("log-skipped", false, "Log skipped requests (usually from web scanners)")
+	check := flag.String("check", "", "Print whether the specified UDID is migrated with the current configuration, then exit")
 	flag.Parse()
-
-	// Check required flags
-	if *existingURL == "" {
-		log.Fatal("--existing-url must be set")
-	}
-	if *existingHostname == "" {
-		log.Fatal("--existing-hostname must be set")
-	}
-	if *fleetURL == "" {
-		log.Fatal("--fleet-url must be set")
-	}
 
 	udids, err := processUDIDs(bytes.NewBufferString(*migrateUDIDs))
 	if err != nil {
 		panic(err)
-	}
-	log.Printf("--migrate-udids set: %v", udids)
-	log.Printf("--migrate-percentage set: %d", *migratePercentage)
-	log.Printf("--existing-url set: %s", *existingURL)
-	log.Printf("--existing-hostname set: %s", *existingHostname)
-	log.Printf("--fleet-url set: %s", *fleetURL)
-	log.Printf("--debug set: %v", *debug)
-	log.Printf("--log-skipped set: %v", *logSkipped)
-	if *authToken != "" {
-		log.Printf("--auth-token set. Remote configuration enabled.")
-	} else {
-		log.Printf("--auth-token is empty. Remote configuration disabled.")
 	}
 
 	proxy := mdmProxy{
@@ -354,6 +341,39 @@ func main() {
 		fleetProxy:        makeFleetProxy(*fleetURL, *debug),
 		debug:             *debug,
 		logSkipped:        *logSkipped,
+	}
+
+	if len(*check) > 0 {
+		if proxy.isUDIDMigrated(*check) {
+			fmt.Printf("%s IS migrated\n", *check)
+		} else {
+			fmt.Printf("%s IS NOT migrated\n", *check)
+		}
+		os.Exit(0)
+	}
+
+	// Check required flags
+	if *existingURL == "" {
+		log.Fatal("--existing-url must be set")
+	}
+	if *existingHostname == "" {
+		log.Fatal("--existing-hostname must be set")
+	}
+	if *fleetURL == "" {
+		log.Fatal("--fleet-url must be set")
+	}
+
+	log.Printf("--migrate-udids set: %v", udids)
+	log.Printf("--migrate-percentage set: %d", *migratePercentage)
+	log.Printf("--existing-url set: %s", *existingURL)
+	log.Printf("--existing-hostname set: %s", *existingHostname)
+	log.Printf("--fleet-url set: %s", *fleetURL)
+	log.Printf("--debug set: %v", *debug)
+	log.Printf("--log-skipped set: %v", *logSkipped)
+	if *authToken != "" {
+		log.Printf("--auth-token set. Remote configuration enabled.")
+	} else {
+		log.Printf("--auth-token is empty. Remote configuration disabled.")
 	}
 
 	mux := http.NewServeMux()

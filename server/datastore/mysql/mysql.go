@@ -160,6 +160,22 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
+func (ds *Datastore) deleteCachedStmt(query string) {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+	stmt, ok := ds.stmtCache[query]
+	if ok {
+		if err := stmt.Close(); err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to close prepared statement before deleting it",
+				"query", query,
+				"err", err,
+			)
+		}
+		delete(ds.stmtCache, query)
+	}
+}
+
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
@@ -901,7 +917,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
-	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
 }

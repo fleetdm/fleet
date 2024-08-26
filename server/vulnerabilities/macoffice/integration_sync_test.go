@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIntegrationSync(t *testing.T) {
+func TestIntegrationsSync(t *testing.T) {
 	nettest.Run(t)
 
 	vulnPath := t.TempDir()

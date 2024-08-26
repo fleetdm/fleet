@@ -9,6 +9,7 @@ import {
   IHostSoftwarePackage,
   SoftwareInstallStatus,
   formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import {
   IHeaderProps,
@@ -47,20 +48,19 @@ type IInstalledVersionsCellProps = CellProps<
   IHostSoftware["installed_versions"]
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
-// type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
 const generateActions = ({
-  canInstall,
+  userHasSWInstallPermission,
+  hostCanInstallSoftware,
   installingSoftwareId,
-  isFleetdHost,
   softwareId,
   status,
   software_package,
   app_store_app,
 }: {
-  canInstall: boolean;
+  userHasSWInstallPermission: boolean;
+  hostCanInstallSoftware: boolean;
   installingSoftwareId: number | null;
-  isFleetdHost: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
@@ -78,14 +78,18 @@ const generateActions = ({
   }
 
   const hasSoftwareToInstall = !!software_package || !!app_store_app;
-  // remove install if there is no package to install
-  if (!hasSoftwareToInstall || !canInstall) {
+  // remove install if there is no package to install or if the software is already installed
+  if (
+    !hasSoftwareToInstall ||
+    !userHasSWInstallPermission ||
+    status === "installed"
+  ) {
     actions.splice(indexInstallAction, 1);
     return actions;
   }
 
-  // disable install option if not a fleetd host
-  if (!isFleetdHost) {
+  // disable install option if not a fleetd, iPad, or iOS host
+  if (!hostCanInstallSoftware) {
     actions[indexInstallAction].disabled = true;
     actions[indexInstallAction].tooltipContent =
       "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
@@ -102,9 +106,9 @@ const generateActions = ({
 };
 
 interface ISoftwareTableHeadersProps {
-  canInstall: boolean;
+  userHasSWInstallPermission: boolean;
+  hostCanInstallSoftware: boolean;
   installingSoftwareId: number | null;
-  isFleetdHost: boolean;
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
@@ -113,9 +117,9 @@ interface ISoftwareTableHeadersProps {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  canInstall,
+  userHasSWInstallPermission,
+  hostCanInstallSoftware,
   installingSoftwareId,
-  isFleetdHost,
   router,
   teamId,
   onSelectAction,
@@ -180,6 +184,9 @@ export const generateSoftwareTableHeaders = ({
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },
@@ -202,8 +209,8 @@ export const generateSoftwareTableHeaders = ({
           <DropdownCell
             placeholder="Actions"
             options={generateActions({
-              canInstall,
-              isFleetdHost,
+              userHasSWInstallPermission,
+              hostCanInstallSoftware,
               installingSoftwareId,
               softwareId,
               status,

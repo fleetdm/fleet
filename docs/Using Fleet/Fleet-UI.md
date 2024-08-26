@@ -8,11 +8,11 @@
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
 </div>
 
+Queries in Fleet allow you to ask questions to help you manage, monitor, and identify threats on your devices. This guide will walk you through how to create, schedule, and run a query.
+
+> New users may find it helpful to start with Fleet's policies. You can find policies and queries from the community in Fleet's [query library](https://fleetdm.com/queries). To learn more about policies, see [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies).
+
 ## Create a query
-
-Queries in Fleet allow you to ask a multitude of questions to help you manage, monitor, and identify threats on your devices. 
-
-If you're unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries). There you'll find common queries that have been tested by members of our community.
 
 How to create a query:
 

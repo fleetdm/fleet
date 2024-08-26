@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1288,38 +1287,6 @@ func (svc *Service) EnqueueMDMAppleCommand(
 type mdmAppleEnrollRequest struct {
 	Token               string `query:"token"`
 	EnrollmentReference string `query:"enrollment_reference,optional"`
-	MachineInfo         *fleet.MDMAppleMachineInfo
-}
-
-func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := mdmAppleEnrollRequest{}
-
-	tok := r.URL.Query().Get("token")
-	if tok == "" {
-		return nil, &fleet.BadRequestError{
-			Message: "token is required",
-		}
-	}
-	decoded.Token = tok
-
-	er := r.URL.Query().Get("enrollment_reference")
-	decoded.EnrollmentReference = er
-
-	// Parse the machine info from the request body
-	di := r.Header.Get("x-apple-aspen-deviceinfo")
-	if di != "" {
-		// extract x-apple-aspen-deviceinfo custom header from request
-		parsed, err := apple_mdm.ParseDeviceinfo(di, true)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message: "unable to parse deviceinfo header",
-			}
-		}
-		p := fleet.MDMAppleMachineInfo(*parsed)
-		decoded.MachineInfo = &p
-	}
-
-	return &decoded, nil
 }
 
 func (r mdmAppleEnrollResponse) error() error { return r.Err }
@@ -1329,20 +1296,9 @@ type mdmAppleEnrollResponse struct {
 
 	// Profile field is used in hijackRender for the response.
 	Profile []byte
-
-	SoftwareUpdateRequired *fleet.MDMAppleSoftwareUpdateRequired
 }
 
 func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.SoftwareUpdateRequired != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusForbidden)
-		if err := json.NewEncoder(w).Encode(r.SoftwareUpdateRequired); err != nil {
-			encodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
-		}
-		return
-	}
-
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -1359,16 +1315,6 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
-
-	sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
-	if err != nil {
-		return mdmAppleEnrollResponse{Err: err}, nil
-	}
-	if sur != nil {
-		return mdmAppleEnrollResponse{
-			SoftwareUpdateRequired: sur,
-		}, nil
-	}
 
 	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference)
 	if err != nil {
@@ -1428,62 +1374,6 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	}
 
 	return signed, nil
-}
-
-func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
-	// skipauth: The enroll profile endpoint is unauthenticated.
-	svc.authz.SkipAuthorization(ctx)
-
-	if m == nil {
-		level.Info(svc.logger).Log("msg", "no machine info, skipping os version check")
-		return nil, nil
-	}
-
-	if !m.MDMCanRequestSoftwareUpdate {
-		level.Info(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "machine_info", *m)
-		return nil, nil
-	}
-
-	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
-	// look up DEP hosts by serial number. It grabs the team id and platform from the
-	// hosts table. Then it uses the team id to get either the global config or team config.
-	// Finally, it uses the platform to get os updates settings from the config for
-	// one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
-	// least of which is that the platform is correct in the hosts table. If the platform is wrong,
-	// we'll end up with a meaningless comparison of unrelated versions. We could potentially add
-	// some cross-check against the machine info to ensure that the platform of the host aligns with
-	// what we expect from the machine info. But that would involve work to derive the platform from
-	// the machine info (presumably from the product name, but that's not a 1:1 mapping).
-	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			level.Info(svc.logger).Log("msg", "settings not found, skipping os version check", "machine_info", *m)
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get os updates settings")
-	}
-
-	// TODO: confirm what this check should do
-	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
-		level.Info(svc.logger).Log("msg", "settings not set, skipping os version check", "machine_info", *m, "settings", settings)
-		return nil, nil
-	}
-
-	want, err := semver.NewVersion(settings.MinimumVersion.Value)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing minimum version")
-	}
-
-	got, err := semver.NewVersion(m.OSVersion)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
-	}
-
-	if got.LessThan(want) {
-		return fleet.NewMDMAppleSoftwareUpdateRequired(*settings), nil
-	}
-
-	return nil, nil
 }
 
 func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
@@ -3573,9 +3463,13 @@ func RenewSCEPCertificates(
 		}
 	}
 
-	migrationEnrollmentProfile := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
+	decodedMigrationEnrollmentProfile, err := base64.StdEncoding.DecodeString(os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE"))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to decode silent migration enrollment profile")
+	}
 	hasAssocsFromMigration := len(assocsFromMigration) > 0
 
+	migrationEnrollmentProfile := string(decodedMigrationEnrollmentProfile)
 	if migrationEnrollmentProfile == "" && hasAssocsFromMigration {
 		level.Debug(logger).Log("msg", "found devices from migration that need SCEP renewals but FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is empty")
 	}

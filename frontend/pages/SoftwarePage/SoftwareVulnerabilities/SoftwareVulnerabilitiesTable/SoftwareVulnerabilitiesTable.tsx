@@ -261,7 +261,7 @@ const SoftwareVulnerabilitiesTable = ({
           <EmptySoftwareTable
             tableName="vulnerabilities"
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware={query === ""}
+            noSearchQuery={query === ""}
           />
         )}
         defaultSortHeader={orderKey}

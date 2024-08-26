@@ -132,7 +132,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -198,7 +198,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
 			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.AppStoreID)
+				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 				}

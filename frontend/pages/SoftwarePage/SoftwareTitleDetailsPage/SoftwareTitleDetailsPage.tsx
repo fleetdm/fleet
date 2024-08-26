@@ -12,7 +12,11 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 
-import { ISoftwareTitleDetails, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareTitleDetails,
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 import softwareAPI, {
   ISoftwareTitleResponse,
@@ -73,7 +77,7 @@ const SoftwareTitleDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
@@ -101,8 +105,8 @@ const SoftwareTitleDetailsPage = ({
     }
   );
 
-  const hasSoftwarePackage = !!softwareTitle?.software_package;
-  const hasAppStoreApp = !!softwareTitle?.app_store_app;
+  const isAvailableForInstall =
+    !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
   const onDeleteInstaller = useCallback(() => {
     if (softwareTitle?.versions?.length) {
@@ -110,7 +114,7 @@ const SoftwareTitleDetailsPage = ({
       return;
     }
     // redirect to software titles page if no versions are available
-    if (teamIdForApi && teamIdForApi > 0) {
+    if (teamIdForApi) {
       router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
     } else {
       router.push(paths.SOFTWARE_TITLES);
@@ -132,7 +136,7 @@ const SoftwareTitleDetailsPage = ({
     const showPackageCard =
       currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
       hasPermission &&
-      (hasSoftwarePackage || hasAppStoreApp);
+      isAvailableForInstall;
 
     if (showPackageCard) {
       const packageCardData = getPackageCardInfo(title);
@@ -163,9 +167,7 @@ const SoftwareTitleDetailsPage = ({
       return (
         <DetailsNoHosts
           header="Software not detected"
-          details={`No hosts ${
-            teamIdForApi ? "on this team " : ""
-          }have this software installed.`}
+          details="Expecting to see software? Check back later."
         />
       );
     }
@@ -202,6 +204,10 @@ const SoftwareTitleDetailsPage = ({
               data={softwareTitle.versions ?? []}
               isLoading={isSoftwareTitleLoading}
               teamIdForApi={teamIdForApi}
+              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
+                softwareTitle.source
+              )}
+              isAvailableForInstall={isAvailableForInstall}
             />
           </Card>
         </>

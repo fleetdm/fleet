@@ -50,14 +50,20 @@ export interface ISoftwareVersionsResponse {
 export interface ISoftwareTitleResponse {
   software_title: ISoftwareTitleDetails;
 }
+
 export interface ISoftwareVersionResponse {
   software: ISoftwareVersion;
 }
+
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken?: string | null;
   scope: "software-titles";
 }
 
@@ -166,7 +172,9 @@ export default {
     teamId,
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
-    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path =
+      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },
 
@@ -183,7 +191,9 @@ export default {
     teamId,
   }: IGetSoftwareVersionQueryParams) => {
     const endpoint = endpoints.SOFTWARE_VERSION(versionId);
-    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path =
+      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },

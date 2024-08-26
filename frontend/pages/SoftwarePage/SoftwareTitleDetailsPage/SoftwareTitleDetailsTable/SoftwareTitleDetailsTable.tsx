@@ -21,19 +21,27 @@ const DEFAULT_SORT_DIRECTION = "desc";
 
 const baseClass = "software-title-details-table";
 
-const NoVersionsDetected = (): JSX.Element => {
+const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
     <EmptyTable
-      header="No versions detected for this software item."
+      header={
+        isAvailableForInstall
+          ? "No versions detected."
+          : "No versions detected for this software item."
+      }
       info={
-        <>
-          Expecting to see versions?{" "}
-          <CustomLink
-            url={GITHUB_NEW_ISSUE_LINK}
-            text="File an issue on GitHub"
-            newTab
-          />
-        </>
+        isAvailableForInstall ? (
+          "Install this software on a host to see versions."
+        ) : (
+          <>
+            Expecting to see versions?{" "}
+            <CustomLink
+              url={GITHUB_NEW_ISSUE_LINK}
+              text="File an issue on GitHub"
+              newTab
+            />
+          </>
+        )
       }
     />
   );
@@ -44,6 +52,8 @@ interface ISoftwareTitleDetailsTableProps {
   data: ISoftwareTitleVersion[];
   isLoading: boolean;
   teamIdForApi?: number;
+  isIPadOSOrIOSApp: boolean;
+  isAvailableForInstall?: boolean;
 }
 
 interface IRowProps extends Row {
@@ -57,6 +67,8 @@ const SoftwareTitleDetailsTable = ({
   data,
   isLoading,
   teamIdForApi,
+  isIPadOSOrIOSApp,
+  isAvailableForInstall,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -74,8 +86,12 @@ const SoftwareTitleDetailsTable = ({
 
   const softwareTableHeaders = useMemo(
     () =>
-      generateSoftwareTitleDetailsTableConfig({ router, teamId: teamIdForApi }),
-    [router, teamIdForApi]
+      generateSoftwareTitleDetailsTableConfig({
+        router,
+        teamId: teamIdForApi,
+        isIPadOSOrIOSApp,
+      }),
+    [router, teamIdForApi, isIPadOSOrIOSApp]
   );
 
   const renderVersionsCount = () => (
@@ -88,7 +104,7 @@ const SoftwareTitleDetailsTable = ({
       columnConfigs={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
-      emptyComponent={NoVersionsDetected}
+      emptyComponent={() => NoVersionsDetected(isAvailableForInstall)}
       showMarkAllPages={false}
       isAllPagesSelected={false}
       defaultSortHeader={DEFAULT_SORT_HEADER}
