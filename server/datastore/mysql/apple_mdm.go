@@ -1671,7 +1671,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	}
 
 	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
-	batchSize := 10_000
 
 	// TODO(mna): the conditions here (and in toRemoveStmt) are subtly different
 	// than the ones in ListMDMAppleProfilesToInstall/Remove, so I'm keeping
@@ -1714,12 +1713,16 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	totalBatches := int(math.Ceil(float64(len(uuids)) / float64(batchSize)))
-	var wantedProfiles []*fleet.MDMAppleProfilePayload
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(uuids)) / float64(selectProfilesBatchSize)))
 
-	for i := 0; i < totalBatches; i++ {
-		start := i * batchSize
-		end := start + batchSize
+	var wantedProfiles []*fleet.MDMAppleProfilePayload
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
 		if end > len(uuids) {
 			end = len(uuids)
 		}
@@ -1728,13 +1731,13 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, totalBatches)
+			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
 		}
 
 		var partialResult []*fleet.MDMAppleProfilePayload
 		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, totalBatches)
+			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
 		}
 
 		wantedProfiles = append(wantedProfiles, partialResult...)
@@ -1775,9 +1778,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 	var currentProfiles []*fleet.MDMAppleProfilePayload
-	for i := 0; i < totalBatches; i++ {
-		start := i * batchSize
-		end := start + batchSize
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
 		if end > len(uuids) {
 			end = len(uuids)
 		}
@@ -1872,7 +1875,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	}
 
 	const defaultBatchSize = 1000
-	batchSize = defaultBatchSize
+	batchSize := defaultBatchSize
 	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
 		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
