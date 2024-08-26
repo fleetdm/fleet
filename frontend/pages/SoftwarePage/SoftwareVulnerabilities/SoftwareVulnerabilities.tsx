@@ -125,6 +125,7 @@ const SoftwareVulnerabilities = ({
       },
     ],
     ({ queryKey }) => {
+      // Revisit: Refactor to return status alongside data and check for 204 instead of !data
       return softwareVulnAPI.getVulnerability(queryKey[0]);
     },
     {
@@ -240,10 +241,6 @@ const SoftwareVulnerabilities = ({
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
-  console.log("isFetching", isFetching);
-  console.log("isFetchingExactMatch,", isFetchingExactMatch);
-  console.log("isLoading", isLoading);
-  console.log("isLoadingExactMatch,", isLoadingExactMatch);
   return (
     <div className={baseClass}>
       <SoftwareVulnerabilitiesTable
