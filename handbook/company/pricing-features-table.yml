@@ -542,8 +542,6 @@
    - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
    - description: Offer licenses for Photoshop and other App Sore apps for your end users.
-   - description: macOS coming soon (2024-07-15). #customer-rosner
-     moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
    - description: iOS/iPadOS coming soon (2024-08-11).
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
 #  
