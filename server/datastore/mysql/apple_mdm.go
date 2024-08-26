@@ -4800,11 +4800,12 @@ func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.Hos
 }
 
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
-	// Delete commands that don't have a corresponding host or have been sent over 7 days ago.
+	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
+	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
 	const stmt = `
 		DELETE hmc FROM host_mdm_commands AS hmc
 		LEFT JOIN hosts h ON h.id = hmc.host_id
-		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 7 DAY`
+		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
 	}
