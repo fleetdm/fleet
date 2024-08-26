@@ -32,6 +32,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
+import { IMdmVppToken } from "interfaces/mdm";
 
 interface IAppProps {
   children: JSX.Element;
@@ -99,12 +100,14 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-      onSuccess: (data) => {
-        const { abm_tokens } = data;
-        setABMExpiry({
-          earliestExpiry: getEarliestExpiry(abm_tokens),
-          needsAbmTermsRenewal: abm_tokens.some((token) => token.terms_expired),
-        });
+      onSuccess: ({ abm_tokens }) => {
+        abm_tokens.length &&
+          setABMExpiry({
+            earliestExpiry: getEarliestExpiry(abm_tokens),
+            needsAbmTermsRenewal: abm_tokens.some(
+              (token) => token.terms_expired
+            ),
+          });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
       // API behaved this way when the token is already expired or invalid.
@@ -128,15 +131,15 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     },
   });
 
-  // Get the Apple Push VPP token expiration date
+  // Get the Apple VPP token expiration date
   useQuery<IGetVppTokensResponse>(
     ["vpp_tokens"],
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-      onSuccess: (data) => {
-        setVppExpiry(getEarliestExpiry(data.vpp_tokens));
+      onSuccess: ({ vpp_tokens }) => {
+        vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
       },
     }
   );
