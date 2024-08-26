@@ -26,7 +26,7 @@ When a minimum version is enforced, the end users see a native macOS notificatio
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
-For macOS (14.0+) devices that use Automated Device Enrollment (ADE), if the device is below the specified
+For macOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
 minimum version, it will be required to update to the very latest OS version during ADE before
 device setup and enrollment can proceed.
 
@@ -42,9 +42,9 @@ End users are encouraged to update macOS (via [Nudge](https://github.com/macadmi
 | End user can defer                   | ✅                      | ✅                      | ❌                    |
 | Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
 
-### iOS and iPadOS (17.0+)
+### iOS and iPadOS (version 17.0 and above)
 
-For iOS and iPadOS (17.0+) devices that use Automated Device Enrollment (ADE), if the device is below the specified
+For iOS and iPadOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
 minimum version, it will be required to update to the very latest OS version during ADE before device setup and enrollment can proceed.
 
 ### Windows
