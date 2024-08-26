@@ -2743,7 +2743,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 
 	tok, err := svc.ds.UpdateVPPToken(ctx, tokenID, &data)
 	if err != nil {
-		ctxerr.Wrap(ctx, err, "updating vpp token")
+		return nil, ctxerr.Wrap(ctx, err, "updating vpp token")
 	}
 
 	return tok, nil
