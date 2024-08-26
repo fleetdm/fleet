@@ -1330,16 +1330,20 @@ func teamConfigProfileForTest(t *testing.T, name, identifier, uuid string, teamI
 }
 
 func testMDMAppleProfileManagementBatch2(t *testing.T, ds *Datastore) {
+	ds.testSelectMDMProfilesBatchSize = 2
 	ds.testUpsertMDMDesiredProfilesBatchSize = 2
 	t.Cleanup(func() {
+		ds.testSelectMDMProfilesBatchSize = 0
 		ds.testUpsertMDMDesiredProfilesBatchSize = 0
 	})
 	testMDMAppleProfileManagement(t, ds)
 }
 
 func testMDMAppleProfileManagementBatch3(t *testing.T, ds *Datastore) {
+	ds.testSelectMDMProfilesBatchSize = 3
 	ds.testUpsertMDMDesiredProfilesBatchSize = 3
 	t.Cleanup(func() {
+		ds.testSelectMDMProfilesBatchSize = 0
 		ds.testUpsertMDMDesiredProfilesBatchSize = 0
 	})
 	testMDMAppleProfileManagement(t, ds)
