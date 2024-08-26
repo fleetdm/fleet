@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -3605,9 +3604,7 @@ WHERE
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
-	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: starting ")
 	if len(serials) == 0 {
-		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: serials was empty, exiting early ")
 		return skipSerials, serialsByOrgName, nil
 	}
 
@@ -3630,7 +3627,6 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
 	if err != nil {
-		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: sqlx in failed", "error", err)
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: prepare statement arguments")
 	}
 
@@ -3640,30 +3636,24 @@ WHERE
 		ABMOrgName     string `db:"organization_name"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
-		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: select failed", "error", err)
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
 	}
 
 	serialsByOrgName = make(map[string][]string)
 
-	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: before for loop", "skipSerials", skipSerials, "serialsByOrgName", serialsByOrgName)
 	for _, r := range rows {
-		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: looking at row", "serial", r.HardwareSerial, "orgName", r.ABMOrgName)
 		switch r.Status {
 		case "assign":
 			// assignSerials = append(assignSerials, r.HardwareSerial)
-			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: setting serial in assign list ", "serial", r.HardwareSerial, "orgName", r.ABMOrgName)
 
 			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
 			skipSerials = append(skipSerials, r.HardwareSerial)
 		default:
-			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: default in switch", "error", err)
 			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
 		}
 	}
 
-	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ScreenDEPAssignProfileSerialsForCooldown").Info("JVE_LOG: done", "skipSerials", skipSerials, "serialsByOrgName", serialsByOrgName)
 	return skipSerials, serialsByOrgName, nil
 }
 
@@ -5388,4 +5378,32 @@ func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, e
 		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens with terms expired")
 	}
 	return count, nil
+}
+
+func (ds *Datastore) GetABMTokenOrgNamesForTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	stmt := `
+SELECT DISTINCT
+	abmt.organization_name
+FROM
+	abm_tokens abmt
+	JOIN host_dep_assignments hda ON hda.abm_token_id = abmt.id
+	JOIN hosts h ON hda.host_id = h.id
+WHERE
+ %s
+	`
+	var args []any
+	teamFilter := `h.team_id IS NULL`
+	if teamID != nil {
+		teamFilter = `h.team_id = ?`
+		args = append(args, teamID)
+	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter)
+
+	var orgNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &orgNames, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting org names for team from db")
+	}
+
+	return orgNames, nil
 }

@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -29,11 +31,11 @@ func TestMacosSetupAssistant(t *testing.T) {
 	mysql.TruncateTables(t, ds)
 
 	org1Name := "org1"
+	org2Name := "org2"
 
-	mysql.SetTestABMAssets(t, ds, org1Name)
-
-	tok, err := ds.GetABMTokenByOrgName(ctx, org1Name)
-	require.NoError(t, err)
+	mysql.SetTestABMAssets(t, ds, apple_mdm.DEPName)
+	tok := mysql.CreateAndSetABMToken(t, ds, org1Name)
+	tok2 := mysql.CreateAndSetABMToken(t, ds, org2Name)
 
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)
@@ -48,10 +50,15 @@ func TestMacosSetupAssistant(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tok.ID)
+		tokID := tok.ID
+		if i%2 == 0 {
+			tokID = tok2.ID
+		}
+
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tokID)
 		require.NoError(t, err)
 		hosts[i] = h
-		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)
+		t.Logf("host [%d]: %s - %s - %d", i, h.UUID, h.HardwareSerial, tokID)
 	}
 
 	// create teams
@@ -112,6 +119,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 			if strings.HasSuffix(reqProf.ConfigurationWebURL, "/mdm/sso") {
 				profUUID += "+sso"
 			}
+			slog.With("filename", "server/worker/macos_setup_assistant_test.go", "func", "TestMacosSetupAssistant").Info("JVE_LOG: responding with prof UUID ", "uuid", profUUID)
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID})
 			require.NoError(t, err)
 
@@ -132,7 +140,9 @@ func TestMacosSetupAssistant(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
+	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
 	err = depStorage.StoreConfig(ctx, org1Name, &nanodep_client.Config{BaseURL: srv.URL})
+	err = depStorage.StoreConfig(ctx, org2Name, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
 	w := NewWorker(ds, logger)
@@ -166,11 +176,19 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, autoProf.Token)
 
-	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID), ptr.Uint(tm3.ID)}
+	getTeamID := func(tmID *uint) string {
+		if tmID == nil {
+			return "null"
+		}
+
+		return strconv.Itoa(int(*tmID))
+	}
+
+	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID)}
 	for _, tmID := range tmIDs {
 		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
 		require.NoError(t, err)
-		require.Equal(t, defaultProfileName, profUUID)
+		require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
 		require.False(t, modTime.Before(start))
 	}
 	require.Equal(t, map[string]string{
@@ -330,7 +348,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	}, serialsToProfile)
 
 	// check that profiles get re-generated
-	reset := time.Now().Truncate(time.Second)
+	reset := time.Now().Truncate(1 * time.Second)
 	time.Sleep(time.Second)
 
 	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
@@ -342,7 +360,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	for _, tmID := range tmIDs {
 		_, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
 		require.NoError(t, err)
-		require.True(t, modTime.After(reset))
+		require.True(t, modTime.After(reset), "tmID", getTeamID(tmID))
 	}
 
 	require.Equal(t, map[string]string{

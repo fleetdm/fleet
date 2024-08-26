@@ -1357,6 +1357,10 @@ type Datastore interface {
 	// GetABMTokenCount returns the number of ABM tokens in the DB.
 	GetABMTokenCount(ctx context.Context) (int, error)
 
+	// GetABMTokenOrgNamesForTeam returns the set of ABM organization names that correspond to each of
+	// the hosts in the team.
+	GetABMTokenOrgNamesForTeam(ctx context.Context, teamID *uint) ([]string, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

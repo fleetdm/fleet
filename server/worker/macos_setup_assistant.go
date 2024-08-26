@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -317,9 +318,19 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 			teamID = &team.ID
 		}
 
+		getTeamID := func() string {
+			if teamID == nil {
+				return "null"
+			}
+
+			return strconv.Itoa(int(*teamID))
+		}
+
 		if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantUpdateProfile, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 		}
+		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runUpdateAllProfiles").Info("JVE_LOG: enqueued updateProfile job ", "teamID", getTeamID())
+
 		return nil
 	}
 
@@ -343,12 +354,21 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 
 	// clear the profile uuid for the custom setup assistant
 	if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
+
+		getTeamID := func() string {
+			if args.TeamID == nil {
+				return "null"
+			}
+
+			return strconv.Itoa(int(*args.TeamID))
+		}
 		if fleet.IsNotFound(err) {
 			// no setup assistant for that team, enqueue a profile deleted task so
 			// the default profile is assigned to the hosts.
 			if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileDeleted, args.TeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile deleted job")
 			}
+			slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runUpdateProfile").Info("JVE_LOG: enqueued a profile_deleted job from runUpdateProfile ", "teamID", getTeamID())
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "clear custom setup assistant profile uuid")
