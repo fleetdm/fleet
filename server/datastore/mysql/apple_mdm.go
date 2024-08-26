@@ -1868,16 +1868,16 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		batchCount int
 	)
 
+	const defaultBatchSize = 1000 // results in this times 9 placeholders
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
 	resetBatch := func() {
 		batchCount = 0
 		pargs = pargs[:0]
 		psb.Reset()
-	}
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	for _, p := range wantedProfiles {
