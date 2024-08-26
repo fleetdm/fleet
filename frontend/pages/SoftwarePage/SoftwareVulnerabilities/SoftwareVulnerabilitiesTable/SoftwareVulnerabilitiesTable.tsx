@@ -181,7 +181,7 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const renderVulnerabilityCount = () => {
-    if (!data?.vulnerabilities || !data?.count) return null;
+    if (!data) return null;
 
     return (
       <>
