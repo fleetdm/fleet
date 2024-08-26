@@ -173,7 +173,12 @@ const SoftwareVulnerabilities = ({
           });
         }
       },
-      onError: (error: AxiosError<IApiError>) => {
+      onError: (err) => {
+        // Type assertion for failing "Property 'data' does not exist on type 'AxiosError<IApiError, any>"
+        const error = err as AxiosError<IApiError> & {
+          data?: IApiError;
+        };
+
         // Handle 400 response which is an invalid CVE format
         if (error.status === 400) {
           if (
