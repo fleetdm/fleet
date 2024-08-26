@@ -595,7 +595,7 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel() already set for parent test
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterHostsByTeams(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
@@ -631,7 +631,7 @@ func TestWhereOmitIDs(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel() already set for parent test
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereOmitIDs("id", tt.omits)
 			assert.Equal(t, tt.expected, sql)
@@ -856,7 +856,7 @@ func TestWhereFilterTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel() already set for parent test
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
