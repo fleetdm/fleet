@@ -4048,21 +4048,28 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// modify manual label 1 without modifying its hosts
 	modResp = modifyLabelResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String("modified_manual_label1")}, http.StatusOK, &modResp)
+	newName := "modified_manual_label1"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: &newName}, http.StatusOK,
+		&modResp)
 	assert.Equal(t, manualLbl1.ID, modResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
+	assert.Equal(t, newName, modResp.Label.Name)
 
 	// modify manual label 2 adding some hosts
 	modResp = modifyLabelResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
+	newName = "modified_manual_label2"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Name: &newName, Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
 	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 1, modResp.Label.HostCount)
+	assert.Equal(t, newName, modResp.Label.Name)
+	manualLbl2.Name = newName
 
 	// modify manual label 2 clearing its hosts
 	modResp = modifyLabelResponse{}
@@ -6160,6 +6167,55 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
 		"team_id", "1",
+	)
+
+	// a request with a premium vulnerability filter returns a license error
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{fleet.SoftwareTitleListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &resp,
+	)
+	verResp := listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
+	)
+	countResp := countSoftwareResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/count",
+		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
+	)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{fleet.SoftwareTitleListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &resp,
+	)
+	verResp = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
+	)
+	countResp = countSoftwareResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/count",
+		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
+	)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{fleet.SoftwareTitleListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &resp,
+	)
+	verResp = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &verResp,
+	)
+	countResp = countSoftwareResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/count",
+		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &countResp,
 	)
 
 	// lock/unlock/wipe a host
@@ -8605,7 +8661,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
 		OSID:              os.ID,
-		CVE:               "CVE-2021-1234",
+		CVE:               "CVE-2021-12345",
 		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
@@ -8662,15 +8718,16 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	// insert CVEMeta
+	knownCVE := "cve-2021-12999"
 	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
-			CVE:              "CVE-2021-1234",
+			CVE:              "CVE-2021-12345",
 			CVSSScore:        ptr.Float64(7.5),
 			EPSSProbability:  ptr.Float64(0.5),
 			CISAKnownExploit: ptr.Bool(true),
 			Published:        ptr.Time(mockTime),
-			Description:      "Test CVE 2021-1234",
+			Description:      "Test CVE 2021-12345",
 		},
 		{
 			CVE:              "CVE-2021-1235",
@@ -8687,6 +8744,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(mockTime),
 			Description:      "Test CVE 2021-1246",
+		},
+		{
+			CVE:              knownCVE,
+			CVSSScore:        ptr.Float64(6.4),
+			EPSSProbability:  ptr.Float64(0.61),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      fmt.Sprintf("Test %s", knownCVE),
 		},
 	})
 	require.NoError(t, err)
@@ -8708,9 +8773,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		DetailsLink string
 		Source      fleet.VulnerabilitySource
 	}{
-		"CVE-2021-1234": {
+		"CVE-2021-12345": {
 			HostCount:   1,
-			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-12345",
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
@@ -8724,7 +8789,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	for _, vuln := range resp.Vulnerabilities {
 		expectedVuln, ok := expected[vuln.CVE.CVE]
-		require.True(t, ok)
+		require.True(t, ok, vuln.CVE.CVE)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
@@ -8745,9 +8810,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		DetailsLink string
 		Source      fleet.VulnerabilitySource
 	}{
-		"CVE-2021-1234": {
+		"CVE-2021-12345": {
 			HostCount:   1,
-			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-12345",
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
@@ -8771,6 +8836,23 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(0))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
+
+	// test with a known CVE that does not match on software/OS
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE)
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 0)
+	assert.Equal(t, resp.Count, uint(0))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+
+	// test with a substring of a known CVE -- results are returned
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "CVE-2021-1234")
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 1)
+	assert.Equal(t, resp.Count, uint(1))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	_ = s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound)
 
 	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
@@ -8819,26 +8901,27 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	var gResp getVulnerabilityResponse
 	// invalid cve
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusBadRequest, &gResp)
 
 	// Valid CVE but not in team scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNoContent, "team_id",
+		fmt.Sprintf("%d", team.ID))
 
 	// Valid CVE in "no team" scope
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "team_id", "0")
 
-	// Valid CVD not in "no team" scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound, &gResp, "team_id", "0")
+	// Valid CVE not in "no team" scope
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNoContent, "team_id", "0")
 
 	// Invalid TeamID
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusForbidden, "team_id", "100")
 
 	// Valid Global Request
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
+	require.Equal(t, "CVE-2021-12345", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
-	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-12345", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)

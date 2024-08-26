@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -482,7 +483,7 @@ WHERE
 	})
 }
 
-func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error {
+func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
 	if softwareInstallStore == nil {
 		// no-op in this case, possible if not running with a Premium license
 		return nil
@@ -494,7 +495,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
 	}
 
-	_, err := softwareInstallStore.Cleanup(ctx, storageIDs)
+	_, err := softwareInstallStore.Cleanup(ctx, storageIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }
 
@@ -645,12 +646,21 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	if fleet.IsLinux(hostPlatform) {
 		hostPlatform = "linux"
 	}
-	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?`
+	stmt := `SELECT 1
+		WHERE EXISTS (
+			SELECT 1
+			FROM software_installers
+			WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?
+		) OR EXISTS (
+			SELECT 1
+			FROM vpp_apps_teams
+			WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?
+		)`
 	var globalOrTeamID uint
 	if hostTeamID != nil {
 		globalOrTeamID = *hostTeamID
 	}
-	args := []interface{}{hostPlatform, globalOrTeamID}
+	args := []interface{}{hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
 	var hasInstallers bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

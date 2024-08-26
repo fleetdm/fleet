@@ -11,6 +11,9 @@ team_settings:
       enable_calendar_events: false
 agent_options:
 controls:
+  ios_updates:
+    deadline: "2024-08-23"
+    minimum_version: "17.6"
   macos_settings:
     custom_settings:
       - path: ../lib/configuration-profiles/ios-restrictions.mobileconfig
@@ -20,3 +23,4 @@ controls:
   scripts:
 policies:
 queries:
+software:

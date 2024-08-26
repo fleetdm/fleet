@@ -640,7 +640,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				      UPDATE software s
 				      JOIN software_titles st
 				      ON s.bundle_identifier = st.bundle_identifier AND
-				          IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+				          IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
 				      SET s.title_id = st.id
 				      WHERE s.title_id IS NULL
 				      OR s.title_id != st.id
@@ -979,19 +979,46 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	}
 
 	if opts.IncludeCVEScores {
-		ds = ds.
-			LeftJoin(
+
+		baseJoinConditions := goqu.Ex{
+			"c.cve": goqu.I("scv.cve"),
+		}
+
+		if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+
+			if opts.KnownExploit {
+				baseJoinConditions["c.cisa_known_exploit"] = true
+			}
+
+			if opts.MinimumCVSS > 0 {
+				baseJoinConditions["c.cvss_score"] = goqu.Op{"gte": opts.MinimumCVSS}
+			}
+
+			if opts.MaximumCVSS > 0 {
+				baseJoinConditions["c.cvss_score"] = goqu.Op{"lte": opts.MaximumCVSS}
+			}
+
+			ds = ds.InnerJoin(
 				goqu.I("cve_meta").As("c"),
-				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-			).
-			SelectAppend(
-				goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
-				goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
-				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
-				goqu.MAX("c.published").As("cve_published"),                   // for ordering
-				goqu.MAX("c.description").As("description"),                   // for ordering
-				goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+				goqu.On(baseJoinConditions),
 			)
+
+		} else {
+			ds = ds.
+				LeftJoin(
+					goqu.I("cve_meta").As("c"),
+					goqu.On(baseJoinConditions),
+				)
+		}
+
+		ds = ds.SelectAppend(
+			goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
+			goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
+			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
+			goqu.MAX("c.published").As("cve_published"),                   // for ordering
+			goqu.MAX("c.description").As("description"),                   // for ordering
+			goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+		)
 	}
 
 	if match := opts.ListOptions.MatchQuery; match != "" {
@@ -1294,6 +1321,12 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+	if !opt.VulnerableOnly && (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true",
+		)
+	}
+
 	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
 	if err != nil {
 		return nil, nil, err
@@ -1428,8 +1461,6 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(sql, args)
 
 	var results []softwareCVE
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...)
@@ -1667,7 +1698,7 @@ FROM (
         NOT EXISTS (
             SELECT 1 FROM software_titles st
             WHERE s.bundle_identifier = st.bundle_identifier AND
-				IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+				IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
         )
         AND COALESCE(bundle_identifier, '') != ''
 
@@ -1718,7 +1749,7 @@ AND COALESCE(s.bundle_identifier, '') = '';
 UPDATE software s
 JOIN software_titles st
 ON s.bundle_identifier = st.bundle_identifier AND
-    IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+    IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
 SET s.title_id = st.id
 WHERE s.title_id IS NULL
 OR s.title_id != st.id;
@@ -2091,7 +2122,7 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
-		onlySelfServiceClause = ` AND si.self_service = 1 `
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
 	var onlyVulnerableClause string
@@ -2099,6 +2130,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		onlyVulnerableClause = `
 AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id = s.id WHERE s.title_id = st.id)
 		`
+	}
+
+	var softwareIsInstalledOnHostClause string
+	if !opts.OnlyAvailableForInstall {
+		softwareIsInstalledOnHostClause = `
+			EXISTS (
+				SELECT 1
+				FROM
+					host_software hs
+				INNER JOIN
+					software s ON hs.software_id = s.id
+				WHERE
+					hs.host_id = :host_id AND
+					s.title_id = st.id
+			) OR `
 	}
 
 	// this statement lists only the software that is reported as installed on
@@ -2111,9 +2157,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			-- in a future iteration, will be supported for VPP apps
-			NULL as vpp_app_self_service,
-			vap.adam_id as vpp_app_adam_id,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
@@ -2123,17 +2168,19 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id
+			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
 		LEFT OUTER JOIN
-			vpp_apps vap ON st.id = vap.title_id
+			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND vap.platform = hvsi.platform AND hvsi.host_id = :host_id
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
-			-- use the latest install only
+			-- use the latest install attempt only
 			( hsi.id IS NULL OR hsi.id = (
 				SELECT hsi2.id
 				FROM host_software_installs hsi2
@@ -2146,22 +2193,15 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform
 				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
-			-- software is installed on host
-			( EXISTS (
-				SELECT 1
-				FROM
-					host_software hs
-				INNER JOIN
-					software s ON hs.software_id = s.id
-				WHERE
-					hs.host_id = :host_id AND
-					s.title_id = st.id
-			) OR
-			-- or software install has been attempted on host (via installer or VPP app)
-			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+
+			-- software is installed on host or software install has been attempted
+			-- on host (via installer or VPP app). If only available for install is
+			-- requested, then the software installed on host clause is empty.
+			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
+`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
+		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2174,9 +2214,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			-- in a future iteration, will be supported for VPP apps
-			NULL as vpp_app_self_service,
-			vap.adam_id as vpp_app_adam_id,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
@@ -2262,20 +2301,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	}
 
 	stmt := stmtInstalled
-	if opts.AvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
 			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
 		}
-		if opts.AvailableForInstall {
-			// Only available for install software
-			stmt = stmtAvailable
-		} else {
-			// All software, including available for install
-			stmt += ` UNION ` + stmtAvailable
-		}
+		stmt += ` UNION ` + stmtAvailable
 	}
 
 	// must resolve the named bindings here, before adding the searchLike which

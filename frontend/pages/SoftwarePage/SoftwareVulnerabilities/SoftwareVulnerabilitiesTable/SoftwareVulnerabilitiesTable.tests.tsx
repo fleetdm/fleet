@@ -1,6 +1,5 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { noop } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
 
 import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
@@ -93,11 +92,56 @@ describe("Software Vulnerabilities table", () => {
       />
     );
 
-    expect(screen.getByText("No software detected")).toBeInTheDocument();
+    expect(screen.getByText("No vulnerabilities detected")).toBeInTheDocument();
+    expect(
+      screen.getByText("Expecting to see vulnerabilities? Check back later.")
+    ).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the empty search state when search query exists for server side search with no results", async () => {
+  it("Renders the empty search state when search query does not exist but exploited vulnerabilities dropdown is applied", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <SoftwareVulnerabilitiesTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={createMockVulnerabilitiesResponse({
+          count: 0,
+          vulnerabilities: null,
+          meta: {
+            has_next_results: false,
+            has_previous_results: false,
+          },
+        })}
+        query=""
+        perPage={20}
+        orderDirection="asc"
+        orderKey="hosts_count"
+        showExploitedVulnerabilitiesOnly
+        currentPage={0}
+        isLoading={false}
+        resetPageIndex={false}
+      />
+    );
+
+    expect(
+      screen.getByText("No items match the current search criteria")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Expecting to see vulnerabilities? Check back later.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Vulnerability")).toBeNull();
+  });
+
+  it("Renders the invalid CVE empty search state when search query is invalid with no results", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -131,7 +175,98 @@ describe("Software Vulnerabilities table", () => {
     );
 
     expect(
-      screen.getByText("No items match the current search criteria")
+      screen.getByText("That vulnerability (CVE) is not valid")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Try updating your search to use CVE format:/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Vulnerability")).toBeNull();
+  });
+
+  it("Renders the valid known CVE empty search state when search query is valid known CVE with no results", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <SoftwareVulnerabilitiesTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={createMockVulnerabilitiesResponse({
+          count: 0,
+          vulnerabilities: null,
+          meta: {
+            has_next_results: false,
+            has_previous_results: false,
+          },
+          known_vulnerability: true,
+        })}
+        query="cve-2002-1000"
+        perPage={20}
+        orderDirection="asc"
+        orderKey="hosts_count"
+        showExploitedVulnerabilitiesOnly={false}
+        currentPage={0}
+        isLoading={false}
+        resetPageIndex={false}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        "This is a known vulnerability (CVE), but it wasn't detected on any hosts."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Expecting to see vulnerabilities? Check back later.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Vulnerability")).toBeNull();
+  });
+
+  it("Renders the valid unknown CVE empty search state when search query is not a valid known CVE with no results", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <SoftwareVulnerabilitiesTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={createMockVulnerabilitiesResponse({
+          count: 0,
+          vulnerabilities: null,
+          meta: {
+            has_next_results: false,
+            has_previous_results: false,
+          },
+          known_vulnerability: false,
+        })}
+        query="cve-2002-12345"
+        perPage={20}
+        orderDirection="asc"
+        orderKey="hosts_count"
+        showExploitedVulnerabilitiesOnly={false}
+        currentPage={0}
+        isLoading={false}
+        resetPageIndex={false}
+      />
+    );
+
+    expect(screen.getByText("This is not a known CVE")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "None of Fleet's vulnerability sources are aware of this CVE."
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
@@ -152,7 +287,7 @@ describe("Software Vulnerabilities table", () => {
         router={mockRouter}
         isSoftwareEnabled
         data={createMockVulnerabilitiesResponse()}
-        query=""
+        query="cve-2002-10000"
         perPage={20}
         orderDirection="asc"
         orderKey="hosts_count"

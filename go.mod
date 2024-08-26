@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.22.4
+go 1.22.6
 
 require (
 	cloud.google.com/go/pubsub v1.36.1
@@ -14,11 +14,12 @@ require (
 	github.com/XSAM/otelsql v0.10.0
 	github.com/andygrunwald/go-jira v1.16.0
 	github.com/antchfx/xmlquery v1.3.14
+	github.com/apex/log v1.9.0
 	github.com/aws/aws-sdk-go v1.44.288
 	github.com/beevik/etree v1.3.0
 	github.com/beevik/ntp v0.3.0
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
-	github.com/briandowns/spinner v1.13.0
+	github.com/briandowns/spinner v1.23.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/clbanning/mxj v1.8.4
@@ -26,7 +27,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
-	github.com/docker/docker v26.1.4+incompatible
+	github.com/docker/docker v26.1.5+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
@@ -65,7 +66,7 @@ require (
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.1.3-0.20240530154548-05bb97403086
+	github.com/macadmins/osquery-extension v1.2.1
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -172,7 +173,6 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20211022214203-8b29eab41725 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
 	github.com/apache/thrift v0.18.1 // indirect
-	github.com/apex/log v1.9.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/atc0005/go-teams-notify/v2 v2.6.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.24.1 // indirect

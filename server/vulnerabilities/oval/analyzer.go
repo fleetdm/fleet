@@ -3,6 +3,7 @@ package oval
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -17,8 +18,11 @@ const (
 	vulnBatchSize  = 500
 )
 
+var ErrUnsupportedPlatform = errors.New("unsupported platform")
+
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
-// inserting any new vulnerabilities and deleting anything patched.
+// inserting any new vulnerabilities and deleting anything patched. Returns nil, nil when
+// the platform isn't supported.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -34,7 +38,7 @@ func Analyze(
 	}
 
 	if !platform.IsSupported() {
-		return nil, nil
+		return nil, ErrUnsupportedPlatform
 	}
 
 	defs, err := loadDef(platform, vulnPath)

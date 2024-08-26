@@ -40,6 +40,8 @@ export interface ISoftware {
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
+  browser?: string;
+  vendor?: string;
 }
 
 export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
@@ -79,6 +81,7 @@ export interface IAppStoreApp {
   app_store_id: number;
   latest_version: string;
   icon_url: string;
+  self_service: boolean;
   status: {
     installed: number;
     pending: number;
@@ -323,3 +326,6 @@ export const hasHostSoftwareAppLastInstall = (
 } => {
   return !!software.app_store_app?.last_install;
 };
+
+export const isIpadOrIphoneSoftwareSource = (source: string) =>
+  ["ios_apps", "ipados_apps"].includes(source);

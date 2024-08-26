@@ -82,6 +82,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
@@ -158,6 +160,22 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		ds.stmtCache[query] = stmt
 	}
 	return stmt
+}
+
+func (ds *Datastore) deleteCachedStmt(query string) {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+	stmt, ok := ds.stmtCache[query]
+	if ok {
+		if err := stmt.Close(); err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to close prepared statement before deleting it",
+				"query", query,
+				"err", err,
+			)
+		}
+		delete(ds.stmtCache, query)
+	}
 }
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore

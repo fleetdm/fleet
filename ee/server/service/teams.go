@@ -868,6 +868,20 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, err
 			}
+			if team != nil && team.Name != spec.Name {
+				// If user is trying to change team name, check that the new name is not already taken.
+				_, err = svc.ds.TeamByName(ctx, spec.Name)
+				switch {
+				case err == nil:
+					return nil, fleet.NewInvalidArgumentError("name",
+						fmt.Sprintf("cannot change team name from '%s' (filename: %s) to '%s' because team name already exists", team.Name,
+							*spec.Filename, spec.Name))
+				case fleet.IsNotFound(err):
+					// OK
+				default:
+					return nil, err
+				}
+			}
 		}
 		var create bool
 		if team == nil {
@@ -1246,7 +1260,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.Software != nil {
 		if team.Config.Software == nil {
-			team.Config.Software = &fleet.TeamSpecSoftware{}
+			team.Config.Software = &fleet.SoftwareSpec{}
 		}
 
 		if spec.Software.Packages.Set {

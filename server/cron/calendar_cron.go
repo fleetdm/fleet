@@ -326,7 +326,7 @@ func processFailingHostExistingCalendarEvent(
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
-	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
+	lockAcquired, err := distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
 	if err != nil {
 		return fmt.Errorf("acquire calendar lock: %w", err)
 	}
@@ -334,7 +334,7 @@ func processFailingHostExistingCalendarEvent(
 	lockReserved := false
 	if !lockAcquired {
 		// Lock was not acquired. We reserve the lock and try to acquire it until we do.
-		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
+		lockAcquired, err = distributedLock.SetIfNotExist(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
 			calendar.ReserveLockExpireMs)
 		if err != nil {
 			return fmt.Errorf("reserve calendar lock: %w", err)
@@ -348,7 +348,7 @@ func processFailingHostExistingCalendarEvent(
 		go func() {
 			for {
 				// Keep trying to get the lock.
-				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+				lockAcquired, err = distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
 					calendar.DistributedLockExpireMs)
 				if err != nil || lockAcquired {
 					done <- struct{}{}
@@ -396,6 +396,7 @@ func processFailingHostExistingCalendarEvent(
 
 	// Function to generate calendar event body.
 	var generatedTag string
+	var newETag string
 	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (string, bool, error) {
 		var body string
 		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
@@ -409,7 +410,7 @@ func processFailingHostExistingCalendarEvent(
 		updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
 
 		if currentBodyTag != updatedBodyTag && updatedBodyTag != "" {
-			err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
+			newETag, err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
 			if err != nil {
 				return fmt.Errorf("update event body: %w", err)
 			}
@@ -440,8 +441,8 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	if updated {
-		if generatedTag != "" {
-			err = updatedEvent.SaveBodyTag(generatedTag)
+		if generatedTag != "" && newETag != "" {
+			err = updatedEvent.SaveDataItems("body_tag", generatedTag, "etag", newETag)
 			if err != nil {
 				return fmt.Errorf("save calendar event body tag: %w", err)
 			}
@@ -623,7 +624,7 @@ func attemptCreatingEventOnUserCalendar(
 		var dee fleet.DayEndedError
 		switch {
 		case err == nil:
-			err = calendarEvent.SaveBodyTag(generatedTag)
+			err = calendarEvent.SaveDataItems("body_tag", generatedTag)
 			if err != nil {
 				return nil, err
 			}

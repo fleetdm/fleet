@@ -22,6 +22,9 @@ export interface ISoftwareApiParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  max_cvss_score?: number;
+  min_cvss_score?: number;
+  exploit?: boolean;
   availableForInstall?: boolean;
   selfService?: boolean;
   teamId?: number;
@@ -63,7 +66,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   // used to trigger software refetches from sibling pages
-  addedSoftwareToken: string | null;
+  addedSoftwareToken?: string | null;
   scope: "software-titles";
 }
 
@@ -94,6 +97,10 @@ export interface IGetSoftwareVersionQueryParams {
 export interface IGetSoftwareVersionQueryKey
   extends IGetSoftwareVersionQueryParams {
   scope: "softwareVersion";
+}
+
+export interface ISoftwareInstallTokenResponse {
+  token: string;
 }
 
 const ORDER_KEY = "name";
@@ -237,23 +244,15 @@ export default {
     return sendRequest("DELETE", path);
   },
 
-  downloadSoftwarePackage: (
+  getSoftwarePackageToken: (
     softwareTitleId: number,
     teamId: number
-  ): Promise<AxiosResponse> => {
-    const path = `${endpoints.SOFTWARE_PACKAGE(
+  ): Promise<ISoftwareInstallTokenResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
     )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
-    return sendRequest(
-      "GET",
-      path,
-      undefined,
-      "blob",
-      undefined,
-      undefined,
-      true // return raw response
-    );
+    return sendRequest("POST", path);
   },
 
   getSoftwareInstallResult: (installUuid: string) => {
