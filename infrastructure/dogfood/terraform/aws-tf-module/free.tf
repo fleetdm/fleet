@@ -25,7 +25,7 @@ module "free" {
   }
   rds_config = {
     name                = local.customer_free
-    engine_version      = "8.0.mysql_aurora.3.05.2"
+    engine_version      = "8.0.mysql_aurora.3.07.1"
     snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
