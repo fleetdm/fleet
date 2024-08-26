@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -842,6 +843,15 @@ type MDMAppleDDMActivation struct {
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }
 
+// MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
+// package files. Fleet supports storing to the database and to an S3 bucket.
+type MDMBootstrapPackageStore interface {
+	Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
+	Exists(ctx context.Context, packageID string) (bool, error)
+	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
+}
+
 // MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
@@ -885,9 +895,14 @@ type MDMAppleSoftwareUpdateRequired struct {
 	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
 }
 
-func NewMDMAppleSoftwareUpdateRequired(settings AppleOSUpdateSettings) *MDMAppleSoftwareUpdateRequired {
+func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
 	return &MDMAppleSoftwareUpdateRequired{
 		Code:    MDMAppleSoftwareUpdateRequiredCode,
-		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: settings.MinimumVersion.Value},
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
 	}
+}
+
+type MDMAppleSoftwareUpdateAsset struct {
+	ProductVersion string `json:"ProductVersion"`
+	Build          string `json:"Build"`
 }

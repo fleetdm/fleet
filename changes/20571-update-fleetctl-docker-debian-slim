@@ -1,0 +1,1 @@
+* Update base images of `fleetdm/fleetctl`, `fleetdm/bomutils` and `fleetdm/wix` to fix CRITICAL vulnerabilities found by trivy.

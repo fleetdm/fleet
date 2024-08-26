@@ -695,9 +695,10 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 	return profiles[:i]
 }
 
-// RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
-const RefetchCommandUUIDPrefix = "REFETCH-"
-const RefetchAppsCommandUUIDPrefix = "REFETCH-APPS-"
+// RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
+const RefetchBaseCommandUUIDPrefix = "REFETCH-"
+const RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+const RefetchAppsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "APPS-"
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -731,3 +732,48 @@ const (
 	IOS
 	IPadOS
 )
+
+type AppleDevicePlatform string
+
+const (
+	MacOSPlatform  AppleDevicePlatform = "darwin"
+	IOSPlatform    AppleDevicePlatform = "ios"
+	IPadOSPlatform AppleDevicePlatform = "ipados"
+)
+
+type AppleDevicesToRefetch struct {
+	HostID              uint                   `db:"host_id"`
+	UUID                string                 `db:"uuid"`
+	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
+}
+
+type MDMCommandsAlreadySent []string
+
+func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+
+	raw, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type for MDMCommandsAlreadySent: %T", src)
+	}
+	// Filter out [null] command types which MySQL returns when there are no commands_already_sent.
+	// For details, see: https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html#function_json-arrayagg
+	if string(raw) == "[null]" {
+		*c = nil
+		return nil
+	}
+
+	var commands MDMCommandsAlreadySent
+	if err := json.Unmarshal(raw, &commands); err != nil {
+		return err
+	}
+	*c = commands
+	return nil
+}
+
+type HostMDMCommand struct {
+	HostID      uint   `db:"host_id"`
+	CommandType string `db:"command_type"`
+}

@@ -50,7 +50,44 @@ WHERE
 	return count > 0
 }
 
+func tableExists(tx *sql.Tx, table string) bool {
+	var count int
+	err := tx.QueryRow(
+		`
+SELECT
+    count(*)
+FROM
+    information_schema.columns
+WHERE
+    TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = ?
+`,
+		table,
+	).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
 func indexExists(tx *sqlx.DB, table, index string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE table_schema = DATABASE()
+AND table_name = ?
+AND index_name = ?
+`, table, index).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
+func indexExistsTx(tx *sql.Tx, table, index string) bool {
 	var count int
 	err := tx.QueryRow(`
 SELECT COUNT(1)

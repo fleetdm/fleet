@@ -45,7 +45,7 @@ jobs:
         suite: ["integration", "core"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
-        mysql: ["mysql:8.0.36"]
+        mysql: ["mysql:8.0.36", "mysql:8.4.2"]
     continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 
@@ -59,18 +59,18 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ matrix.go-version }}
-
     - name: Checkout Code
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+    - name: Install Go
+      uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      with:
+        go-version: ${{ matrix.go-version }}
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
     - name: Add TLS certificate for SMTP Tests
       run: |
@@ -98,13 +98,13 @@ jobs:
     - name: Wait for mysql
       run: |
         echo "waiting for mysql..."
-        until docker-compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
             echo "."
             sleep 1
         done
         echo "mysql is ready"
         echo "waiting for mysql replica..."
-        until docker-compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
             echo "."
             sleep 1
         done
@@ -119,7 +119,6 @@ jobs:
         else
           RUN_TESTS_ARG=''
         fi
-
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
@@ -156,10 +155,6 @@ jobs:
         fi
         GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
 
-    # TODO: figure out a sane way to combine outputs from different matrix jobs
-    # into a single slack notification, instead of sending one per job. This
-    # problem already existed but now it's accentuated because we're running 4
-    # jobs.
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
@@ -172,11 +167,16 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
+    - name: Create mysql identifier without colon
+      if: always()
+      run: |
+        echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
+
     - name: Upload test log
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
-        name: test-log
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-test-log
         path: /tmp/gotest.log
         if-no-files-found: error
 
@@ -184,5 +184,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
       with:
-        name: summary-test-log
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt

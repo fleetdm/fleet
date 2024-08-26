@@ -320,6 +320,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			excludedCVEs: []string{
 				"CVE-2023-28205", // This vulnerability is for Safari 16.4.0
+				"CVE-2024-23252", // Rejected CVE
 			},
 			continuesToUpdate: true,
 		},
@@ -334,6 +335,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2024-21402"},
 			},
 			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-4030"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-4030", resolvedInVersion: "3.12.4"},
+			},
 			continuesToUpdate: true,
 		},
 	}

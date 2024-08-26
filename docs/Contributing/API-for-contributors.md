@@ -11,9 +11,9 @@
 - [Scripts](#scripts)
 - [Software](#software)
 
-This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
+> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
-These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
@@ -540,6 +540,9 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
+- [Upload VPP content token](#upload-vpp-content-token)
+- [Disable VPP](#disable-vpp)
+
 
 ### Generate Apple Business Manager public key (ADE)
 
@@ -867,6 +870,55 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
 ##### Default response
 
 `Status: 204`
+
+### Upload VPP content token
+
+`POST /api/v1/fleet/mdm/apple/vpp_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/vpp_token`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Disable VPP
+
+`DELETE /api/v1/fleet/mdm/apple/vpp_token`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/vpp_token`
+
+##### Default response
+
+`Status: 204`
+
 
 ## Get or apply configuration files
 
@@ -1381,7 +1433,9 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
-| software                                   | list   | body  | An array of software objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
+| software                                   | object   | body  | The team's software that will be available for install.  |
+| software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
+| software.app_store_apps                   | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app formatted as a string (in quotes) rather than a number. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1462,14 +1516,21 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": [
-        {
-          "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
-          "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-          "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-          "self_service": true
-        }
-      ]
+      "software": { 
+        "packages": [
+          {
+            "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
+            "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+            "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+            "self_service": true,
+          }
+        ],
+        "app_store_apps": [
+          {
+            "app_store_id": "12464567",
+          }
+        ]
+      }  
     }
   ]
 }
@@ -2481,6 +2542,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
     "renew_enrollment_profile": false,
@@ -2540,35 +2602,58 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "software_package": {
+        "name": "GoogleChrome.pkg"
+        "version": "125.12.2"
+        "self_service": true,
+     	"last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+      	  "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "app_store_app": null,
       "source": "apps",
       "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
-      },
       "installed_versions": [
-        { 
+        {
           "version": "121.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
-      ]
+      ],
+       "software_package": {
+        "name": "google-chrome-124-0-6367-207.pkg",
+        "version": "121.0",
+        "self_service": true,
+        "icon_url": null,
+        "last_install": null
+      },
+      "app_store_app": null
     },
     {
       "id": 143,
       "name": "Firefox.app",
+      "software_package": null,
+      "app_store_app": null,
       "source": "apps",
       "status": null,
-      "last_install": null,
       "installed_versions": [
-        { 
+        {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Firefox.app"]
         }
-      ]
+      ],
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "12345",
+        "version": "125.6",
+        "self_service": false,
+        "icon_url": "https://example.com/logo-light.jpg",
+        "last_install": null
+      },
     }
   ],
   "meta": {
@@ -2755,27 +2840,6 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ---
 
-#### Trigger FileVault key escrow
-
-Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is useful for setting the escrow key initially as well as in scenarios where a token rotation is required. **Requires Fleet Premium license**
-
-`POST /api/v1/fleet/device/{token}/rotate_encryption_key`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`POST /api/v1/fleet/device/abcdef012456789/rotate_encryption_key`
-
-##### Default response
-
-`Status: 204`
-
-
 ### Report an agent error
 
 Notifies the server about an agent error, resulting in two outcomes:
@@ -2938,7 +3002,7 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
-### Batch-apply scripts 
+### Batch-apply scripts
 
 _Available in Fleet Premium_
 
@@ -2967,7 +3031,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ## Software
 
-### Batch-apply software 
+### Batch-apply software
 
 _Available in Fleet Premium._
 
@@ -2977,10 +3041,12 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. |
+| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. Ommitting these parameters will add software to 'No Team'. |
+| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
-| software  | list   | body  | An array of software objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
+| software  | object   | body  | The team's software that will be available for install.  |
+| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
+| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
 
 If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
 
@@ -3030,4 +3096,63 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
   "host_timeout": false,
   "exit_code": 0
 }
+```
+
+### Get token to download package
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+
+The returned token is a one-time use token that expires after 10 minutes.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                      |
+|-------------------|---------|-------|------------------------------------------------------------------|
+| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| team_id           | integer | query | **Required**. The team ID containing the software package.       |
+| alt               | integer | query | **Required**. Must be specified and set to "media".              |
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
+}
+```
+
+### Download package using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                              |
+|-------------------|---------|------|--------------------------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
+| token             | string  | path | **Required**. The token to download the software package.                |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
 ```

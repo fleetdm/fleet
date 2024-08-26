@@ -81,6 +81,14 @@ REDIS_TEST=1 MYSQL_TEST=1 make test
 
 The integration tests in the `server/service` package can generate a lot of logs mixed with the test results output. To make it easier to identify a failing test in this package, you can set the `FLEET_INTEGRATION_TESTS_DISABLE_LOG=1` environment variable so that logging is disabled.
 
+The MDM integration tests are run with a random selection of software installer storage backends (local filesystem or S3/minio), and similar for the bootstrap packages storage (DB or S3/minio). You can force usage of the S3 backend by setting `FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE=s3`. Note that `MINIO_STORAGE_TEST=1` must also be set for the S3 backend to be used.
+
+When the S3 backend is used, this line will be printed in the tests' output (as this could be relevant to understand and debug the test failure):
+
+```
+    integration_mdm_test.go:196: >>> using S3/minio software installer store
+```
+
 Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
 ```sh

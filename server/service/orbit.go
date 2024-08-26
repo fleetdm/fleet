@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -202,20 +203,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.RenewEnrollmentProfile = true
 		}
 
+		manualMigrationEligible, err := fleet.IsEligibleForManualMigration(host, mdmInfo, isConnectedToFleetMDM)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking manual migration eligibility")
+		}
+
 		if appConfig.MDM.MacOSMigration.Enable &&
-			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
+			(fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) || manualMigrationEligible) {
 			notifs.NeedsMDMMigration = true
 		}
 
-		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
-			notifs.RotateDiskEncryptionKey = true
-
-			// Since this is an user initiated action, we disable
-			// the flag when we deliver the notification to Orbit
-			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-		}
 	}
 
 	// set the host's orbit notifications for Windows MDM
@@ -309,9 +306,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
-		if mdmConfig.EnableDiskEncryption &&
-			fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
-			notifs.EnforceBitLockerEncryption = true
+		err = svc.setDiskEncryptionNotifications(
+			ctx,
+			&notifs,
+			host,
+			appConfig,
+			mdmConfig.EnableDiskEncryption,
+			isConnectedToFleetMDM,
+			mdmInfo,
+		)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting team disk encryption notifications")
 		}
 
 		var updateChannels *fleet.OrbitUpdateChannels
@@ -371,10 +376,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	if appConfig.MDM.WindowsEnabledAndConfigured &&
-		appConfig.MDM.EnableDiskEncryption.Value &&
-		fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
-		notifs.EnforceBitLockerEncryption = true
+	err = svc.setDiskEncryptionNotifications(
+		ctx,
+		&notifs,
+		host,
+		appConfig,
+		appConfig.MDM.EnableDiskEncryption.Value,
+		isConnectedToFleetMDM,
+		mdmInfo,
+	)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
 	}
 
 	var updateChannels *fleet.OrbitUpdateChannels
@@ -394,6 +406,57 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
 	}, nil
+}
+
+func (svc *Service) setDiskEncryptionNotifications(
+	ctx context.Context,
+	notifs *fleet.OrbitConfigNotifications,
+	host *fleet.Host,
+	appConfig *fleet.AppConfig,
+	diskEncryptionConfigured bool,
+	isConnectedToFleetMDM bool,
+	mdmInfo *fleet.HostMDM,
+) error {
+	anyMDMConfigured := appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured
+	if !anyMDMConfigured ||
+		!isConnectedToFleetMDM ||
+		!host.IsOsqueryEnrolled() ||
+		!diskEncryptionConfigured {
+		return nil
+	}
+
+	encryptionKey, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "fetching host disk encryption key")
+		}
+	}
+
+	switch host.FleetPlatform() {
+	case "darwin":
+		mp, ok := capabilities.FromContext(ctx)
+		if !ok {
+			level.Debug(svc.logger).Log("msg", "no capabilities in context, skipping disk encryption notification")
+			return nil
+		}
+
+		if !mp.Has(fleet.CapabilityEscrowBuddy) {
+			level.Debug(svc.logger).Log("msg", "host doesn't support Escrow Buddy, skipping disk encryption notification", "host_uuid", host.UUID)
+			return nil
+		}
+
+		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
+	case "windows":
+		isServer := mdmInfo != nil && mdmInfo.IsServer
+		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled
+		keyWasDecrypted := encryptionKey != nil && encryptionKey.Decryptable != nil && *encryptionKey.Decryptable
+		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && !keyWasDecrypted
+		notifs.EnforceBitLockerEncryption = !isServer &&
+			mdmInfo != nil &&
+			(needsEncryption || encryptedWithoutKey)
+	}
+
+	return nil
 }
 
 // filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.

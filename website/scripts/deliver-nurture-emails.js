@@ -14,7 +14,7 @@ module.exports = {
     let nowAt = Date.now();
     let nurtureCampaignStartedAt = new Date('07-22-2024').getTime();
     let oneHourAgoAt = nowAt - (1000 * 60 * 60);
-    let oneDayAgoAt = nowAt - (1000 * 60 * 60);
+    let oneDayAgoAt = nowAt - (1000 * 60 * 60 * 24);
     let sixWeeksAgoAt = nowAt - (1000 * 60 * 60 * 24 * 7 * 6);
     // Find user records that are over an hour old that were created after July 22nd.
     let usersWithMdmBuyingSituation = await User.find({
@@ -43,6 +43,7 @@ module.exports = {
       && user.psychologicalStage === '5 - Personally confident';
     });
 
+    let emailedStageThreeUserIds = [];
     for(let user of stageThreeMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
       if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
         continue;
@@ -51,7 +52,8 @@ module.exports = {
           template: 'email-nurture-stage-three',
           layout: 'layout-nurture-email',
           templateData: {
-            firstName: user.firstName
+            firstName: user.firstName,
+            emailAddress: user.emailAddress
           },
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
@@ -61,40 +63,51 @@ module.exports = {
           fromName: sails.config.custom.contactNameForNurtureEmails,
           ensureAck: true,
         });
+        emailedStageThreeUserIds.push(user.id);
       }
     }
 
-    await User.update({id: {in: _.pluck(stageThreeMdmFocusedUsersWhoHaveNotReceivedAnEmail, 'id')}})
+    await User.update({id: {in: emailedStageThreeUserIds}})
     .set({
       stageThreeNurtureEmailSentAt: nowAt,
     });
 
+    let emailedStageFourUserIds = [];
     for(let user of stageFourMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
       if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
         continue;
       } else {
-        await sails.helpers.sendTemplateEmail.with({
-          template: 'email-nurture-stage-four',
-          layout: 'layout-nurture-email',
-          templateData: {
-            firstName: user.firstName
-          },
-          to: user.emailAddress,
-          toName: `${user.firstName} ${user.lastName}`,
-          subject: 'Deploy open-source MDM',
-          bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
-          from: sails.config.custom.contactEmailForNutureEmails,
-          fromName: sails.config.custom.contactNameForNurtureEmails,
-          ensureAck: true,
-        });
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // Note: We commented this out because it was interfering with the ability for leads to flow
+        // without making reps wait.  We can turn it back on when we have a way for Drew to disable
+        // nurture emails on a per-contact basis from Salesforce.
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // await sails.helpers.sendTemplateEmail.with({
+        //   template: 'email-nurture-stage-four',
+        //   layout: 'layout-nurture-email',
+        //   templateData: {
+        //     firstName: user.firstName,
+        //     emailAddress: user.emailAddress
+        //   },
+        //   to: user.emailAddress,
+        //   toName: `${user.firstName} ${user.lastName}`,
+        //   subject: 'Deploy open-source MDM',
+        //   bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
+        //   from: sails.config.custom.contactEmailForNutureEmails,
+        //   fromName: sails.config.custom.contactNameForNurtureEmails,
+        //   ensureAck: true,
+        // });
+        emailedStageFourUserIds.push(user.id);
       }
     }
 
-    await User.update({id: {in: _.pluck(stageFourMdmFocusedUsersWhoHaveNotReceivedAnEmail, 'id')}})
+    await User.update({id: {in: emailedStageFourUserIds}})
     .set({
       stageFourNurtureEmailSentAt: nowAt,
     });
 
+
+    let emailedStageFiveUserIds = [];
     for(let user of stageFiveMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
       if(user.psychologicalStageLastChangedAt > sixWeeksAgoAt) {
         continue;
@@ -103,7 +116,8 @@ module.exports = {
           template: 'email-nurture-stage-five',
           layout: 'layout-nurture-email',
           templateData: {
-            firstName: user.firstName
+            firstName: user.firstName,
+            emailAddress: user.emailAddress
           },
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
@@ -113,10 +127,11 @@ module.exports = {
           fromName: sails.config.custom.contactNameForNurtureEmails,
           ensureAck: true,
         });
+        emailedStageFiveUserIds.push(user.id);
       }
     }
 
-    await User.update({id: {in: _.pluck(stageFiveMdmFocusedUsersWhoHaveNotReceivedAnEmail, 'id')}})
+    await User.update({id: {in: emailedStageFiveUserIds}})
     .set({
       stageFiveNurtureEmailSentAt: nowAt,
     });

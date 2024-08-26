@@ -76,6 +76,7 @@ import (
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const softwareInstallerUploadTimeout = 4 * time.Minute
+const liveQueryMemCacheDuration = 1 * time.Second
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -346,7 +347,7 @@ the way that the Fleet server works.
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 				log.With(logger, "component", "query-results"),
 			)
-			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
+			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			// Set common configuration for all logging.
@@ -692,6 +693,7 @@ the way that the Fleet server works.
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
+			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
@@ -705,6 +707,13 @@ the way that the Fleet server works.
 					}
 					softwareInstallStore = store
 					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
+
+					bstore, err := s3.NewBootstrapPackageStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 bootstrap package store")
+					}
+					bootstrapPackageStore = bstore
+					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -733,6 +742,7 @@ the way that the Fleet server works.
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
+					bootstrapPackageStore,
 					distributedLock,
 				)
 				if err != nil {
@@ -787,7 +797,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore,
 					)
 				},
 			); err != nil {

@@ -1,6 +1,6 @@
 module terraform-provider-fleetdm
 
-go 1.22.4
+go 1.22.6
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.7.0

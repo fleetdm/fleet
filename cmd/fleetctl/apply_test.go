@@ -1258,7 +1258,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 		return nil, &notFoundError{}
 	}
-	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
 	}
 	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
@@ -2001,7 +2001,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			}
 			return nil, &notFoundError{}
 		}
-		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			return nil
 		}
 		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
@@ -2387,7 +2387,7 @@ spec:
 			t.Run(c.pkgName, func(t *testing.T) {
 				srv, pkgLen := serveMDMBootstrapPackage(t, filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName), c.pkgName)
 				ds := setupServer(t, true)
-				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 					require.Equal(t, len(bp.Bytes), pkgLen)
 					return nil
 				}
@@ -2446,7 +2446,7 @@ spec:
 		defer srv.Close()
 
 		ds := setupServer(t, true)
-		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			mockStore.Lock()
 			defer mockStore.Unlock()
 			require.Equal(t, pkgName, bp.Name)
@@ -2599,6 +2599,7 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 

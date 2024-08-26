@@ -34,7 +34,7 @@ export interface ISoftware {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
-  source: string; // "apps" | "ipados" | "ios" | "programs" | ?
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | ?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
@@ -79,6 +79,7 @@ export interface IAppStoreApp {
   app_store_id: number;
   latest_version: string;
   icon_url: string;
+  self_service: boolean;
   status: {
     installed: number;
     pending: number;
@@ -148,8 +149,8 @@ export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
-  ios: "Application (iOS)",
-  ipados: "Application (iPadOS)",
+  ios_apps: "Application (iOS)",
+  ipados_apps: "Application (iPadOS)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `browser` field computed by Fleet server and fallback to this value if it is not present.
   firefox_addons: "Browser plugin (Firefox)",
   safari_extensions: "Browser plugin (Safari)",
@@ -323,3 +324,6 @@ export const hasHostSoftwareAppLastInstall = (
 } => {
   return !!software.app_store_app?.last_install;
 };
+
+export const isIpadOrIphoneSoftwareSource = (source: string) =>
+  ["ios_apps", "ipados_apps"].includes(source);

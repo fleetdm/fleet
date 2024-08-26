@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -32,6 +31,7 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
@@ -1309,10 +1309,11 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	di := r.Header.Get("x-apple-aspen-deviceinfo")
 	if di != "" {
 		// extract x-apple-aspen-deviceinfo custom header from request
-		parsed, err := apple_mdm.ParseDeviceinfo(di, true)
+		parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message: "unable to parse deviceinfo header",
+				Message:     "unable to parse deviceinfo header",
+				InternalErr: err,
 			}
 		}
 		p := fleet.MDMAppleMachineInfo(*parsed)
@@ -1435,15 +1436,38 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	svc.authz.SkipAuthorization(ctx)
 
 	if m == nil {
-		level.Info(svc.logger).Log("msg", "no machine info, skipping os version check")
+		level.Debug(svc.logger).Log("msg", "no machine info, skipping os version check")
 		return nil, nil
 	}
+
+	level.Debug(svc.logger).Log("msg", "checking os version", "serial", m.Serial, "current_version", m.OSVersion)
 
 	if !m.MDMCanRequestSoftwareUpdate {
-		level.Info(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "machine_info", *m)
+		level.Debug(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "serial", m.Serial)
 		return nil, nil
 	}
 
+	needsUpdate, err := svc.needsOSUpdateForDEPEnrollment(ctx, *m)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking os updates settings", "serial", m.Serial)
+	}
+
+	if !needsUpdate {
+		level.Debug(svc.logger).Log("msg", "device is above minimum, skipping os version check", "serial", m.Serial)
+		return nil, nil
+	}
+
+	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(*m)
+	if err != nil {
+		// log for debugging but allow enrollment to proceed
+		level.Info(svc.logger).Log("msg", "getting apple software update required", "serial", m.Serial, "err", err)
+		return nil, nil
+	}
+
+	return sur, nil
+}
+
+func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
 	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
 	// look up DEP hosts by serial number. It grabs the team id and platform from the
 	// hosts table. Then it uses the team id to get either the global config or team config.
@@ -1457,33 +1481,37 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Info(svc.logger).Log("msg", "settings not found, skipping os version check", "machine_info", *m)
-			return nil, nil
+			level.Info(svc.logger).Log("msg", "checking os updates settings, settings not found", "serial", m.Serial)
+			return false, nil
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get os updates settings")
+		return false, err
 	}
-
 	// TODO: confirm what this check should do
 	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
-		level.Info(svc.logger).Log("msg", "settings not set, skipping os version check", "machine_info", *m, "settings", settings)
+		level.Info(svc.logger).Log("msg", "checking os updates settings, minimum version not set", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
+		return false, nil
+	}
+
+	return apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+}
+
+func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
+	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(m))
+	if err != nil {
+		return nil, err
+	}
+
+	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, latest.ProductVersion)
+	if err != nil {
+		return nil, err
+	} else if !needsUpdate {
 		return nil, nil
 	}
 
-	want, err := semver.NewVersion(settings.MinimumVersion.Value)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing minimum version")
-	}
-
-	got, err := semver.NewVersion(m.OSVersion)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
-	}
-
-	if got.LessThan(want) {
-		return fleet.NewMDMAppleSoftwareUpdateRequired(*settings), nil
-	}
-
-	return nil, nil
+	return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
+		ProductVersion: latest.ProductVersion,
+		Build:          latest.Build,
+	}), nil
 }
 
 func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
@@ -2826,7 +2854,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
-	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) {
 		return svc.handleRefetch(r, cmdResult)
 	}
 
@@ -2920,9 +2948,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update host software")
 		}
+		err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+			HostID:      host.ID,
+			CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
+		}
 
 		return nil, nil
 	}
+
+	// Otherwise, the command has prefix fleet.RefetchDeviceCommandUUIDPrefix, which is a refetch device command.
 
 	var deviceInformationResponse struct {
 		QueryResponses map[string]interface{} `plist:"QueryResponses"`
@@ -2970,11 +3007,27 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 	}); err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
 	}
+
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {
+		// Since the device has been refetched, we can assume it's enrolled.
+		err = svc.ds.UpdateMDMData(ctx, host.ID, true)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update MDM data")
+		}
+	}
+	err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID:      host.ID,
+		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
+	}
 	return nil, nil
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,
-	error) {
+	error,
+) {
 	var appsResponse struct {
 		InstalledApplicationList []map[string]interface{} `plist:"InstalledApplicationList"`
 	}
@@ -3573,9 +3626,13 @@ func RenewSCEPCertificates(
 		}
 	}
 
-	migrationEnrollmentProfile := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
+	decodedMigrationEnrollmentProfile, err := base64.StdEncoding.DecodeString(os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE"))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to decode silent migration enrollment profile")
+	}
 	hasAssocsFromMigration := len(assocsFromMigration) > 0
 
+	migrationEnrollmentProfile := string(decodedMigrationEnrollmentProfile)
 	if migrationEnrollmentProfile == "" && hasAssocsFromMigration {
 		level.Debug(logger).Log("msg", "found devices from migration that need SCEP renewals but FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is empty")
 	}

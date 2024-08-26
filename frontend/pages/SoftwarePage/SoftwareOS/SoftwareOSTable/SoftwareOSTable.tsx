@@ -150,7 +150,7 @@ const SoftwareOSTable = ({
     );
   };
 
-  const renderTableFooter = () => {
+  const renderTableHelpText = () => {
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
@@ -174,7 +174,7 @@ const SoftwareOSTable = ({
           <EmptySoftwareTable
             tableName="operating systems"
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware // non-searchable table renders not detecting by default
+            noSearchQuery // non-searchable table renders not detecting by default
           />
         )}
         defaultSortHeader={orderKey}
@@ -189,7 +189,7 @@ const SoftwareOSTable = ({
         onQueryChange={onQueryChange}
         stackControls
         renderCount={renderSoftwareCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}

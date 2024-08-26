@@ -173,26 +173,6 @@ const getHostDiskEncryptionTooltipMessage = (
   ];
 };
 
-const getOSVersionRequirementTooltipMessage = (
-  osVersion: string,
-  osVersionRequirement: IAppleDeviceUpdates
-) => {
-  const requirementMetTooltip = "Meets minimum version requirement.";
-  const requirementNotMetTooltip = (
-    <>
-      Does not meet minimum version requirement.
-      <br />
-      Deadline to update: {osVersionRequirement.deadline}
-    </>
-  );
-
-  const result = compareVersions(
-    removeOSPrefix(osVersion),
-    osVersionRequirement.minimum_version
-  );
-  return result < 0 ? requirementNotMetTooltip : requirementMetTooltip;
-};
-
 const HostSummary = ({
   summaryData,
   bootstrapPackageData,
@@ -341,22 +321,43 @@ const HostSummary = ({
 
   const renderOperatingSystemSummary = () => {
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    if (!osVersionRequirement?.minimum_version) {
+      return (
+        <DataSet title="Operating system" value={summaryData.os_version} />
+      );
+    }
+
+    const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
+    const osVersionRequirementMet =
+      compareVersions(
+        osVersionWithoutPrefix,
+        osVersionRequirement.minimum_version
+      ) >= 0;
+
     return (
       <DataSet
         title="Operating system"
         value={
-          osVersionRequirement?.minimum_version ? (
+          <>
+            {!osVersionRequirementMet && (
+              <Icon name="error-outline" color="ui-fleet-black-75" />
+            )}
             <TooltipWrapper
-              tipContent={getOSVersionRequirementTooltipMessage(
-                summaryData.os_version,
-                osVersionRequirement
-              )}
+              tipContent={
+                osVersionRequirementMet ? (
+                  "Meets minimum version requirement."
+                ) : (
+                  <>
+                    Does not meet minimum version requirement.
+                    <br />
+                    Deadline to update: {osVersionRequirement.deadline}
+                  </>
+                )
+              }
             >
               {summaryData.os_version}
             </TooltipWrapper>
-          ) : (
-            summaryData.os_version
-          )
+          </>
         }
       />
     );

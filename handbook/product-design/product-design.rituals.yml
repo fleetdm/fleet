@@ -73,4 +73,4 @@
   frequency: "Weekly" 
   description: "Review stories in the “In review“ column on the drafting board with the “~apple-mdm-maturity“ label. Would this be usable for an IT admin and how does it compare to Jamf?" 
   moreInfoUrl: 
-  dri: "noahtalerman"
+  dri: "lukeheath"

@@ -17,7 +17,11 @@ import EmptyHosts from "./EmptyHosts";
 import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
 import EmptySchedule from "./EmptySchedule";
+import EmptySearchExclamation from "./EmptySearchExclamation";
+import EmptySearchCheck from "./EmptySearchCheck";
+import EmptySearchQuestion from "./EmptySearchQuestion";
 import CollectingResults from "./CollectingResults";
+import DataError from "./DataError";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -30,6 +34,9 @@ export const GRAPHIC_MAP = {
   "empty-teams": EmptyTeams,
   "empty-packs": EmptyPacks,
   "empty-schedule": EmptySchedule,
+  "empty-search-exclamation": EmptySearchExclamation,
+  "empty-search-check": EmptySearchCheck,
+  "empty-search-question": EmptySearchQuestion,
   // File type graphics
   "file-configuration-profile": FileConfigurationProfile,
   "file-sh": FileSh,
@@ -43,6 +50,7 @@ export const GRAPHIC_MAP = {
   "file-vpp": FileVpp,
   // Other graphics
   "collecting-results": CollectingResults,
+  "data-error": DataError,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

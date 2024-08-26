@@ -3,11 +3,9 @@ import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
 import {
-  IAppStoreApp,
-  ISoftware,
-  ISoftwarePackage,
   ISoftwareTitle,
   formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import PATHS from "router/paths";
 
@@ -78,15 +76,17 @@ const getSoftwareNameCellData = (
     isSelfService = software_package.self_service;
   } else if (app_store_app) {
     hasPackage = true;
-    isSelfService = false;
+    isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
   }
+
+  const isAllTeams = teamId === undefined;
 
   return {
     name: softwareTitle.name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
-    hasPackage: hasPackage && !!teamId,
+    hasPackage: hasPackage && !isAllTeams,
     isSelfService,
     iconUrl,
   };
@@ -124,19 +124,19 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Type",
-      disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={formatSoftwareType(cellProps.row.original)} />
-      ),
-    },
-    {
       Header: "Version",
       disableSortBy: true,
       accessor: "versions",
       Cell: (cellProps: IVersionsCellProps) => (
         <VersionCell versions={cellProps.cell.value} />
+      ),
+    },
+    {
+      Header: "Type",
+      disableSortBy: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
       ),
     },
     // the "vulnerabilities" accessor is used but the data is actually coming
@@ -149,6 +149,9 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(
           cellProps.row.original.versions ?? []
         );
