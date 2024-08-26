@@ -1713,6 +1713,10 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
+	// batches of 10K hosts because h.uuid appears three times in the
+	// query, and the max number of prepared statements is 65K, this was
+	// good enough during a load test and gives us wiggle room if we add
+	// more arguments and we forget to update the batch size.
 	selectProfilesBatchSize := 10_000
 	if ds.testSelectMDMProfilesBatchSize > 0 {
 		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
