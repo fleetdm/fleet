@@ -33,7 +33,7 @@ func SetABMTokenMetadata(
 	return SetDecryptedABMTokenMetadata(ctx, abmToken, decryptedToken, depStorage, ds, logger)
 }
 
-const UnsavedABMTokenOrgName = "new_abm_token"
+const UnsavedABMTokenOrgName = "new_abm_token" //nolint:gosec
 
 func SetDecryptedABMTokenMetadata(
 	ctx context.Context,
