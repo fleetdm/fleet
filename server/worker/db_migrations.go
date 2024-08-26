@@ -75,15 +75,20 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "extract VPP token metadata")
 	}
 	if !didUpdate {
-		// it should've updated, as the location, org name and renew data were all
+		// it should've updated, as the location, org name and renew date were all
 		// dummy values after the DB migration. Log something, but otherwise
 		// continue as retrying won't change the result.
 		m.Log.Log("info", "VPP token metadata was not updated")
 	}
 
-	// TODO(mna): update the token in the DB, to integrate with Dante's work in
-	// https://github.com/fleetdm/fleet/pull/21355
-	//err = m.Datastore.SaveVPPToken(ctx, tok)
-	//return ctxerr.Wrap(ctx, err, "save VPP token")
-	return nil
+	err = m.Datastore.UpdateVPPToken(ctx, &fleet.VPPTokenDB{
+		ID:        tok.ID,
+		OrgName:   tok.OrganizationName,
+		Location:  tok.Location,
+		RenewDate: tok.RenewAt,
+		Token:     string(tok.Token),
+		TeamID:    tok.TeamID,
+		NullTeam:  fleet.NullTeamType(tok.NullTeamType),
+	})
+	return ctxerr.Wrap(ctx, err, "update VPP token")
 }
