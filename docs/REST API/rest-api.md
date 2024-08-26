@@ -4247,6 +4247,7 @@ Resends a configuration profile for the specified host.
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
         },
+        "last_uninstall": null
       },
       "app_store_app": null
       "source": "apps",
@@ -4266,7 +4267,11 @@ Resends a configuration profile for the specified host.
       "software_package": {
         "name": "FalconSensor-6.44.pkg"
         "self_service": false,
-        "last_install": null
+        "last_install": null,
+        "last_uninstall": {
+          "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
+          "uninstalled_at": "2024-05-15T15:23:57Z"
+        }
       },
       "app_store_app": null    
       "source": "",
