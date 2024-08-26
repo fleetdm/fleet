@@ -4,7 +4,6 @@ package download
 import (
 	"compress/bzip2"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -80,9 +79,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode == http.StatusNotFound {
-			return backoff.Permanent(errors.New("url returned not found"))
-		} else if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("unexpected status code %d", resp.StatusCode)
 		}
 
