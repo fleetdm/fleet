@@ -129,13 +129,11 @@ parasails.registerPage('basic-documentation', {
     // console.log(subtopics);
 
     this.subtopics = (() => {
-      let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
-      subtopics = $.makeArray(subtopics).map((title) => {
-        // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
-        let kebabCaseFriendlyTitle = title.replace(/[\’\']/g, '');
+      let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el);
+      subtopics = $.makeArray(subtopics).map((subheading) => {
         return {
-          title,
-          url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
+          title: subheading.innerText,
+          url: $(subheading).find('a.markdown-link').attr('href'),
         };
       });
       return subtopics;
