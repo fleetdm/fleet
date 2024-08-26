@@ -96,7 +96,15 @@ github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleCalendar	[]*fleet.Go
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	Domain	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	ApiKey	map[string]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
-github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMDefaultTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	DeprecatedAppleBMDefaultTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBussinessManager	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Value	[]fleet.MDMAppleABMAssignmentInfo
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	OrganizationName	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnabledAndConfigured	bool
