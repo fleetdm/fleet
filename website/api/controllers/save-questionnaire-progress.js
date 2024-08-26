@@ -187,9 +187,30 @@ module.exports = {
         psychologicalStage = '2 - Aware';
       }//ﬁ
     }//ﬁ
-
+    // Set the user's answer to the current step.
+    questionnaireProgress[currentStep] = formData;
+    // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
+    let getStartedProgress = _.clone(questionnaireProgress);
+    let questionnaireProgressAsAFormattedString = undefined;// Default to undefined.
+    // Using a try catch block to handle errors from JSON.stringify.
+    try {
+      questionnaireProgressAsAFormattedString = JSON.stringify(getStartedProgress)
+      .replace(/[\{|\}|"]/g, '')// Remove the curly braces and quotation marks wrapping JSON objects
+      .replace(/,/g, '\n')// Replace commas with newlines.
+      .replace(/:\w+:/g, ':\t');// Replace the key from the formData with a color and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+    } catch(err){
+      sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
+    }
     // Only update CRM records if the user's psychological stage changes.
     if(psychologicalStage !== userRecord.psychologicalStage) {
+      let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
+      if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
+        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+          psychologicalStageChangeReason = this.req.session.adAttributionString;
+        }
+      }
       // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
       psychologicalStageLastChangedAt = Date.now();
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
@@ -199,6 +220,8 @@ module.exports = {
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         organization: this.req.me.organization,
         psychologicalStage,
+        psychologicalStageChangeReason,
+        getStartedResponses: questionnaireProgressAsAFormattedString,
         contactSource: 'Website - Sign up',
       }).exec((err)=>{
         if(err){
@@ -207,11 +230,6 @@ module.exports = {
         return;
       });
     }//ﬁ
-    // TODO: send all other answers to Salesforce (when there are fields for them)
-    // Set the user's answer to the current step.
-    questionnaireProgress[currentStep] = formData;
-    // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
-    let getStartedProgress = _.clone(questionnaireProgress);
     // Update the user's database model.
     await User.updateOne({id: userRecord.id})
     .set({
