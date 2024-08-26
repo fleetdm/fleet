@@ -81,14 +81,6 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		m.Log.Log("info", "VPP token metadata was not updated")
 	}
 
-	err = m.Datastore.UpdateVPPToken(ctx, &fleet.VPPTokenDB{
-		ID:        tok.ID,
-		OrgName:   tok.OrganizationName,
-		Location:  tok.Location,
-		RenewDate: tok.RenewAt,
-		Token:     string(tok.Token),
-		TeamID:    tok.TeamID,
-		NullTeam:  fleet.NullTeamType(tok.NullTeamType),
-	})
+	err = m.Datastore.UpdateVPPToken(ctx, tok)
 	return ctxerr.Wrap(ctx, err, "update VPP token")
 }

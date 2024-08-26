@@ -1329,7 +1329,7 @@ type Datastore interface {
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, tok *VPPTokenDB) error
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
-	ListVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
+	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
 	UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam NullTeamType) error
 
@@ -1642,7 +1642,7 @@ type Datastore interface {
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
-	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPToken, error)
+	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
