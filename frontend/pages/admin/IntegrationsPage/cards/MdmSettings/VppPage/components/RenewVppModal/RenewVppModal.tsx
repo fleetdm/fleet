@@ -11,6 +11,7 @@ import {
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import VppSetupSteps from "../VppSetupSteps";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "modal renew-vpp-modal";
 
@@ -55,13 +56,7 @@ const RenewVppModal = ({
       );
       onRenewedToken();
     } catch (e) {
-      // TODO: check API error messsages.
-      const msg = getErrorReason(e, { reasonIncludes: "valid token" });
-      if (msg) {
-        renderFlash("error", msg);
-      } else {
-        renderFlash("error", "Couldn't Upload. Please try again.");
-      }
+      renderFlash("error", getErrorMessage(e));
       onCancel();
     }
     setIsRenewing(false);

@@ -111,9 +111,17 @@ const EditTeamsAbmModal = ({
         onSuccess();
       } catch (e) {
         renderFlash("error", "Couldn’t edit. Please try again.");
+        onCancel();
       }
     },
-    [selectedTeamNames, availableTeams, renderFlash, token.id, onSuccess]
+    [
+      token.id,
+      selectedTeamNames,
+      availableTeams,
+      renderFlash,
+      onSuccess,
+      onCancel,
+    ]
   );
 
   return (
