@@ -18,9 +18,6 @@ import (
 func TestDBMigrationsVPPToken(t *testing.T) {
 	ctx := context.Background()
 
-	// use a real mysql datastore so that the test does not rely so much on
-	// specific internals (sequence and number of calls, etc.). The MDM storage
-	// and pusher are mocks.
 	ds := mysql.CreateMySQLDS(t)
 	// call TruncateTables immediately as a DB migration may have created jobs
 	mysql.TruncateTables(t, ds)
