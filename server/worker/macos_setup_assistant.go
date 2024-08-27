@@ -261,37 +261,37 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
+	skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "run hosts transferred")
+	}
+
 	if !fromCooldown {
 		// if not a retry, then we need to screen the serials for cooldown
-		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "run hosts transferred")
-		}
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
 			// after the cooldown period is over
 			level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
 		}
+	}
 
-		if len(assignSerials) == 0 {
-			level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
-			return nil
+	if len(assignSerials) == 0 {
+		level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
+		return nil
+	}
+
+	for orgName, serials := range assignSerials {
+		decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "decrypting ABM token")
 		}
-
-		for orgName, serials := range assignSerials {
-
-			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
-			}
-			ctx = abmctx.NewContext(ctx, decTok)
-			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "assign profile")
-			}
-			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-				return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
-			}
+		ctx = abmctx.NewContext(ctx, decTok)
+		resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+			return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
 		}
 	}
 

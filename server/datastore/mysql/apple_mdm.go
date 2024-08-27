@@ -5378,7 +5378,9 @@ func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, e
 	return count, nil
 }
 
-func (ds *Datastore) GetABMTokenOrgNamesForTeam(ctx context.Context, teamID *uint) ([]string, error) {
+// GetABMTokenOrgNamesForHostsInTeam returns the set of ABM organization names that correspond to each of
+// the hosts in the team.
+func (ds *Datastore) GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	stmt := `
 SELECT DISTINCT
 	abmt.organization_name
@@ -5393,7 +5395,7 @@ WHERE
 	teamFilter := `h.team_id IS NULL`
 	if teamID != nil {
 		teamFilter = `h.team_id = ?`
-		args = append(args, teamID)
+		args = append(args, *teamID)
 	}
 
 	stmt = fmt.Sprintf(stmt, teamFilter)

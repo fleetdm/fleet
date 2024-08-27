@@ -219,7 +219,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	if team != nil {
 		tmID = &team.ID
 	}
-	orgNames, err := d.ds.GetABMTokenOrgNamesForTeam(ctx, tmID)
+	orgNames, err := d.ds.GetABMTokenOrgNamesForHostsInTeam(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
 	}
