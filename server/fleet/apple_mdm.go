@@ -204,6 +204,13 @@ type MDMAppleConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
+// MDMProfilesUpdates flags updates that were done during batch processing of profiles.
+type MDMProfilesUpdates struct {
+	AppleConfigProfile   bool
+	WindowsConfigProfile bool
+	AppleDeclaration     bool
+}
+
 // ConfigurationProfileLabel represents the many-to-many relationship between
 // profiles and labels.
 //

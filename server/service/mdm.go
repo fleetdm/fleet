@@ -1168,7 +1168,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	}
 
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1413,7 +1413,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1601,7 +1601,8 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, appleDecls); err != nil {
+	var profUpdates fleet.MDMProfilesUpdates
+	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, appleDecls); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
@@ -1610,7 +1611,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	for _, p := range windowsProfiles {
 		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil); err != nil {
+	winUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
 
@@ -1619,33 +1621,42 @@ func (svc *Service) BatchSetMDMProfiles(
 	for _, p := range appleProfiles {
 		appleProfUUIDs = append(appleProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil); err != nil {
+	appleUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
+	updates := fleet.MDMProfilesUpdates{
+		AppleConfigProfile:   profUpdates.AppleConfigProfile || winUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
+		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile || appleUpdates.WindowsConfigProfile,
+		AppleDeclaration:     profUpdates.AppleDeclaration || winUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+	}
 
-	// TODO(roberto): should we generate activities only of any profiles were
-	// changed? this is the existing behavior for macOS profiles so I'm
-	// leaving it as-is for now.
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-			TeamID:   tmID,
-			TeamName: tmName,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+	if updates.AppleConfigProfile {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+		}
 	}
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
-			TeamID:   tmID,
-			TeamName: tmName,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
+	if updates.WindowsConfigProfile {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
+		}
 	}
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
-			TeamID:   tmID,
-			TeamName: tmName,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+	if updates.AppleDeclaration {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+		}
 	}
 
 	return nil

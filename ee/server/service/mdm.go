@@ -1119,7 +1119,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		// This only sets profiles that haven't been queued by the cron to 'pending' (both removes and installs, which includes
 		// the OS updates we just deleted). It doesn't have a functional difference because if you don't call this function
 		// the cron will catch up, but it's important for the UX to mark them as pending immediately so it's reflected in the UI.
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 		return nil
@@ -1152,7 +1152,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		return err
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
 	return nil

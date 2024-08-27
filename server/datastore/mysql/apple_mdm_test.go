@@ -4764,8 +4764,11 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Name:       "decl-1",
 	})
 	require.NoError(t, err)
-	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
+	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
 	require.NoError(t, err)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.AppleDeclaration)
+	assert.False(t, updates.WindowsConfigProfile)
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
 	require.NoError(t, err)
@@ -4782,8 +4785,11 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host1, true)
-	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
 	require.NoError(t, err)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.WindowsConfigProfile)
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -4796,8 +4802,11 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Name:       "decl-2",
 	})
 	require.NoError(t, err)
-	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.WindowsConfigProfile)
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -4808,8 +4817,11 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMAppleConfigProfile(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
-	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.WindowsConfigProfile)
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -5967,8 +5979,11 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
 	require.NoError(t, err)
 
-	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil)
+	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil)
 	require.NoError(t, err)
+	assert.True(t, updates.AppleConfigProfile)
+	assert.False(t, updates.AppleDeclaration)
+	assert.False(t, updates.WindowsConfigProfile)
 
 	profiles, err := ds.GetHostMDMAppleProfiles(ctx, "iOS0_UUID")
 	require.NoError(t, err)

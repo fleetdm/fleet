@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2027,7 +2028,10 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 
 	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile) map[string]string {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
+			updatedDB, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
+			require.NoError(t, err)
+			assert.True(t, updatedDB)
+			return err
 		})
 		require.NoError(t, err)
 		return expectWindowsProfiles(t, ds, tmID, want)
