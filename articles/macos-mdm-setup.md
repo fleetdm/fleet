@@ -20,7 +20,7 @@ To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > 
 
 > Available in Fleet Premium
 
-To connect Fleet to ABM or renew ABM, head to the **Settings > Integrations > Automatic enrollment > Apple Business Manager** page.
+To connect Fleet to ABM or renew ABM, head to the **Settings > Integrations > Mobile device management (MDM)** page. Under "Automatic enrollment", click "Add ABM", and then click "Add ABM" again on the next page. Follow the instructions in the modal and upload your ABM token to Fleet.
 
 After connecting Fleet to ABM, set Fleet to be the MDM for all Macs: 
 
