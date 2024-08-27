@@ -75,7 +75,7 @@ class Dropdown extends Component {
     const { multi, onChange, clearable, name, parseTarget } = this.props;
 
     if (parseTarget) {
-      // Returns both name and value
+      // Returns both name of the Dropdown and value of the selected option
       return onChange({ value: selected.value, name });
     }
 
@@ -202,7 +202,6 @@ class Dropdown extends Component {
         className={wrapperClassName}
       >
         <Select
-          inputRenderer={() => <div>THIS WOULD BE COOL</div>}
           className={selectClasses}
           clearable={clearable}
           disabled={disabled}

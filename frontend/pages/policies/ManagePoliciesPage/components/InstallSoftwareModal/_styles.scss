@@ -5,6 +5,12 @@
       .Select-placeholder {
         color: $ui-fleet-black-50;
       }
+      .Select-menu {
+        max-height: 240px;
+      }
+      .Select-menu-outer {
+        overflow-y: auto;
+      }
     }
     .policy-row {
       height: 40px;

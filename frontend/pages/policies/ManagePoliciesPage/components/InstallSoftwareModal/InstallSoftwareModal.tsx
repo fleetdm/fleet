@@ -20,11 +20,16 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
+import { any } from "expect";
 
 const AFI_SOFTWARE_BATCH_SIZE = 1000;
 
 const baseClass = "install-software-modal";
 
+interface ISwDropdownField {
+  name: string;
+  value: number;
+}
 interface IFormPolicy {
   name: string;
   id: number;
@@ -57,6 +62,9 @@ const InstallSoftwareModal = ({
     }))
   );
 
+  const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
+    (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
+  );
   const {
     data: titlesAFI,
     isLoading: isTitlesAFILoading,
@@ -107,11 +115,8 @@ const InstallSoftwareModal = ({
   );
 
   const onSelectPolicySoftware = useCallback(
-    (newVal: { name: string; value: number }) => {
-      // console.log("\nNEW VAL in DROPDOWN: ", newVal);
-      const { name: policyName, value: softwareId } = newVal;
-      console.log("\nPOLICY NAME: ", policyName);
-      console.log("\nSOFTWARE ID: ", softwareId);
+    ({ name, value }: ISwDropdownField) => {
+      const [policyName, softwareId] = [name, value];
       setFormData(
         formData.map((policy) => {
           if (policy.name === policyName) {
@@ -123,6 +128,75 @@ const InstallSoftwareModal = ({
     },
     [formData]
   );
+
+  const availableSoftwareOptions = titlesAFI?.map((title) => ({
+    label: title.name,
+    value: title.id,
+    helpText: title.software_package?.version,
+  }));
+
+  // policy name : sw name
+  const selectedSoftwareNames: Record<string, string | undefined> = {};
+  // eslint-disable-next-line array-callback-return
+  formData.map((policy) => {
+    if (policy.installSoftwareEnabled) {
+      selectedSoftwareNames[policy.name] = availableSoftwareOptions?.find(
+        (option) => option.value === policy.swIdToInstall
+      )?.label;
+    }
+  });
+  console.log("\nSELECTED SOFTWARE NAMES: ", selectedSoftwareNames);
+
+  const renderPolicySwInstallOption = (policy: IFormPolicy) => {
+    const {
+      name: policyName,
+      id: policyId,
+      installSoftwareEnabled: enabled,
+      // swIdToInstall,
+    } = policy;
+
+    // form state –> find sw name –> set as value
+    // on change –> set id in state
+    // const selectedSwName = useCallback(
+    //   availableSoftwareOptions?.find((option) => option.value === swIdToInstall)
+    //     ?.label,
+    //   [swIdToInstall, availableSoftwareOptions]
+    // );
+
+    const selectedSwName = selectedSoftwareNames[policyName];
+    console.log("\nSELECTED SW NAME: ", selectedSwName);
+    return (
+      <li
+        className={`${baseClass}__policy-row policy-row`}
+        id={`policy-row--${policyId}`}
+        key={policyId}
+      >
+        <Checkbox
+          value={enabled}
+          name={policyName}
+          onChange={() => {
+            onChangeEnableInstallSoftware({
+              policyName,
+              value: !enabled,
+            });
+          }}
+        >
+          <TooltipTruncatedText value={policyName} />
+        </Checkbox>
+        {enabled && (
+          <Dropdown
+            options={availableSoftwareOptions}
+            value={selectedSwName}
+            onChange={onSelectPolicySoftware}
+            placeholder="Select software"
+            className={`${baseClass}__software-dropdown`}
+            name={policyName}
+            parseTarget
+          />
+        )}
+      </li>
+    );
+  };
 
   const renderContent = () => {
     if (isTitlesAFIError) {
@@ -138,56 +212,9 @@ const InstallSoftwareModal = ({
         <div className="form-field">
           <div className="form-field__label">Policies:</div>
           <ul className="automated-policies-section">
-            {formData.map((policyData) => {
-              const {
-                name: policyName,
-                id: policyId,
-                installSoftwareEnabled: enabled,
-                swIdToInstall,
-              } = policyData;
-
-              // to correctly set state relating policy name to id, need to include that
-              // relationship in each dropdown option's value for correct `onChange` parsing
-              const availableSoftwareOptions = titlesAFI?.map((title) => ({
-                label: title.name,
-                value: { policyName, softwareId: title.id },
-              }));
-
-              const selectedSwName = availableSoftwareOptions?.find(
-                (option) => option.value === swIdToInstall
-              )?.label;
-              console.log("\nSELECTED SW NAME: ", selectedSwName);
-              return (
-                <li
-                  className={`${baseClass}__policy-row policy-row`}
-                  id={`policy-row--${policyId}`}
-                  key={policyId}
-                >
-                  <Checkbox
-                    value={enabled}
-                    name={policyName}
-                    onChange={() => {
-                      onChangeEnableInstallSoftware({
-                        policyName,
-                        value: !enabled,
-                      });
-                    }}
-                  >
-                    <TooltipTruncatedText value={policyName} />
-                  </Checkbox>
-                  {enabled && (
-                    <Dropdown
-                      options={availableSoftwareOptions}
-                      value={selectedSwName}
-                      onChange={onSelectPolicySoftware}
-                      placeholder="Select software"
-                      className={`${baseClass}__software-dropdown`}
-                      parseTarget
-                    />
-                  )}
-                </li>
-              );
-            })}
+            {formData.map((policyData) =>
+              renderPolicySwInstallOption(policyData)
+            )}
           </ul>
           <span className="form-field__help-text">
             Selected software will be installed when hosts fail the chosen
@@ -207,7 +234,7 @@ const InstallSoftwareModal = ({
             className="save-loading"
             isLoading={isUpdating}
             // TODO
-            // disabled={Object.keys(formErrors).length > 0}
+            disabled={anyPolicyEnabledWithoutSelectedSoftware}
           >
             Save
           </Button>
