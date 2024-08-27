@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"strings"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -169,7 +170,12 @@ func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*
 		return ctxTok, nil
 	}
 
-	return nil, errors.New("no auth token provided in context")
+	token, err := assets.ABMToken(ctx, s.ds, name)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving token in nano dep storage: %w", err)
+	}
+
+	return token, nil
 }
 
 // StoreAuthTokens partially implements nanodep.AuthTokensStorer.

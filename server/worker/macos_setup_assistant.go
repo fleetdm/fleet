@@ -169,7 +169,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 	// of the default profile and assign it to all of the team's hosts. No need
 	// to force a re-generate of the default profile, if it is already registered
 	// with Apple this is fine and we use that profile uuid.
-	profUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team, "")
+	profUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure default setup assistant")
 	}
@@ -234,7 +234,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 	}
 	if profUUID == "" {
 		// get the default setup assistant.
-		defProfUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team, "")
+		defProfUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "ensure default setup assistant")
 		}

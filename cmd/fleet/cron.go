@@ -1069,12 +1069,12 @@ func newAppleMDMDEPProfileAssigner(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			tokens, err := ds.ListABMTokens(ctx)
+			appCfg, err := ds.AppConfig(ctx)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
 			}
 
-			if len(tokens) == 0 {
+			if !appCfg.MDM.AppleBMEnabledAndConfigured {
 				return nil
 			}
 

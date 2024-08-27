@@ -145,7 +145,7 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 // setupAsst is nil, the default profile is registered. It assigns the
 // up-to-date dynamic settings such as the server URL and MDM SSO URL if
 // end-user authentication is enabled for that team/no-team.
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, orgName string) error {
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant) error {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -206,7 +206,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	jsonProf.AwaitDeviceConfigured = true
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+	res, err := depClient.DefineProfile(ctx, "", &jsonProf)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
@@ -232,7 +232,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 // is created and registered with Apple for the provided team/no-team (if team
 // is nil), and returns its profile UUID. It does not re-define the profile if
 // it already exists and registered.
-func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *fleet.Team, orgName string) (string, time.Time, error) {
+func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *fleet.Team) (string, time.Time, error) {
 	// the first step is to ensure that the default profile entry exists in the
 	// mdm_apple_enrollment_profiles table. When we create it there we also
 	// create the authentication token to retrieve enrollment profiles, and
@@ -259,7 +259,7 @@ func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *flee
 	}
 	if profUUID == "" {
 		d.logger.Log("msg", "default DEP profile not set, registering")
-		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, nil, orgName); err != nil {
+		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, nil); err != nil {
 			return "", time.Time{}, ctxerr.Wrap(ctx, err, "register default setup assistant with Apple")
 		}
 		profUUID, modTime, err = d.ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
@@ -290,7 +290,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 	}
 
 	if asst.ProfileUUID == "" {
-		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, asst, orgName); err != nil {
+		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, asst); err != nil {
 			return "", time.Time{}, err
 		}
 	}
@@ -352,7 +352,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 		for _, team := range teams {
 			// ensure the default (fallback) setup assistant profile exists, registered
 			// with Apple DEP.
-			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
+			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team)
 			if err != nil {
 				return err
 			}
@@ -643,7 +643,7 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, orgN
 		return "", fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
 	}
 	if profUUID == "" {
-		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam, orgName)
+		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam)
 		if err != nil {
 			return "", fmt.Errorf("ensure default setup assistant: %w", err)
 		}
