@@ -30,6 +30,10 @@ export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
 
+export interface IGetVppTokensResponse {
+  vpp_tokens: IMdmVppToken[];
+}
+
 export interface IUploadVppTokenReponse {
   vpp_token: IMdmVppToken;
 }
@@ -96,71 +100,9 @@ export default {
     return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
   },
 
-  getVppTokens: (): Promise<IMdmVppToken[]> => {
+  getVppTokens: (): Promise<IGetVppTokensResponse> => {
     const { MDM_VPP_TOKENS } = endpoints;
-    // return sendRequest("GET", MDM_VPP_TOKENS);
-    return Promise.resolve([
-      {
-        id: 1,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2023-11-29T00:00:00Z",
-        terms_expired: false,
-        teams: [
-          { id: 1, name: "💻 Workstations" },
-          { id: 2, name: "💻🐣 Workstations (canary)" },
-          { id: 3, name: "📱🏢 Company-owned iPhones" },
-          { id: 4, name: "🔳🏢 Company-owned iPads" },
-        ],
-      },
-      {
-        id: 2,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2024-08-29T00:00:00Z",
-        terms_expired: false,
-        teams: [
-          { id: 1, name: "💻 Workstations" },
-          { id: 2, name: "💻🐣 Workstations (canary)" },
-          { id: 3, name: "📱🏢 Company-owned iPhones" },
-        ],
-      },
-      {
-        id: 3,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2025-08-29T00:00:00Z",
-        terms_expired: false,
-        teams: [{ id: 1, name: "💻 Workstations" }],
-      },
-      {
-        id: 4,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2025-08-29T00:00:00Z",
-        terms_expired: false,
-        teams: null,
-      },
-      {
-        id: 5,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2025-08-29T00:00:00Z",
-        terms_expired: false,
-        teams: [],
-      },
-      {
-        id: 6,
-        org_name: "Fleet Device Management Inc.",
-        location: "https://example.com/mdm/apple/mdm",
-        renew_date: "2025-08-29T00:00:00Z",
-        terms_expired: false,
-        teams: [
-          { id: 0, name: "No Team" },
-          { id: 1, name: "💻 Workstations" },
-        ],
-      },
-    ]); // TODO: remove when API is ready
+    return sendRequest("GET", MDM_VPP_TOKENS);
   },
 
   uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
@@ -182,5 +124,14 @@ export default {
     const { MDM_VPP_TOKEN } = endpoints;
     const path = MDM_VPP_TOKEN(id);
     return sendRequest("DELETE", path);
+  },
+
+  editVppTeams: async (params: {
+    tokenId: number;
+    teamIds: number[] | null;
+  }) => {
+    const { MDM_VPP_TOKEN_TEAMS } = endpoints;
+    const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
+    return sendRequest("PATCH", path, { teams: params.teamIds });
   },
 };

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
@@ -12,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strings"
 	"testing"
@@ -679,7 +679,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	// assign the team as the default team for DEP devices
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.AppleBMDefaultTeam = team.Name
+	ac.MDM.DeprecatedAppleBMDefaultTeam = team.Name
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -703,7 +703,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		}
 	}
 
-	ac.MDM.AppleBMDefaultTeam = "non-existent"
+	ac.MDM.DeprecatedAppleBMDefaultTeam = "non-existent"
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -6539,27 +6539,27 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	orgName := "Donkey Kong"
 	location := "Jungle"
-	dataToken, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName, location)
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName, location)
 	require.NoError(t, err)
 
 	orgName2 := "Diddy Kong"
 	location2 := "Mines"
-	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName2, location2)
 	require.NoError(t, err)
 
 	orgName3 := "Cranky Cong"
 	location3 := "Cranky's Cabin"
-	dataToken3, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName3, location3)
+	dataToken3, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName3, location3)
 	require.NoError(t, err)
 
 	orgName4 := "Funky Kong"
 	location4 := "Funky's Fishing Shack"
-	dataToken4, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName4, location4)
+	dataToken4, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName4, location4)
 	require.NoError(t, err)
 
 	orgName5 := "Lanky Kong"
 	location5 := "Lanky Kong's Pool"
-	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
+	dataToken5, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName5, location5)
 	_ = dataToken5
 	require.NoError(t, err)
 

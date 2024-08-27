@@ -35,7 +35,6 @@ export interface IMdmVppToken {
   org_name: string;
   location: string;
   renew_date: string;
-  terms_expired: boolean; // TODO: what does this mean in the context of VPP? isn't this just an abm concept?
   teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
 

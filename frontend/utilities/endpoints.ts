@@ -85,6 +85,8 @@ export default {
   MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
   MDM_ABM_TOKEN_RENEW: (id: number) =>
     `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
+  MDM_ABM_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/abm_tokens/${id}/teams`,
   MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
@@ -100,6 +102,8 @@ export default {
   MDM_VPP_TOKEN: (id: number) => `/${API_VERSION}/fleet/vpp_tokens/${id}`,
   MDM_VPP_TOKENS_RENEW: (id: number) =>
     `/${API_VERSION}/fleet/vpp_tokens/renew/${id}`,
+  MDM_VPP_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/teams`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,

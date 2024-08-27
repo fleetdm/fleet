@@ -84,7 +84,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		// no team to assign to
 		appCfg, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
-		require.Empty(t, appCfg.MDM.AppleBMDefaultTeam)
+		require.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 
 		// no teams, so no team-specific custom setup assistants
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
@@ -238,7 +238,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NoError(t, err)
 
 		// set that team as default assignment for new devices
-		appCfg.MDM.AppleBMDefaultTeam = tm.Name
+		appCfg.MDM.DeprecatedAppleBMDefaultTeam = tm.Name
 		err = ds.SaveAppConfig(ctx, appCfg)
 		require.NoError(t, err)
 
