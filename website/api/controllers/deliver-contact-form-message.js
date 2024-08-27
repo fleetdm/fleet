@@ -73,6 +73,10 @@ module.exports = {
 
     await sails.helpers.sendTemplateEmail.with({
       to: sails.config.custom.fromEmailAddress,
+      replyTo: {
+        name: firstName + ' '+ lastName,
+        email: emailAddress,
+      },
       subject: 'New contact form message',
       layout: false,
       template: 'email-contact-form',
