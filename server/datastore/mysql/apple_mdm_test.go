@@ -3776,7 +3776,7 @@ func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 
 	// set for no team
-	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "no-team")
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "no-team", "")
 	require.NoError(t, err)
 
 	// get for no team returns the same data
@@ -3786,7 +3786,7 @@ func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	require.NotZero(t, ts)
 
 	// set for non-existing team fails
-	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, ptr.Uint(123), "xyz")
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, ptr.Uint(123), "xyz", "")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "foreign key constraint fails")
 
@@ -3800,7 +3800,7 @@ func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// set for existing team
-	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm")
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm", "")
 	require.NoError(t, err)
 
 	// get for existing team

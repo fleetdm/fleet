@@ -3480,12 +3480,20 @@ WHERE
 	return serials, nil
 }
 
-func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
-	const stmt = `
+func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID, abmTokenOrgName string) error {
+	const clearStmt = `
+		DELETE FROM mdm_apple_default_setup_assistants
+			WHERE global_or_team_id = ?`
+
+	const upsertStmt = `
 		INSERT INTO
-			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid)
-		VALUES
-			(?, ?, ?)
+			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid, abm_token_id)
+		SELECT
+			?, ?, ?, abt.id 
+		FROM 
+			abm_tokens abt
+		WHERE 
+			abt.organization_name = ?
 		ON DUPLICATE KEY UPDATE
 			profile_uuid = VALUES(profile_uuid)
 `
@@ -3493,7 +3501,18 @@ func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Con
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, globalOrTmID, profileUUID)
+
+	if profileUUID == "" && abmTokenOrgName == "" {
+		// delete all profile uuids for that team, regardless of ABM token
+		_, err := ds.writer(ctx).ExecContext(ctx, clearStmt, globalOrTmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm apple default setup assistant")
+		}
+		return nil
+	}
+
+	// upsert the profile uuid for the provided token
+	_, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, teamID, globalOrTmID, profileUUID, abmTokenOrgName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert mdm apple default setup assistant")
 	}

@@ -332,7 +332,7 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 
 func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSetupAssistantArgs) error {
 	// clear the profile uuid for the default setup assistant for that team/no-team
-	if err := m.Datastore.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
+	if err := m.Datastore.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, args.TeamID, "", ""); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear default setup assistant profile uuid")
 	}
 

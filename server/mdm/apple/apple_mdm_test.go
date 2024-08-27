@@ -88,7 +88,7 @@ func TestDEPService(t *testing.T) {
 			return defaultProfileUUID, time.Now(), nil
 		}
 
-		ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc = func(ctx context.Context, teamID *uint, profileUUID string) error {
+		ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc = func(ctx context.Context, teamID *uint, profileUUID, orgName string) error {
 			require.Nil(t, teamID)
 			defaultProfileUUID = profileUUID
 			return nil

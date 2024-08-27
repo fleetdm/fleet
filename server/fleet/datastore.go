@@ -1242,7 +1242,12 @@ type Datastore interface {
 	// the end-user authentication which may be configured per-team and affects
 	// the JSON registered with Apple's API, possibly resulting in different
 	// profile UUIDs for the same profile depending on the team.
-	SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error
+	//
+	// With multi-ABM token support, this profileUUID is stored along with the
+	// ABM token used to register it. The token is identified by its organization
+	// name, which is readily available to the caller while the ABM Token ID is
+	// not.
+	SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID, abmTokenOrgName string) error
 
 	// Get the profile UUID and last update timestamp for the default setup
 	// assistant for a team or no team.

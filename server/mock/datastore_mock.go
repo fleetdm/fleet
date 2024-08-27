@@ -820,7 +820,7 @@ type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) er
 
 type SetMDMAppleSetupAssistantProfileUUIDFunc func(ctx context.Context, teamID *uint, profileUUID string) error
 
-type SetMDMAppleDefaultSetupAssistantProfileUUIDFunc func(ctx context.Context, teamID *uint, profileUUID string) error
+type SetMDMAppleDefaultSetupAssistantProfileUUIDFunc func(ctx context.Context, teamID *uint, profileUUID string, abmTokenOrgName string) error
 
 type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
 
@@ -5399,11 +5399,11 @@ func (s *DataStore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, te
 	return s.SetMDMAppleSetupAssistantProfileUUIDFunc(ctx, teamID, profileUUID)
 }
 
-func (s *DataStore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
+func (s *DataStore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string, abmTokenOrgName string) error {
 	s.mu.Lock()
 	s.SetMDMAppleDefaultSetupAssistantProfileUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc(ctx, teamID, profileUUID)
+	return s.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc(ctx, teamID, profileUUID, abmTokenOrgName)
 }
 
 func (s *DataStore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {

@@ -226,7 +226,11 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 
 	if len(orgNames) == 0 {
 		d.logger.Log("msg", "skipping defining profile for team with no hosts")
-		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, ""); err != nil {
+		// TODO(mna): not sure this is needed, as long as the profiles don't
+		// change, the profile uuids can stay there.
+
+		// clear any existing profile UUIDs in this case
+		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, "", ""); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting empty default profile UUID for team with no hosts")
 		}
 		return nil
@@ -244,7 +248,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 				return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
 			}
 		} else {
-			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID); err != nil {
+			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID, orgName); err != nil {
 				return ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}
 		}
