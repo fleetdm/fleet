@@ -4,8 +4,8 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import {
-  createMockSoftwareTitlesReponse,
-  createMockSoftwareVersionsReponse,
+  createMockSoftwareTitlesResponse,
+  createMockSoftwareVersionsResponse,
 } from "__mocks__/softwareMock";
 import { noop } from "lodash";
 
@@ -40,7 +40,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled={false} // Set to false
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}
@@ -83,7 +83,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           count: 0,
           counts_updated_at: null,
           software_titles: [],
@@ -132,7 +132,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions // Versions toggle applied
-        data={createMockSoftwareVersionsReponse({
+        data={createMockSoftwareVersionsResponse({
           counts_updated_at: null,
           software: [],
         })}
@@ -177,7 +177,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}
@@ -226,7 +226,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}
