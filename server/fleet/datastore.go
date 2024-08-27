@@ -1326,12 +1326,12 @@ type Datastore interface {
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
 	InsertVPPToken(ctx context.Context, tok *VPPTokenData) (*VPPTokenDB, error)
-	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
-	DeleteVPPToken(ctx context.Context, tokenID uint) error
 	ListVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
+	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
+	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.
