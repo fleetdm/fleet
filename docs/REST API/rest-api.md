@@ -4246,8 +4246,7 @@ Resends a configuration profile for the specified host.
         "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
-        },
-        "last_uninstall": null
+        }
       },
       "app_store_app": null
       "source": "apps",
@@ -4275,7 +4274,7 @@ Resends a configuration profile for the specified host.
       },
       "app_store_app": null    
       "source": "",
-      "status": null,
+      "status": "pending_uninstall",
       "installed_versions": [],
     },
     {
