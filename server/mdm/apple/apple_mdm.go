@@ -225,8 +225,13 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	}
 
 	if len(orgNames) == 0 {
-		orgNames = append(orgNames, DEPName)
+		d.logger.Log("msg", "skipping defining profile for team with no hosts")
+		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting empty default profile UUID for team with no hosts")
+		}
+		return nil
 	}
+
 	for _, orgName := range orgNames {
 		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
 		if err != nil {

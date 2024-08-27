@@ -357,10 +357,15 @@ func TestMacosSetupAssistant(t *testing.T) {
 
 	// team 2 got deleted, update the list of team IDs
 	tmIDs = []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm3.ID)}
-	for _, tmID := range tmIDs {
+	for i, tmID := range tmIDs {
 		_, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
 		require.NoError(t, err)
-		require.True(t, modTime.After(reset), "tmID", getTeamID(tmID))
+		// Since team 3 didn't have a default profile set originally (because it didn't have any
+		// hosts originally), the updated_at timestamp for its default setup assistant is still in
+		// the past (the timestamp doesn't update if the UUID and team ID are the same).
+		if i != 2 {
+			require.True(t, modTime.After(reset), "tmID", getTeamID(tmID))
+		}
 	}
 
 	require.Equal(t, map[string]string{
