@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -1712,18 +1713,38 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern).
-	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to install statement")
+	// batches of 10K hosts because h.uuid appears three times in the
+	// query, and the max number of prepared statements is 65K, this was
+	// good enough during a load test and gives us wiggle room if we add
+	// more arguments and we forget to update the batch size.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
 	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(uuids)) / float64(selectProfilesBatchSize)))
 
 	var wantedProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &wantedProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		wantedProfiles = append(wantedProfiles, partialResult...)
 	}
 
 	// Exclude macOS only profiles from iPhones/iPads.
@@ -1760,17 +1781,27 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		)
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern). Note that uuids are provided twice.
-	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
-	}
 	var currentProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
+		}
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+		}
+
+		currentProfiles = append(currentProfiles, partialResult...)
 	}
 
 	if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
@@ -1780,6 +1811,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	// delete all host profiles to start from a clean slate, new entries will be added next
 	// TODO(roberto): is this really necessary? this was pre-existing
 	// behavior but I think it can be refactored. For now leaving it as-is.
+	//
+	// TODO part II(roberto): we found this call to be a major bottleneck during load testing
+	// https://github.com/fleetdm/fleet/issues/21338
 	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete all profiles")
 	}
@@ -4766,11 +4800,12 @@ func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.Hos
 }
 
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
-	// Delete commands that don't have a corresponding host or have been sent over 7 days ago.
+	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
+	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
 	const stmt = `
 		DELETE hmc FROM host_mdm_commands AS hmc
 		LEFT JOIN hosts h ON h.id = hmc.host_id
-		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 7 DAY`
+		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
 	}
