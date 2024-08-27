@@ -89,6 +89,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
+		{"TestMDMGetABMTokenOrgNamesForTeam", testMDMGetABMTokenOrgNamesForTeam},
 	}
 
 	for _, c := range cases {
@@ -6825,4 +6826,65 @@ func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.
 	base64Token := base64.StdEncoding.EncodeToString(rawJson)
 
 	return &fleet.VPPTokenData{Token: base64Token, Location: location}, nil
+}
+
+func testMDMGetABMTokenOrgNamesForTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create some teams
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	encTok := uuid.NewString()
+
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org1", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org2", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+
+	// Create some hosts and add to teams (and one for no team)
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "test-uuid-1",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host2-name",
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "test-uuid-2",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host3-name",
+		OsqueryHostID: ptr.String("3"),
+		NodeKey:       ptr.String("3"),
+		UUID:          "test-uuid-3",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// Insert host DEP assignment
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h1, *h2}, t1.ID))
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h3}, t2.ID))
+
+	orgNames, err := ds.GetABMTokenOrgNamesForTeam(ctx, &tm1.ID)
+	require.Len(t, orgNames, 1)
+	require.Equal(t, orgNames[0], "org1")
+
+	orgNames, err = ds.GetABMTokenOrgNamesForTeam(ctx, nil)
+	require.Len(t, orgNames, 1)
+	require.Equal(t, orgNames[0], "org2")
 }
