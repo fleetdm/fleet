@@ -1098,7 +1098,7 @@ func (svc *Service) validateVPPAssignments(
 			// for all tokens, those will be re-added below.
 			//
 			// This ensures any unassignments are properly handled.
-			tokensByLocation[token.Location] = *token
+			tokensByLocation[token.Location] = token
 			// FIXME: once Dante's fix lands to allow multiple teams per token.
 			token.TeamID = nil
 		}
