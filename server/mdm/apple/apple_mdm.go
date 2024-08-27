@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -206,23 +207,39 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	jsonProf.AwaitDeviceConfigured = true
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, "", &jsonProf)
+	// Get all relevant org names
+	var tmID *uint
+	if team != nil {
+		tmID = &team.ID
+	}
+	orgNames, err := d.ds.GetABMTokenOrgNamesForHostsInTeam(ctx, tmID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
+		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
 	}
 
-	if setupAsst != nil {
-		setupAsst.ProfileUUID = res.ProfileUUID
-		if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
+	if len(orgNames) == 0 {
+		d.logger.Log("msg", "skipping defining profile for team with no hosts")
+		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting empty default profile UUID for team with no hosts")
 		}
-	} else {
-		var tmID *uint
-		if team != nil {
-			tmID = &team.ID
+		return nil
+	}
+
+	for _, orgName := range orgNames {
+		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 		}
-		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
+
+		if setupAsst != nil {
+			setupAsst.ProfileUUID = res.ProfileUUID
+			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
+			}
+		} else {
+			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
+			}
 		}
 	}
 	return nil
@@ -582,25 +599,33 @@ func (d *DEPService) processDeviceResponse(
 			continue
 		}
 
-		apiResp, err := d.depClient.AssignProfile(ctx, abmOrganizationName, profUUID, assignSerials...)
-		if err != nil {
-			level.Error(logger).Log(
-				"msg", "assign profile",
+		for orgName, serials := range assignSerials {
+			decTok, err := assets.ABMToken(ctx, d.ds, orgName)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
+			}
+			ctx = abmctx.NewContext(ctx, decTok)
+
+			apiResp, err := d.depClient.AssignProfile(ctx, orgName, profUUID, serials...)
+			if err != nil {
+				level.Error(logger).Log(
+					"msg", "assign profile",
+					"devices", len(assignSerials),
+					"err", err,
+				)
+				return fmt.Errorf("assign profile: %w", err)
+			}
+
+			logs := []interface{}{
+				"msg", "profile assigned",
 				"devices", len(assignSerials),
-				"err", err,
-			)
-			return fmt.Errorf("assign profile: %w", err)
-		}
+			}
+			logs = append(logs, logCountsForResults(apiResp.Devices)...)
+			level.Info(logger).Log(logs...)
 
-		logs := []interface{}{
-			"msg", "profile assigned",
-			"devices", len(assignSerials),
-		}
-		logs = append(logs, logCountsForResults(apiResp.Devices)...)
-		level.Info(logger).Log(logs...)
-
-		if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
-			return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
+			if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
+				return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
+			}
 		}
 	}
 

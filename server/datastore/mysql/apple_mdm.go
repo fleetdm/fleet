@@ -7,7 +7,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -3620,9 +3619,9 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
-		return skipSerials, assignSerials, nil
+		return skipSerials, serialsByOrgName, nil
 	}
 
 	stmt := `
@@ -3632,12 +3631,14 @@ SELECT
 	ELSE
 		'assign'
 	END AS status,
-	hardware_serial
+	h.hardware_serial,
+	abm.organization_name
 FROM
-	host_dep_assignments
-	JOIN hosts ON id = host_id
+	host_dep_assignments hda
+	JOIN hosts h ON h.id = hda.host_id
+	JOIN abm_tokens abm ON abm.id = hda.abm_token_id
 WHERE
-	hardware_serial IN (?)
+	h.hardware_serial IN (?)
 `
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
@@ -3648,15 +3649,18 @@ WHERE
 	var rows []struct {
 		Status         string `db:"status"`
 		HardwareSerial string `db:"hardware_serial"`
+		ABMOrgName     string `db:"organization_name"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
 	}
 
+	serialsByOrgName = make(map[string][]string)
+
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
-			assignSerials = append(assignSerials, r.HardwareSerial)
+			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
 			skipSerials = append(skipSerials, r.HardwareSerial)
 		default:
@@ -3664,7 +3668,7 @@ WHERE
 		}
 	}
 
-	return skipSerials, assignSerials, nil
+	return skipSerials, serialsByOrgName, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
@@ -4770,127 +4774,6 @@ WHERE
 	return ctxerr.Wrap(ctx, err, "updating abm_token")
 }
 
-func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
-	insertStmt := `
-	INSERT INTO
-		vpp_tokens (
-			organization_name,
-			location,
-			renew_at,
-			token,
-			team_id,
-			null_team_type
-		)
-	VALUES (?, ?, ?, ?, ?, ?)
-`
-
-	if teamID != nil && nullTeam != fleet.NullTeamNone {
-		return nil, ctxerr.Errorf(ctx, "nullTeam must be set to NullTeamNone if teamID is present")
-	}
-
-	if err := ds.checkVPPNullTeam(ctx, nil, nullTeam); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking vpp token null team")
-	}
-
-	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
-	}
-
-	var tokRaw fleet.VPPTokenRaw
-	if err := json.Unmarshal(tokRawBytes, &tokRaw); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshalling raw vpp token")
-	}
-
-	exp, err := time.Parse(fleet.VPPTimeFormat, tokRaw.ExpDate)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
-	}
-	exp = exp.UTC()
-
-	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
-	}
-
-	vppTokenDB := &fleet.VPPTokenDB{
-		OrgName:   tokRaw.OrgName,
-		Location:  tok.Location,
-		RenewDate: exp,
-		Token:     tok.Token,
-		TeamID:    teamID,
-		NullTeam:  nullTeam,
-	}
-
-	res, err := ds.writer(ctx).ExecContext(
-		ctx,
-		insertStmt,
-		vppTokenDB.OrgName,
-		vppTokenDB.Location,
-		exp,
-		tokEnc,
-		vppTokenDB.TeamID,
-		vppTokenDB.NullTeam,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
-	}
-
-	id, _ := res.LastInsertId()
-
-	vppTokenDB.ID = uint(id)
-
-	return vppTokenDB, nil
-}
-
-func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
-	stmt := `
-	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
-	FROM
-		vpp_tokens
-	WHERE
-		id = ?
-`
-
-	var tokEnc struct {
-		ID        uint               `db:"id"`
-		OrgName   string             `db:"organization_name"`
-		Location  string             `db:"location"`
-		RenewDate time.Time          `db:"renew_at"`
-		Token     []byte             `db:"token"`
-		TeamID    *uint              `db:"team_id"`
-		NullTeam  fleet.NullTeamType `db:"null_team_type"`
-	}
-
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, tokenID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token from db")
-	}
-
-	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
-	}
-
-	tok := &fleet.VPPTokenDB{
-		ID:        tokEnc.ID,
-		OrgName:   tokEnc.OrgName,
-		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate,
-		Token:     string(tokDec),
-		TeamID:    tokEnc.TeamID,
-		NullTeam:  tokEnc.NullTeam,
-	}
-
-	return tok, nil
-}
-
 func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
 	const stmt = `
 INSERT INTO
@@ -4936,233 +4819,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	tok.MDMServerURL = url
 
 	return tok, nil
-}
-
-func (ds *Datastore) UpdateVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) error {
-	stmt := `
-	UPDATE
-		vpp_tokens
-	SET
-		organization_name = ?,
-		location = ?,
-		renew_at = ?,
-		token = ?,
-		team_id = ?,
-		null_team_type = ?
-	WHERE
-		id = ?
-`
-
-	if tok.TeamID != nil && tok.NullTeam != fleet.NullTeamNone {
-		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
-	}
-
-	if err := ds.checkVPPNullTeam(ctx, tok.TeamID, tok.NullTeam); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
-	}
-
-	tokEnc, err := encrypt([]byte(tok.Token), ds.serverPrivateKey)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
-	}
-
-	_, err = ds.writer(ctx).ExecContext(
-		ctx,
-		stmt,
-		tok.OrgName,
-		tok.Location,
-		tok.RenewDate,
-		tokEnc,
-		tok.TeamID,
-		tok.NullTeam,
-		tok.ID,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating vpp token")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
-	stmt := `
-	UPDATE
-		vpp_tokens
-	SET
-		team_id = ?,
-		null_team_type = ?
-	WHERE
-		id = ?
-`
-	if teamID != nil && nullTeam != fleet.NullTeamNone {
-		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
-	}
-
-	if err := ds.checkVPPNullTeam(ctx, &id, nullTeam); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, nullTeam, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating vpp token team")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting vpp token")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
-	stmt := `
-	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
-	FROM
-		vpp_tokens
-`
-	var tokEncs []struct {
-		ID        uint               `db:"id"`
-		OrgName   string             `db:"organization_name"`
-		Location  string             `db:"location"`
-		RenewDate time.Time          `db:"renew_at"`
-		Token     []byte             `db:"token"`
-		TeamID    *uint              `db:"team_id"`
-		NullTeam  fleet.NullTeamType `db:"null_team_type"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokEncs, stmt); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting vpp tokens from db")
-	}
-
-	var tokens []fleet.VPPTokenDB
-
-	for _, tokEnc := range tokEncs {
-		tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
-		}
-
-		tokens = append(tokens, fleet.VPPTokenDB{
-			ID:        tokEnc.ID,
-			OrgName:   tokEnc.OrgName,
-			Location:  tokEnc.Location,
-			RenewDate: tokEnc.RenewDate,
-			Token:     string(tokDec),
-			TeamID:    tokEnc.TeamID,
-			NullTeam:  tokEnc.NullTeam,
-		})
-	}
-
-	return tokens, nil
-}
-
-func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-	stmtTeam := `
-	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
-	FROM
-		vpp_tokens
-	WHERE
-		team_id = ?
-`
-	stmtNullTeam := `
-	SELECT
-		id,
-		organization_name,
-		location,
-		renew_at,
-		token,
-		team_id,
-		null_team_type
-	FROM
-		vpp_tokens
-	WHERE
-		team_id IS NULL
-    AND
-        null_team_type = ?
-`
-
-	var tokEnc struct {
-		ID        uint               `db:"id"`
-		OrgName   string             `db:"organization_name"`
-		Location  string             `db:"location"`
-		RenewDate time.Time          `db:"renew_at"`
-		Token     []byte             `db:"token"`
-		TeamID    *uint              `db:"team_id"`
-		NullTeam  fleet.NullTeamType `db:"null_team_type"`
-	}
-
-	var err error
-	if teamID != nil {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtTeam, teamID)
-	} else {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamNoTeam)
-	}
-	if err != nil {
-		if errors.Is(sql.ErrNoRows, err) {
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamAllTeams); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
-				}
-				return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
-			}
-		} else {
-			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
-		}
-	}
-
-	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
-	}
-
-	tok := &fleet.VPPTokenDB{
-		ID:        tokEnc.ID,
-		OrgName:   tokEnc.OrgName,
-		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate,
-		Token:     string(tokDec),
-		TeamID:    tokEnc.TeamID,
-		NullTeam:  tokEnc.NullTeam,
-	}
-
-	return tok, nil
-}
-
-func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, nullTeam fleet.NullTeamType) error {
-	nullTeamStmt := `SELECT id FROM vpp_tokens WHERE null_team_type = ?`
-
-	if nullTeam != fleet.NullTeamNone {
-		var id uint
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, nullTeamStmt, nullTeam); err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, err, "checking for nullteam constraints")
-			}
-		} else {
-			if currentID == nil || *currentID != id {
-				return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
-			}
-		}
-	}
-
-	return nil
 }
 
 func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
@@ -5388,4 +5044,34 @@ func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, e
 		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens with terms expired")
 	}
 	return count, nil
+}
+
+// GetABMTokenOrgNamesForHostsInTeam returns the set of ABM organization names that correspond to each of
+// the hosts in the team.
+func (ds *Datastore) GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	stmt := `
+SELECT DISTINCT
+	abmt.organization_name
+FROM
+	abm_tokens abmt
+	JOIN host_dep_assignments hda ON hda.abm_token_id = abmt.id
+	JOIN hosts h ON hda.host_id = h.id
+WHERE
+ %s
+	`
+	var args []any
+	teamFilter := `h.team_id IS NULL`
+	if teamID != nil {
+		teamFilter = `h.team_id = ?`
+		args = append(args, *teamID)
+	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter)
+
+	var orgNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &orgNames, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting org names for team from db")
+	}
+
+	return orgNames, nil
 }

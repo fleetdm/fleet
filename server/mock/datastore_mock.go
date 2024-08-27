@@ -830,7 +830,7 @@ type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) er
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
-type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
+type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error)
 
 type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint][]string, error)
 
@@ -872,7 +872,7 @@ type UpdateVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenDB) error
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
-type ListVPPTokensFunc func(ctx context.Context) ([]fleet.VPPTokenDB, error)
+type ListVPPTokensFunc func(ctx context.Context) ([]*fleet.VPPTokenDB, error)
 
 type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
 
@@ -891,6 +891,8 @@ type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error)
 
 type GetABMTokenCountFunc func(ctx context.Context) (int, error)
+
+type GetABMTokenOrgNamesForHostsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1046,7 +1048,7 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, use
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
-type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPToken, error)
+type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2356,6 +2358,9 @@ type DataStore struct {
 
 	GetABMTokenCountFunc        GetABMTokenCountFunc
 	GetABMTokenCountFuncInvoked bool
+
+	GetABMTokenOrgNamesForHostsInTeamFunc        GetABMTokenOrgNamesForHostsInTeamFunc
+	GetABMTokenOrgNamesForHostsInTeamFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5429,7 +5434,7 @@ func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, res
 	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
 }
 
-func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
 	s.mu.Lock()
 	s.ScreenDEPAssignProfileSerialsForCooldownFuncInvoked = true
 	s.mu.Unlock()
@@ -5576,7 +5581,7 @@ func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
 }
 
-func (s *DataStore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+func (s *DataStore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.ListVPPTokensFuncInvoked = true
 	s.mu.Unlock()
@@ -5644,6 +5649,13 @@ func (s *DataStore) GetABMTokenCount(ctx context.Context) (int, error) {
 	s.GetABMTokenCountFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetABMTokenCountFunc(ctx)
+}
+
+func (s *DataStore) GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	s.mu.Lock()
+	s.GetABMTokenOrgNamesForHostsInTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenOrgNamesForHostsInTeamFunc(ctx, teamID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
@@ -6185,7 +6197,7 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
 }
 
-func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPToken, error) {
+func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()

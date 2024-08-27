@@ -111,6 +111,14 @@ func TestDEPService(t *testing.T) {
 			return nil
 		}
 
+		ds.GetABMTokenOrgNamesForHostsInTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+			return []string{"org1"}, nil
+		}
+
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+
 		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil)
 		require.NoError(t, err)
 		require.Equal(t, "abcd", profUUID)

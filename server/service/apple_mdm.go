@@ -3882,7 +3882,7 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 
 type listABMTokensResponse struct {
 	Err    error             `json:"error,omitempty"`
-	Tokens []*fleet.ABMToken `json:"tokens,omitempty"`
+	Tokens []*fleet.ABMToken `json:"abm_tokens"`
 }
 
 func (r listABMTokensResponse) error() error { return r.Err }
@@ -3891,6 +3891,10 @@ func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	tokens, err := svc.ListABMTokens(ctx)
 	if err != nil {
 		return &listABMTokensResponse{Err: err}, nil
+	}
+
+	if tokens == nil {
+		tokens = []*fleet.ABMToken{}
 	}
 
 	return &listABMTokensResponse{Tokens: tokens}, nil

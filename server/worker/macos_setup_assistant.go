@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -131,12 +133,19 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 			return nil
 		}
 
-		resp, err := m.DEPClient.AssignProfile(ctx, "", profUUID, assignSerials...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "assign profile")
-		}
-		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-			return ctxerr.Wrap(ctx, err, "worker: run profile changed")
+		for orgName, serials := range assignSerials {
+			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
+			}
+			ctx = abmctx.NewContext(ctx, decTok)
+			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "assign profile")
+			}
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+				return ctxerr.Wrap(ctx, err, "worker: run profile changed")
+			}
 		}
 	}
 	return nil
@@ -199,12 +208,19 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 			return nil
 		}
 
-		resp, err := m.DEPClient.AssignProfile(ctx, "", profUUID, assignSerials...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "assign profile")
-		}
-		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-			return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
+		for orgName, serials := range assignSerials {
+			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
+			}
+			ctx = abmctx.NewContext(ctx, decTok)
+			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "assign profile")
+			}
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+				return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
+			}
 		}
 	}
 	return nil
@@ -245,33 +261,40 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
-	serials := args.HostSerialNumbers
+	skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "run hosts transferred")
+	}
+
 	if !fromCooldown {
 		// if not a retry, then we need to screen the serials for cooldown
-		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "run hosts transferred")
-		}
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
 			// after the cooldown period is over
 			level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
 		}
-		serials = assignSerials
 	}
 
-	if len(serials) == 0 {
+	if len(assignSerials) == 0 {
 		level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
 		return nil
 	}
 
-	resp, err := m.DEPClient.AssignProfile(ctx, "", profUUID, serials...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "assign profile")
+	for orgName, serials := range assignSerials {
+		decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "decrypting ABM token")
+		}
+		ctx = abmctx.NewContext(ctx, decTok)
+		resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+			return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
+		}
 	}
-	if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
-		return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
-	}
+
 	return nil
 }
 
@@ -291,6 +314,7 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 		if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantUpdateProfile, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 		}
+
 		return nil
 	}
 
@@ -314,6 +338,7 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 
 	// clear the profile uuid for the custom setup assistant
 	if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
+
 		if fleet.IsNotFound(err) {
 			// no setup assistant for that team, enqueue a profile deleted task so
 			// the default profile is assigned to the hosts.

@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -89,6 +87,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
+		{"TestMDMGetABMTokenOrgNamesForHostsInTeam", testMDMGetABMTokenOrgNamesForHostsInTeam},
 	}
 
 	for _, c := range cases {
@@ -676,7 +675,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	// assign the team as the default team for DEP devices
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.AppleBMDefaultTeam = team.Name
+	ac.MDM.DeprecatedAppleBMDefaultTeam = team.Name
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -6528,27 +6527,27 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	orgName := "Donkey Kong"
 	location := "Jungle"
-	dataToken, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName, location)
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName, location)
 	require.NoError(t, err)
 
 	orgName2 := "Diddy Kong"
 	location2 := "Mines"
-	dataToken2, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName2, location2)
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName2, location2)
 	require.NoError(t, err)
 
 	orgName3 := "Cranky Cong"
 	location3 := "Cranky's Cabin"
-	dataToken3, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName3, location3)
+	dataToken3, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName3, location3)
 	require.NoError(t, err)
 
 	orgName4 := "Funky Kong"
 	location4 := "Funky's Fishing Shack"
-	dataToken4, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName4, location4)
+	dataToken4, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName4, location4)
 	require.NoError(t, err)
 
 	orgName5 := "Lanky Kong"
 	location5 := "Lanky Kong's Pool"
-	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
+	dataToken5, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName5, location5)
 	_ = dataToken5
 	require.NoError(t, err)
 
@@ -6795,24 +6794,90 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, count)
 }
 
-func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
-	var randBytes [32]byte
-	_, err := rand.Read(randBytes[:])
-	if err != nil {
-		return nil, fmt.Errorf("generating random bytes: %w", err)
-	}
-	token := base64.StdEncoding.EncodeToString(randBytes[:])
-	raw := fleet.VPPTokenRaw{
-		OrgName: orgName,
-		Token:   token,
-		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
-	}
-	rawJson, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
-	}
+func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 
-	base64Token := base64.StdEncoding.EncodeToString(rawJson)
+	// Create some teams
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
 
-	return &fleet.VPPTokenData{Token: base64Token, Location: location}, nil
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	encTok := uuid.NewString()
+
+	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org1", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+
+	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org2", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+
+	tok3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org3", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+
+	// Create some hosts and add to teams (and one for no team)
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "test-uuid-1",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host2-name",
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "test-uuid-2",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host3-name",
+		OsqueryHostID: ptr.String("3"),
+		NodeKey:       ptr.String("3"),
+		UUID:          "test-uuid-3",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h4, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host4-name",
+		OsqueryHostID: ptr.String("4"),
+		NodeKey:       ptr.String("4"),
+		UUID:          "test-uuid-4",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// Insert host DEP assignment
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h1, *h4}, tok1.ID))
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h2}, tok3.ID))
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h3}, tok2.ID))
+
+	// Should return the 2 unique org names [org1, org3]
+	orgNames, err := ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, orgNames, 2)
+	require.Equal(t, orgNames[0], "org1")
+	require.Equal(t, orgNames[1], "org3")
+
+	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, orgNames, 1)
+	require.Equal(t, orgNames[0], "org2")
+
+	// No orgs for this team
+	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm2.ID)
+	require.NoError(t, err)
+	require.Len(t, orgNames, 0)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
+	"golang.org/x/text/unicode/norm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -413,6 +414,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
+	abmAssignments, err := svc.validateABMAssignments(ctx, &appConfig.MDM, &oldAppConfig.MDM, invalid, license)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
+	}
+
+	vppAssignments, err := svc.validateVPPAssignments(ctx, &appConfig.MDM, invalid, license)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -531,6 +542,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+		}
+	}
+
+	if appConfig.MDM.AppleBussinessManager.Set || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if appConfig.MDM.VolumePurchasingProgram.Set {
+		for _, tok := range vppAssignments {
+			// FIXME: once Dante's PR lands and allows for multiple teams
+			if err := svc.ds.UpdateVPPTokenTeam(ctx, tok.ID, tok.TeamID, tok.NullTeam); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
 		}
 	}
 
@@ -813,16 +841,6 @@ func (svc *Service) validateMDM(
 	}
 	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
 
-	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
-		if !license.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil
-		}
-		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
-			invalid.Append("apple_bm_default_team", "team name not found")
-		}
-	}
-
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
@@ -945,6 +963,190 @@ func (svc *Service) validateMDM(
 	}
 
 	return nil
+}
+
+func (svc *Service) validateABMAssignments(
+	ctx context.Context,
+	mdm, oldMdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	license *fleet.LicenseInfo,
+) ([]*fleet.ABMToken, error) {
+	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
+		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
+		return nil, nil
+	}
+
+	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
+			return nil, nil
+		}
+		team, err := svc.ds.TeamByName(ctx, name)
+		if err != nil {
+			invalid.Append("mdm.apple_bm_default_team", "team name not found")
+			return nil, nil
+		}
+		tokens, err := svc.ds.ListABMTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(tokens) > 1 {
+			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
+			return nil, nil
+		}
+
+		if len(tokens) == 0 {
+			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
+			return nil, nil
+		}
+
+		tok := tokens[0]
+		tok.MacOSDefaultTeamID = &team.ID
+		tok.IOSDefaultTeamID = &team.ID
+		tok.IPadOSDefaultTeamID = &team.ID
+
+		return []*fleet.ABMToken{tok}, nil
+	}
+
+	if mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
+			return nil, nil
+		}
+
+		teams, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		teamsByName := map[string]*uint{"": nil, "No team": nil}
+		for _, tm := range teams {
+			teamsByName[tm.Name] = &tm.ID
+		}
+		tokens, err := svc.ds.ListABMTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tokensByName := map[string]*fleet.ABMToken{}
+		for _, token := range tokens {
+			// The default assignments for all tokens is "no team"
+			// (ie: team_id IS NULL), here we reset the assignments
+			// for all tokens, those will be re-added below.
+			//
+			// This ensures any unassignments are properly handled.
+			token.MacOSDefaultTeamID = nil
+			token.IOSDefaultTeamID = nil
+			token.IPadOSDefaultTeamID = nil
+			tokensByName[token.OrganizationName] = token
+		}
+
+		var tokensToSave []*fleet.ABMToken
+		for _, bm := range mdm.AppleBussinessManager.Value {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
+					return nil, nil
+				}
+			}
+
+			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
+				invalid.Appendf("mdm.apple_business_manager", "token with organization name %s doesn't exist", bm.OrganizationName)
+				return nil, nil
+			}
+
+			tok := tokensByName[bm.OrganizationName]
+			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
+			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
+			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tokensToSave = append(tokensToSave, tok)
+		}
+
+		return tokensToSave, nil
+	}
+
+	return nil, nil
+}
+
+func (svc *Service) validateVPPAssignments(
+	ctx context.Context,
+	mdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	license *fleet.LicenseInfo,
+) ([]fleet.VPPTokenDB, error) {
+	if mdm.VolumePurchasingProgram.Set && mdm.VolumePurchasingProgram.Valid {
+		if !license.IsPremium() {
+			invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
+			return nil, nil
+		}
+
+		teams, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		teamsByName := map[string]*uint{"": nil, "No team": nil, "All teams": nil}
+		for _, tm := range teams {
+			teamsByName[tm.Name] = &tm.ID
+		}
+		tokens, err := svc.ds.ListVPPTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tokensByLocation := map[string]fleet.VPPTokenDB{}
+		for _, token := range tokens {
+			// The default assignments for all tokens is "no team"
+			// (ie: team_id IS NULL), here we reset the assignments
+			// for all tokens, those will be re-added below.
+			//
+			// This ensures any unassignments are properly handled.
+			tokensByLocation[token.Location] = *token
+			// FIXME: once Dante's fix lands to allow multiple teams per token.
+			token.TeamID = nil
+		}
+
+		// FIXME: there are other validations required (eg: if All
+		// teams is specified, no other teams can, etc) but it's not
+		// clear at this point where are going to be enforced. Will
+		// wait until Dante's PR lands and coordinate.
+		var tokensToSave []fleet.VPPTokenDB
+		for _, vpp := range mdm.VolumePurchasingProgram.Value {
+			for _, tmName := range vpp.Teams {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+					invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+					return nil, nil
+				}
+			}
+
+			loc := norm.NFC.String(vpp.Location)
+			if _, ok := tokensByLocation[loc]; !ok {
+				invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+				return nil, nil
+			}
+
+			// FIXME: once Dante's PR lands and allows for multiple teams
+			var nullTeam fleet.NullTeamType
+			var teamName string
+			if len(vpp.Teams) == 0 || vpp.Teams[0] == fleet.ReservedNameNoTeam {
+				nullTeam = fleet.NullTeamNoTeam
+				teamName = fleet.ReservedNameNoTeam
+			} else if vpp.Teams[0] == fleet.ReservedNameAllTeams {
+				nullTeam = fleet.NullTeamAllTeams
+				teamName = fleet.ReservedNameAllTeams
+			} else {
+				nullTeam = fleet.NullTeamNone
+				teamName = norm.NFC.String(vpp.Teams[0])
+			}
+
+			teamID := teamsByName[teamName]
+			tok := tokensByLocation[loc]
+			tok.TeamID = teamID
+			tok.NullTeam = nullTeam
+			tokensToSave = append(tokensToSave, tok)
+		}
+
+		return tokensToSave, nil
+	}
+
+	return nil, nil
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
