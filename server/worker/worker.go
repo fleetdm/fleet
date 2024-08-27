@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -136,7 +135,6 @@ var delayPerRetry = []time.Duration{
 
 // ProcessJobs processes all queued jobs.
 func (w *Worker) ProcessJobs(ctx context.Context) error {
-	slog.With("filename", "server/worker/worker.go", "func", "ProcessJobs").Info("JVE_LOG: starting ProcessJobs ")
 	const maxNumJobs = 100
 
 	// process jobs until there are none left or the context is cancelled
@@ -147,14 +145,11 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}
 
-		slog.With("filename", "server/worker/worker.go", "func", "ProcessJobs").Info("JVE_LOG: got some jobs", "queuedJobs", jobs)
-
 		if len(jobs) == 0 {
 			break
 		}
 
 		for _, job := range jobs {
-			slog.With("filename", "server/worker/worker.go", "func", "ProcessJobs").Info("JVE_LOG: running job", "jobID", job.ID, "jobName", job.Name)
 			select {
 			case <-ctx.Done():
 				return ctxerr.Wrap(ctx, ctx.Err(), "context done")

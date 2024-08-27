@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"log/slog"
 	"net/url"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -223,44 +221,29 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	}
 	orgNames, err := d.ds.GetABMTokenOrgNamesForTeam(ctx, tmID)
 	if err != nil {
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: failed trying to get abm token org names for team", "teamID", tmID, "error", err)
 		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
 	}
 
-	getTeamID := func() string {
-		if tmID == nil {
-			return "null"
-		}
-
-		return strconv.Itoa(int(*tmID))
-	}
-	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: trying to define profiles for orgs ", "orgNames", orgNames, "team", getTeamID())
 	if len(orgNames) == 0 {
 		orgNames = append(orgNames, DEPName)
 	}
 	for _, orgName := range orgNames {
 		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
 		if err != nil {
-			slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: failed trying to define profile for org ", "org", orgName, "teamID", tmID, "error", err)
 			return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 		}
 
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: call to /profile succeeded", "orgName", orgName)
 		if setupAsst != nil {
 			setupAsst.ProfileUUID = res.ProfileUUID
 			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
-				slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: failed trying to set MDM setup assistant", "org", orgName, "teamID", tmID, "error", err)
 				return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
 			}
-			slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: saved custom setup assistant", "orgName", orgName, "asst", setupAsst)
 		} else {
 			var tmID *uint
 			if team != nil {
 				tmID = &team.ID
 			}
-			slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: going to set the default setup profile", "orgName", orgName, "tmID", tmID, "profUUID", res.ProfileUUID)
 			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID); err != nil {
-				slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "RegisterProfileWithAppleDEPServer").Info("JVE_LOG: failed trying to set MDM default setup assistant", "org", orgName, "teamID", tmID, "error", err)
 				return ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}
 		}
@@ -329,16 +312,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 		return "", time.Time{}, err
 	}
 
-	getTeamID := func() string {
-		if tmID == nil {
-			return "null"
-		}
-
-		return strconv.Itoa(int(*tmID))
-	}
-
 	if asst.ProfileUUID == "" {
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "EnsureCustomSetupAssistantIfExists").Info("JVE_LOG: about to call RegisterProfileWithAppleDEPServer ", "teamID", getTeamID())
 		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, asst); err != nil {
 			return "", time.Time{}, err
 		}

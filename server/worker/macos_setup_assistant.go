@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
-	"strconv"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -121,7 +119,6 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
-		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: about to call ScreenDEPAssignProfileSerialsForCooldown", "taskName", MacosSetupAssistantProfileChanged)
 		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "run profile changed")
@@ -136,14 +133,12 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 			return nil
 		}
 
-		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: orgs and serials", "taskName", MacosSetupAssistantProfileChanged, "assignSerials", assignSerials)
 		for orgName, serials := range assignSerials {
 			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
 			}
 			ctx = abmctx.NewContext(ctx, decTok)
-			slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileChanged").Info("JVE_LOG: assigning profiles for org ", "taskName", MacosSetupAssistantProfileChanged, "orgName", orgName)
 			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
@@ -199,7 +194,6 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
-		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runProfileDeleted").Info("JVE_LOG: about to call ScreenDEPAssignProfileSerialsForCooldown")
 		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "run profile deleted")
@@ -269,7 +263,6 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 
 	if !fromCooldown {
 		// if not a retry, then we need to screen the serials for cooldown
-		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runHostsTransferred").Info("JVE_LOG: about to call ScreenDEPAssignProfileSerialsForCooldown ")
 		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "run hosts transferred")
@@ -318,18 +311,9 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 			teamID = &team.ID
 		}
 
-		getTeamID := func() string {
-			if teamID == nil {
-				return "null"
-			}
-
-			return strconv.Itoa(int(*teamID))
-		}
-
 		if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantUpdateProfile, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 		}
-		slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runUpdateAllProfiles").Info("JVE_LOG: enqueued updateProfile job ", "teamID", getTeamID())
 
 		return nil
 	}
@@ -355,20 +339,12 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 	// clear the profile uuid for the custom setup assistant
 	if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
 
-		getTeamID := func() string {
-			if args.TeamID == nil {
-				return "null"
-			}
-
-			return strconv.Itoa(int(*args.TeamID))
-		}
 		if fleet.IsNotFound(err) {
 			// no setup assistant for that team, enqueue a profile deleted task so
 			// the default profile is assigned to the hosts.
 			if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileDeleted, args.TeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile deleted job")
 			}
-			slog.With("filename", "server/worker/macos_setup_assistant.go", "func", "runUpdateProfile").Info("JVE_LOG: enqueued a profile_deleted job from runUpdateProfile ", "teamID", getTeamID())
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "clear custom setup assistant profile uuid")

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -119,7 +118,6 @@ func TestMacosSetupAssistant(t *testing.T) {
 			if strings.HasSuffix(reqProf.ConfigurationWebURL, "/mdm/sso") {
 				profUUID += "+sso"
 			}
-			slog.With("filename", "server/worker/macos_setup_assistant_test.go", "func", "TestMacosSetupAssistant").Info("JVE_LOG: responding with prof UUID ", "uuid", profUUID)
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID})
 			require.NoError(t, err)
 
