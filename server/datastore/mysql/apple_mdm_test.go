@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -6804,28 +6802,6 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	count, err = ds.CountABMTokensWithTermsExpired(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, count)
-}
-
-func createVPPDataToken(expiration time.Time, orgName, location string) (*fleet.VPPTokenData, error) {
-	var randBytes [32]byte
-	_, err := rand.Read(randBytes[:])
-	if err != nil {
-		return nil, fmt.Errorf("generating random bytes: %w", err)
-	}
-	token := base64.StdEncoding.EncodeToString(randBytes[:])
-	raw := fleet.VPPTokenRaw{
-		OrgName: orgName,
-		Token:   token,
-		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
-	}
-	rawJson, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
-	}
-
-	base64Token := base64.StdEncoding.EncodeToString(rawJson)
-
-	return &fleet.VPPTokenData{Token: base64Token, Location: location}, nil
 }
 
 func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
