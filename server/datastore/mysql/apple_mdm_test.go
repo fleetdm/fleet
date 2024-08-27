@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
@@ -11,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"sort"
 	"strings"
 	"testing"
@@ -6912,5 +6912,6 @@ func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
 
 	// No orgs for this team
 	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm2.ID)
+	require.NoError(t, err)
 	require.Len(t, orgNames, 0)
 }

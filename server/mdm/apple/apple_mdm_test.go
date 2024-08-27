@@ -112,7 +112,7 @@ func TestDEPService(t *testing.T) {
 			return nil
 		}
 
-		ds.GetABMTokenOrgNamesForTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		ds.GetABMTokenOrgNamesForHostsInTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
 			return []string{"org1"}, nil
 		}
 
