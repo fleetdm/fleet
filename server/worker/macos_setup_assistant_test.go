@@ -43,9 +43,9 @@ func TestMacosSetupAssistant(t *testing.T) {
 		require.NoError(t, err)
 
 		encTok := uuid.NewString()
-		abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
-		require.NotEmpty(t, abmToken.ID)
+		abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: fmt.Sprintf("unused%d", i), EncryptedToken: []byte(encTok)})
 		require.NoError(t, err)
+		require.NotEmpty(t, abmToken.ID)
 		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 		require.NoError(t, err)
 		hosts[i] = h

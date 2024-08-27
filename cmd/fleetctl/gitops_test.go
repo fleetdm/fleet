@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,6 +23,7 @@ import (
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1370,7 +1369,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
 			ds, _, _ := setupFullGitOpsPremiumServer(t)
-			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
+			token, err := test.CreateVPPTokenEncoded(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
 
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
@@ -1400,34 +1399,6 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 			}
 		})
 	}
-}
-
-func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
-	var randBytes [32]byte
-	_, err := rand.Read(randBytes[:])
-	if err != nil {
-		return nil, fmt.Errorf("generating random bytes: %w", err)
-	}
-	token := base64.StdEncoding.EncodeToString(randBytes[:])
-	raw := fleet.VPPTokenRaw{
-		OrgName: orgName,
-		Token:   token,
-		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
-	}
-	rawJson, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
-	}
-
-	base64Token := base64.StdEncoding.EncodeToString(rawJson)
-
-	dataToken := fleet.VPPTokenData{Token: base64Token, Location: location}
-	dataTokenJson, err := json.Marshal(dataToken)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
-	}
-
-	return dataTokenJson, nil
 }
 
 func TestCustomSettingsGitOps(t *testing.T) {
@@ -1811,7 +1782,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
 	}
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
 	ds.UpdateVPPTokenTeamFunc = func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {

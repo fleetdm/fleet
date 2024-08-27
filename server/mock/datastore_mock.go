@@ -872,7 +872,7 @@ type UpdateVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenDB) error
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
-type ListVPPTokensFunc func(ctx context.Context) ([]fleet.VPPTokenDB, error)
+type ListVPPTokensFunc func(ctx context.Context) ([]*fleet.VPPTokenDB, error)
 
 type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
 
@@ -1046,7 +1046,7 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, use
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
-type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPToken, error)
+type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -5576,7 +5576,7 @@ func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
 }
 
-func (s *DataStore) ListVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+func (s *DataStore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.ListVPPTokensFuncInvoked = true
 	s.mu.Unlock()
@@ -6185,7 +6185,7 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
 }
 
-func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPToken, error) {
+func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()

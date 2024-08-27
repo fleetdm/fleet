@@ -3,6 +3,7 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -774,17 +775,59 @@ const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
 
 // VPPTokenDB represents a VPP token record in the DB
 type VPPTokenDB struct {
-	ID        uint      `json:"id"`
-	OrgName   string    `json:"org_name"`
-	Location  string    `json:"location"`
-	RenewDate time.Time `json:"renew_date"`
+	ID        uint      `db:"id" json:"id"`
+	OrgName   string    `db:"organization_name" json:"org_name"`
+	Location  string    `db:"location" json:"location"`
+	RenewDate time.Time `db:"renew_at" json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token    string       `json:"-"`
-	TeamID   *uint        `json:"team_id"`
-	NullTeam NullTeamType `json:"null_team_type"`
+	Token    string       `db:"token" json:"-"`
+	TeamID   *uint        `db:"team_id" json:"team_id"`
+	NullTeam NullTeamType `db:"null_team_type" json:"null_team_type"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ExtractToken extracts the metadata from the token as stored in the database,
+// and returns the raw token that can be used directly with Apple's VPP API. If
+// while extracting the token it notices that the metadata has changed, it will
+// update t and return true as second return value, indicating that it changed
+// and should be saved.
+func (t *VPPTokenDB) ExtractToken() (rawAppleToken string, didUpdateMetadata bool, err error) {
+	var vppTokenData VPPTokenData
+	if err := json.Unmarshal([]byte(t.Token), &vppTokenData); err != nil {
+		return "", false, fmt.Errorf("unmarshaling VPP token data: %w", err)
+	}
+
+	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
+	if err != nil {
+		return "", false, fmt.Errorf("decoding raw vpp token data: %w", err)
+	}
+
+	var vppTokenRaw VPPTokenRaw
+	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
+		return "", false, fmt.Errorf("unmarshaling raw vpp token data: %w", err)
+	}
+
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
+	if err != nil {
+		return "", false, fmt.Errorf("parsing vpp token expiration date: %w", err)
+	}
+
+	if vppTokenData.Location != t.Location {
+		t.Location = vppTokenData.Location
+		didUpdateMetadata = true
+	}
+	if vppTokenRaw.OrgName != t.OrgName {
+		t.OrgName = vppTokenRaw.OrgName
+		didUpdateMetadata = true
+	}
+	if !exp.Equal(t.RenewDate) {
+		t.RenewDate = exp.UTC()
+		didUpdateMetadata = true
+	}
+
+	return vppTokenRaw.Token, didUpdateMetadata, nil
 }
 
 type NullTeamType string
