@@ -3644,8 +3644,6 @@ WHERE
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
-			// assignSerials = append(assignSerials, r.HardwareSerial)
-
 			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
 			skipSerials = append(skipSerials, r.HardwareSerial)

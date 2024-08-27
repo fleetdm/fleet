@@ -139,7 +139,9 @@ func TestMacosSetupAssistant(t *testing.T) {
 	}))
 	defer srv.Close()
 	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
 	err = depStorage.StoreConfig(ctx, org1Name, &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
 	err = depStorage.StoreConfig(ctx, org2Name, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 

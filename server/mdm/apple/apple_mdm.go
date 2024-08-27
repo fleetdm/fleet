@@ -239,10 +239,6 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 				return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
 			}
 		} else {
-			var tmID *uint
-			if team != nil {
-				tmID = &team.ID
-			}
 			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}

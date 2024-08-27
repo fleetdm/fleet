@@ -6881,10 +6881,12 @@ func testMDMGetABMTokenOrgNamesForTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h3}, t2.ID))
 
 	orgNames, err := ds.GetABMTokenOrgNamesForTeam(ctx, &tm1.ID)
+	require.NoError(t, err)
 	require.Len(t, orgNames, 1)
 	require.Equal(t, orgNames[0], "org1")
 
 	orgNames, err = ds.GetABMTokenOrgNamesForTeam(ctx, nil)
+	require.NoError(t, err)
 	require.Len(t, orgNames, 1)
 	require.Equal(t, orgNames[0], "org2")
 }
