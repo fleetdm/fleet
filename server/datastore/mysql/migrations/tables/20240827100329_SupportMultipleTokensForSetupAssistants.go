@@ -2,9 +2,8 @@ package tables
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 func init() {
