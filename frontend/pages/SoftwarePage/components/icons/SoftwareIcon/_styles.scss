@@ -22,9 +22,9 @@
     display: block;
   }
 
-  // These following classs are when a software icon is passed a url. In this
-  // case we need to add custom width,height, and padding to show these icons
-  // correctly.
+  // These following classs are when a software icon is passed a url prop. In
+  // this case we need to add custom width,height, and padding to show these
+  // icons correctly.
 
   // we use this selector to give higher specifity than the selector
   // ".core-wrapper a img" which is in /styles/global/_styles.scss
