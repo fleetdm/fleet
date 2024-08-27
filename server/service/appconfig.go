@@ -1072,7 +1072,7 @@ func (svc *Service) validateVPPAssignments(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 	license *fleet.LicenseInfo,
-) ([]fleet.VPPTokenDB, error) {
+) ([]*fleet.VPPTokenDB, error) {
 	if mdm.VolumePurchasingProgram.Set && mdm.VolumePurchasingProgram.Valid {
 		if !license.IsPremium() {
 			invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
@@ -1091,7 +1091,7 @@ func (svc *Service) validateVPPAssignments(
 		if err != nil {
 			return nil, err
 		}
-		tokensByLocation := map[string]fleet.VPPTokenDB{}
+		tokensByLocation := map[string]*fleet.VPPTokenDB{}
 		for _, token := range tokens {
 			// The default assignments for all tokens is "no team"
 			// (ie: team_id IS NULL), here we reset the assignments
@@ -1107,7 +1107,7 @@ func (svc *Service) validateVPPAssignments(
 		// teams is specified, no other teams can, etc) but it's not
 		// clear at this point where are going to be enforced. Will
 		// wait until Dante's PR lands and coordinate.
-		var tokensToSave []fleet.VPPTokenDB
+		var tokensToSave []*fleet.VPPTokenDB
 		for _, vpp := range mdm.VolumePurchasingProgram.Value {
 			for _, tmName := range vpp.Teams {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
