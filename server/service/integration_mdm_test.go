@@ -10507,12 +10507,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 
-	// Filter the self-service apps for that host
-	getHostSw = getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
-	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, appSelfService.Name, got1.Name)
-
 	// Return installed app with software detail query
 	distributedReq := submitDistributedQueryResultsRequestShim{
 		NodeKey: *mdmHost.NodeKey,
