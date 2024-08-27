@@ -3326,6 +3326,7 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	// TODO(mna): adjust this, it won't receive the profile_uuid in this call (ideally)
 	const stmt = `
 		INSERT INTO
 			mdm_apple_setup_assistants (team_id, global_or_team_id, name, profile)
@@ -3351,6 +3352,7 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 }
 
 func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
+	// TODO(mna): change this to save in the multi-ABM table
 	const stmt = `
 	UPDATE
 		mdm_apple_setup_assistants
@@ -3374,6 +3376,39 @@ func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, t
 		return ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
 	}
 	return nil
+}
+
+func (ds *Datastore) GetMDMAppleSetupAssistantProfileForABMToken(ctx context.Context, teamID *uint, abmTokenOrgName string) (string, time.Time, error) {
+	// to preserve previous behavior, the updated_at we use is the one of the
+	// setup assistant (what we refer to as "uploaded_at" in the API responses),
+	// as the important signal is when the content of the setup assistant
+	// changes.
+	const stmt = `
+	SELECT
+		msap.profile_uuid,
+		mas.updated_at as uploaded_at
+	FROM
+		mdm_apple_setup_assistants mas 
+	INNER JOIN 
+		mdm_apple_setup_assistant_profiles msap ON mas.id = msap.setup_assistant_id
+	INNER JOIN 
+		abm_tokens abt ON abt.id = msap.abm_token_id
+	WHERE 
+		mas.global_or_team_id = ? AND
+		abt.organization_name = ?
+`
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	var asst fleet.MDMAppleSetupAssistant
+	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asst, stmt, globalOrTmID, abmTokenOrgName); err != nil {
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
+		}
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple setup assistant")
+	}
+	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
 func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -3408,6 +3443,8 @@ func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.Query
 }
 
 func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	// this deletes the setup assistant for that team, and via foreign key
+	// cascade also the profiles associated with it.
 	const stmt = `
 		DELETE FROM mdm_apple_setup_assistants
 		WHERE global_or_team_id = ?`

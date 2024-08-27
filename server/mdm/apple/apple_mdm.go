@@ -310,7 +310,8 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 	if team != nil {
 		tmID = &team.ID
 	}
-	asst, err := d.ds.GetMDMAppleSetupAssistant(ctx, tmID, abmTokenOrgName)
+
+	asst, err := d.ds.GetMDMAppleSetupAssistant(ctx, tmID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// no error, no custom setup assistant for that team
@@ -319,14 +320,22 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 		return "", time.Time{}, err
 	}
 
-	if asst.ProfileUUID == "" {
+	// if we get here, there IS a custom setup assistant, so get its profile UUID
+	profileUUID, modTime, err := d.ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, tmID, abmTokenOrgName)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", time.Time{}, err
+	}
+
+	if profileUUID == "" {
 		// registers the profile for all tokens associated with the team (unless
 		// there's no host in the team, will that be a problem?)
 		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, asst); err != nil {
 			return "", time.Time{}, err
 		}
+		// TODO(mna): that won't work as-is, need a way to get the profile UUID
+		// back for the specific token we care about here (abmTokenOrgName)
 	}
-	return asst.ProfileUUID, asst.UploadedAt, nil
+	return profileUUID, modTime, nil
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
