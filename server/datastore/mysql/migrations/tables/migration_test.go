@@ -67,7 +67,6 @@ func getMigrationVersion(t *testing.T) int64 {
 //
 // It returns the database connection to perform additional queries and migrations.
 func applyUpToPrev(t *testing.T) *sqlx.DB {
-	t.Parallel()
 	// Run migration tests up to 2 months old. Our releases are on a 3-week
 	// cadence so this safely catches every migration in the release with a bit
 	// of buffer in case of delayed releases.

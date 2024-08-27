@@ -17,7 +17,7 @@ import TableCount from "components/TableContainer/TableCount";
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
 
-import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OperatingSystemsTableConfig";
+import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 

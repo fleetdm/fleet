@@ -24,7 +24,7 @@ interface IMdmSolutionModalProps {
   onCancel: () => void;
 }
 
-const MdmSolutionsModal = ({
+const MdmSolutionModal = ({
   mdmSolutions,
   selectedPlatformLabelId,
   selectedTeamId,
@@ -73,4 +73,4 @@ const MdmSolutionsModal = ({
   );
 };
 
-export default MdmSolutionsModal;
+export default MdmSolutionModal;
