@@ -275,7 +275,7 @@ func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *flee
 // Apple, and returns its profile UUID. It does not re-define the profile if it
 // is already registered. If no custom setup assistant exists, it returns an
 // empty string and timestamp and no error.
-func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, team *fleet.Team, orgName string) (string, time.Time, error) {
+func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, team *fleet.Team) (string, time.Time, error) {
 	var tmID *uint
 	if team != nil {
 		tmID = &team.ID
@@ -359,7 +359,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 			// if the team/no-team has a custom setup assistant, ensure it is registered
 			// with Apple DEP.
-			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team, token.OrganizationName)
+			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team)
 			if err != nil {
 				return err
 			}
@@ -638,7 +638,7 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, orgN
 	}
 
 	// get profile uuid of team or default
-	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam, orgName)
+	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam)
 	if err != nil {
 		return "", fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
 	}
