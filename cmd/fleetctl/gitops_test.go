@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,6 +23,7 @@ import (
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1370,7 +1369,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
 			ds, _, _ := setupFullGitOpsPremiumServer(t)
-			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
+			token, err := test.CreateVPPTokenEncoded(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
 
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
@@ -1399,34 +1398,6 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 			}
 		})
 	}
-}
-
-func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
-	var randBytes [32]byte
-	_, err := rand.Read(randBytes[:])
-	if err != nil {
-		return nil, fmt.Errorf("generating random bytes: %w", err)
-	}
-	token := base64.StdEncoding.EncodeToString(randBytes[:])
-	raw := fleet.VPPTokenRaw{
-		OrgName: orgName,
-		Token:   token,
-		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
-	}
-	rawJson, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
-	}
-
-	base64Token := base64.StdEncoding.EncodeToString(rawJson)
-
-	dataToken := fleet.VPPTokenData{Token: base64Token, Location: location}
-	dataTokenJson, err := json.Marshal(dataToken)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
-	}
-
-	return dataTokenJson, nil
 }
 
 func TestCustomSettingsGitOps(t *testing.T) {
@@ -1810,7 +1781,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
 	}
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
@@ -1829,8 +1800,6 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 }
 
 func TestABMGitOps(t *testing.T) {
-	// Cannot run t.Parallel() because it sets environment variables
-	// mdm test configuration must be set so that activating windows MDM works.
 	global := func(mdm string) string {
 		return fmt.Sprintf(`
 controls:
@@ -2182,5 +2151,327 @@ software:
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 		})
 	}
+}
 
+func TestVPPGitOps(t *testing.T) {
+	global := func(mdm string) string {
+		return fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: "https://foo.example.com"
+  org_info:
+    org_name: GitOps Test
+  secrets:
+    - secret: "global"
+  mdm:
+    %s
+ `, mdm)
+	}
+
+	team := func(name string) string {
+		return fmt.Sprintf(`
+name: %s
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	workstations := team("💻 Workstations")
+	iosTeam := team("📱🏢 Company-owned iPhones")
+	ipadTeam := team("🔳🏢 Company-owned iPads")
+
+	cases := []struct {
+		name             string
+		cfgs             []string
+		dryRunAssertion  func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error)
+		realRunAssertion func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error)
+	}{
+		{
+			name: "new key all valid",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Fleet Device Management Inc.
+                                      teams:
+                                        - "💻 Workstations"
+                                        - "📱🏢 Company-owned iPhones"
+                                        - "🔳🏢 Company-owned iPads"`),
+				workstations,
+				iosTeam,
+				ipadTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"💻 Workstations",
+								"📱🏢 Company-owned iPhones",
+								"🔳🏢 Company-owned iPads",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "new key multiple elements",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Acme Inc.
+                                      teams:
+                                        - "💻 Workstations"
+                                    - location: Fleet Device Management Inc.
+                                      teams:
+                                        - "📱🏢 Company-owned iPhones"
+                                        - "🔳🏢 Company-owned iPads"`),
+				workstations,
+				iosTeam,
+				ipadTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Acme Inc.",
+							Teams: []string{
+								"💻 Workstations",
+							},
+						},
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"📱🏢 Company-owned iPhones",
+								"🔳🏢 Company-owned iPads",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "using an undefined team errors",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Fleet Device Management Inc.
+                                      teams:
+                                        - "💻 Workstations"
+                                        - "📱🏢 Company-owned iPhones"
+                                        - "🔳🏢 Company-owned iPads"`),
+				workstations,
+				ipadTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
+			},
+		},
+		{
+			name: "no team is supported",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Fleet Device Management Inc.
+                                      teams:
+                                        - "💻 Workstations"
+                                        - "📱🏢 Company-owned iPhones"
+                                        - "No team"`),
+				workstations,
+				iosTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"💻 Workstations",
+								"📱🏢 Company-owned iPhones",
+								"No team",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "all teams is supported",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Fleet Device Management Inc.
+                                      teams:
+                                        - "All teams"`),
+				workstations,
+				iosTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"All teams",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "not provided teams defaults to no team",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Fleet Device Management Inc.
+                                      teams:`),
+				workstations,
+				ipadTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams:    nil,
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "non existent location fails",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Does not exist
+                                      teams:`),
+				workstations,
+				ipadTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.ErrorContains(t, err, "token with location Does not exist doesn't exist")
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.ErrorContains(t, err, "token with location Does not exist doesn't exist")
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, savedAppConfigPtr, savedTeams := setupFullGitOpsPremiumServer(t)
+
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+				return []fleet.VPPTokenDB{{Location: "Fleet Device Management Inc."}, {Location: "Acme Inc."}}, nil
+			}
+
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
+			}
+
+			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+				var res []*fleet.TeamSummary
+				for _, tm := range savedTeams {
+					res = append(res, &fleet.TeamSummary{Name: (*tm).Name, ID: (*tm).ID})
+				}
+				return res, nil
+			}
+
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+
+			args := []string{"gitops"}
+			for _, cfg := range tt.cfgs {
+				if cfg != "" {
+					tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+					require.NoError(t, err)
+					_, err = tmpFile.WriteString(cfg)
+					require.NoError(t, err)
+					args = append(args, "-f", tmpFile.Name())
+				}
+			}
+
+			// Dry run
+			out, err := runAppNoChecks(append(args, "--dry-run"))
+			tt.dryRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+			if t.Failed() {
+				t.FailNow()
+			}
+
+			// Real run
+			out, err = runAppNoChecks(args)
+			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+
+			// Second real run, now that all the teams are saved
+			out, err = runAppNoChecks(args)
+			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+		})
+	}
 }

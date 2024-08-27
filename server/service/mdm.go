@@ -2795,8 +2795,8 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 type getVPPTokensRequest struct{}
 
 type getVPPTokensResponse struct {
-	Tokens []fleet.VPPTokenDB `json:"vpp_tokens"`
-	Err    error              `json:"error,omitempty"`
+	Tokens []*fleet.VPPTokenDB `json:"vpp_tokens"`
+	Err    error               `json:"error,omitempty"`
 }
 
 func (r getVPPTokensResponse) error() error { return r.Err }
@@ -2808,13 +2808,13 @@ func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer,
 	}
 
 	if tokens == nil {
-		tokens = []fleet.VPPTokenDB{}
+		tokens = []*fleet.VPPTokenDB{}
 	}
 
 	return getVPPTokensResponse{Tokens: tokens}, nil
 }
 
-func (svc *Service) GetVPPTokens(ctx context.Context) ([]fleet.VPPTokenDB, error) {
+func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}

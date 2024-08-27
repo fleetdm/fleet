@@ -503,6 +503,12 @@ func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) erro
 	return fn(ds.primary)
 }
 
+// EncryptWithPrivateKey encrypts data with the server private key associated
+// with the Datastore.
+func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, error) {
+	return encrypt(data, ds.serverPrivateKey)
+}
+
 // TruncateTables truncates the specified tables, in order, using ds.writer.
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
@@ -693,7 +699,7 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
-func SetTestABMAssets(t testing.TB, ds *Datastore) {
+func SetTestABMAssets(t testing.TB, ds *Datastore) []byte {
 	apnsCert, apnsKey, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
@@ -702,7 +708,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+		{Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes}, // TODO: should not be stored here, once tests have been updated
 		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
 		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
 		{Name: fleet.MDMAssetCACert, Value: certPEM},
@@ -718,6 +724,8 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	err = ds.SaveAppConfig(context.Background(), appCfg)
 	require.NoError(t, err)
+
+	return tokenBytes
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
