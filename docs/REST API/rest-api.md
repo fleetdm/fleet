@@ -8990,6 +8990,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Add package
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (Ubuntu) hosts.
@@ -9136,6 +9138,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 ### Download package
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
@@ -9190,6 +9194,8 @@ Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or
 `Status: 202`
 
 ### Get package install result
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
