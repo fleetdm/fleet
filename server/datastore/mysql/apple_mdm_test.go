@@ -87,6 +87,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
+		{"TestMDMGetABMTokenOrgNamesForHostsInTeam", testMDMGetABMTokenOrgNamesForHostsInTeam},
 	}
 
 	for _, c := range cases {
@@ -7012,4 +7013,92 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	count, err = ds.CountABMTokensWithTermsExpired(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, count)
+}
+
+func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create some teams
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	encTok := uuid.NewString()
+
+	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org1", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+
+	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org2", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+
+	tok3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org3", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+
+	// Create some hosts and add to teams (and one for no team)
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "test-uuid-1",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host2-name",
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "test-uuid-2",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host3-name",
+		OsqueryHostID: ptr.String("3"),
+		NodeKey:       ptr.String("3"),
+		UUID:          "test-uuid-3",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	h4, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host4-name",
+		OsqueryHostID: ptr.String("4"),
+		NodeKey:       ptr.String("4"),
+		UUID:          "test-uuid-4",
+		TeamID:        &tm1.ID,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// Insert host DEP assignment
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h1, *h4}, tok1.ID))
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h2}, tok3.ID))
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h3}, tok2.ID))
+
+	// Should return the 2 unique org names [org1, org3]
+	orgNames, err := ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, orgNames, 2)
+	require.Equal(t, orgNames[0], "org1")
+	require.Equal(t, orgNames[1], "org3")
+
+	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, orgNames, 1)
+	require.Equal(t, orgNames[0], "org2")
+
+	// No orgs for this team
+	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm2.ID)
+	require.NoError(t, err)
+	require.Len(t, orgNames, 0)
 }

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -46,9 +45,9 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	const tokenOrgName = apple_mdm.DEPName
 
 	// insert an ABM token as if it had been migrated by the DB migration script
-	abmToken := mysql.SetTestABMAssets(t, ds)
-	tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: abmToken, RenewAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
-	require.NoError(t, err)
+	tok := mysql.SetTestABMAssets(t, ds, "")
+	// tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: abmToken, RenewAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
+	// require.NoError(t, err)
 	require.Empty(t, tok.OrganizationName)
 
 	// start a server that will mock the Apple DEP API
@@ -106,10 +105,10 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.NotNil(t, defProf)
 	require.NotEmpty(t, defProf.Token)
 
-	// a profile UUID was assigned for no-team
+	// no profile UUID was assigned for no-team (because there are no hosts right now)
 	profUUID, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
 	require.NoError(t, err)
-	require.Equal(t, "profile123", profUUID)
+	require.Equal(t, "", profUUID)
 
 	// no teams, so no team-specific custom setup assistants
 	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
