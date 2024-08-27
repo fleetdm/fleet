@@ -2366,7 +2366,7 @@ software:
 						{
 							Location: "Fleet Device Management Inc.",
 							Teams: []string{
-								"All teams",
+								fleet.ReservedNameAllTeams,
 							},
 						},
 					},

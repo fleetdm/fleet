@@ -1083,7 +1083,7 @@ func (svc *Service) validateVPPAssignments(
 		if err != nil {
 			return nil, err
 		}
-		teamsByName := map[string]*uint{"": nil, "No team": nil, "All teams": nil}
+		teamsByName := map[string]*uint{"": nil, fleet.ReservedNameNoTeam: nil, fleet.ReservedNameAllTeams: nil}
 		for _, tm := range teams {
 			teamsByName[tm.Name] = &tm.ID
 		}

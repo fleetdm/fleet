@@ -1270,9 +1270,9 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 	// validate the team IDs
 
-	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.NoTeamName}
-	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.NoTeamName}
-	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.NoTeamName}
+	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.ReservedNameNoTeam}
+	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.ReservedNameNoTeam}
+	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.ReservedNameNoTeam}
 
 	if macOSTeamID != nil {
 		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
