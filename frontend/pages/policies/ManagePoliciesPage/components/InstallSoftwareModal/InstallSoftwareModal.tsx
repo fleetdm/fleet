@@ -205,7 +205,16 @@ const InstallSoftwareModal = ({
     if (isTitlesAFILoading) {
       return <Spinner />;
     }
-    // TODO - empty state if no titlesAFI
+    if (!titlesAFI?.length) {
+      return (
+        <div className={`${baseClass}__no-software`}>
+          <b>No software available for install</b>
+          <span>
+            Go to <b>Software</b> to add software to this team.
+          </span>
+        </div>
+      );
+    }
 
     return (
       <div className={`${baseClass} form`}>
