@@ -1561,13 +1561,7 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
 	}
-	if result != nil {
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "count rows affected by delete")
-		}
-		updatedDB = updatedDB || rows > 0
-	}
+	updatedDB = updatedDB || insertOnDuplicateDidInsert(result) || insertOnDuplicateDidUpdate(result)
 
 	// build a list of labels so the associations can be batch-set all at once
 	// TODO: with minor changes this chunk of code could be shared
@@ -3984,13 +3978,7 @@ WHERE
 			}
 			return nil, false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
-		if result != nil {
-			rows, err := result.RowsAffected()
-			if err != nil {
-				return nil, false, ctxerr.Wrap(ctx, err, "count rows affected by insert")
-			}
-			updatedDB = updatedDB || rows > 0
-		}
+		updatedDB = updatedDB || insertOnDuplicateDidInsert(result) || insertOnDuplicateDidUpdate(result)
 	}
 
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
