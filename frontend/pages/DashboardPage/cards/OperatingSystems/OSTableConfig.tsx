@@ -146,6 +146,7 @@ const generateDefaultTableHeaders = (
   },
 ];
 
+// this is also used by frontend/pages/SoftwarePage/SoftwareOS/SoftwareOSTable/SoftwareOSTable.tsx
 const generateTableHeaders = (
   teamId?: number,
   router?: InjectedRouter,
