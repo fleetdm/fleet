@@ -559,6 +559,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	appConf, err = s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.ServerSettings.ServerURL = server.URL
+	appConf.Features.EnableSoftwareInventory = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -10474,12 +10475,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, *got1.Status)
+	require.NotNil(t, got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
-	require.NotNil(t, *got2.Status)
+	require.NotNil(t, got2.Status)
 	require.Equal(t, *got2.Status, fleet.SoftwareInstallerFailed)
 	require.NotNil(t, got2.AppStoreApp)
 	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
@@ -10501,10 +10502,58 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name)
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, *got1.Status)
+	require.NotNil(t, got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
+
+	// Return installed app with software detail query
+	distributedReq := submitDistributedQueryResultsRequestShim{
+		NodeKey: *mdmHost.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_macos": json.RawMessage(fmt.Sprintf(
+				`[{"name": "%s", "version": "%s", "type": "Application (macOS)",
+					"bundle_identifier": "%s", "source": "apps", "last_opened_at": "", 
+					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier)),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_macos": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	// Remove the installed app by not returning it
+	distributedReq = submitDistributedQueryResultsRequestShim{
+		NodeKey: *mdmHost.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_macos": json.RawMessage(`[]`),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_macos": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	// Check list host software
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	gotSW = getHostSw.Software
+	require.Len(t, gotSW, 2) // App 1 and App 2
+	got1, got2 = gotSW[0], gotSW[1]
+	require.Equal(t, got1.Name, "App 1")
+	require.NotNil(t, got1.AppStoreApp)
+	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
+	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
+	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
+	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
+	assert.Nil(t, got1.Status)
+	assert.Nil(t, got1.AppStoreApp.LastInstall)
 
 	// Install on iOS and iPadOS devices
 	installs := map[string]struct {
