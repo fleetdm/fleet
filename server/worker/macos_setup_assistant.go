@@ -99,7 +99,7 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 	// re-generate and register the profile with Apple. Since the profile has been
 	// updated, then its profile UUID will have been cleared, so this single call
 	// will do both tasks.
-	profUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team)
+	profUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
 	}
@@ -131,7 +131,7 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 			return nil
 		}
 
-		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
+		resp, err := m.DEPClient.AssignProfile(ctx, "", profUUID, assignSerials...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
@@ -156,7 +156,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 	// get the team's setup assistant, to make sure it is still absent. If it is
 	// not, then it was re-created before this job ran, so nothing to do (another
 	// job will take care of assigning the profile to the hosts).
-	customProfUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team)
+	customProfUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
 	}
@@ -169,7 +169,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 	// of the default profile and assign it to all of the team's hosts. No need
 	// to force a re-generate of the default profile, if it is already registered
 	// with Apple this is fine and we use that profile uuid.
-	profUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team)
+	profUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure default setup assistant")
 	}
@@ -199,7 +199,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 			return nil
 		}
 
-		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
+		resp, err := m.DEPClient.AssignProfile(ctx, "", profUUID, assignSerials...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
@@ -228,13 +228,13 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 	}
 
 	// get the new team's setup assistant if it exists.
-	profUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team)
+	profUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
 	}
 	if profUUID == "" {
 		// get the default setup assistant.
-		defProfUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team)
+		defProfUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team, "")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "ensure default setup assistant")
 		}
@@ -265,7 +265,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		return nil
 	}
 
-	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
+	resp, err := m.DEPClient.AssignProfile(ctx, "", profUUID, serials...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "assign profile")
 	}

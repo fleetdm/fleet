@@ -132,7 +132,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	err = depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
 	w := NewWorker(ds, logger)
