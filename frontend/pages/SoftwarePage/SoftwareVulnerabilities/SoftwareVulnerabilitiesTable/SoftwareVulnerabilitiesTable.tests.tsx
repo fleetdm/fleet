@@ -93,6 +93,7 @@ describe("Software Vulnerabilities table", () => {
     );
 
     expect(screen.getByText("No vulnerabilities detected")).toBeInTheDocument();
+    expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(
       screen.getByText("Expecting to see vulnerabilities? Check back later.")
     ).toBeInTheDocument();

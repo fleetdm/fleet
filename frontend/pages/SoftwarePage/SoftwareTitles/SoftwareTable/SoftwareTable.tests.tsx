@@ -84,6 +84,7 @@ describe("Software table", () => {
         isSoftwareEnabled
         showVersions={false}
         data={createMockSoftwareTitlesReponse({
+          count: 0,
           counts_updated_at: null,
           software_titles: [],
         })}
@@ -111,6 +112,7 @@ describe("Software table", () => {
     expect(
       screen.getByText("Expecting to see software? Check back later.")
     ).toBeInTheDocument();
+    expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
     expect(screen.queryByText("Updated")).toBeNull();
   });
