@@ -554,9 +554,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if appConfig.MDM.VolumePurchasingProgram.Set {
-		for _, tok := range vppAssignments {
-			// FIXME: once Dante's PR lands and allows for multiple teams
-			if err := svc.ds.UpdateVPPTokenTeam(ctx, tok.ID, tok.TeamID, tok.NullTeam); err != nil {
+		for tokenID, tokenTeams := range vppAssignments {
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 			}
 		}
@@ -1072,7 +1071,7 @@ func (svc *Service) validateVPPAssignments(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 	license *fleet.LicenseInfo,
-) ([]fleet.VPPTokenDB, error) {
+) (map[uint][]uint, error) {
 	if mdm.VolumePurchasingProgram.Set && mdm.VolumePurchasingProgram.Valid {
 		if !license.IsPremium() {
 			invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
@@ -1083,15 +1082,15 @@ func (svc *Service) validateVPPAssignments(
 		if err != nil {
 			return nil, err
 		}
-		teamsByName := map[string]*uint{"": nil, "No team": nil, "All teams": nil}
+		teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
 		for _, tm := range teams {
-			teamsByName[tm.Name] = &tm.ID
+			teamsByName[tm.Name] = tm.ID
 		}
 		tokens, err := svc.ds.ListVPPTokens(ctx)
 		if err != nil {
 			return nil, err
 		}
-		tokensByLocation := map[string]fleet.VPPTokenDB{}
+		tokensByLocation := map[string]*fleet.VPPTokenDB{}
 		for _, token := range tokens {
 			// The default assignments for all tokens is "no team"
 			// (ie: team_id IS NULL), here we reset the assignments
@@ -1099,15 +1098,10 @@ func (svc *Service) validateVPPAssignments(
 			//
 			// This ensures any unassignments are properly handled.
 			tokensByLocation[token.Location] = token
-			// FIXME: once Dante's fix lands to allow multiple teams per token.
-			token.TeamID = nil
+			token.Teams = nil
 		}
 
-		// FIXME: there are other validations required (eg: if All
-		// teams is specified, no other teams can, etc) but it's not
-		// clear at this point where are going to be enforced. Will
-		// wait until Dante's PR lands and coordinate.
-		var tokensToSave []fleet.VPPTokenDB
+		var tokensToSave map[uint][]uint
 		for _, vpp := range mdm.VolumePurchasingProgram.Value {
 			for _, tmName := range vpp.Teams {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
@@ -1122,25 +1116,22 @@ func (svc *Service) validateVPPAssignments(
 				return nil, nil
 			}
 
-			// FIXME: once Dante's PR lands and allows for multiple teams
-			var nullTeam fleet.NullTeamType
-			var teamName string
-			if len(vpp.Teams) == 0 || vpp.Teams[0] == fleet.ReservedNameNoTeam {
-				nullTeam = fleet.NullTeamNoTeam
-				teamName = fleet.ReservedNameNoTeam
-			} else if vpp.Teams[0] == fleet.ReservedNameAllTeams {
-				nullTeam = fleet.NullTeamAllTeams
-				teamName = fleet.ReservedNameAllTeams
-			} else {
-				nullTeam = fleet.NullTeamNone
-				teamName = norm.NFC.String(vpp.Teams[0])
+			var tokenTeams []uint
+			for _, teamName := range vpp.Teams {
+				if teamName == fleet.TeamNameAllTeams {
+					if len(vpp.Teams) > 1 {
+						invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
+						return nil, nil
+					}
+					tokenTeams = []uint{}
+					break
+				}
+				teamID := teamsByName[teamName]
+				tokenTeams = append(tokenTeams, teamID)
 			}
 
-			teamID := teamsByName[teamName]
 			tok := tokensByLocation[loc]
-			tok.TeamID = teamID
-			tok.NullTeam = nullTeam
-			tokensToSave = append(tokensToSave, tok)
+			tokensToSave[tok.ID] = tokenTeams
 		}
 
 		return tokensToSave, nil

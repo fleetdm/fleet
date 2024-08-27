@@ -6556,12 +6556,12 @@ func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	orgName5 := "Lanky Kong"
 	location5 := "Lanky Kong's Pool"
-	dataToken5, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName5, location5)
+	dataToken5, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName5, location5)
 	require.NoError(t, err)
 
 	orgName6 := "Dixie Kong"
 	location6 := "Dixie's Island"
-	dataToken6, err := createVPPDataToken(time.Now().Add(24*time.Hour), orgName6, location6)
+	dataToken6, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName6, location6)
 	require.NoError(t, err)
 
 	// No assignments / disabled token

@@ -17,7 +17,8 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
-	TeamNameNoTeam   = "No Team"
+	TeamNameNoTeam   = "No team"
+	TeamNameAllTeams = "All teams"
 )
 
 const (
