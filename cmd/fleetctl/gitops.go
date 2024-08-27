@@ -78,12 +78,13 @@ func gitopsCommand() *cli.Command {
 				return errors.New("no license struct found in app config")
 			}
 
-			var originalMDMConfig []map[string]string
+			var originalABMConfig []any
+			var originalVPPConfig []any
 			var teamNames []string
 			var firstFileMustBeGlobal *bool
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
-			var abmTeams []string
-			var hasMissingABMTeam, usesLegacyABMConfig bool
+			var abmTeams, vppTeams []string
+			var hasMissingABMTeam, hasMissingVPPTeam, usesLegacyABMConfig bool
 			if totalFilenames > 1 {
 				firstFileMustBeGlobal = ptr.Bool(true)
 			}
@@ -118,6 +119,11 @@ func gitopsCommand() *cli.Command {
 						return err
 					}
 
+					vppTeams, hasMissingVPPTeam, err = checkVPPTeamAssignments(config, fleetClient)
+					if err != nil {
+						return err
+					}
+
 					// if one of the teams assigned to an ABM token doesn't exist yet, we need to
 					// submit the configs without the ABM default team set. We'll set those
 					// separately later when the teams are already created.
@@ -126,17 +132,7 @@ func gitopsCommand() *cli.Command {
 							if mdmMap, ok := mdm.(map[string]any); ok {
 								if appleBM, ok := mdmMap["apple_business_manager"]; ok {
 									if bmSettings, ok := appleBM.([]any); ok {
-										for _, item := range bmSettings {
-											if bmConfig, ok := item.(map[string]any); ok {
-												convertedConfig := make(map[string]string)
-												for k, v := range bmConfig {
-													if strVal, ok := v.(string); ok {
-														convertedConfig[k] = strVal
-													}
-												}
-												originalMDMConfig = append(originalMDMConfig, convertedConfig)
-											}
-										}
+										originalABMConfig = bmSettings
 									}
 								}
 
@@ -148,6 +144,21 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 
+					if hasMissingVPPTeam {
+						if mdm, ok := config.OrgSettings["mdm"]; ok {
+							if mdmMap, ok := mdm.(map[string]any); ok {
+								if vpp, ok := mdmMap["volume_purchasing_program"]; ok {
+									if vppSettings, ok := vpp.([]any); ok {
+										originalVPPConfig = vppSettings
+									}
+								}
+
+								// If team is not found, we need to remove the VPP config from
+								// the global config, and then apply it after teams are processed
+								mdmMap["volume_purchasing_program"] = nil
+							}
+						}
+					}
 				}
 				logf := func(format string, a ...interface{}) {
 					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
@@ -174,7 +185,12 @@ func gitopsCommand() *cli.Command {
 
 			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
 			if len(abmTeams) > 0 && hasMissingABMTeam {
-				if err = applyABMTokenAssignmentIfNeeded(c, teamNames, abmTeams, originalMDMConfig, usesLegacyABMConfig, flDryRun, fleetClient); err != nil {
+				if err = applyABMTokenAssignmentIfNeeded(c, teamNames, abmTeams, originalABMConfig, usesLegacyABMConfig, flDryRun, fleetClient); err != nil {
+					return err
+				}
+			}
+			if len(vppTeams) > 0 && hasMissingVPPTeam {
+				if err = applyVPPTokenAssignmentIfNeeded(c, teamNames, vppTeams, originalVPPConfig, flDryRun, fleetClient); err != nil {
 					return err
 				}
 			}
@@ -190,6 +206,9 @@ func gitopsCommand() *cli.Command {
 								return fmt.Errorf("apple_bm_default_team %s cannot be deleted", team.Name)
 							}
 							return fmt.Errorf("apple_business_manager team %s cannot be deleted", team.Name)
+						}
+						if slices.Contains(vppTeams, team.Name) {
+							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
@@ -284,7 +303,7 @@ func applyABMTokenAssignmentIfNeeded(
 	ctx *cli.Context,
 	teamNames []string,
 	abmTeamNames []string,
-	originalMDMConfig []map[string]string,
+	originalMDMConfig []any,
 	usesLegacyConfig bool,
 	flDryRun bool,
 	fleetClient *service.Client,
@@ -329,6 +348,78 @@ func applyABMTokenAssignmentIfNeeded(
 	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying ABM teams\n")
 	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
 		return fmt.Errorf("applying fleet config: %w", err)
+	}
+	return nil
+}
+
+func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
+	vppTeams []string, missingTeam bool, err error,
+) {
+	if mdm, ok := config.OrgSettings["mdm"]; ok {
+		if mdmMap, ok := mdm.(map[string]any); ok {
+			teams, err := fleetClient.ListTeams("")
+			if err != nil {
+				return nil, false, err
+			}
+			teamNames := map[string]struct{}{}
+			for _, tm := range teams {
+				teamNames[tm.Name] = struct{}{}
+			}
+
+			if vpp, ok := mdmMap["volume_purchasing_program"]; ok {
+				if vppInterfaces, ok := vpp.([]any); ok {
+					for _, item := range vppInterfaces {
+						if itemMap, ok := item.(map[string]any); ok {
+							if teams, ok := itemMap["teams"].([]any); ok {
+								for _, team := range teams {
+									if teamStr, ok := team.(string); ok {
+										// normalize for Unicode support
+										normalizedTeam := norm.NFC.String(teamStr)
+										vppTeams = append(vppTeams, normalizedTeam)
+										if _, ok := teamNames[normalizedTeam]; !ok {
+											missingTeam = true
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return vppTeams, missingTeam, nil
+}
+
+func applyVPPTokenAssignmentIfNeeded(
+	ctx *cli.Context,
+	teamNames []string,
+	vppTeamNames []string,
+	originalVPPConfig []any,
+	flDryRun bool,
+	fleetClient *service.Client,
+) error {
+	var appConfigUpdate map[string]map[string]any
+	for _, vppTeam := range vppTeamNames {
+		if !fleet.IsReservedTeamName(vppTeam) && !slices.Contains(teamNames, vppTeam) {
+			return fmt.Errorf("volume_purchasing_program team %s not found in team configs", vppTeam)
+		}
+	}
+
+	appConfigUpdate = map[string]map[string]any{
+		"mdm": {
+			"volume_purchasing_program": originalVPPConfig,
+		},
+	}
+
+	if flDryRun {
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply volume_purchasing_program teams\n")
+		return nil
+	}
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying volume_purchasing_program teams\n")
+	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
+		return fmt.Errorf("applying fleet config for volume_purchasing_program teams: %w", err)
 	}
 	return nil
 }
