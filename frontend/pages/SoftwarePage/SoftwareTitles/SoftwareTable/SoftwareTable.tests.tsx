@@ -25,7 +25,7 @@ const mockRouter = {
 };
 
 describe("Software table", () => {
-  it("Renders the page-wide disabled state when software inventory is disabled", async () => {
+  it("Renders the page-wide disabled state when software inventory is disabled", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -68,7 +68,7 @@ describe("Software table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when no software are present", async () => {
+  it("Renders the page-wide empty state when no software are present", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -117,7 +117,7 @@ describe("Software table", () => {
     expect(screen.queryByText("Updated")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when search query does not exist but versions toggle is applied", async () => {
+  it("Renders the page-wide empty state when search query does not exist but versions toggle is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -162,7 +162,7 @@ describe("Software table", () => {
     ).toBeInTheDocument();
   });
 
-  it("Renders the empty search state when search query does not exist but dropdown is applied", async () => {
+  it("Renders the empty search state when search query does not exist but dropdown is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -211,7 +211,7 @@ describe("Software table", () => {
     ).toBeInTheDocument();
   });
 
-  it("Renders the empty search state when search query does not exist but vulnerability filter is applied", async () => {
+  it("Renders the empty search state when search query does not exist but vulnerability filter is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {

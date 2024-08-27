@@ -52,7 +52,7 @@ describe("Software operating systems table", () => {
     expect(screen.getByText("Software inventory disabled")).toBeInTheDocument();
   });
 
-  it("Renders the page-wide empty state when no software is present", async () => {
+  it("Renders the page-wide empty state when no software is present", () => {
     const render = createCustomRenderer({
       context: {
         app: {
