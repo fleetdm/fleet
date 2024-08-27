@@ -3489,10 +3489,10 @@ func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Con
 		INSERT INTO
 			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid, abm_token_id)
 		SELECT
-			?, ?, ?, abt.id 
-		FROM 
+			?, ?, ?, abt.id
+		FROM
 			abm_tokens abt
-		WHERE 
+		WHERE
 			abt.organization_name = ?
 		ON DUPLICATE KEY UPDATE
 			profile_uuid = VALUES(profile_uuid)
@@ -3519,21 +3519,26 @@ func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Con
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint, abmTokenOrgName string) (profileUUID string, updatedAt time.Time, err error) {
 	const stmt = `
 	SELECT
-		profile_uuid,
-		updated_at as uploaded_at
+		mad.profile_uuid,
+		mad.updated_at as uploaded_at
 	FROM
-		mdm_apple_default_setup_assistants
-	WHERE global_or_team_id = ?`
+		mdm_apple_default_setup_assistants mad
+	INNER JOIN
+		abm_tokens abt ON mad.abm_token_id = abt.id
+	WHERE
+		mad.global_or_team_id = ? AND
+		abt.organization_name = ?
+	`
 
 	var globalOrTmID uint
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
 	var asst fleet.MDMAppleSetupAssistant
-	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asst, stmt, globalOrTmID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asst, stmt, globalOrTmID, abmTokenOrgName); err != nil {
 		if err == sql.ErrNoRows {
 			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleDefaultSetupAssistant").WithID(globalOrTmID))
 		}

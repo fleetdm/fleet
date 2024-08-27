@@ -1250,8 +1250,9 @@ type Datastore interface {
 	SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID, abmTokenOrgName string) error
 
 	// Get the profile UUID and last update timestamp for the default setup
-	// assistant for a team or no team.
-	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
+	// assistant for a team or no team, as registered with the ABM token
+	// represented by the organization name.
+	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint, abmTokenOrgName string) (profileUUID string, updatedAt time.Time, err error)
 
 	// GetMatchingHostSerials receives a list of serial numbers and returns
 	// a map that only contains the serials that have a matching row in the `hosts` table.

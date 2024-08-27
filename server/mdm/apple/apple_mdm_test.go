@@ -120,7 +120,7 @@ func TestDEPService(t *testing.T) {
 			return 0, nil
 		}
 
-		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil)
+		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil, "")
 		require.NoError(t, err)
 		require.Equal(t, "abcd", profUUID)
 		require.NotZero(t, modTime)
