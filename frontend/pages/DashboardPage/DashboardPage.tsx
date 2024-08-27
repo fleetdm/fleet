@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
@@ -652,14 +653,19 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ),
   });
 
-  const MunkiCard = useInfoCard({
-    title: "Munki",
-    titleDetail: (
+  const munkiTitleDetail = useMemo(
+    () => (
       <LastUpdatedText
         lastUpdatedAt={munkiCountsUpdatedAt}
         whatToRetrieve="Munki"
       />
     ),
+    [munkiCountsUpdatedAt]
+  );
+
+  const MunkiCard = useInfoCard({
+    title: "Munki",
+    titleDetail: munkiTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
       <p>
