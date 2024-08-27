@@ -3602,9 +3602,9 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
-		return skipSerials, assignSerials, nil
+		return skipSerials, serialsByOrgName, nil
 	}
 
 	stmt := `
@@ -3614,12 +3614,14 @@ SELECT
 	ELSE
 		'assign'
 	END AS status,
-	hardware_serial
+	h.hardware_serial,
+	abm.organization_name
 FROM
-	host_dep_assignments
-	JOIN hosts ON id = host_id
+	host_dep_assignments hda
+	JOIN hosts h ON h.id = hda.host_id
+	JOIN abm_tokens abm ON abm.id = hda.abm_token_id
 WHERE
-	hardware_serial IN (?)
+	h.hardware_serial IN (?)
 `
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
@@ -3630,15 +3632,18 @@ WHERE
 	var rows []struct {
 		Status         string `db:"status"`
 		HardwareSerial string `db:"hardware_serial"`
+		ABMOrgName     string `db:"organization_name"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
 	}
 
+	serialsByOrgName = make(map[string][]string)
+
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
-			assignSerials = append(assignSerials, r.HardwareSerial)
+			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
 			skipSerials = append(skipSerials, r.HardwareSerial)
 		default:
@@ -3646,7 +3651,7 @@ WHERE
 		}
 	}
 
-	return skipSerials, assignSerials, nil
+	return skipSerials, serialsByOrgName, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
@@ -5022,4 +5027,34 @@ func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, e
 		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens with terms expired")
 	}
 	return count, nil
+}
+
+// GetABMTokenOrgNamesForHostsInTeam returns the set of ABM organization names that correspond to each of
+// the hosts in the team.
+func (ds *Datastore) GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	stmt := `
+SELECT DISTINCT
+	abmt.organization_name
+FROM
+	abm_tokens abmt
+	JOIN host_dep_assignments hda ON hda.abm_token_id = abmt.id
+	JOIN hosts h ON hda.host_id = h.id
+WHERE
+ %s
+	`
+	var args []any
+	teamFilter := `h.team_id IS NULL`
+	if teamID != nil {
+		teamFilter = `h.team_id = ?`
+		args = append(args, *teamID)
+	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter)
+
+	var orgNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &orgNames, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting org names for team from db")
+	}
+
+	return orgNames, nil
 }

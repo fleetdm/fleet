@@ -196,9 +196,14 @@ func TestABMToken(t *testing.T) {
 		return assets, nil
 	}
 	const testOrgName = "test-org"
+
 	ds.GetABMTokenByOrgNameFunc = func(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
 		require.Equal(t, testOrgName, orgName)
-		return &fleet.ABMToken{ID: 1, OrganizationName: testOrgName, EncryptedToken: []byte(tokenBytes)}, nil
+		return &fleet.ABMToken{
+			ID:               1,
+			OrganizationName: testOrgName,
+			EncryptedToken:   []byte(tokenBytes),
+		}, nil
 	}
 
 	tokens, err := ABMToken(ctx, ds, testOrgName)
