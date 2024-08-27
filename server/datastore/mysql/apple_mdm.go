@@ -897,36 +897,49 @@ type hostWithEnrolled struct {
 	Enrolled *bool `db:"enrolled"`
 }
 
-func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint) (createdCount int64, teamID *uint, err error) {
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
+	ctx context.Context,
+	devices []godep.Device,
+	abmTokenID uint,
+	macOSTeam, iosTeam, ipadTeam *fleet.Team,
+) (createdCount int64, err error) {
 	if len(devices) < 1 {
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
-		return 0, nil, nil
+		return 0, nil
 	}
 
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
 	}
 
-	args := []interface{}{nil}
-	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
-		team, err := ds.TeamByName(ctx, name)
-		switch {
-		case fleet.IsNotFound(err):
-			level.Debug(ds.logger).Log(
-				"msg",
-				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
-				"team_name",
-				name,
-			)
-			// If the team doesn't exist, we still ingest the device, but it won't
-			// belong to any team.
-		case err != nil:
-			return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
-		default:
-			args[0] = team.ID
-			teamID = &team.ID
+	var args []any
+	teams := []*fleet.Team{iosTeam, ipadTeam, macOSTeam}
+	for _, team := range teams {
+		if team == nil {
+			args = append(args, nil)
+			continue
 		}
+
+		exists, err := ds.TeamExists(ctx, team.ID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+		}
+
+		if exists {
+			args = append(args, team.ID)
+			continue
+		}
+
+		// If the team doesn't exist, we still ingest the device, but it won't
+		// belong to any team.
+		level.Debug(ds.logger).Log(
+			"msg",
+			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
+			"team_id",
+			team,
+		)
+		args = append(args, nil)
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -952,7 +965,11 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
 				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
-				? AS team_id
+				CASE
+					WHEN us.platform = 'ios' THEN ?
+					WHEN us.platform = 'ipados' THEN ?
+					ELSE ?
+				END AS team_id
 			FROM (%s) us
 			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
 		WHERE
@@ -1037,7 +1054,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		return nil
 	})
 
-	return createdCount, teamID, err
+	return createdCount, err
 }
 
 func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint) error {

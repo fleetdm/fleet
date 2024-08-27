@@ -298,21 +298,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	// get the Apple BM default team
-	//	appCfg, err := d.ds.AppConfig(ctx)
-	//	if err != nil {
-	//		return err
-	//	}
-
-	//	var appleBMTeam *fleet.Team
-	//	if appCfg.MDM.AppleBMDefaultTeam != "" {
-	//		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
-	//		if err != nil && !fleet.IsNotFound(err) {
-	//			return err
-	//		}
-	//		appleBMTeam = tm
-	//	}
-
+	syncerLogger := logging.NewNanoDEPLogger(kitlog.With(d.logger, "component", "nanodep-syncer"))
 	teams, err := d.ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
@@ -341,11 +327,10 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 		decryptedToken, err := assets.ABMToken(ctx, d.ds, token.OrganizationName)
 		if err != nil {
-			// TODO: improve
-			return ctxerr.Wrap(ctx, err, "getting ABM token")
+			return ctxerr.Wrapf(ctx, err, "getting ABM token with organization name %s in ADE ingestion", token.OrganizationName)
 		}
 
-		// TODO: explain
+		// FIXME: downstream depClient methods need the token in the context.
 		ctx = apple_bm.NewContext(ctx, decryptedToken)
 		teams := []*fleet.Team{macOSTeam, iosTeam, ipadTeam}
 
@@ -384,13 +369,11 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 		}
 
-		// TODO: can be moved to the top? or customize logger
-		dl := logging.NewNanoDEPLogger(kitlog.With(d.logger, "component", "nanodep-syncer"))
 		syncer := depsync.NewSyncer(
 			d.depClient,
-			"",
+			token.OrganizationName,
 			d.depStorage,
-			depsync.WithLogger(dl),
+			depsync.WithLogger(syncerLogger),
 			depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
 				// the nanodep syncer just logs the error of the callback, so in order to
 				// capture it we need to do this here.
@@ -503,7 +486,7 @@ func (d *DEPService) processDeviceResponse(
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID)
+	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID, macOSTeam, iosTeam, ipadTeam)
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
@@ -523,10 +506,11 @@ func (d *DEPService) processDeviceResponse(
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
 	if len(addedDevices) > 0 {
+		// TODO: fix this
 		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
-		profUUID, err := d.getProfileUUIDForTeam(ctx, defaultABMTeamID, abmOrganizationName)
+		profUUID, err := d.getProfileUUIDForTeam(ctx, &macOSTeam.ID, abmOrganizationName)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", defaultABMTeamID)
+			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", macOSTeam.ID)
 		}
 
 		profileToDevices[profUUID] = addedDevices
