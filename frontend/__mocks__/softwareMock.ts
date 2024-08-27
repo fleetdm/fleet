@@ -14,8 +14,8 @@ import {
   ISoftwareVersionsResponse,
   ISoftwareVersionResponse,
 } from "services/entities/software";
-import {IOSVersionsResponse} from "../services/entities/operating_systems";
-import {IOperatingSystemVersion} from "../interfaces/operating_system";
+import { IOSVersionsResponse } from "../services/entities/operating_systems";
+import { IOperatingSystemVersion } from "../interfaces/operating_system";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -110,10 +110,10 @@ const DEFAULT_OS_VERSION_MOCK = {
   hosts_count: 42,
   generated_cpes: [],
   vulnerabilities: [],
-}
+};
 
 export const createMockOSVersion = (
-    overrides?: Partial<IOperatingSystemVersion>
+  overrides?: Partial<IOperatingSystemVersion>
 ): IOperatingSystemVersion => {
   return {
     ...DEFAULT_OS_VERSION_MOCK,
@@ -131,12 +131,11 @@ const DEFAULT_OS_VERSIONS_RESPONSE_MOCK: IOSVersionsResponse = {
   },
 };
 
-
 export const createMockOSVersionsResponse = (
   overrides?: Partial<IOSVersionsResponse>
 ): IOSVersionsResponse => {
   return { ...DEFAULT_OS_VERSIONS_RESPONSE_MOCK, ...overrides };
-}
+};
 
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
