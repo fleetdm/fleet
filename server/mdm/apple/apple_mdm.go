@@ -549,7 +549,7 @@ func (d *DEPService) processDeviceResponse(
 			devicesByTeam[host.TeamID] = append(devicesByTeam[host.TeamID], dd)
 		}
 		for team, devices := range devicesByTeam {
-			profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
+			profUUID, err := d.getProfileUUIDForTeam(ctx, team)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 			}
@@ -636,23 +636,14 @@ func (d *DEPService) processDeviceResponse(
 	return nil
 }
 
-func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, orgName string) (string, error) {
-	var appleBMTeam *fleet.Team
-	if tmID != nil {
-		tm, err := d.ds.Team(ctx, *tmID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return "", ctxerr.Wrap(ctx, err, "get team")
-		}
-		appleBMTeam = tm
-	}
-
+func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, team *fleet.Team) (string, error) {
 	// get profile uuid of team or default
-	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam)
+	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, team)
 	if err != nil {
-		return "", fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
+		return "", fmt.Errorf("ensure setup assistant for team: %w", err)
 	}
 	if profUUID == "" {
-		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam)
+		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, team)
 		if err != nil {
 			return "", fmt.Errorf("ensure default setup assistant: %w", err)
 		}
