@@ -1326,7 +1326,7 @@ type Datastore interface {
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
 	InsertVPPToken(ctx context.Context, tok *VPPTokenData) (*VPPTokenDB, error)
-	ListVPPTokens(ctx context.Context) ([]VPPTokenDB, error)
+	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)

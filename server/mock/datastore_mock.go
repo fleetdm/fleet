@@ -866,17 +866,17 @@ type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
 type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
 
-type GetVPPTokenFunc func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error)
-
-type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
-
 type ListVPPTokensFunc func(ctx context.Context) ([]*fleet.VPPTokenDB, error)
+
+type GetVPPTokenFunc func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error)
 
 type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
 
 type UpdateVPPTokenTeamsFunc func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error)
 
 type UpdateVPPTokenFunc func(ctx context.Context, id uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
+
+type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
 type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 
@@ -2318,14 +2318,11 @@ type DataStore struct {
 	InsertVPPTokenFunc        InsertVPPTokenFunc
 	InsertVPPTokenFuncInvoked bool
 
-	GetVPPTokenFunc        GetVPPTokenFunc
-	GetVPPTokenFuncInvoked bool
-
-	DeleteVPPTokenFunc        DeleteVPPTokenFunc
-	DeleteVPPTokenFuncInvoked bool
-
 	ListVPPTokensFunc        ListVPPTokensFunc
 	ListVPPTokensFuncInvoked bool
+
+	GetVPPTokenFunc        GetVPPTokenFunc
+	GetVPPTokenFuncInvoked bool
 
 	GetVPPTokenByTeamIDFunc        GetVPPTokenByTeamIDFunc
 	GetVPPTokenByTeamIDFuncInvoked bool
@@ -2335,6 +2332,9 @@ type DataStore struct {
 
 	UpdateVPPTokenFunc        UpdateVPPTokenFunc
 	UpdateVPPTokenFuncInvoked bool
+
+	DeleteVPPTokenFunc        DeleteVPPTokenFunc
+	DeleteVPPTokenFuncInvoked bool
 
 	SetABMTokenTermsExpiredForOrgNameFunc        SetABMTokenTermsExpiredForOrgNameFunc
 	SetABMTokenTermsExpiredForOrgNameFuncInvoked bool
@@ -5555,25 +5555,18 @@ func (s *DataStore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData)
 	return s.InsertVPPTokenFunc(ctx, tok)
 }
 
-func (s *DataStore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
-	s.mu.Lock()
-	s.GetVPPTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetVPPTokenFunc(ctx, tokenID)
-}
-
-func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
-	s.mu.Lock()
-	s.DeleteVPPTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteVPPTokenFunc(ctx, tokenID)
-}
-
 func (s *DataStore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.ListVPPTokensFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListVPPTokensFunc(ctx)
+}
+
+func (s *DataStore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenFunc(ctx, tokenID)
 }
 
 func (s *DataStore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
@@ -5595,6 +5588,13 @@ func (s *DataStore) UpdateVPPToken(ctx context.Context, id uint, tok *fleet.VPPT
 	s.UpdateVPPTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVPPTokenFunc(ctx, id, tok)
+}
+
+func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.DeleteVPPTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPTokenFunc(ctx, tokenID)
 }
 
 func (s *DataStore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {

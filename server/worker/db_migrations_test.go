@@ -100,8 +100,8 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 	require.Equal(t, "test-loc", vppTok.Location)
 	require.Equal(t, expDate, vppTok.RenewDate)
 	require.Equal(t, string(tok), vppTok.Token)
-	require.Nil(t, vppTok.TeamID)
-	require.Equal(t, fleet.NullTeamAllTeams, vppTok.NullTeam)
+	require.NotNil(t, vppTok.Teams)
+	require.Len(t, vppTok.Teams, 0)
 
 	// empty-location token should not exist anymore
 	_, err = ds.GetVPPTokenByLocation(ctx, "")
