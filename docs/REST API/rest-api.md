@@ -9070,7 +9070,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 #### Example
 
-`PATCH /api/v1/fleet/software/package/1`
+`PATCH /api/v1/fleet/software/titles/1`
 
 ##### Request header
 
