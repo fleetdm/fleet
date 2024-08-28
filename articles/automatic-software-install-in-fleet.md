@@ -26,6 +26,15 @@ installed on:
 - Under the `Target` section select `All hosts` or `Custom`.
 - If `Custom` was selected, right below it will appear a dropdown that will allow `Include` or `Exclude` of specific label/s. A list of labels will be shown to configure the proper operation
 
+![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
+
+![Install Software Modal](../website/assets/images/articles/automatic-software-install-install-software.png)
+
+![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
+
+![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
+
+
 
 In the example below Install on all hosts EXCEPT those with 'Okta - Engineering' label
 
