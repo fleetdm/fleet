@@ -55,6 +55,7 @@ export const generateTableConfig = (
   return [
     {
       accessor: "org_name",
+      sortType: "caseInsensitive",
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
           value="Organization name"

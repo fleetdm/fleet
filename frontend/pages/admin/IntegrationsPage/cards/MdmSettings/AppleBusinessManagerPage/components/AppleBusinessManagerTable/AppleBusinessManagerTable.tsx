@@ -42,6 +42,7 @@ const AppleBusinessManagerTable = ({
   return (
     <TableContainer<IMdmAbmToken>
       columnConfigs={tableConfig}
+      defaultSortHeader="org_name"
       disableTableHeader
       disablePagination
       showMarkAllPages={false}
