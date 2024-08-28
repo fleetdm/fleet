@@ -4,7 +4,7 @@ Conventional wisdom holds that cross-platform device management is a nightmare. 
 
 ## Cross-platform pain points
 
-The skepticism around cross-platform device management is real, and for good reason. Many IT teams have been burned by solutions that promise seamless management across different operating systems but deliver only frustration and complexity. Airwatch (now Omnissa), Intune, and others have left a trail of disappointed admins in their wake, often forcing you to manage the tools more than the devices. Fleet flips that script by letting you interact directly with each operating system’s native features. Whether Apple’s macOS, Microsoft’s Windows, or various Linux distributions, Fleet provides a consistent management experience without forcing you to “talk Windows” to your Macs or vice versa.
+The skepticism around cross-platform device management is real, and for good reason. Many IT teams have been burned by solutions that promise seamless management across different operating systems but deliver only frustration and complexity. Solutions that often leave a trail of disappointed admins in their wake, often forcing you to manage the tools more than the devices. Fleet flips that script by letting you interact directly with each operating system’s native features. Whether Apple’s macOS, Microsoft’s Windows, or various Linux distributions, Fleet provides a consistent management experience without forcing you to “talk Windows” to your Macs or vice versa.
 
 
 ## Managing every OS like it’s your favorite
