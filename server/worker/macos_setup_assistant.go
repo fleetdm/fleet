@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -101,6 +99,8 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 	// re-generate and register the profile with Apple. Since the profile has been
 	// updated, then its profile UUID will have been cleared, so this single call
 	// will do both tasks.
+	// TODO(mna): use an empty org name to indicate that we should
+	// force-re-register and not bother looking up the existing profile_uuid?
 	profUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team, "TODO ABM TOKEN ORG NAME")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
@@ -134,11 +134,7 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		}
 
 		for orgName, serials := range assignSerials {
-			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
-			}
-			ctx = abmctx.NewContext(ctx, decTok)
+			// TODO(mna): must load the profUUID corresponding to that orgName here...
 			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
@@ -165,6 +161,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 	// get the team's setup assistant, to make sure it is still absent. If it is
 	// not, then it was re-created before this job ran, so nothing to do (another
 	// job will take care of assigning the profile to the hosts).
+	// TODO(mna): just use GetMDMAppleSetupAssistant() to look for it
 	customProfUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team, "TODO ABM TOKEN ORG NAME")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
@@ -178,6 +175,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 	// of the default profile and assign it to all of the team's hosts. No need
 	// to force a re-generate of the default profile, if it is already registered
 	// with Apple this is fine and we use that profile uuid.
+	// TODO(mna): move that in the by-org loop
 	profUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team, "TODO ABM TOKEN ORG NAME")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure default setup assistant")
@@ -209,11 +207,6 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		}
 
 		for orgName, serials := range assignSerials {
-			decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "decrypting ABM token")
-			}
-			ctx = abmctx.NewContext(ctx, decTok)
 			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
@@ -244,6 +237,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 	}
 
 	// get the new team's setup assistant if it exists.
+	// TODO(mna): move this in the by-org loop
 	profUUID, _, err := m.DEPService.EnsureCustomSetupAssistantIfExists(ctx, team, "TODO ABM TOKEN ORG NAME")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
@@ -281,11 +275,6 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 	}
 
 	for orgName, serials := range assignSerials {
-		decTok, err := assets.ABMToken(ctx, m.Datastore, orgName)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "decrypting ABM token")
-		}
-		ctx = abmctx.NewContext(ctx, decTok)
 		resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")

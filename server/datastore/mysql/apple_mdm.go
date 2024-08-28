@@ -5131,9 +5131,7 @@ func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, e
 	return count, nil
 }
 
-// GetABMTokenOrgNamesForHostsInTeam returns the set of ABM organization names that correspond to each of
-// the hosts in the team.
-func (ds *Datastore) GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+func (ds *Datastore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	stmt := `
 SELECT DISTINCT
 	abmt.organization_name
@@ -5142,16 +5140,25 @@ FROM
 	JOIN host_dep_assignments hda ON hda.abm_token_id = abmt.id
 	JOIN hosts h ON hda.host_id = h.id
 WHERE
- %s
+	%s
+UNION 
+SELECT DISTINCT 
+	abmt.organization_name
+FROM 
+	abm_tokens abmt 
+WHERE
+	%s
 	`
 	var args []any
 	teamFilter := `h.team_id IS NULL`
+	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL`
 	if teamID != nil {
 		teamFilter = `h.team_id = ?`
-		args = append(args, *teamID)
+		abmtFilter = `abmt.macos_default_team_id = ? OR abmt.ios_default_team_id = ? OR abmt.ipados_default_team_id = ?`
+		args = append(args, *teamID, *teamID, *teamID, *teamID)
 	}
 
-	stmt = fmt.Sprintf(stmt, teamFilter)
+	stmt = fmt.Sprintf(stmt, teamFilter, abmtFilter)
 
 	var orgNames []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &orgNames, stmt, args...); err != nil {

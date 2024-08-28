@@ -1369,9 +1369,11 @@ type Datastore interface {
 	// GetABMTokenCount returns the number of ABM tokens in the DB.
 	GetABMTokenCount(ctx context.Context) (int, error)
 
-	// GetABMTokenOrgNamesForHostsInTeam returns the set of ABM organization names that correspond to each of
-	// the hosts in the team.
-	GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error)
+	// GetABMTokenOrgNamesAssociatedWithTeam returns the set of ABM organization
+	// names that correspond to the union of
+	// - the tokens used to create each of the DEP hosts in that team.
+	// - the tokens targeting that team as default for any platform.
+	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
