@@ -10729,6 +10729,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	require.NoError(t, err)
 
 	nameWithInvalidChars := "Fleet & Device <3 Management"
+	/* #nosec G101 -- this is a made up value for tests */
 	enrollSecretWithInvalidChars := "1<2>3&4&/"
 
 	acResp := appConfigResponse{}

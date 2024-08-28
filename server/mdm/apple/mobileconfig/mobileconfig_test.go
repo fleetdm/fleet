@@ -28,7 +28,9 @@ func TestXMLEscapeString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			require.Equal(t, tt.expected, XMLEscapeString(tt.input))
+			out, err := XMLEscapeString(tt.input)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, out)
 		})
 	}
 }
