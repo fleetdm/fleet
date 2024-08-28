@@ -20,7 +20,18 @@ To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > 
 
 > Available in Fleet Premium
 
-To connect Fleet to ABM or renew ABM, head to the **Settings > Integrations > Mobile device management (MDM)** page. Under "Automatic enrollment", click "Add ABM", and then click "Add ABM" again on the next page. Follow the instructions in the modal and upload an ABM token to Fleet.
+To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token: 
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under "Automatic enrollment", click "Add ABM", and then click "Add ABM" again on the next page. Follow the instructions in the modal and upload an ABM token to Fleet.
+
+When one of your uploaded ABM tokens has expired or is within 30 days of expiring, you will see a warning
+banner at the top of page reminding you to renew your token.
+
+To renew an ABM token:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under "Automatic enrollment", click "Edit", and then fin
 
 After connecting Fleet to ABM, set Fleet to be the MDM for all Macs: 
 
