@@ -70,7 +70,7 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "get VPP token to migrate")
 	}
 
-	_, didUpdate, err := tok.ExtractToken()
+	rawToken, didUpdate, err := tok.ExtractToken()
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "extract VPP token metadata")
 	}
@@ -81,6 +81,7 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		m.Log.Log("info", "VPP token metadata was not updated")
 	}
 
-	err = m.Datastore.UpdateVPPToken(ctx, tok)
+	tokenData := fleet.VPPTokenData{Token: rawToken, Location: tok.Location}
+	_, err = m.Datastore.UpdateVPPToken(ctx, tok.ID, &tokenData)
 	return ctxerr.Wrap(ctx, err, "update VPP token")
 }

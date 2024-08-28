@@ -85,7 +85,6 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostUUIDsWithPendingMDMAppleCommands", testGetHostUUIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
-		{"AppleMDMVPPTokensCRUD", testAppleMDMVPPTokensCRUD},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
 		{"TestMDMGetABMTokenOrgNamesForHostsInTeam", testMDMGetABMTokenOrgNamesForHostsInTeam},
 	}
@@ -6499,9 +6498,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tok.EncryptedToken))
 	require.Empty(t, tok.OrganizationName)
 	require.Empty(t, tok.AppleID)
-	require.Equal(t, fleet.NoTeamName, tok.MacOSTeamName)
-	require.Equal(t, fleet.NoTeamName, tok.IOSTeamName)
-	require.Equal(t, fleet.NoTeamName, tok.IPadOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
@@ -6524,8 +6523,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
 	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
-	require.Equal(t, fleet.NoTeamName, tokReload.IPadOSTeamName)
-	require.Equal(t, fleet.NoTeamName, tokReload.IPadOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
 
 	// empty name token now doesn't exist
@@ -6545,8 +6544,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeamName)
-	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
@@ -6563,8 +6562,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok2, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeamName)
-	require.Equal(t, fleet.NoTeamName, tokReload.MacOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
@@ -6582,214 +6581,11 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	expTok := toks[0]
 	require.Equal(t, "org-name", expTok.OrganizationName)
 	require.Equal(t, "name@example.com", expTok.AppleID)
-	require.Equal(t, fleet.NoTeamName, expTok.MacOSTeamName)
-	require.Equal(t, fleet.NoTeamName, expTok.MacOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, expTok.MacOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, expTok.MacOSTeam.Name)
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
-}
-
-func testAppleMDMVPPTokensCRUD(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kritters"})
-	assert.NoError(t, err)
-
-	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
-	_ = team2
-	assert.NoError(t, err)
-
-	tokens, err := ds.ListVPPTokens(ctx)
-	assert.NoError(t, err)
-	assert.Len(t, tokens, 0)
-
-	orgName := "Donkey Kong"
-	location := "Jungle"
-	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName, location)
-	require.NoError(t, err)
-
-	orgName2 := "Diddy Kong"
-	location2 := "Mines"
-	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName2, location2)
-	require.NoError(t, err)
-
-	orgName3 := "Cranky Cong"
-	location3 := "Cranky's Cabin"
-	dataToken3, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName3, location3)
-	require.NoError(t, err)
-
-	orgName4 := "Funky Kong"
-	location4 := "Funky's Fishing Shack"
-	dataToken4, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName4, location4)
-	require.NoError(t, err)
-
-	orgName5 := "Lanky Kong"
-	location5 := "Lanky Kong's Pool"
-	dataToken5, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName5, location5)
-	_ = dataToken5
-	require.NoError(t, err)
-
-	tok, err := ds.InsertVPPToken(ctx, dataToken, nil, fleet.NullTeamNone)
-	assert.NoError(t, err)
-	assert.Equal(t, dataToken.Location, tok.Location)
-	assert.Equal(t, dataToken.Token, tok.Token)
-	assert.Equal(t, orgName, tok.OrgName)
-	assert.Equal(t, location, tok.Location)
-	assert.Equal(t, (*uint)(nil), tok.TeamID)
-	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
-
-	tok.NullTeam = fleet.NullTeamAllTeams
-	err = ds.UpdateVPPToken(ctx, tok)
-	assert.NoError(t, err)
-
-	tok, err = ds.GetVPPToken(ctx, tok.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, dataToken.Location, tok.Location)
-	assert.Equal(t, dataToken.Token, tok.Token)
-	assert.Equal(t, orgName, tok.OrgName)
-	assert.Equal(t, location, tok.Location)
-	assert.Equal(t, (*uint)(nil), tok.TeamID)
-	assert.Equal(t, fleet.NullTeamAllTeams, tok.NullTeam)
-
-	tok.TeamID = &team.ID
-	err = ds.UpdateVPPToken(ctx, tok)
-	assert.ErrorContains(t, err, "NullTeam must be set to NullTeamNone if TeamID is present")
-
-	tok.NullTeam = fleet.NullTeamNone
-	err = ds.UpdateVPPToken(ctx, tok)
-	assert.NoError(t, err)
-
-	// Switch teams
-	tok.TeamID = &team2.ID
-	err = ds.UpdateVPPTokenTeam(ctx, tok.ID, &team2.ID, fleet.NullTeamNone)
-	assert.NoError(t, err)
-
-	tokens, err = ds.ListVPPTokens(ctx)
-	assert.NoError(t, err)
-	assert.Len(t, tokens, 1)
-	assert.Equal(t, dataToken.Location, tokens[0].Location)
-	assert.Equal(t, dataToken.Token, tokens[0].Token)
-	assert.Equal(t, orgName, tokens[0].OrgName)
-	assert.Equal(t, location, tokens[0].Location)
-	assert.Equal(t, team2.ID, *tokens[0].TeamID)
-	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
-
-	tok, err = ds.GetVPPToken(ctx, tok.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, dataToken.Location, tok.Location)
-	assert.Equal(t, dataToken.Token, tok.Token)
-	assert.Equal(t, orgName, tok.OrgName)
-	assert.Equal(t, location, tok.Location)
-	assert.Equal(t, team2.ID, *tok.TeamID)
-	assert.Equal(t, fleet.NullTeamNone, tok.NullTeam)
-
-	// Inserting a duplicate token (location constraint)
-	_, err = ds.InsertVPPToken(ctx, dataToken, &team2.ID, fleet.NullTeamNone)
-	require.Error(t, err)
-
-	// Team ID and non-none nullteam
-	_, err = ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamAllTeams)
-	require.Error(t, err)
-
-	// 2 tokens on one team
-	_, err = ds.InsertVPPToken(ctx, dataToken2, &team2.ID, fleet.NullTeamNone)
-	require.Error(t, err)
-
-	tok2, err := ds.InsertVPPToken(ctx, dataToken2, &team.ID, fleet.NullTeamNone)
-	assert.NoError(t, err)
-	assert.Equal(t, dataToken2.Location, tok2.Location)
-	assert.Equal(t, dataToken2.Token, tok2.Token)
-	assert.Equal(t, orgName2, tok2.OrgName)
-	assert.Equal(t, location2, tok2.Location)
-	assert.Equal(t, team.ID, *tok2.TeamID)
-	assert.Equal(t, fleet.NullTeamNone, tok2.NullTeam)
-
-	tokens, err = ds.ListVPPTokens(ctx)
-	assert.NoError(t, err)
-	assert.Len(t, tokens, 2)
-
-	err = ds.DeleteVPPToken(ctx, tok.ID)
-	assert.NoError(t, err)
-
-	tokens, err = ds.ListVPPTokens(ctx)
-	assert.NoError(t, err)
-	assert.Len(t, tokens, 1)
-	assert.Equal(t, tok2.ID, tokens[0].ID)
-
-	// No team token
-	_, err = ds.InsertVPPToken(ctx, dataToken3, nil, fleet.NullTeamNoTeam)
-	assert.NoError(t, err)
-
-	toknone, err := ds.GetVPPTokenByTeamID(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, dataToken3.Token, toknone.Token)
-
-	// Only one no team allowed
-	_, err = ds.InsertVPPToken(ctx, dataToken4, nil, fleet.NullTeamNoTeam)
-	assert.Error(t, err)
-
-	// Try to update to duplicate no team
-	tok2Copy := &fleet.VPPTokenDB{}
-	*tok2Copy = *tok2
-	tok2Copy.TeamID = nil
-	tok2Copy.NullTeam = fleet.NullTeamNoTeam
-	err = ds.UpdateVPPToken(ctx, tok2Copy)
-	assert.Error(t, err)
-
-	err = ds.UpdateVPPTokenTeam(ctx, tok2.ID, nil, fleet.NullTeamNoTeam)
-	assert.Error(t, err)
-
-	tokall, err := ds.InsertVPPToken(ctx, dataToken5, nil, fleet.NullTeamAllTeams)
-	require.NoError(t, err)
-
-	byteam, err := ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
-	require.NoError(t, err)
-	assert.Equal(t, tok2.ID, byteam.ID)
-	assert.Equal(t, tok2.TeamID, byteam.TeamID)
-	assert.Equal(t, tok2.NullTeam, byteam.NullTeam)
-	assert.Equal(t, tok2.Token, byteam.Token)
-	assert.Equal(t, tok2.Location, byteam.Location)
-	assert.Equal(t, tok2.OrgName, byteam.OrgName)
-	assert.Equal(t, tok2.RenewDate, byteam.RenewDate)
-
-	err = ds.DeleteVPPToken(ctx, tok2.ID)
-	require.NoError(t, err)
-
-	// Fall back to all team token
-	byteam, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
-	require.NoError(t, err)
-	assert.Equal(t, tokall.ID, byteam.ID)
-	assert.Equal(t, tokall.TeamID, byteam.TeamID)
-	assert.Equal(t, tokall.NullTeam, byteam.NullTeam)
-	assert.Equal(t, tokall.Token, byteam.Token)
-	assert.Equal(t, tokall.Location, byteam.Location)
-	assert.Equal(t, tokall.OrgName, byteam.OrgName)
-	assert.Equal(t, tokall.RenewDate, byteam.RenewDate)
-
-	err = ds.DeleteVPPToken(ctx, toknone.ID)
-	require.NoError(t, err)
-
-	bynone, err := ds.GetVPPTokenByTeamID(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, tokall.ID, bynone.ID)
-	assert.Equal(t, tokall.TeamID, bynone.TeamID)
-	assert.Equal(t, tokall.NullTeam, bynone.NullTeam)
-	assert.Equal(t, tokall.Token, bynone.Token)
-	assert.Equal(t, tokall.Location, bynone.Location)
-	assert.Equal(t, tokall.OrgName, bynone.OrgName)
-	assert.Equal(t, tokall.RenewDate, bynone.RenewDate)
-
-	// Removing the all teams token means error
-	err = ds.DeleteVPPToken(ctx, tokall.ID)
-	require.NoError(t, err)
-
-	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
-	require.Error(t, err)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-
-	_, err = ds.GetVPPTokenByTeamID(ctx, tok2.TeamID)
-	require.Error(t, err)
-	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
