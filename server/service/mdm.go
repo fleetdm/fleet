@@ -2644,10 +2644,11 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 }
 
 ////////////////////////////////////////////////////
-// PATCH /api/_version_/fleet/vpp_tokens/renew/%d //
+// PATCH /api/_version_/fleet/vpp_tokens/%d/renew //
 ////////////////////////////////////////////////////
 
 type patchVPPTokenRenewRequest struct {
+	ID   uint `url:"id"`
 	File *multipart.FileHeader
 }
 
@@ -2686,14 +2687,14 @@ func (r patchVPPTokenRenewResponse) error() error {
 }
 
 func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*uploadVPPTokenRequest)
+	req := request.(*patchVPPTokenRenewRequest)
 	file, err := req.File.Open()
 	if err != nil {
 		return patchVPPTokenRenewResponse{Err: err}, nil
 	}
 	defer file.Close()
 
-	tok, err := svc.UploadVPPToken(ctx, file)
+	tok, err := svc.UpdateVPPToken(ctx, req.ID, file)
 	if err != nil {
 		return patchVPPTokenRenewResponse{Err: err}, nil
 	}
