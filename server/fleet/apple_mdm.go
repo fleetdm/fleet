@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
@@ -314,6 +315,20 @@ type MDMAppleProfilePayload struct {
 // therefore is not, as far as Fleet knows, currently on the host).
 func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
 	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
+}
+
+func (p MDMAppleProfilePayload) Equal(other MDMAppleProfilePayload) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return p.ProfileUUID == other.ProfileUUID &&
+		p.ProfileIdentifier == other.ProfileIdentifier &&
+		p.ProfileName == other.ProfileName &&
+		p.HostUUID == other.HostUUID &&
+		p.HostPlatform == other.HostPlatform &&
+		bytes.Equal(p.Checksum, other.Checksum) &&
+		statusEqual &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.CommandUUID == other.CommandUUID
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -664,6 +679,18 @@ type MDMAppleHostDeclaration struct {
 	// Checksum contains the MD5 checksum of the declaration JSON uploaded
 	// by the IT admin. Fleet uses this value as the ServerToken.
 	Checksum string `db:"checksum" json:"-"`
+}
+
+func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return statusEqual &&
+		p.HostUUID == other.HostUUID &&
+		p.DeclarationUUID == other.DeclarationUUID &&
+		p.Name == other.Name &&
+		p.Identifier == other.Identifier &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.Checksum == other.Checksum
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {

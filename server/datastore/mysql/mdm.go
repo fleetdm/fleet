@@ -521,11 +521,10 @@ WHERE
 	// (and my hunch is that we could even do the same for
 	// profiles) but this could be optimized to use only a provided
 	// set of host uuids.
-	updatedHostUUIDs, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
+	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
-	updates.AppleDeclaration = len(updatedHostUUIDs) > 0
 
 	return updates, nil
 }
@@ -1063,13 +1062,7 @@ func batchSetProfileLabelAssociationsDB(
 
 		return false, ctxerr.Wrap(ctx, err, "setting label associations for profile")
 	}
-	if result != nil {
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "count rows affected by insert")
-		}
-		updatedDB = rows > 0
-	}
+	updatedDB = insertOnDuplicateDidInsertOrUpdate(result)
 
 	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, deleteBuilder.String(), platformPrefix)
 
@@ -1087,10 +1080,7 @@ func batchSetProfileLabelAssociationsDB(
 		return false, ctxerr.Wrap(ctx, err, "deleting labels for profiles")
 	}
 	if result != nil {
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "count rows affected by insert")
-		}
+		rows, _ := result.RowsAffected()
 		updatedDB = updatedDB || rows > 0
 	}
 

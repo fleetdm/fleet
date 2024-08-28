@@ -1252,9 +1252,10 @@ func listMDMWindowsProfilesToInstallDB(
 
 	query := fmt.Sprintf(`
 	SELECT
-		ds.profile_uuid,
-		ds.host_uuid,
-		ds.name as profile_name
+		COALESCE(hmwp.profile_uuid, ds.profile_uuid) as profile_uuid,
+		COALESCE(hmwp.host_uuid, ds.host_uuid) as host_uuid,
+		COALESCE(hmwp.profile_name, ds.name) as profile_name,
+		COALESCE(hmwp.operation_type, '') as operation_type
 	FROM ( %s ) as ds
 		LEFT JOIN host_mdm_windows_profiles hmwp
 			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
@@ -1789,7 +1790,7 @@ ON DUPLICATE KEY UPDATE
 			}
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 		}
-		updatedDB = updatedDB || insertOnDuplicateDidInsert(result) || insertOnDuplicateDidUpdate(result)
+		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
 	}
 
 	// build a list of labels so the associations can be batch-set all at once
@@ -1868,14 +1869,21 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		return false, nil
 	}
 
-	if err := ds.bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profilesToRemove); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "bulk delete profiles to remove")
+	if len(profilesToRemove) > 0 {
+		if err := ds.bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profilesToRemove); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "bulk delete profiles to remove")
+		}
+		updatedDB = true
+	}
+	if len(profilesToInstall) == 0 {
+		return updatedDB, nil
 	}
 
 	var (
-		pargs      []any
-		psb        strings.Builder
-		batchCount int
+		pargs            []any
+		profilesToInsert = make(map[string]*fleet.MDMWindowsProfilePayload)
+		psb              strings.Builder
+		batchCount       int
 	)
 
 	const defaultBatchSize = 1000
@@ -1887,10 +1895,48 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	resetBatch := func() {
 		batchCount = 0
 		pargs = pargs[:0]
+		clear(profilesToInsert)
 		psb.Reset()
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
+		// Check if the update needs to be done at all.
+		selectStmt := fmt.Sprintf(`
+			SELECT 
+				profile_uuid,
+				host_uuid,
+				status,
+				COALESCE(operation_type, '') AS operation_type,
+				COALESCE(detail, '') AS detail,
+				COALESCE(command_uuid, '') AS command_uuid,
+				COALESCE(profile_name, '') AS profile_name
+			FROM host_mdm_windows_profiles WHERE (profile_uuid, host_uuid) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
+		var selectArgs []any
+		for _, p := range profilesToInsert {
+			selectArgs = append(selectArgs, p.ProfileUUID, p.HostUUID)
+		}
+		var existingProfiles []fleet.MDMWindowsProfilePayload
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending profile status select existing")
+		}
+		var updateNeeded bool
+		if len(existingProfiles) == len(profilesToInsert) {
+			for _, exist := range existingProfiles {
+				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.ProfileUUID, exist.HostUUID)]
+				if !ok || !exist.Equal(*insert) {
+					updateNeeded = true
+					break
+				}
+			}
+		} else {
+			updateNeeded = true
+		}
+		if !updateNeeded {
+			// All profiles are already in the database, no need to update.
+			return nil
+		}
+
 		baseStmt := fmt.Sprintf(`
 				INSERT INTO host_mdm_windows_profiles (
 					profile_uuid,
@@ -1908,11 +1954,25 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 					detail = ''
 			`, strings.TrimSuffix(valuePart, ","))
 
-		_, err = tx.ExecContext(ctx, baseStmt, args...)
-		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute batch")
+		_, err := tx.ExecContext(ctx, baseStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute batch")
+		}
+		updatedDB = true
+		return nil
 	}
 
 	for _, p := range profilesToInstall {
+		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = &fleet.MDMWindowsProfilePayload{
+			ProfileUUID:   p.ProfileUUID,
+			ProfileName:   p.ProfileName,
+			HostUUID:      p.HostUUID,
+			Status:        nil,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        p.Detail,
+			CommandUUID:   p.CommandUUID,
+			Retries:       p.Retries,
+		}
 		pargs = append(
 			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
 			fleet.MDMOperationTypeInstall)
@@ -1932,7 +1992,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		}
 	}
 
-	return true, nil
+	return updatedDB, nil
 }
 
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {

@@ -1045,7 +1045,9 @@ func expectAppleDeclarations(
 	var got []*fleet.MDMAppleDeclaration
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		ctx := context.Background()
-		return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_declarations WHERE team_id = ?`, tmID)
+		return sqlx.SelectContext(ctx, q, &got,
+			`SELECT declaration_uuid, team_id, identifier, name, raw_json, checksum, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
+			tmID)
 	})
 
 	// create map of expected declarations keyed by identifier

@@ -1709,7 +1709,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration)
 	assert.True(t, updates.WindowsConfigProfile)
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
@@ -2045,6 +2045,13 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 	})
 
+	// update again -- nothing should change
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
+	require.NoError(t, err)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleDeclaration)
+
 	// re-add tm1Profiles[0] to list of team1 profiles (T1.1 on Apple, T1.2 on Windows)
 	// NOTE: even though it is the same profile, it's unique DB ID is different because
 	// it got deleted and re-inserted from the team's profiles, so this is reflected in
@@ -2235,7 +2242,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
-	assert.False(t, updates.AppleDeclaration)
+	assert.True(t, updates.AppleDeclaration)
 
 	newGlobalProfiles := getProfs(nil)
 	require.Len(t, newGlobalProfiles, 6)
@@ -2245,7 +2252,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
-	assert.False(t, updates.AppleDeclaration)
+	assert.True(t, updates.AppleDeclaration)
 
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[0].UUID, nil))
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[1].UUID, nil))
@@ -2385,7 +2392,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newDarwinProfileUUID}, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
@@ -3027,7 +3034,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
@@ -3234,7 +3241,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
@@ -3445,8 +3452,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		nil,
 	)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
 		ctx,
@@ -3456,8 +3463,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		nil,
 	)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
 	// nothing changes - broken label-based profiles are simply ignored
@@ -3884,7 +3891,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
 		ctx,
@@ -3894,7 +3901,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		nil,
 	)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
@@ -4109,8 +4116,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// index change due to new profiles)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
@@ -4524,8 +4531,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// profiles are ignored)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
@@ -4742,8 +4749,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// because even if the hosts are not members anymore, the profile is broken
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
@@ -5155,8 +5162,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		nil,
 	)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
@@ -5386,7 +5393,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.WindowsConfigProfile)
 		assert.False(t, updates.AppleDeclaration)
 
 		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
@@ -5427,7 +5434,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.WindowsConfigProfile)
 		assert.False(t, updates.AppleDeclaration)
 
 		var uid string
@@ -6372,11 +6379,8 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 				windowsConfigProfileForTest(t, "W2", "l2"),
 			}
 			// set the initial profiles without error
-			updates, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil)
+			_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil)
 			require.NoError(t, err)
-			assert.True(t, updates.AppleConfigProfile)
-			assert.True(t, updates.WindowsConfigProfile)
-			assert.False(t, updates.AppleDeclaration)
 
 			// now ensure all steps are required (add a profile, delete a profile, set labels)
 			appleProfs = []*fleet.MDMAppleConfigProfile{
@@ -7497,9 +7501,9 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleDeclaration)
 
 	// broken profiles do not get reported as "to remove"
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
@@ -7552,9 +7556,9 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, winHost2.ID, appleHost2.ID}, nil, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.True(t, updates.WindowsConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleDeclaration)
 
 	// broken profiles do not get reported as "to install"
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{

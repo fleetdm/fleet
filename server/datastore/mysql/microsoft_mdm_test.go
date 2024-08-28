@@ -1886,7 +1886,7 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 		}
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &prof,
-				`SELECT * FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`,
+				`SELECT profile_uuid, team_id, name, syncml, created_at, uploaded_at FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`,
 				teamID, name)
 		})
 		return &prof
@@ -1984,7 +1984,9 @@ func expectWindowsProfiles(
 	var got []*fleet.MDMWindowsConfigProfile
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		ctx := context.Background()
-		return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tmID)
+		return sqlx.SelectContext(ctx, q, &got,
+			`SELECT profile_uuid, team_id, name, syncml, created_at, uploaded_at FROM mdm_windows_configuration_profiles WHERE team_id = ?`,
+			tmID)
 	})
 
 	// create map of expected profiles keyed by name
@@ -2026,11 +2028,12 @@ func expectWindowsProfiles(
 func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile) map[string]string {
+	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile,
+		wantUpdated bool) map[string]string {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			updatedDB, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
 			require.NoError(t, err)
-			assert.True(t, updatedDB)
+			assert.Equal(t, wantUpdated, updatedDB)
 			return err
 		})
 		require.NoError(t, err)
@@ -2045,7 +2048,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 		}
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &prof,
-				`SELECT * FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`,
+				`SELECT profile_uuid, team_id, name, syncml, created_at, uploaded_at FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`,
 				teamID, name)
 		})
 		return &prof
@@ -2061,14 +2064,14 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// apply empty set for no-team
-	applyAndExpect(nil, nil, nil)
+	applyAndExpect(nil, nil, nil, false)
 
 	// apply single profile set for tm1
 	mTm1 := applyAndExpect([]*fleet.MDMWindowsConfigProfile{
 		windowsConfigProfileForTest(t, "N1", "l1"),
 	}, ptr.Uint(1), []*fleet.MDMWindowsConfigProfile{
 		withTeamID(windowsConfigProfileForTest(t, "N1", "l1"), 1),
-	})
+	}, true)
 	profTm1N1 := getProfileByTeamAndName(ptr.Uint(1), "N1")
 
 	// apply single profile set for no-team
@@ -2076,7 +2079,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "N1", "l1"),
 	}, nil, []*fleet.MDMWindowsConfigProfile{
 		windowsConfigProfileForTest(t, "N1", "l1"),
-	})
+	}, true)
 
 	// wait a second to ensure timestamps in the DB change
 	time.Sleep(time.Second)
@@ -2088,7 +2091,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	}, ptr.Uint(1), []*fleet.MDMWindowsConfigProfile{
 		withUploadedAt(withTeamID(windowsConfigProfileForTest(t, "N1", "l1"), 1), profTm1N1.UploadedAt),
 		withTeamID(windowsConfigProfileForTest(t, "N2", "l2"), 1),
-	})
+	}, true)
 	// uuid for N1-I1 is unchanged
 	require.Equal(t, mTm1["I1"], mTm1b["I1"])
 	profTm1N2 := getProfileByTeamAndName(ptr.Uint(1), "N2")
@@ -2106,7 +2109,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 		withTeamID(windowsConfigProfileForTest(t, "N1", "l1b"), 1),
 		withUploadedAt(withTeamID(windowsConfigProfileForTest(t, "N2", "l2"), 1), profTm1N2.UploadedAt),
 		withTeamID(windowsConfigProfileForTest(t, "N3", "l3"), 1),
-	})
+	}, true)
 	// uuid for N1-I1 is unchanged
 	require.Equal(t, mTm1b["I1"], mTm1c["I1"])
 	// uuid for N2-I2 is unchanged
@@ -2123,10 +2126,19 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	}, nil, []*fleet.MDMWindowsConfigProfile{
 		windowsConfigProfileForTest(t, "N4", "l4"),
 		windowsConfigProfileForTest(t, "N5", "l5"),
-	})
+	}, true)
+
+	// apply the same thing again -- nothing updated
+	applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N4", "l4"),
+		windowsConfigProfileForTest(t, "N5", "l5"),
+	}, nil, []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N4", "l4"),
+		windowsConfigProfileForTest(t, "N5", "l5"),
+	}, false)
 
 	// clear profiles for tm1
-	applyAndExpect(nil, ptr.Uint(1), nil)
+	applyAndExpect(nil, ptr.Uint(1), nil, true)
 }
 
 // if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
