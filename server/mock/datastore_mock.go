@@ -894,7 +894,7 @@ type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToke
 
 type GetABMTokenCountFunc func(ctx context.Context) (int, error)
 
-type GetABMTokenOrgNamesForHostsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
+type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -2364,8 +2364,8 @@ type DataStore struct {
 	GetABMTokenCountFunc        GetABMTokenCountFunc
 	GetABMTokenCountFuncInvoked bool
 
-	GetABMTokenOrgNamesForHostsInTeamFunc        GetABMTokenOrgNamesForHostsInTeamFunc
-	GetABMTokenOrgNamesForHostsInTeamFuncInvoked bool
+	GetABMTokenOrgNamesAssociatedWithTeamFunc        GetABMTokenOrgNamesAssociatedWithTeamFunc
+	GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5663,11 +5663,11 @@ func (s *DataStore) GetABMTokenCount(ctx context.Context) (int, error) {
 	return s.GetABMTokenCountFunc(ctx)
 }
 
-func (s *DataStore) GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+func (s *DataStore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	s.mu.Lock()
-	s.GetABMTokenOrgNamesForHostsInTeamFuncInvoked = true
+	s.GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetABMTokenOrgNamesForHostsInTeamFunc(ctx, teamID)
+	return s.GetABMTokenOrgNamesAssociatedWithTeamFunc(ctx, teamID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
