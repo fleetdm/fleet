@@ -18,6 +18,7 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
@@ -71,7 +72,7 @@ const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
 };
 
 const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -94,6 +95,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
       select: (data) => data?.abm_tokens,
+      enabled: isPremiumTier,
     }
   );
 
@@ -161,6 +163,10 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const showDataError = errorAbmTokens && errorAbmTokens.status !== 404;
 
   const renderContent = () => {
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage />;
+    }
+
     if (!config?.mdm.enabled_and_configured) {
       return <TurnOnMdmMessage router={router} />;
     }
@@ -213,11 +219,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business Manager (ABM)</h1>
-            {abmTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
-              <Button variant="brand" onClick={onAddAbm}>
-                Add ABM
-              </Button>
-            )}
+            {isPremiumTier &&
+              abmTokens?.length !== 0 &&
+              !!config?.mdm.enabled_and_configured && (
+                <Button variant="brand" onClick={onAddAbm}>
+                  Add ABM
+                </Button>
+              )}
           </div>
           <>{renderContent()}</>
         </div>
