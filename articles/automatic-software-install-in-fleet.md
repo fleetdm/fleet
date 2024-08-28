@@ -34,12 +34,11 @@ See step by step section below.
 
 ![Add New Policy](../website/assets/images/articles/automatic-software-install-add-new-policy.png)
 
-2. Configure a software to be installed upon failure of this policy.
-   Policies Tab --> top right "Manage automations" --> "Install software".
+3. Open Manage Automations: Policies Tab --> top right "Manage automations" --> "Install software".
 
 ![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
 
-3. Select (click th echeck box of) your newly created policy. To the right of it select from the
+4. Select (click th echeck box of) your newly created policy. To the right of it select from the
    drop-down list the software you would like to be installed upon failure of this policy.
 
 ![Install Software Modal](../website/assets/images/articles/automatic-software-install-install-software.png)
