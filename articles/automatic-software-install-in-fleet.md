@@ -1,20 +1,24 @@
-# Automatic installation of software on hosts
+# Automatic conditional installation of software on hosts
 
-![Automatic installation of software on hosts](../website/assets/images/articles/automatic-software-install-in-fleet-731x738@2x.png)
+TODO: Add general image here
 
-Fleet has the ability to automatically and remotly install software on hosts based on labels applied to them. 
+Fleet has the ability to automatically and remotly install software on hosts upon a specific policy failure, programmed in advance. 
 This guide will walk you through the process of configuring fleet for automatic installation of
-software on specific hosts using pre uploded installation images and using label based install
-policy. You'll learn how to configure and use this feature, as well as understand how the underlying
+software on hosts using pre uploded installation images and based on pre programmed policies. 
+You'll learn how to configure and use this feature, as well as understand how the underlying
 mechanism works.
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts.
-When adding a new software, it is possible to configure this specific software to be automatically
-installed on:
-- All hosts
-- All hosts excluding specific label/s
-- Only on hosts with specific label/s
+This installation could be conditioned on a failure of a specific Fleet Policy.
 
+A very simple example will be this: 
+Install a patch on all MacOS hosts with version lower than 14.2.1.
+You will create a policy that assures hosts are equal or higher than 14.2.1 
+Like this: ```SELECT 1 where exists (SELECT version FROM os_version WHERE version >= "14.2.1");```
+Then all hosts failing this policy will have the patch programmed to be installed.
+
+Of course this feature holds a strong and flexible way to install software based on any chosen policy.
+See step by step section below.
 
 ## Step-by-Step Instructions
 
