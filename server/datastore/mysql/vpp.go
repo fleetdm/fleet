@@ -693,13 +693,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		vpp_token_id = ?
 `
 
-	var tokEnc struct {
-		ID        uint      `db:"id"`
-		OrgName   string    `db:"organization_name"`
-		Location  string    `db:"location"`
-		RenewDate time.Time `db:"renew_at"`
-		Token     []byte    `db:"token"`
-	}
+	var tokEnc fleet.VPPTokenDB
 
 	var tokTeams []struct {
 		TeamID   *uint              `db:"team_id"`
@@ -714,7 +708,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token from db")
 	}
 
-	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+	tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
 	}
@@ -872,13 +866,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		teams t
 	ON vt.team_id = t.id
 `
-	var tokEncs []struct {
-		ID        uint      `db:"id"`
-		OrgName   string    `db:"organization_name"`
-		Location  string    `db:"location"`
-		RenewDate time.Time `db:"renew_at"`
-		Token     []byte    `db:"token"`
-	}
+	var tokEncs []fleet.VPPTokenDB
 
 	var teams []struct {
 		ID         string             `db:"id"`
@@ -899,7 +887,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	tokens := map[uint]*fleet.VPPTokenDB{}
 
 	for _, tokEnc := range tokEncs {
-		tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+		tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
 		}
@@ -988,13 +976,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		vt.null_team_type = ?
 `
 
-	var tokEnc struct {
-		ID        uint      `db:"id"`
-		OrgName   string    `db:"organization_name"`
-		Location  string    `db:"location"`
-		RenewDate time.Time `db:"renew_at"`
-		Token     []byte    `db:"token"`
-	}
+	var tokEnc fleet.VPPTokenDB
 
 	var tokTeams []struct {
 		TeamID   *uint              `db:"team_id"`
@@ -1021,7 +1003,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		}
 	}
 
-	tokDec, err := decrypt(tokEnc.Token, ds.serverPrivateKey)
+	tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
 	}

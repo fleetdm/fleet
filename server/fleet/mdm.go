@@ -781,7 +781,7 @@ type VPPTokenDB struct {
 	RenewDate time.Time `db:"renew_at" json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token string      `json:"-"`
+	Token string      `db:"token" json:"-"`
 	Teams []TeamTuple `json:"teams"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
