@@ -482,14 +482,10 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
 	}
-
-	if p.SoftwareTitleID.Set {
-		var softwareInstallerID *uint
-		if !p.SoftwareTitleID.Null {
-			softwareInstallerID, err = svc.deduceSoftwareInstallerIDFromTitleID(ctx, teamID, &p.SoftwareTitleID.Value)
-			if err != nil {
-				return nil, err
-			}
+	if p.SoftwareTitleID != nil {
+		softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, teamID, p.SoftwareTitleID)
+		if err != nil {
+			return nil, err
 		}
 		policy.SoftwareInstallerID = softwareInstallerID
 	}
@@ -523,6 +519,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, teamID *uint, softwareTitleID *uint) (*uint, error) {
 	if softwareTitleID == nil {
+		return nil, nil
+	}
+
+	// If *p.SoftwareTitleID with value 0 is used to unset the current installer from the policy.
+	if *softwareTitleID == 0 {
 		return nil, nil
 	}
 

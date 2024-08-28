@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -151,41 +150,10 @@ type ModifyPolicyPayload struct {
 	// Only applies to team policies.
 	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
+	// Value 0 will unset the current installer from the policy.
 	//
 	// Only applies to team policies.
-	SoftwareTitleID NullUint `json:"software_title_id" premium:"true"`
-}
-
-// NullUint can be used for uint fields where an explicit "null" should unset a value.
-type NullUint struct {
-	// Value is the actual uint value.
-	Value uint
-	// Set indicates whether the field was set.
-	Set bool
-	// Null indicates whether the field was set to "null" explicitly.
-	Null bool
-}
-
-func (u *NullUint) UnmarshalJSON(data []byte) error {
-	u.Set = true
-	sdata := string(data)
-	if sdata == "null" {
-		u.Null = true
-		return nil
-	}
-	value, err := strconv.ParseUint(sdata, 10, 64)
-	if err != nil {
-		return err
-	}
-	u.Value = uint(value)
-	return nil
-}
-
-func (u NullUint) MarshalJSON() ([]byte, error) {
-	if u.Null {
-		return []byte("null"), nil
-	}
-	return []byte(strconv.FormatUint(uint64(u.Value), 10)), nil
+	SoftwareTitleID *uint `json:"software_title_id" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.

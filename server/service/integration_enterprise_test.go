@@ -12967,7 +12967,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mtplr := modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: fleet.NullUint{Value: dummyInstallerPkgTitleID, Set: true},
+			SoftwareTitleID: &dummyInstallerPkgTitleID,
 		},
 	}, http.StatusOK, &mtplr)
 	// Change name only (to test not setting a software_title_id).
@@ -12980,11 +12980,11 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, policy1Team1.SoftwareInstallerID)
 	require.Equal(t, dummyInstallerPkgInstallerID, *policy1Team1.SoftwareInstallerID)
 	require.Equal(t, "policy1Team1_Renamed", *&policy1Team1.Name)
-	// Explicit set to "null" to disable.
+	// Explicit set to 0 to disable.
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: fleet.NullUint{Null: true, Set: true},
+			SoftwareTitleID: ptr.Uint(0),
 		},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
@@ -12994,7 +12994,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: fleet.NullUint{Value: dummyInstallerPkgTitleID, Set: true},
+			SoftwareTitleID: &dummyInstallerPkgTitleID,
 		},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
@@ -13006,7 +13006,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy2Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: fleet.NullUint{Value: rubyDebTitleID, Set: true},
+			SoftwareTitleID: &rubyDebTitleID,
 		},
 	}, http.StatusOK, &mtplr)
 
@@ -13107,7 +13107,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy4Team2.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: fleet.NullUint{Value: fleetOsqueryMSITitleID, Set: true},
+			SoftwareTitleID: &fleetOsqueryMSITitleID,
 		},
 	}, http.StatusOK, &mtplr)
 
@@ -13162,7 +13162,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy4Team2.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: fleet.NullUint{Null: true, Set: true},
+			SoftwareTitleID: ptr.Uint(0),
 		},
 	}, http.StatusOK, &mtplr)
 
