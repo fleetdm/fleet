@@ -10629,6 +10629,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
 			require.Equal(t, 1, countResp.Count)
 
+			// send an idle request to grab the command uuid
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmdUUID = cmd.CommandUUID
+
 			// Get pending activity
 			var hostActivitiesResp listHostUpcomingActivitiesResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
@@ -10643,20 +10650,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
 			assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
 			assert.EqualValues(t, 1, hostActivitiesResp.Count)
+			assert.JSONEq(
+				t,
+				fmt.Sprintf(
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+					installHost.ID,
+					installHost.DisplayName(),
+					app.Name,
+					app.AdamID,
+					cmdUUID,
+					fleet.SoftwareInstallerPending,
+					install.deviceToken != "",
+				),
+				string(*hostActivitiesResp.Activities[0].Details),
+			)
 
 			// Simulate successful installation on the host
-			cmd, err = mdmClient.Idle()
+			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
-			for cmd != nil {
-				var fullCmd micromdm.CommandPayload
-				switch cmd.Command.RequestType {
-				case "InstallApplication":
-					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-					cmdUUID = cmd.CommandUUID
-					cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
-					require.NoError(t, err)
-				}
-			}
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
