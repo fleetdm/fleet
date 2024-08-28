@@ -14,7 +14,9 @@ This installation could be conditioned on a failure of a specific Fleet Policy.
 A very simple example will be this: 
 Install a patch on all MacOS hosts with version lower than 14.2.1.
 You will create a policy that assures hosts are equal or higher than 14.2.1 
-Like this: ```SELECT 1 where exists (SELECT version FROM os_version WHERE version >= "14.2.1");```
+Like this: 
+- ```SELECT 1 where exists (SELECT version FROM os_version WHERE version >= "14.2.1");```
+
 Then all hosts failing this policy will have the patch programmed to be installed.
 
 Of course this feature holds a strong and flexible way to install software based on any chosen policy.
