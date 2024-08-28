@@ -1069,11 +1069,7 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 
 	if nullTeam != fleet.NullTeamNone {
 		var id uint
-		row := tx.QueryRowxContext(ctx, nullTeamStmt, nullTeam)
-		if row.Err() != nil {
-			return ctxerr.Wrap(ctx, row.Err(), "checking for nullteam constraints")
-		}
-		if err := row.Scan(&id); err != nil {
+		if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, nullTeam); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
 			}
