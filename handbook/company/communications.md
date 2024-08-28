@@ -65,7 +65,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
 | CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ Admin | ❌ | ❌ |
 | Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
-| BizOps engineer | ✅ Super admin| ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
+| BizOps Engineer | ✅ Super admin| ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
 | Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
 | Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ Admin| ❌ | ❌ |
 | Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
