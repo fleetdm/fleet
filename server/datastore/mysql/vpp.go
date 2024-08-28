@@ -913,7 +913,6 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 			// Regular team
 			token.Teams = append(token.Teams, fleet.TeamTuple{ID: *team.TeamID, Name: team.TeamName})
 		}
-		tokens[token.ID] = token
 	}
 
 	var outTokens []*fleet.VPPTokenDB
