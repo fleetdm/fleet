@@ -106,7 +106,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.NotEmpty(t, defProf.Token)
 
 	// no profile UUID was assigned for no-team (because there are no hosts right now)
-	profUUID, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
+	profUUID, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, "", profUUID)
 

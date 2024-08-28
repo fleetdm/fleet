@@ -319,11 +319,10 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		setupAsstByTeam := make(map[uint]*fleet.MDMAppleSetupAssistant)
 		globalSetupAsst := &fleet.MDMAppleSetupAssistant{
-			ID:          15,
-			TeamID:      nil,
-			Name:        "test asst",
-			Profile:     json.RawMessage(`{"foo": "bar"}`),
-			ProfileUUID: "abc-def",
+			ID:      15,
+			TeamID:  nil,
+			Name:    "test asst",
+			Profile: json.RawMessage(`{"foo": "bar"}`),
 		}
 		setupAsstByTeam[0] = globalSetupAsst
 		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {

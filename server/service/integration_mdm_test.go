@@ -7180,10 +7180,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 		// add new setup assistant
 		_, err := s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
-			TeamID:      teamID,
-			Name:        "bar",
-			ProfileUUID: uuid.New().String(),
-			Profile:     []byte("{}"),
+			TeamID:  teamID,
+			Name:    "bar",
+			Profile: []byte("{}"),
 		})
 		require.NoError(t, err)
 	}

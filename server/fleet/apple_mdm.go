@@ -497,12 +497,11 @@ type MDMAppleCommand struct {
 // MDMAppleSetupAssistant represents the setup assistant set for a given team
 // or no team.
 type MDMAppleSetupAssistant struct {
-	ID          uint            `json:"-" db:"id"`
-	TeamID      *uint           `json:"team_id" db:"team_id"`
-	Name        string          `json:"name" db:"name"`
-	Profile     json.RawMessage `json:"enrollment_profile" db:"profile"`
-	ProfileUUID string          `json:"-" db:"profile_uuid"`
-	UploadedAt  time.Time       `json:"uploaded_at" db:"uploaded_at"`
+	ID         uint            `json:"-" db:"id"`
+	TeamID     *uint           `json:"team_id" db:"team_id"`
+	Name       string          `json:"name" db:"name"`
+	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
+	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
 
 // AuthzType implements authz.AuthzTyper.
