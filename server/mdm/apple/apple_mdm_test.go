@@ -81,7 +81,7 @@ func TestDEPService(t *testing.T) {
 		}
 
 		var defaultProfileUUID string
-		ds.GetMDMAppleDefaultSetupAssistantFunc = func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+		ds.GetMDMAppleDefaultSetupAssistantFunc = func(ctx context.Context, teamID *uint, orgName string) (profileUUID string, updatedAt time.Time, err error) {
 			if defaultProfileUUID == "" {
 				return "", time.Time{}, nil
 			}
