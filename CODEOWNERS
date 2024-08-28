@@ -39,19 +39,9 @@
 go.sum @fleetdm/go
 go.mod @fleetdm/go
 /cmd/ @fleetdm/go
-/orbit/ @lucasmrod @getvictor @roperzh @gillespi314
 /server/ @fleetdm/go
-/server/service/handler.go @lucasmrod @getvictor @roperzh @gillespi314
-/server/mdm/ @roperzh @gillespi314 @lucasmrod @georgekarrv
-/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314 @lukeheath
-/server/vulnerabilities/ @lucasmrod @mostlikelee @getvictor @lukeheath
-/server/cron/ @getvictor @lucasmrod @roperzh @mostlikelee @lukeheath
-/ee/fleetd-chrome @lucasmrod @getvictor @RachelElysia
-/ee/vulnerability-dashboard @eashaw
-/ee/cis @sharon-fdm @lucasmrod @RachelElysia @jacobshandling
-/ee/server/calendar @lucasmrod @getvictor @jacobshandling
-/ee/server/service @roperzh @gillespi314 @lucasmrod @getvictor
-/scripts/mdm @roperzh @gillespi314 @jahzielv @dantecatalfamo
+/ee/server/ @fleetdm/go
+/orbit/ @lucasmrod @roperzh @lukeheath @georgekarrv @sharon-fdm
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -76,9 +66,9 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @eashaw
-/docs/REST\ API/rest-api.md                     @georgekarrv # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @georgekarrv # « Advanced / contributors-only API reference documentation
+/docs                                           @rachaelshaw
+/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################
@@ -137,43 +127,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/README.md @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/goreleaser-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/update-certs.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/codeql-analysis.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/codeql.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/scorecards-analysis.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/integration.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleetctl-preview.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleetctl-preview-latest.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/goreleaser-orbit.yaml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/trivy-scan.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleetd-tuf.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/generate-desktop-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-yml-specs.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/build-binaries.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleet-and-orbit.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/build-orbit.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/generate-osqueryd-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-packaging.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/release-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/pr-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/tfvalidate.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/dogfood-deploy.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-db-changes.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-go.yaml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/golangci-lint.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-native-tooling-packaging.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/check-tuf-timestamps.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-puppet.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/generate-nudge-targets.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-js.yml @ghernandez345 @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/dogfood-gitops.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/release-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/release-fleetd-chrome-beta.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

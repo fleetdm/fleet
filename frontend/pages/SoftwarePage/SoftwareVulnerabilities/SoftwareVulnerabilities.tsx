@@ -203,7 +203,7 @@ const SoftwareVulnerabilities = ({
         } else if (error.status === 404) {
           if (
             error?.data?.errors &&
-            (error.data.errors[0].reason.includes("This is not known CVE.") ||
+            (error.data.errors[0].reason.includes("This is not a known CVE.") ||
               error.data.errors[0].reason.includes(
                 "was not found in the datastore"
               ))

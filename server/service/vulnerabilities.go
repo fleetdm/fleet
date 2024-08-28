@@ -24,7 +24,7 @@ type cveNotFoundError struct{}
 var _ fleet.NotFoundError = (*cveNotFoundError)(nil)
 
 func (p cveNotFoundError) Error() string {
-	return "This is not known CVE. None of Fleet’s vulnerability sources are aware of this CVE."
+	return "This is not a known CVE. None of Fleet’s vulnerability sources are aware of this CVE."
 }
 
 func (p cveNotFoundError) IsNotFound() bool {
@@ -174,7 +174,8 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 }
 
 func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *fleet.VulnerabilityWithMetadata,
-	known bool, err error) {
+	known bool, err error,
+) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, false, err
 	}
