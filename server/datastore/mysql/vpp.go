@@ -801,11 +801,14 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 	stmtInsertFull := stmtInsert + values
 
-	if err := ds.checkVPPNullTeam(ctx, &id, nullTeamCheck); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "vpp token null team check")
-	}
-
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// NOTE This is not optimal, and has the potential to
+		// introduce race conditions. Ideally we would insert and
+		// check the constraints in a single query.
+		if err := checkVPPNullTeam(ctx, tx, &id, nullTeamCheck); err != nil {
+			return ctxerr.Wrap(ctx, err, "vpp token null team check")
+		}
+
 		if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 		}
@@ -1046,19 +1049,24 @@ TEAMLOOP:
 	return tok, nil
 }
 
-func (ds *Datastore) checkVPPNullTeam(ctx context.Context, currentID *uint, nullTeam fleet.NullTeamType) error {
+func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
 	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
 
 	if nullTeam != fleet.NullTeamNone {
 		var id uint
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, nullTeamStmt, nullTeam); err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, err, "checking for nullteam constraints")
+		row := tx.QueryRowxContext(ctx, nullTeamStmt, nullTeam)
+		if row.Err() != nil {
+			return ctxerr.Wrap(ctx, row.Err(), "checking for nullteam constraints")
+		}
+		if err := row.Scan(&id); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			} else {
+				return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 			}
-		} else {
-			if currentID == nil || *currentID != id {
-				return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
-			}
+		}
+		if currentID == nil || *currentID != id {
+			return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
 		}
 	}
 
