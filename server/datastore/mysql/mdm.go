@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/go-kit/log/level"
+	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1032,37 +1033,72 @@ func batchSetProfileLabelAssociationsDB(
               exclude = VALUES(exclude)
 	`
 
+	selectStmt := `
+		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude FROM mdm_configuration_profile_labels
+		WHERE (%s_profile_uuid, label_name) IN (%s)
+	`
+
 	var (
+		selectBuilder strings.Builder
 		insertBuilder strings.Builder
 		deleteBuilder strings.Builder
+		selectParams  []any
 		insertParams  []any
 		deleteParams  []any
 
 		setProfileUUIDs = make(map[string]struct{})
 	)
+	labelsToInsert := make(map[string]*fleet.ConfigurationProfileLabel, len(profileLabels))
 	for i, pl := range profileLabels {
+		labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &profileLabels[i]
 		if i > 0 {
+			selectBuilder.WriteString(",")
 			insertBuilder.WriteString(",")
 			deleteBuilder.WriteString(",")
 		}
+		selectBuilder.WriteString("(?, ?)")
 		insertBuilder.WriteString("(?, ?, ?, ?)")
 		deleteBuilder.WriteString("(?, ?)")
+		selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
 		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
 	}
 
-	result, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, platformPrefix, insertBuilder.String()), insertParams...)
+	var existingProfileLabels []fleet.ConfigurationProfileLabel
+	err = sqlx.SelectContext(ctx, tx, &existingProfileLabels,
+		fmt.Sprintf(selectStmt, platformPrefix, platformPrefix, selectBuilder.String()), selectParams...)
 	if err != nil {
-		if isChildForeignKeyError(err) {
-			// one of the provided labels doesn't exist
-			return false, foreignKey("mdm_configuration_profile_labels", fmt.Sprintf("(profile, label)=(%v)", insertParams))
-		}
-
-		return false, ctxerr.Wrap(ctx, err, "setting label associations for profile")
+		return false, ctxerr.Wrap(ctx, err, "selecting existing profile labels")
 	}
-	updatedDB = insertOnDuplicateDidInsertOrUpdate(result)
+
+	updateNeeded := false
+	if len(existingProfileLabels) == len(labelsToInsert) {
+		for _, existing := range existingProfileLabels {
+			toInsert, ok := labelsToInsert[fmt.Sprintf("%s\n%s", existing.ProfileUUID, existing.LabelName)]
+			// The fleet.ConfigurationProfileLabel struct has no pointers, so we can use standard cmp.Equal
+			if !ok || !cmp.Equal(existing, *toInsert) {
+				updateNeeded = true
+				break
+			}
+		}
+	} else {
+		updateNeeded = true
+	}
+
+	if updateNeeded {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, platformPrefix, insertBuilder.String()), insertParams...)
+		if err != nil {
+			if isChildForeignKeyError(err) {
+				// one of the provided labels doesn't exist
+				return false, foreignKey("mdm_configuration_profile_labels", fmt.Sprintf("(profile, label)=(%v)", insertParams))
+			}
+
+			return false, ctxerr.Wrap(ctx, err, "setting label associations for profile")
+		}
+		updatedDB = true
+	}
 
 	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, deleteBuilder.String(), platformPrefix)
 
@@ -1076,6 +1112,7 @@ func batchSetProfileLabelAssociationsDB(
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for profiles")
 	}
+	var result sql.Result
 	if result, err = tx.ExecContext(ctx, deleteStmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "deleting labels for profiles")
 	}
