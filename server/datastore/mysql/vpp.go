@@ -1060,9 +1060,8 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 		if err := row.Scan(&id); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
-			} else {
-				return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 			}
+			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 		}
 		if currentID == nil || *currentID != id {
 			return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
