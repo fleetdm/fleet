@@ -15,6 +15,7 @@ import MainContent from "components/MainContent";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
@@ -71,7 +72,7 @@ interface IVppPageProps {
 }
 
 const VppPage = ({ router }: IVppPageProps) => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -93,6 +94,7 @@ const VppPage = ({ router }: IVppPageProps) => {
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
       select: (data) => data.vpp_tokens,
+      enabled: isPremiumTier,
     }
   );
 
@@ -156,6 +158,10 @@ const VppPage = ({ router }: IVppPageProps) => {
   const showDataError = errorVppTokens && errorVppTokens.status !== 404;
 
   const renderContent = () => {
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage />;
+    }
+
     if (!config?.mdm.enabled_and_configured) {
       return <TurnOnMdmMessage router={router} />;
     }
@@ -208,11 +214,13 @@ const VppPage = ({ router }: IVppPageProps) => {
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
             <h1>Volume Purchasing Program (VPP)</h1>
-            {vppTokens?.length !== 0 && !!config?.mdm.enabled_and_configured && (
-              <Button variant="brand" onClick={onAddVpp}>
-                Add VPP
-              </Button>
-            )}
+            {isPremiumTier &&
+              vppTokens?.length !== 0 &&
+              !!config?.mdm.enabled_and_configured && (
+                <Button variant="brand" onClick={onAddVpp}>
+                  Add VPP
+                </Button>
+              )}
           </div>
           <>{renderContent()}</>
         </div>
