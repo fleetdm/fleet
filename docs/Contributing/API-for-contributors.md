@@ -940,7 +940,7 @@ Content-Type: application/octet-stream
 
 #### Example
 
-`DELETE /api/v1/fleet/vpp_token/1`
+`DELETE /api/v1/fleet/vpp_tokens/1`
 
 ##### Default response
 
