@@ -84,6 +84,7 @@ const InstallSoftwareModal = ({
         orderKey: "hosts_count",
         teamId,
         availableForInstall: true,
+        packagesOnly: true,
       },
     ],
     ({ queryKey: [queryKey] }) =>

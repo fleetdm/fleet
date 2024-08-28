@@ -521,7 +521,9 @@ const ManagePolicyPage = ({
         renderFlash("success", "No changes detected.");
         return;
       }
-      const responses: Promise<any>[] = [];
+      const responses: Promise<
+        ReturnType<typeof teamPoliciesAPI.update>
+      >[] = [];
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
@@ -534,7 +536,7 @@ const ManagePolicyPage = ({
       );
       await Promise.all(responses);
       await wait(100); // prevent race
-      await refetchTeamPolicies();
+      refetchTeamPolicies();
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
