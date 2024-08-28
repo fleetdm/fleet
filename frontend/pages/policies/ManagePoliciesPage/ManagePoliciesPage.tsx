@@ -501,10 +501,21 @@ const ManagePolicyPage = ({
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
         );
-        return (
+
+        const turnedOff =
+          prevPolicyState?.install_software !== undefined &&
+          formPolicy.installSoftwareEnabled === false;
+
+        const turnedOn =
+          prevPolicyState?.install_software === undefined &&
+          formPolicy.installSoftwareEnabled === true;
+
+        const updatedSwId =
+          prevPolicyState?.install_software?.software_title_id !== undefined &&
           formPolicy.swIdToInstall !==
-          prevPolicyState?.install_software?.software_title_id
-        );
+            prevPolicyState?.install_software?.software_title_id;
+
+        return turnedOff || turnedOn || updatedSwId;
       });
       if (!changedPolicies.length) {
         renderFlash("success", "No changes detected.");
@@ -514,10 +525,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id" not set in the PATCH request, won't change the value.
-            // "software_title_id": null will unset the software title from the policy.
-            // "software_title_id": X will set the value to the given integer.
-            software_title_id: changedPolicy.swIdToInstall || null,
+            // "software_title_id:" 0 will unset software install for the policy
+            // "software_title_id": X will set the value to the given integer (except 0).
+            software_title_id: changedPolicy.swIdToInstall || 0,
             team_id: teamIdForApi,
           });
         })
