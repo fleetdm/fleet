@@ -3326,7 +3326,6 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
-	// TODO(mna): adjust this, it won't receive the profile_uuid in this call (ideally)
 	const stmt = `
 		INSERT INTO
 			mdm_apple_setup_assistants (team_id, global_or_team_id, name, profile)
@@ -3334,7 +3333,6 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 			(?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			updated_at = IF(profile = VALUES(profile) AND name = VALUES(name), updated_at, CURRENT_TIMESTAMP),
-			profile_uuid = IF(profile = VALUES(profile) AND name = VALUES(name), profile_uuid, ''),
 			name = VALUES(name),
 			profile = VALUES(profile)
 `
@@ -3342,38 +3340,76 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 	if asst.TeamID != nil {
 		globalOrTmID = *asst.TeamID
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, asst.TeamID, globalOrTmID, asst.Name, asst.Profile)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, asst.TeamID, globalOrTmID, asst.Name, asst.Profile)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upsert mdm apple setup assistant")
+	}
+
+	// TODO(mna): to improve, previously we only cleared the profile UUIDs if the
+	// profile/name did change, but from tests it seems we can't rely on
+	// insertOnDuplicateDidUpdate to handle this case properly (presumably
+	// because the updated_at update condition is too complex?), so at the moment
+	// this clears the profile uuids at all times, even if the profile did not
+	// change.
+	if insertOnDuplicateDidUpdate(res) {
+		// profile was updated, need to clear the profile uuids
+		if err := ds.SetMDMAppleSetupAssistantProfileUUID(ctx, asst.TeamID, "", ""); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear mdm apple setup assistant profiles")
+		}
 	}
 
 	// reload to return the proper timestamp and id
 	return ds.getMDMAppleSetupAssistant(ctx, ds.writer(ctx), asst.TeamID)
 }
 
-func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
-	// TODO(mna): change this to save in the multi-ABM table
-	const stmt = `
-	UPDATE
-		mdm_apple_setup_assistants
-	SET
-		profile_uuid = ?,
-		-- ensure updated_at does not change, as it is used to reflect the time
-		-- the setup assistant was uploaded, not when its profile was defined
-		-- with Apple's API.
-		updated_at = updated_at
-	WHERE global_or_team_id = ?`
+func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID, abmTokenOrgName string) error {
+	const clearStmt = `
+		DELETE FROM mdm_apple_setup_assistant_profiles
+			WHERE setup_assistant_id = (
+				SELECT
+					id
+				FROM
+					mdm_apple_setup_assistants
+				WHERE
+					global_or_team_id = ?
+			)`
+
+	const upsertStmt = `
+	INSERT INTO mdm_apple_setup_assistant_profiles (
+		setup_assistant_id, abm_token_id, profile_uuid
+	) (
+		SELECT
+			mas.id, abt.id, ?
+		FROM
+			mdm_apple_setup_assistants mas,
+			abm_tokens abt
+		WHERE
+			mas.global_or_team_id = ? AND
+			abt.organization_name = ? AND
+			mas.id IS NOT NULL AND
+			abt.id IS NOT NULL
+	)
+	ON DUPLICATE KEY UPDATE
+		profile_uuid = VALUES(profile_uuid)
+	`
 
 	var globalOrTmID uint
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, globalOrTmID)
+
+	if profileUUID == "" && abmTokenOrgName == "" {
+		// delete all profile uuids for that team, regardless of ABM token
+		_, err := ds.writer(ctx).ExecContext(ctx, clearStmt, globalOrTmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm apple setup assistant profiles")
+		}
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, profileUUID, globalOrTmID, abmTokenOrgName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set mdm apple setup assistant profile uuid")
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
 	}
 	return nil
 }
@@ -3386,14 +3422,14 @@ func (ds *Datastore) GetMDMAppleSetupAssistantProfileForABMToken(ctx context.Con
 	const stmt = `
 	SELECT
 		msap.profile_uuid,
-		mas.updated_at as uploaded_at
+		mas.updated_at
 	FROM
-		mdm_apple_setup_assistants mas 
-	INNER JOIN 
+		mdm_apple_setup_assistants mas
+	INNER JOIN
 		mdm_apple_setup_assistant_profiles msap ON mas.id = msap.setup_assistant_id
-	INNER JOIN 
+	INNER JOIN
 		abm_tokens abt ON abt.id = msap.abm_token_id
-	WHERE 
+	WHERE
 		mas.global_or_team_id = ? AND
 		abt.organization_name = ?
 `
@@ -3401,14 +3437,17 @@ func (ds *Datastore) GetMDMAppleSetupAssistantProfileForABMToken(ctx context.Con
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	var asst fleet.MDMAppleSetupAssistant
-	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asst, stmt, globalOrTmID, abmTokenOrgName); err != nil {
+	var asstProf struct {
+		ProfileUUID string    `db:"profile_uuid"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asstProf, stmt, globalOrTmID, abmTokenOrgName); err != nil {
 		if err == sql.ErrNoRows {
 			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
 		}
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple setup assistant")
 	}
-	return asst.ProfileUUID, asst.UploadedAt, nil
+	return asstProf.ProfileUUID, asstProf.UpdatedAt, nil
 }
 
 func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -3422,7 +3461,6 @@ func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.Query
 		team_id,
 		name,
 		profile,
-		profile_uuid,
 		updated_at as uploaded_at
 	FROM
 		mdm_apple_setup_assistants
@@ -3560,7 +3598,7 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	const stmt = `
 	SELECT
 		mad.profile_uuid,
-		mad.updated_at as uploaded_at
+		mad.updated_at
 	FROM
 		mdm_apple_default_setup_assistants mad
 	INNER JOIN
@@ -3574,14 +3612,17 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	var asst fleet.MDMAppleSetupAssistant
-	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asst, stmt, globalOrTmID, abmTokenOrgName); err != nil {
+	var asstProf struct {
+		ProfileUUID string    `db:"profile_uuid"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asstProf, stmt, globalOrTmID, abmTokenOrgName); err != nil {
 		if err == sql.ErrNoRows {
 			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleDefaultSetupAssistant").WithID(globalOrTmID))
 		}
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple default setup assistant")
 	}
-	return asst.ProfileUUID, asst.UploadedAt, nil
+	return asstProf.ProfileUUID, asstProf.UpdatedAt, nil
 }
 
 func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {

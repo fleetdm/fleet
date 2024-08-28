@@ -219,6 +219,14 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	if team != nil {
 		tmID = &team.ID
 	}
+
+	// TODO(mna): I don't think we can use this approach here - to only register
+	// for ABM tokens that have hosts in their default team. That's because this
+	// gets called by the Ensure... setup assistant functions, which are called
+	// BEFORE the cron job retrieves the new hosts from ABM, so even if it
+	// doesn't have hosts now, it might have later and the goal of those Ensure
+	// calls is to have those setup assistants defined in Apple and ready to use
+	// for the hosts when they come in.
 	orgNames, err := d.ds.GetABMTokenOrgNamesForHostsInTeam(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
@@ -243,8 +251,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		}
 
 		if setupAsst != nil {
-			setupAsst.ProfileUUID = res.ProfileUUID
-			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
+			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID, orgName); err != nil {
 				return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
 			}
 		} else {
