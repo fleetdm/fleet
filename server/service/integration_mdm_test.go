@@ -308,7 +308,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
 
-	s.scepChallenge = "scepchallenge"
+	// ensure all our tests support challenges with invalid XML characters
+	s.scepChallenge = "scepcha/><llenge"
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
 	})
@@ -10628,6 +10629,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
 			require.Equal(t, 1, countResp.Count)
 
+			// send an idle request to grab the command uuid
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmdUUID = cmd.CommandUUID
+
 			// Get pending activity
 			var hostActivitiesResp listHostUpcomingActivitiesResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
@@ -10642,20 +10650,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
 			assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
 			assert.EqualValues(t, 1, hostActivitiesResp.Count)
+			assert.JSONEq(
+				t,
+				fmt.Sprintf(
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+					installHost.ID,
+					installHost.DisplayName(),
+					app.Name,
+					app.AdamID,
+					cmdUUID,
+					fleet.SoftwareInstallerPending,
+					install.deviceToken != "",
+				),
+				string(*hostActivitiesResp.Activities[0].Details),
+			)
 
 			// Simulate successful installation on the host
-			cmd, err = mdmClient.Idle()
+			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
-			for cmd != nil {
-				var fullCmd micromdm.CommandPayload
-				switch cmd.Command.RequestType {
-				case "InstallApplication":
-					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-					cmdUUID = cmd.CommandUUID
-					cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
-					require.NoError(t, err)
-				}
-			}
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
@@ -10716,4 +10728,78 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
 	s.lastActivityMatches(fleet.ActivityDisabledVPP{}.ActivityName(), "", 0)
+}
+
+func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
+	t := s.T()
+	ctx := context.Background()
+
+	initialConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	initialSecrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+
+	nameWithInvalidChars := "Fleet & Device <3 Management"
+	/* #nosec G101 -- this is a made up value for tests */
+	enrollSecretWithInvalidChars := "1<2>3&4&/"
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"org_info": {
+			"org_name": %q
+		}
+	}`, nameWithInvalidChars)), http.StatusOK, &acResp)
+	enrollSecretResp := applyEnrollSecretSpecResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: enrollSecretWithInvalidChars}},
+		},
+	}, http.StatusOK, &enrollSecretResp)
+	t.Cleanup(func() {
+		acResp := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		  "org_info": {
+			  "org_name": %q
+		  }
+		}`, initialConfig.OrgInfo.OrgName)), http.StatusOK, &acResp)
+		s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+			Spec: &fleet.EnrollSecretSpec{
+				Secrets: initialSecrets,
+			},
+		}, http.StatusOK, &enrollSecretResp)
+	})
+
+	// manual enrollment from My Device
+	token := "token_test_manual_enroll"
+	createHostAndDeviceToken(t, s.ds, token)
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+
+	// automatic enrollment by token
+	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
+	_, err = s.ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       "automatic",
+		DEPProfile: &rawMsg,
+		Token:      "abcd",
+	})
+	require.NoError(t, err)
+	s.downloadAndVerifyEnrollmentProfile(apple_mdm.EnrollPath + "?token=abcd")
+
+	// unsigned manual enrollment profile for IT admins
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/enrollment_profiles/manual")
+
+	// ensure the fleetd profile sends a good enroll secret too
+	s.awaitTriggerProfileSchedule(t)
+	prof := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+	type fleetdPlist struct {
+		PayloadContent []struct {
+			EnrollSecret string `plist:"EnrollSecret"`
+		} `plist:"PayloadContent"`
+	}
+
+	// Parse the plist data
+	var parsedData fleetdPlist
+	err = plist.NewDecoder(bytes.NewReader(prof.Mobileconfig)).Decode(&parsedData)
+	require.NoError(t, err)
+	require.Equal(t, enrollSecretWithInvalidChars, parsedData.PayloadContent[0].EnrollSecret)
 }
