@@ -1,8 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
 
-import { ILabel } from "interfaces/label";
 import { getErrorReason } from "interfaces/errors";
 
 import PATHS from "router/paths";
@@ -13,8 +11,6 @@ import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 
 import AddPackageForm from "../AddPackageForm";
 import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
