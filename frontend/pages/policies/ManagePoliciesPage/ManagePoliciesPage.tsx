@@ -50,6 +50,7 @@ import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 import InstallSoftwareModal from "./components/InstallSoftwareModal";
+import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -491,39 +492,49 @@ const ManagePolicyPage = ({
     }
   };
 
-  const onUpdatePolicySoftwareInstall = async () =>
+  const onUpdatePolicySoftwareInstall = async (
+    formData: IInstallSoftwareFormData
+  ) =>
     // TODO - finalize
 
     // formData: IPolicySWInstallFormData
     // {policyIDs: swTitleIds}
     {
-      //   setIsUpdatingPolicySoftwareInstall(true);
-      //   // get policyIds: swTitleIds that have changed
-      //   const changedPolicies = []; // TODO
-      //   // if there are any:
-      //   try {
-      //     const responses: Promise<any>[] = [];
-      //     responses.concat(
-      //       changedPolicies.map((changedPolicy) => {
-      //         return teamPoliciesAPI.update(changedPolicy.id, {
-      //           software_title_id: changedPolicy.software_title_id || null, // TODO: confirm undefined/null
-      //           team_id: teamIdForApi,
-      //         });
-      //       })
-      //     );
-      //     await Promise.all(responses);
-      //     await wait(100); // Wait 100ms to avoid race conditions with refetch
-      //     await refetchTeamPolicies();
-      //     renderFlash("success", "Successfully updated policy automations.");
-      //   } catch {
-      //     renderFlash(
-      //       "error",
-      //       "Could not update policy automations. Please try again."
-      //     );
-      //   } finally {
-      //     toggleInstallSoftwareModal();
-      //     setIsUpdatingPolicySoftwareInstall(false);
-      //   }
+      setIsUpdatingPolicySoftwareInstall(true);
+      // get policyIds: swTitleIds that have changed
+      const changedPolicies = formData.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+        return (
+          formPolicy.installSoftwareEnabled !==
+          prevPolicyState?.install_software
+        );
+      });
+      // if there are any:
+      try {
+        const responses: Promise<any>[] = [];
+        responses.concat(
+          changedPolicies.map((changedPolicy) => {
+            return teamPoliciesAPI.update(changedPolicy.id, {
+              software_title_id: changedPolicy.software_title_id || null, // TODO: confirm undefined/null
+              team_id: teamIdForApi,
+            });
+          })
+        );
+        await Promise.all(responses);
+        await wait(100); // Wait 100ms to avoid race conditions with refetch
+        await refetchTeamPolicies();
+        renderFlash("success", "Successfully updated policy automations.");
+      } catch {
+        renderFlash(
+          "error",
+          "Could not update policy automations. Please try again."
+        );
+      } finally {
+        toggleInstallSoftwareModal();
+        setIsUpdatingPolicySoftwareInstall(false);
+      }
     };
 
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {

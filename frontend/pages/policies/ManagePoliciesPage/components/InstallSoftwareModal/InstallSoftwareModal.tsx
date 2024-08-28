@@ -142,14 +142,6 @@ const InstallSoftwareModal = ({
       swIdToInstall,
     } = policy;
 
-    // form state –> find sw name –> set as value
-    // on change –> set id in state
-
-    const selectedSwName = availableSoftwareOptions?.find(
-      (option) => option.value === swIdToInstall
-    )?.label;
-
-    console.log("\nSELECTED SW NAME: ", selectedSwName);
     return (
       <li
         className={`${baseClass}__policy-row policy-row`}
