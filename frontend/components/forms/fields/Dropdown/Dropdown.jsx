@@ -27,6 +27,19 @@ class Dropdown extends Component {
     onClose: PropTypes.func,
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     placeholder: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    /**
+     value must correspond to the value of a dropdown option to render
+     e.g. with options:
+
+     [
+       {
+       label: "Display name",
+       value: 1,  <– the id of the thing
+       }
+     ]
+
+     set value to 1, not "Display name"
+    */
     value: PropTypes.oneOfType([
       PropTypes.array,
       PropTypes.string,

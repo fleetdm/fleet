@@ -7,9 +7,10 @@
       }
       .Select-menu {
         max-height: 240px;
+        overflow-y: auto;
       }
       .Select-menu-outer {
-        overflow-y: auto;
+        overflow: visible;
       }
     }
     .policy-row {

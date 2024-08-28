@@ -3,7 +3,7 @@ import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
-import { IPolicySoftwareToInstall, IPolicyStats } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
@@ -20,7 +20,6 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
-import { any } from "expect";
 
 const AFI_SOFTWARE_BATCH_SIZE = 1000;
 
@@ -135,35 +134,21 @@ const InstallSoftwareModal = ({
     helpText: title.software_package?.version,
   }));
 
-  // policy name : sw name
-  const selectedSoftwareNames: Record<string, string | undefined> = {};
-  // eslint-disable-next-line array-callback-return
-  formData.map((policy) => {
-    if (policy.installSoftwareEnabled) {
-      selectedSoftwareNames[policy.name] = availableSoftwareOptions?.find(
-        (option) => option.value === policy.swIdToInstall
-      )?.label;
-    }
-  });
-  console.log("\nSELECTED SOFTWARE NAMES: ", selectedSoftwareNames);
-
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
       name: policyName,
       id: policyId,
       installSoftwareEnabled: enabled,
-      // swIdToInstall,
+      swIdToInstall,
     } = policy;
 
     // form state –> find sw name –> set as value
     // on change –> set id in state
-    // const selectedSwName = useCallback(
-    //   availableSoftwareOptions?.find((option) => option.value === swIdToInstall)
-    //     ?.label,
-    //   [swIdToInstall, availableSoftwareOptions]
-    // );
 
-    const selectedSwName = selectedSoftwareNames[policyName];
+    const selectedSwName = availableSoftwareOptions?.find(
+      (option) => option.value === swIdToInstall
+    )?.label;
+
     console.log("\nSELECTED SW NAME: ", selectedSwName);
     return (
       <li
@@ -186,7 +171,7 @@ const InstallSoftwareModal = ({
         {enabled && (
           <Dropdown
             options={availableSoftwareOptions}
-            value={selectedSwName}
+            value={swIdToInstall}
             onChange={onSelectPolicySoftware}
             placeholder="Select software"
             className={`${baseClass}__software-dropdown`}
