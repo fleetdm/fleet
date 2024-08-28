@@ -1958,6 +1958,8 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 
+		// Sleep so that the updated_at timestamp is guaranteed to be updated.
+		time.Sleep(1 * time.Second)
 		insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 			SoftwareID: host.Software[0].ID, CVE: "cve-1",
 		}, fleet.UbuntuOVALSource)
@@ -2002,6 +2004,8 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 
+		// Sleep so that the updated_at timestamp is guaranteed to be updated.
+		time.Sleep(1 * time.Second)
 		insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		// This will always return true because we always update the timestamp
