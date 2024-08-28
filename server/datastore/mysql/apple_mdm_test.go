@@ -3810,28 +3810,36 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	// create a couple ABM tokens
+	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o1", EncryptedToken: []byte(uuid.NewString())})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok1.ID)
+	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o2", EncryptedToken: []byte(uuid.NewString())})
+	require.NoError(t, err)
+	require.NotEmpty(t, tok2.ID)
+
 	// get non-existing
-	_, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "no-such-token")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.True(t, fleet.IsNotFound(err))
 
 	// set for no team
-	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "no-team", "")
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "no-team", "o1")
 	require.NoError(t, err)
 
 	// get for no team returns the same data
-	uuid, ts, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
+	uuid, ts, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "o1")
 	require.NoError(t, err)
 	require.Equal(t, "no-team", uuid)
 	require.NotZero(t, ts)
 
 	// set for non-existing team fails
-	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, ptr.Uint(123), "xyz", "")
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, ptr.Uint(123), "xyz", "o2")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "foreign key constraint fails")
 
 	// get for non-existing team fails
-	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, ptr.Uint(123), "")
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, ptr.Uint(123), "o2")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.True(t, fleet.IsNotFound(err))
 
@@ -3839,15 +3847,35 @@ func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "tm"})
 	require.NoError(t, err)
 
-	// set for existing team
-	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm", "")
+	// set a couple profiles for existing team
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm1", "o1")
+	require.NoError(t, err)
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm2", "o2")
 	require.NoError(t, err)
 
 	// get for existing team
-	uuid, ts, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "")
+	uuid, ts, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "o1")
 	require.NoError(t, err)
-	require.Equal(t, "tm", uuid)
+	require.Equal(t, "tm1", uuid)
 	require.NotZero(t, ts)
+	uuid, ts, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "o2")
+	require.NoError(t, err)
+	require.Equal(t, "tm2", uuid)
+	require.NotZero(t, ts)
+	// get for unknown abm token
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "no-such-token")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// clear all profiles for team
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "", "")
+	require.NoError(t, err)
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "o1")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "o2")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
