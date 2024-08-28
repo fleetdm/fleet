@@ -495,21 +495,21 @@ const ManagePolicyPage = ({
   const onUpdatePolicySoftwareInstall = async (
     formData: IInstallSoftwareFormData
   ) => {
-    setIsUpdatingPolicySoftwareInstall(true);
-    const changedPolicies = formData.filter((formPolicy) => {
-      const prevPolicyState = policiesAvailableToAutomate.find(
-        (policy) => policy.id === formPolicy.id
-      );
-      return (
-        formPolicy.swIdToInstall !==
-        prevPolicyState?.install_software?.software_title_id
-      );
-    });
-    if (!changedPolicies.length) {
-      renderFlash("success", "No changes detected.");
-      return;
-    }
     try {
+      setIsUpdatingPolicySoftwareInstall(true);
+      const changedPolicies = formData.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+        return (
+          formPolicy.swIdToInstall !==
+          prevPolicyState?.install_software?.software_title_id
+        );
+      });
+      if (!changedPolicies.length) {
+        renderFlash("success", "No changes detected.");
+        return;
+      }
       const responses: Promise<any>[] = [];
       responses.concat(
         changedPolicies.map((changedPolicy) => {

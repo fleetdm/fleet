@@ -104,7 +104,11 @@ const InstallSoftwareModal = ({
       setFormData(
         formData.map((policy) => {
           if (policy.name === policyName) {
-            return { ...policy, installSoftwareEnabled: value };
+            return {
+              ...policy,
+              installSoftwareEnabled: value,
+              swIdToInstall: value ? policy.swIdToInstall : undefined,
+            };
           }
           return policy;
         })

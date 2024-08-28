@@ -6,11 +6,12 @@
         color: $ui-fleet-black-50;
       }
       .Select-menu {
-        max-height: 240px;
-        overflow-y: auto;
+        max-height: none;
+        overflow: visible;
       }
       .Select-menu-outer {
-        overflow: visible;
+        max-height: 240px;
+        overflow-y: auto;
       }
     }
     .policy-row {
@@ -32,6 +33,9 @@
         color: $ui-fleet-black-75;
         font-size: $xx-small;
       }
+    }
+    .data-error {
+      padding: 78px;
     }
   }
 }
