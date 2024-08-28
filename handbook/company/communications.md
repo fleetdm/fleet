@@ -72,7 +72,6 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
 | CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Client Platform Engineer & Community Advocate | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
 | Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin  | ❌ | ✅ Admin | ❌ |
 
 ### Docs
