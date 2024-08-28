@@ -560,31 +560,6 @@ func (ds *Datastore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fl
 	return ds.GetVPPToken(ctx, tokenID)
 }
 
-func (ds *Datastore) UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
-	stmt := `
-	UPDATE
-		vpp_tokens
-	SET
-		team_id = ?,
-		null_team_type = ?
-	WHERE
-		id = ?
-`
-	if teamID != nil && nullTeam != fleet.NullTeamNone {
-		return ctxerr.Errorf(ctx, "NullTeam must be set to NullTeamNone if TeamID is present")
-	}
-
-	if err := ds.checkVPPNullTeam(ctx, &id, nullTeam); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp null team for update")
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, nullTeam, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating vpp token team")
-	}
-
-	return nil
-}
-
 func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 	insertStmt := `
 	INSERT INTO
