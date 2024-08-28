@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
-import { AxiosError, AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -62,7 +62,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      enabled: !!config?.mdm.enabled_and_configured,
+      enabled: isPremiumTier && !!config?.mdm.enabled_and_configured,
     }
   );
 
@@ -79,7 +79,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      enabled: !!config?.mdm.enabled_and_configured,
+      enabled: isPremiumTier && !!config?.mdm.enabled_and_configured,
     }
   );
 
