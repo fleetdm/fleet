@@ -3,6 +3,7 @@ package tables
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +66,7 @@ func TestUp_20240820165136(t *testing.T) {
 			TokenID:  1,
 			Org:      "org1",
 			Token:    "blob1",
-			TeamID:   intPtr(1),
+			TeamID:   ptr.Int(1),
 			NullTeam: "none",
 		},
 		{
@@ -104,8 +105,6 @@ type selresult struct {
 	TeamID   *int   `db:"team_id"`
 	NullTeam string `db:"null_team_type"`
 }
-
-func intPtr(i int) *int { return &i }
 
 func find(t *testing.T, arr []selresult, tokenID int) selresult {
 	for _, thing := range arr {
