@@ -3731,8 +3731,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}}, Name: "vpp2",
 			BundleIdentifier: "com.app.vpp2"}, nil)
 	require.NoError(t, err)
+	// create vpp3 app that allows self-service
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
-		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}}, Name: "vpp3",
+		&fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3",
 			BundleIdentifier: "com.app.vpp3"}, nil)
 	require.NoError(t, err)
 	vpp2, vpp3 := va2.AdamID, va3.AdamID
@@ -3757,13 +3758,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -3777,7 +3778,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(true)},
 	}
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
 	expectedAvailableOnly["vpp2apps"] = expected["vpp2apps"]
@@ -3808,7 +3809,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			Name:        "vpp1",
 			Source:      "apps",
 			Status:      expectStatus(fleet.SoftwareInstallerPending),
-			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
+			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
 		},
 	}, sw, true)
 
@@ -3882,14 +3883,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 11},
 		},
 		{
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
-			wantNames: []string{byNSV[b].Name, i0.Name},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{byNSV[b].Name, i0.Name, "vpp3"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 3},
 		},
 		{
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
 			wantNames: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 2},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 3},
 		},
 		{
 			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 4}, OnlyAvailableForInstall: true},
@@ -4161,13 +4162,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -4181,13 +4182,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(false)},
 	}
 	expected["vpp4ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp4",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, SelfService: ptr.Bool(false)},
 	}
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly["vpp1ios_apps"] = expected["vpp1ios_apps"]
@@ -4990,6 +4991,9 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				require.Equal(t, tt.expected[i].Name, s.Name)
 				require.Equal(t, tt.expected[i].Version, s.Version)
 			}
+			count, err := ds.CountSoftware(ctx, tt.opts)
+			require.NoError(t, err)
+			require.Equal(t, len(tt.expected), count)
 		})
 	}
 }

@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"net/http/httptrace"
@@ -408,6 +410,31 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 		return "", err
 	}
 	return resp.GetFilePath(), nil
+}
+
+type NullFileResponse struct {
+}
+
+func (f *NullFileResponse) Handle(resp *http.Response) error {
+	_, _, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+	if err != nil {
+		return fmt.Errorf("parsing media type from response header: %w", err)
+	}
+	_, err = io.Copy(io.Discard, resp.Body)
+	if err != nil {
+		return fmt.Errorf("copying from http stream to io.Discard: %w", err)
+	}
+	return nil
+}
+
+// DownloadAndDiscardSoftwareInstaller downloads the software installer and discards it.
+// This method is used during load testing by osquery-perf.
+func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) error {
+	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
+	resp := NullFileResponse{}
+	return oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+		InstallerID: installerID,
+	}, &resp)
 }
 
 // Ping sends a ping request to the orbit/ping endpoint.
