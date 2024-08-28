@@ -306,6 +306,8 @@ software:
         path: /lib/check-crowdstrike-configuration-profile.queries.yml
       post_install_script:
         path: /lib/crowdstrike-post-install.sh 
+      uninstall_script:
+        path: /lib/crowdstrike-uninstall.sh 
       self_service: true
     - url: https://github.com/organinzation/repository/package-2.msi
   app_store_apps:
@@ -317,7 +319,8 @@ software:
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables/account_policy_data) (default: `""`).
-- `post_install_script.path` is the script Fleet will run on hosts after intalling software (default: `""`).
+- `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
 #### app_store_apps
