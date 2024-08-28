@@ -94,9 +94,9 @@ const InstallSoftwareModal = ({
     }
   );
 
-  const onUpdateInstallSoftware = () => {
+  const onUpdateInstallSoftware = useCallback(() => {
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   const onChangeEnableInstallSoftware = useCallback(
     (newVal: { policyName: string; value: boolean }) => {
@@ -219,7 +219,6 @@ const InstallSoftwareModal = ({
             onClick={onUpdateInstallSoftware}
             className="save-loading"
             isLoading={isUpdating}
-            // TODO
             disabled={anyPolicyEnabledWithoutSelectedSoftware}
           >
             Save
