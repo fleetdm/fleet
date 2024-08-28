@@ -921,7 +921,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	}
 
 	slices.SortFunc(outTokens, func(a, b *fleet.VPPTokenDB) int {
-		return cmp.Compare(int(a.ID), int(b.ID))
+		return cmp.Compare(a.OrgName, b.OrgName)
 	})
 
 	return outTokens, nil
