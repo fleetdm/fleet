@@ -7006,7 +7006,7 @@ Either `query` or `query_id` must be provided.
     "host_count_updated_at": null,
     "calendar_events_enabled": false,
     "install_software": {
-     "name": "Adobe Acrobat.app",
+      "name": "Adobe Acrobat.app",
       "software_title_id": 1234
     }
   }
