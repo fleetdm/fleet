@@ -356,6 +356,7 @@ SELECT
 		'software_title', st.name,
 		'app_store_id', hvsi.adam_id,
 		'command_uuid', hvsi.command_uuid,
+		'self_service', hvsi.self_service IS TRUE,
 		-- status is always pending because only pending MDM commands are upcoming.
 		'status', :software_status_pending
 	) AS details

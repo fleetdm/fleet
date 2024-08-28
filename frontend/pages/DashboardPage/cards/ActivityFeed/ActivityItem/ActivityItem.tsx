@@ -1177,6 +1177,7 @@ const ActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.InstalledSoftware:
+      case ActivityType.InstalledAppStoreApp:
         return activity.details?.self_service ? (
           <span>An end user</span>
         ) : (
