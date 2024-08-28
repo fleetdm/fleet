@@ -5141,14 +5141,14 @@ FROM
 	JOIN hosts h ON hda.host_id = h.id
 WHERE
 	%s
-UNION 
-SELECT DISTINCT 
+UNION
+SELECT DISTINCT
 	abmt.organization_name
-FROM 
-	abm_tokens abmt 
+FROM
+	abm_tokens abmt
 WHERE
 	%s
-	`
+`
 	var args []any
 	teamFilter := `h.team_id IS NULL`
 	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL`
