@@ -17,7 +17,6 @@ interface IValidation {
   name: string;
   isValid: (
     formData: IAddPackageFormData,
-    enabledPreInstallCondition?: boolean,
     enabledPostInstallScript?: boolean
   ) => boolean;
   message?: IValidationMessage;
@@ -38,26 +37,20 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
-  preInstallCondition: {
+  preInstallQuery: {
     validations: [
       {
         name: "required",
-        isValid: (
-          formData: IAddPackageFormData,
-          enabledPreInstallCondition
-        ) => {
-          if (!enabledPreInstallCondition) {
-            return true;
-          }
+        isValid: (formData: IAddPackageFormData) => {
           return (
-            formData.preInstallCondition !== undefined &&
-            !validator.isEmpty(formData.preInstallCondition)
+            formData.preInstallQuery !== undefined &&
+            !validator.isEmpty(formData.preInstallQuery)
           );
         },
         message: (formData) => {
           // we dont want an error message until the user has interacted with
           // the field. This is why we check for undefined here.
-          if (formData.preInstallCondition === undefined) {
+          if (formData.preInstallQuery === undefined) {
             return "";
           }
           return "Pre-install condition is required when enabled.";
@@ -65,17 +58,13 @@ const FORM_VALIDATION_CONFIG: Record<
       },
       {
         name: "invalidQuery",
-        isValid: (formData, enabledPreInstallCondition) => {
-          if (!enabledPreInstallCondition) {
-            return true;
-          }
+        isValid: (formData) => {
           return (
-            formData.preInstallCondition !== undefined &&
-            validateQuery(formData.preInstallCondition).valid
+            formData.preInstallQuery !== undefined &&
+            validateQuery(formData.preInstallQuery).valid
           );
         },
-        message: (formData) =>
-          validateQuery(formData.preInstallCondition).error,
+        message: (formData) => validateQuery(formData.preInstallQuery).error,
       },
     ],
   },
@@ -91,7 +80,7 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return "Post-install script is required when enabled.";
         },
-        isValid: (formData, _, enabledPostInstallScript) => {
+        isValid: (formData, enabledPostInstallScript) => {
           if (!enabledPostInstallScript) {
             return true;
           }
@@ -121,7 +110,6 @@ const getErrorMessage = (
 
 export const generateFormValidation = (
   formData: IAddPackageFormData,
-  showingPreInstallCondition: boolean,
   showingPostInstallScript: boolean
 ) => {
   const formValidation: IFormValidation = {
@@ -134,12 +122,7 @@ export const generateFormValidation = (
   Object.keys(FORM_VALIDATION_CONFIG).forEach((key) => {
     const objKey = key as keyof typeof FORM_VALIDATION_CONFIG;
     const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
-      (validation) =>
-        !validation.isValid(
-          formData,
-          showingPreInstallCondition,
-          showingPostInstallScript
-        )
+      (validation) => !validation.isValid(formData, showingPostInstallScript)
     );
 
     if (!failedValidation) {

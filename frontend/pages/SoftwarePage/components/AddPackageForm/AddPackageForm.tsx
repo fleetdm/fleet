@@ -31,7 +31,7 @@ const UploadingSoftware = () => {
 export interface IAddPackageFormData {
   software: File | null;
   installScript: string;
-  preInstallCondition?: string;
+  preInstallQuery?: string;
   postInstallScript?: string;
   selfService: boolean;
 }
@@ -39,7 +39,7 @@ export interface IAddPackageFormData {
 export interface IFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
-  preInstallCondition?: { isValid: boolean; message?: string };
+  preInstallQuery?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
 }
@@ -57,12 +57,11 @@ const AddPackageForm = ({
 }: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
-    preInstallCondition: undefined,
+    preInstallQuery: undefined,
     postInstallScript: undefined,
     selfService: false,
   });
@@ -89,13 +88,7 @@ const AddPackageForm = ({
         installScript,
       };
       setFormData(newData);
-      setFormValidation(
-        generateFormValidation(
-          newData,
-          showPreInstallCondition,
-          showPostInstallScript
-        )
-      );
+      setFormValidation(generateFormValidation(newData, showPostInstallScript));
     }
   };
 
@@ -104,62 +97,33 @@ const AddPackageForm = ({
     onSubmit(formData);
   };
 
-  const onTogglePreInstallConditionCheckbox = (value: boolean) => {
-    const newData = { ...formData, preInstallCondition: undefined };
-    setShowPreInstallCondition(value);
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(newData, value, showPostInstallScript)
-    );
-  };
-
   const onTogglePostInstallScriptCheckbox = (value: boolean) => {
     const newData = { ...formData, postInstallScript: undefined };
     setShowPostInstallScript(value);
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(newData, showPreInstallCondition, value)
-    );
+    setFormValidation(generateFormValidation(newData, value));
   };
 
   const onChangeInstallScript = (value: string) => {
     setFormData({ ...formData, installScript: value });
   };
 
-  const onChangePreInstallCondition = (value?: string) => {
+  const onChangePreInstallQuery = (value?: string) => {
     const newData = { ...formData, preInstallCondition: value };
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
+    setFormValidation(generateFormValidation(newData, showPostInstallScript));
   };
 
   const onChangePostInstallScript = (value?: string) => {
     const newData = { ...formData, postInstallScript: value };
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
+    setFormValidation(generateFormValidation(newData, showPostInstallScript));
   };
 
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
+    setFormValidation(generateFormValidation(newData, showPostInstallScript));
   };
 
   const isSubmitDisabled = !formValidation.isValid;
@@ -201,17 +165,15 @@ const AddPackageForm = ({
           </Checkbox>
           <AddPackageAdvancedOptions
             errors={{
-              preInstallCondition: formValidation.preInstallCondition?.message,
+              preInstallQuery: formValidation.preInstallQuery?.message,
               postInstallScript: formValidation.postInstallScript?.message,
             }}
-            showPreInstallCondition={showPreInstallCondition}
             showInstallScript={!!formData.software}
             showPostInstallScript={showPostInstallScript}
-            preInstallCondition={formData.preInstallCondition}
+            preInstallQuery={formData.preInstallQuery}
             postInstallScript={formData.postInstallScript}
-            onTogglePreInstallCondition={onTogglePreInstallConditionCheckbox}
             onTogglePostInstallScript={onTogglePostInstallScriptCheckbox}
-            onChangePreInstallCondition={onChangePreInstallCondition}
+            onChangePreInstallQuery={onChangePreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             installScript={formData.installScript}

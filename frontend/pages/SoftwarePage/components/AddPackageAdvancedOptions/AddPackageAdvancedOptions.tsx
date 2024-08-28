@@ -9,15 +9,13 @@ import Checkbox from "components/forms/fields/Checkbox";
 const baseClass = "add-package-advanced-options";
 
 interface IAddPackageAdvancedOptionsProps {
-  errors: { preInstallCondition?: string; postInstallScript?: string };
-  showPreInstallCondition: boolean;
+  errors: { preInstallQuery?: string; postInstallScript?: string };
   showInstallScript: boolean;
   showPostInstallScript: boolean;
-  preInstallCondition?: string;
+  preInstallQuery?: string;
   postInstallScript?: string;
-  onTogglePreInstallCondition: (value: boolean) => void;
   onTogglePostInstallScript: (value: boolean) => void;
-  onChangePreInstallCondition: (value?: string) => void;
+  onChangePreInstallQuery: (value?: string) => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
   installScript: string;
@@ -25,23 +23,17 @@ interface IAddPackageAdvancedOptionsProps {
 
 const AddPackageAdvancedOptions = ({
   errors,
-  showPreInstallCondition,
   showInstallScript,
   showPostInstallScript,
-  preInstallCondition,
+  preInstallQuery,
   postInstallScript,
-  onTogglePreInstallCondition,
   onTogglePostInstallScript,
-  onChangePreInstallCondition,
+  onChangePreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
   installScript,
 }: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-
-  const onChangePreInstallCheckbox = () => {
-    onTogglePreInstallCondition(!showPreInstallCondition);
-  };
 
   const onChangePostInstallCheckbox = () => {
     onTogglePostInstallScript(!showPostInstallScript);
@@ -59,35 +51,28 @@ const AddPackageAdvancedOptions = ({
       />
       {showAdvancedOptions && (
         <div className={`${baseClass}__input-fields`}>
-          <Checkbox
-            value={showPreInstallCondition}
-            onChange={onChangePreInstallCheckbox}
-          >
-            Pre-install condition
-          </Checkbox>
-          {showPreInstallCondition && (
-            <FleetAce
-              className="form-field"
-              focus
-              error={errors.preInstallCondition}
-              value={preInstallCondition}
-              label="Query"
-              name="preInstallQuery"
-              maxLines={10}
-              onChange={onChangePreInstallCondition}
-              helpText={
-                <>
-                  Software will be installed only if the{" "}
-                  <CustomLink
-                    className={`${baseClass}__table-link`}
-                    text="query returns results"
-                    url="https://fleetdm.com/tables"
-                    newTab
-                  />
-                </>
-              }
-            />
-          )}
+          <FleetAce
+            className="form-field"
+            focus
+            error={errors.preInstallQuery}
+            value={preInstallQuery}
+            placeholder="SELECT * FROM osquery_info WHERE start_time > 1"
+            label="Pre-install query"
+            name="preInstallQuery"
+            maxLines={10}
+            onChange={onChangePreInstallQuery}
+            helpText={
+              <>
+                Software will be installed only if the{" "}
+                <CustomLink
+                  className={`${baseClass}__table-link`}
+                  text="query returns results"
+                  url="https://fleetdm.com/tables"
+                  newTab
+                />
+              </>
+            }
+          />
           {showInstallScript && (
             <Editor
               wrapEnabled
