@@ -289,6 +289,8 @@ Can only be configure for all teams (`default.yml`).
 
 ### software
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
 
 - `packages` is a list of software packages (.pkg, .msi, .exe, or .deb) and software specific options.
