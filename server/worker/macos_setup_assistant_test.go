@@ -186,10 +186,25 @@ func TestMacosSetupAssistant(t *testing.T) {
 
 	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID)}
 	for _, tmID := range tmIDs {
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, "")
-		require.NoError(t, err)
-		require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
-		require.False(t, modTime.Before(start))
+		for _, org := range []string{org1Name, org2Name} {
+			profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, org)
+			require.NoError(t, err)
+			require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
+			require.False(t, modTime.Before(start))
+		}
+	}
+	// the default token is not used by any team, only defined for no team (due
+	// to it defaulting to no team)
+	for _, tmID := range tmIDs {
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, apple_mdm.DEPName)
+		if tmID == nil {
+			require.NoError(t, err)
+			require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
+			require.False(t, modTime.Before(start))
+		} else {
+			require.Error(t, err)
+			require.ErrorIs(t, err, sql.ErrNoRows)
+		}
 	}
 	require.Equal(t, map[string]string{
 		"serial-0": defaultProfileName,
@@ -214,16 +229,24 @@ func TestMacosSetupAssistant(t *testing.T) {
 
 	// default profile is unchanged
 	for _, tmID := range tmIDs {
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, "")
-		require.NoError(t, err)
-		require.Equal(t, defaultProfileName, profUUID)
-		require.False(t, modTime.Before(start))
+		for _, org := range []string{org1Name, org2Name} {
+			profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, org)
+			require.NoError(t, err)
+			require.Equal(t, defaultProfileName, profUUID)
+			require.False(t, modTime.Before(start))
+		}
 	}
 
-	// team 1 setup assistant is registered
+	// team 1 setup assistant is registered for both tokens
 	tm1Asst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
 	require.NoError(t, err)
-	//require.Equal(t, "team1", tm1Asst.ProfileUUID)
+	require.NotNil(t, tm1Asst)
+	for _, org := range []string{org1Name, org2Name} {
+		profUUID, modTime, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, &tm1.ID, org)
+		require.NoError(t, err)
+		require.Equal(t, "team1", profUUID)
+		require.False(t, modTime.Before(start))
+	}
 
 	require.Equal(t, map[string]string{
 		"serial-0": defaultProfileName,
@@ -347,10 +370,8 @@ func TestMacosSetupAssistant(t *testing.T) {
 		"serial-5": "no-team", // became a no-team host when team2 got deleted
 	}, serialsToProfile)
 
-	// check that profiles get re-generated
-	reset := time.Now().Truncate(1 * time.Second)
-	time.Sleep(time.Second)
-
+	// check that profiles get re-generated (note that timestamps are not
+	// impacted as the content of the profiles did not change)
 	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
 	require.NoError(t, err)
 	runCheckDone()
@@ -358,13 +379,30 @@ func TestMacosSetupAssistant(t *testing.T) {
 	// team 2 got deleted, update the list of team IDs
 	tmIDs = []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm3.ID)}
 	for i, tmID := range tmIDs {
-		_, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, "")
-		require.NoError(t, err)
-		// Since team 3 didn't have a default profile set originally (because it didn't have any
-		// hosts originally), the updated_at timestamp for its default setup assistant is still in
-		// the past (the timestamp doesn't update if the UUID and team ID are the same).
-		if i != 2 {
-			require.True(t, modTime.After(reset), "tmID", getTeamID(tmID))
+		for _, org := range []string{org1Name, org2Name} {
+			// no team and team 3 have a custom setup assistant
+			switch i {
+			case 0: // no team
+				// custom profile defined for both orgs
+				_, _, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, tmID, org)
+				require.NoError(t, err, "%v - %v", i, org)
+			case 1: // tm1
+				// team 1 uses the default setup assistant, and it is only defined for org1
+				_, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, org)
+				if org == org1Name {
+					require.NoError(t, err, "%v - %v", i, org)
+				} else {
+					require.ErrorIs(t, err, sql.ErrNoRows, "%v - %v", i, org)
+				}
+			case 2: // tm3
+				_, _, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, tmID, org)
+				// custom setup assistant only defined for org2
+				if org == org2Name {
+					require.NoError(t, err, "%v - %v", i, org)
+				} else {
+					require.ErrorIs(t, err, sql.ErrNoRows, "%v - %v", i, org)
+				}
+			}
 		}
 	}
 

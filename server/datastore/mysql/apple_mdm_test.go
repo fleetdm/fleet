@@ -86,7 +86,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
-		{"TestMDMGetABMTokenOrgNamesForHostsInTeam", testMDMGetABMTokenOrgNamesForHostsInTeam},
+		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 	}
 
 	for _, c := range cases {
@@ -6668,7 +6668,7 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, count)
 }
 
-func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
+func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Create some teams
@@ -6688,7 +6688,7 @@ func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, tok1.ID)
 
-	tok3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org3", EncryptedToken: []byte(encTok)})
+	tok3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org3", EncryptedToken: []byte(encTok), MacOSDefaultTeamID: &tm2.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, tok1.ID)
 
@@ -6739,19 +6739,26 @@ func testMDMGetABMTokenOrgNamesForHostsInTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h3}, tok2.ID))
 
 	// Should return the 2 unique org names [org1, org3]
-	orgNames, err := ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm1.ID)
+	orgNames, err := ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, &tm1.ID)
 	require.NoError(t, err)
+	sort.Strings(orgNames)
 	require.Len(t, orgNames, 2)
 	require.Equal(t, orgNames[0], "org1")
 	require.Equal(t, orgNames[1], "org3")
 
-	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, nil)
+	// all tokens default to no team in one way or another
+	orgNames, err = ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, nil)
 	require.NoError(t, err)
-	require.Len(t, orgNames, 1)
-	require.Equal(t, orgNames[0], "org2")
+	sort.Strings(orgNames)
+	require.Len(t, orgNames, 3)
+	require.Equal(t, orgNames[0], "org1")
+	require.Equal(t, orgNames[1], "org2")
+	require.Equal(t, orgNames[2], "org3")
 
-	// No orgs for this team
-	orgNames, err = ds.GetABMTokenOrgNamesForHostsInTeam(ctx, &tm2.ID)
+	// No orgs for this team except org3 which uses it as a default team
+	orgNames, err = ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, &tm2.ID)
 	require.NoError(t, err)
-	require.Len(t, orgNames, 0)
+	sort.Strings(orgNames)
+	require.Len(t, orgNames, 1)
+	require.Equal(t, orgNames[0], "org3")
 }
