@@ -811,31 +811,23 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		return nil, ctxerr.Wrap(ctx, err, "vpp token null team check")
 	}
 
-	///////////////////////
-	// BEGIN TRANSACTION //
-	///////////////////////
-	tx, err := ds.writer(ctx).BeginTx(ctx, nil)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "could not begin transaction to update vpp token teams")
-	}
-	defer tx.Rollback() //nolint:errcheck
-
-	if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "removing old vpp team associations")
-	}
-
-	if len(args) > 0 {
-		if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "comitting update vpp token data")
+		if len(args) > 0 {
+			if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating vpp token team")
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modifying vpp token team associations")
 	}
-	////////////////////////
-	// COMMIT TRANSACTION //
-	////////////////////////
 
 	return ds.GetVPPToken(ctx, id)
 }
