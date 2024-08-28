@@ -40,7 +40,7 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
-/orbit/ @lucasmrod @roperzh @lukeheath @georgekarrv @sharon-fdm
+/orbit/ @lucasmrod @roperzh @getvictor @gillespi314 @lukeheath @georgekarrv @sharon-fdm
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
