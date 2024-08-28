@@ -470,7 +470,7 @@ SELECT
 	st.name AS software_title,
 	hvsi.adam_id AS app_store_id,
 	hvsi.command_uuid AS command_uuid,
-    hvsi.self_service AS self_service
+	hvsi.self_service AS self_service
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
@@ -482,15 +482,15 @@ WHERE
 	`
 
 	type result struct {
-		HostID          uint   `db:"host_id"`
-		HostDisplayName string `db:"host_display_name"`
-		SoftwareTitle   string `db:"software_title"`
-		AppStoreID      string `db:"app_store_id"`
-		CommandUUID     string `db:"command_uuid"`
-		UserName        string `db:"user_name"`
-		UserID          uint   `db:"user_id"`
-		UserEmail       string `db:"user_email"`
-		SelfService     bool   `db:"self_service"`
+		HostID          uint    `db:"host_id"`
+		HostDisplayName string  `db:"host_display_name"`
+		SoftwareTitle   string  `db:"software_title"`
+		AppStoreID      string  `db:"app_store_id"`
+		CommandUUID     string  `db:"command_uuid"`
+		UserName        *string `db:"user_name"`
+		UserID          *uint   `db:"user_id"`
+		UserEmail       *string `db:"user_email"`
+		SelfService     bool    `db:"self_service"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -511,10 +511,13 @@ WHERE
 		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for VPP app install")
 	}
 
-	user := &fleet.User{
-		ID:    res.UserID,
-		Name:  res.UserName,
-		Email: res.UserEmail,
+	var user *fleet.User
+	if res.UserID != nil {
+		user = &fleet.User{
+			ID:    *res.UserID,
+			Name:  *res.UserName,
+			Email: *res.UserEmail,
+		}
 	}
 
 	var status string
