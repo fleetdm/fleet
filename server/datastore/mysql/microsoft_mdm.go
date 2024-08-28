@@ -1252,10 +1252,9 @@ func listMDMWindowsProfilesToInstallDB(
 
 	query := fmt.Sprintf(`
 	SELECT
-		COALESCE(hmwp.profile_uuid, ds.profile_uuid) as profile_uuid,
-		COALESCE(hmwp.host_uuid, ds.host_uuid) as host_uuid,
-		COALESCE(hmwp.profile_name, ds.name) as profile_name,
-		COALESCE(hmwp.operation_type, '') as operation_type
+		ds.profile_uuid,
+		ds.host_uuid,
+		ds.name as profile_name
 	FROM ( %s ) as ds
 		LEFT JOIN host_mdm_windows_profiles hmwp
 			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid

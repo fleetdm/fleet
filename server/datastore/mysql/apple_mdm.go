@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -4039,10 +4040,7 @@ WHERE
 		return nil, false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 	if result != nil {
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "count rows affected by delete")
-		}
+		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
 	}
 
@@ -4245,45 +4243,72 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
               exclude = VALUES(exclude)
 	`
 
+	selectStmt := `
+		SELECT apple_declaration_uuid as profile_uuid, label_name, label_id, exclude FROM mdm_declaration_labels
+		WHERE (apple_declaration_uuid, label_name) IN (%s)
+	`
+
 	var (
-		insertBuilder strings.Builder
-		deleteBuilder strings.Builder
-		insertParams  []any
-		deleteParams  []any
+		insertBuilder         strings.Builder
+		selectOrDeleteBuilder strings.Builder
+		selectParams          []any
+		insertParams          []any
+		deleteParams          []any
 
 		setProfileUUIDs = make(map[string]struct{})
+		labelsToInsert  = make(map[string]*fleet.ConfigurationProfileLabel, len(declarationLabels))
 	)
 	for i, pl := range declarationLabels {
+		labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &declarationLabels[i]
 		if i > 0 {
 			insertBuilder.WriteString(",")
-			deleteBuilder.WriteString(",")
+			selectOrDeleteBuilder.WriteString(",")
 		}
 		insertBuilder.WriteString("(?, ?, ?, ?)")
-		deleteBuilder.WriteString("(?, ?)")
+		selectOrDeleteBuilder.WriteString("(?, ?)")
+		selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
 		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
 	}
 
-	result, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, insertBuilder.String()), insertParams...)
+	// Determine if we need to update the database
+	var existingProfileLabels []fleet.ConfigurationProfileLabel
+	err = sqlx.SelectContext(ctx, tx, &existingProfileLabels,
+		fmt.Sprintf(selectStmt, selectOrDeleteBuilder.String()), selectParams...)
 	if err != nil {
-		if isChildForeignKeyError(err) {
-			// one of the provided labels doesn't exist
-			return false, foreignKey("mdm_declaration_labels", fmt.Sprintf("(declaration, label)=(%v)", insertParams))
-		}
-
-		return false, ctxerr.Wrap(ctx, err, "setting label associations for declarations")
+		return false, ctxerr.Wrap(ctx, err, "selecting existing profile labels")
 	}
-	if result != nil {
-		rows, err := result.RowsAffected()
+
+	updateNeeded := false
+	if len(existingProfileLabels) == len(labelsToInsert) {
+		for _, existing := range existingProfileLabels {
+			toInsert, ok := labelsToInsert[fmt.Sprintf("%s\n%s", existing.ProfileUUID, existing.LabelName)]
+			// The fleet.ConfigurationProfileLabel struct has no pointers, so we can use standard cmp.Equal
+			if !ok || !cmp.Equal(existing, *toInsert) {
+				updateNeeded = true
+				break
+			}
+		}
+	} else {
+		updateNeeded = true
+	}
+
+	if updateNeeded {
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, insertBuilder.String()), insertParams...)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "count rows affected by insert")
+			if isChildForeignKeyError(err) {
+				// one of the provided labels doesn't exist
+				return false, foreignKey("mdm_declaration_labels", fmt.Sprintf("(declaration, label)=(%v)", insertParams))
+			}
+
+			return false, ctxerr.Wrap(ctx, err, "setting label associations for declarations")
 		}
-		updatedDB = rows > 0
+		updatedDB = true
 	}
 
-	deleteStmt = fmt.Sprintf(deleteStmt, deleteBuilder.String())
+	deleteStmt = fmt.Sprintf(deleteStmt, selectOrDeleteBuilder.String())
 
 	profUUIDs := make([]string, 0, len(setProfileUUIDs))
 	for k := range setProfileUUIDs {
@@ -4295,6 +4320,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for declarations")
 	}
+	var result sql.Result
 	if result, err = tx.ExecContext(ctx, deleteStmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "deleting labels for declarations")
 	}

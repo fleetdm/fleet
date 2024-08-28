@@ -1039,12 +1039,11 @@ func batchSetProfileLabelAssociationsDB(
 	`
 
 	var (
-		selectBuilder strings.Builder
-		insertBuilder strings.Builder
-		deleteBuilder strings.Builder
-		selectParams  []any
-		insertParams  []any
-		deleteParams  []any
+		insertBuilder         strings.Builder
+		selectOrDeleteBuilder strings.Builder
+		selectParams          []any
+		insertParams          []any
+		deleteParams          []any
 
 		setProfileUUIDs = make(map[string]struct{})
 	)
@@ -1052,13 +1051,11 @@ func batchSetProfileLabelAssociationsDB(
 	for i, pl := range profileLabels {
 		labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &profileLabels[i]
 		if i > 0 {
-			selectBuilder.WriteString(",")
 			insertBuilder.WriteString(",")
-			deleteBuilder.WriteString(",")
+			selectOrDeleteBuilder.WriteString(",")
 		}
-		selectBuilder.WriteString("(?, ?)")
 		insertBuilder.WriteString("(?, ?, ?, ?)")
-		deleteBuilder.WriteString("(?, ?)")
+		selectOrDeleteBuilder.WriteString("(?, ?)")
 		selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
 		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
@@ -1066,9 +1063,10 @@ func batchSetProfileLabelAssociationsDB(
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
 	}
 
+	// Determine if we need to update the database
 	var existingProfileLabels []fleet.ConfigurationProfileLabel
 	err = sqlx.SelectContext(ctx, tx, &existingProfileLabels,
-		fmt.Sprintf(selectStmt, platformPrefix, platformPrefix, selectBuilder.String()), selectParams...)
+		fmt.Sprintf(selectStmt, platformPrefix, platformPrefix, selectOrDeleteBuilder.String()), selectParams...)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "selecting existing profile labels")
 	}
@@ -1100,7 +1098,7 @@ func batchSetProfileLabelAssociationsDB(
 		updatedDB = true
 	}
 
-	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, deleteBuilder.String(), platformPrefix)
+	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, selectOrDeleteBuilder.String(), platformPrefix)
 
 	profUUIDs := make([]string, 0, len(setProfileUUIDs))
 	for k := range setProfileUUIDs {
