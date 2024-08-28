@@ -59,7 +59,7 @@ TODO - link to relevant GitOps
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * TODO Sharon: Describe the workflow 
 
-![Flowchart](../website/assets/images/articles/automatic-software-install-in-fleet-13762x2946@2x.png)
+![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
 
 ## Prerequisites
