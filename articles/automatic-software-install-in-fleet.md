@@ -24,36 +24,27 @@ See step by step section below.
 
 ## Step-by-Step Instructions
 
-- In Fleet, add a policy that failure to pass it will trigger the required installation.
+1. Add any software to be available for installation. Follow this document with instruction how to
+   do it.
+   TODO: Sharon - add link to SW install doc.
+
+2. In Fleet, add a policy that failure to pass it will trigger the required installation.
   Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy"
   --> Save --> Fill details in the Save modal and Save.
 
 ![Add New Policy](../website/assets/images/articles/automatic-software-install-add-new-policy.png)
 
-  
-
-
-- On top left corner drop down menu, select a team (or `No team`)
-- On top right corner click `Add software`.
-- In the newly openned modal add a new trusted binary.
-- In the `Install` dropdown menu select "Automatic".
-- Under the `Target` section select `All hosts` or `Custom`.
-- If `Custom` was selected, right below it will appear a dropdown that will allow `Include` or `Exclude` of specific label/s. A list of labels will be shown to configure the proper operation
+2. Configure a software to be installed upon failure of this policy.
+   Policies Tab --> top right "Manage automations" --> "Install software".
 
 ![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
+
+3. Select (click th echeck box of) your newly created policy. To the right of it select from the
+   drop-down list the software you would like to be installed upon failure of this policy.
 
 ![Install Software Modal](../website/assets/images/articles/automatic-software-install-install-software.png)
 
-![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
 
-![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
-
-
-
-In the example below Install on all hosts EXCEPT those with 'Okta - Engineering' label
-
-![Install on all hosts EXCEPT those with 'Okta - Engineering' label](../website/assets/images/articles/automatic-software-install-in-fleet-729x924@2x.png)
-*Install on all hosts EXCEPT those with 'Okta - Engineering' label*
 
 
 ```
