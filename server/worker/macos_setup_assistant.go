@@ -337,7 +337,9 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 	}
 
 	// clear the profile uuid for the custom setup assistant
-	if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
+	if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, args.TeamID, "", ""); err != nil {
+		// TODO(mna): we need to do another check to see if the setup assistant did
+		// exist, as this Set method will not return a NotFound error.
 
 		if fleet.IsNotFound(err) {
 			// no setup assistant for that team, enqueue a profile deleted task so
