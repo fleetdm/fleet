@@ -24,7 +24,15 @@ See step by step section below.
 
 ## Step-by-Step Instructions
 
-- In Fleet click the upper menu `Software` tab.
+- In Fleet, add a policy that failure to pass it will trigger the required installation.
+  Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy"
+  --> Save --> Fill details in the Save modal and Save.
+
+![Add New Policy](../website/assets/images/articles/automatic-software-install-add-new-policy.png)
+
+  
+
+
 - On top left corner drop down menu, select a team (or `No team`)
 - On top right corner click `Add software`.
 - In the newly openned modal add a new trusted binary.
