@@ -204,7 +204,7 @@ module.exports = {
             Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
             Website: enrichmentData.employer.emailDomain,
             LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
-            NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
+            NumberOfEmployees: Number(enrichmentData.employer.numberOfEmployees),
             OwnerId: salesforceAccountOwnerId
           });
           salesforceAccountId = newAccountRecord.id;
