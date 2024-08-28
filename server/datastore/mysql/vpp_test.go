@@ -308,6 +308,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, user.ID, actUser.ID)
 	require.Equal(t, user.Name, actUser.Name)
 	require.Equal(t, cmd3, act.CommandUUID)
+	require.False(t, act.SelfService)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -350,6 +351,19 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp3)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+
+	// simulate a self-service request
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET self_service = true, user_id = NULL WHERE command_uuid = ?`,
+			cmd3)
+		return err
+	})
+	actUser, act, err = ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd3})
+	require.NoError(t, err)
+	require.Nil(t, actUser)
+	require.Equal(t, cmd3, act.CommandUUID)
+	require.True(t, act.SelfService)
 }
 
 // simulates creating the VPP app install request on the host, returns the command UUID.

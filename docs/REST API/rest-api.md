@@ -4210,7 +4210,7 @@ Resends a configuration profile for the specified host.
 
 ### Get host's software
 
-> The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L4304-L4311).
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/hosts/:id/software`
 
@@ -6317,7 +6317,7 @@ None.
 
 Get Volume Purchasing Program (VPP)
 
-> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/21043/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R6423-R6446.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium_
 
@@ -8490,11 +8490,11 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### List software
 
-> The **new keys/values added in the app management feature are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8749-R8791).
-
 Get a list of all software.
 
 `GET /api/v1/fleet/software/titles`
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 #### Parameters
 
@@ -8759,7 +8759,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get software
 
-> The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/20872/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R8953-R8958).
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
@@ -9228,7 +9228,7 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
 
 ### Delete package or App Store app
 
-> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
