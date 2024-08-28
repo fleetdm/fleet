@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240820165136, Down_20240820165136)
+	MigrationClient.AddMigration(Up_20240828150145, Down_20240828150145)
 }
 
-func Up_20240820165136(tx *sql.Tx) error {
+func Up_20240828150145(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE vpp_token_teams (
 	id int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -46,6 +46,6 @@ ALTER TABLE vpp_tokens DROP COLUMN null_team_type;
 	return nil
 }
 
-func Down_20240820165136(tx *sql.Tx) error {
+func Down_20240828150145(tx *sql.Tx) error {
 	return nil
 }
