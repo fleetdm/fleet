@@ -736,6 +736,9 @@ TEAMLOOP:
 		case fleet.NullTeamAllTeams:
 			// This should only be possible if there are no other teams
 			// Make sure something array is non-nil
+			if len(tokTeams) != 1 {
+				return nil, ctxerr.Errorf(ctx, "team \"%s\" belongs to All teams, and %d other team(s)", tok.OrgName, len(tokTeams)-1)
+			}
 			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP
 		case fleet.NullTeamNoTeam:
@@ -902,10 +905,20 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 
 	for _, team := range teams {
 		token := tokens[team.VPPTokenID]
+		if token.Teams != nil && len(token.Teams) == 0 {
+			// Token was already assigned to All Teams, we should not
+			// see it again in a loop
+			return nil, fmt.Errorf("vpp token \"%s\" has been assigned to All teams, and another team", token.OrgName)
+		}
 		switch team.NullTeam {
 		case fleet.NullTeamAllTeams:
 			// All teams, there should be no other teams.
 			// Make sure array is non-nil
+			if token.Teams != nil {
+				// This team has already been assigned something, this
+				// should not happen
+				return nil, fmt.Errorf("vpp token \"%s\" has been asssigned to All teams, and another team", token.OrgName)
+			}
 			token.Teams = []fleet.TeamTuple{}
 		case fleet.NullTeamNoTeam:
 			token.Teams = append(token.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
@@ -1029,6 +1042,9 @@ TEAMLOOP:
 		case fleet.NullTeamAllTeams:
 			// This should only be possible if there are no other teams
 			// Make sure something array is non-nil
+			if len(tokTeams) != 1 {
+				return nil, ctxerr.Errorf(ctx, "team \"%s\" belongs to All teams, and %d other team(s)", tok.OrgName, len(tokTeams)-1)
+			}
 			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP
 		case fleet.NullTeamNoTeam:
