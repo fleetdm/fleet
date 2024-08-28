@@ -111,7 +111,6 @@ const AddPackage = ({
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}
-        customLabels={customLabels}
       />
     </div>
   );
