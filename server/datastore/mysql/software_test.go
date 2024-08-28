@@ -1958,11 +1958,12 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 
-		inserted, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 			SoftwareID: host.Software[0].ID, CVE: "cve-1",
 		}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.False(t, inserted)
+		// This will always return true because we always update the timestamp
+		assert.True(t, insertedOrUpdated)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
@@ -2001,9 +2002,10 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 
-		inserted, err = ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
+		insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.False(t, inserted)
+		// This will always return true because we always update the timestamp
+		assert.True(t, insertedOrUpdated)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
