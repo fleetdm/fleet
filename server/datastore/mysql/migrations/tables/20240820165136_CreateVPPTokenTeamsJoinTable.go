@@ -17,6 +17,9 @@ CREATE TABLE vpp_token_teams (
 	team_id int unsigned,
 	null_team_type enum('none','allteams','noteam') COLLATE utf8mb4_unicode_ci DEFAULT 'none',
 	UNIQUE KEY idx_vpp_token_teams_team_id (team_id),
+	-- Note that this is only a partial constraint. There can be only
+	-- one token per team, but the team "No team" and "all teams" have
+	-- to be checked manually in go code
 	CONSTRAINT fk_vpp_token_teams_team_id FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
 	CONSTRAINT fk_vpp_token_teams_vpp_token_id FOREIGN KEY (vpp_token_id) REFERENCES vpp_tokens (id) ON DELETE CASCADE
 );
