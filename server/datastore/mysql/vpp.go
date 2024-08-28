@@ -840,17 +840,13 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	//nolint:gosec
 	stmtTokens := `
 	SELECT
-		v.id,
-		v.organization_name,
-		v.location,
-		v.renew_at,
-		v.token
+		id,
+		organization_name,
+		location,
+		renew_at,
+		token
 	FROM
 		vpp_tokens v
-	LEFT OUTER JOIN
-		vpp_token_teams vt
-	ON
-		v.id = vt.vpp_token_id
 `
 
 	stmtTeams := `
