@@ -12855,8 +12855,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		Filename:      "ruby.deb",
 		TeamID:        &team1.ID,
 	}
-	key := make([]byte, 64)
-	sessionKey := base64.StdEncoding.EncodeToString(key)
+	sessionKey := uuid.New().String()
 	adminTeam1Session, err := s.ds.NewSession(ctx, adminTeam1.ID, sessionKey)
 	require.NoError(t, err)
 	adminToken := s.token
@@ -12928,6 +12927,77 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	})
 	require.NotZero(t, fleetOsqueryMSIInstallerID)
 
+	// Create a VPP app to test that policies cannot be assigned to them.
+	_, err = s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "App123 " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}, &team1.ID)
+	require.NoError(t, err)
+	// Get software title ID of the uploaded VPP app.
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "App123",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].AppStoreApp)
+	vppAppTitleID := resp.SoftwareTitles[0].ID
+
+	// Populate software for host1Team1 (to have a software title
+	// that doesn't have an associated installer)
+	software := []fleet.Software{
+		{Name: "Foobar.app", Version: "0.0.1", Source: "apps"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host1Team1.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	// Get software title ID of the software.
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "Foobar.app",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.Nil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	foobarAppTitleID := resp.SoftwareTitles[0].ID
+
+	// Upload fleet-osquery.msi to team1 but as "Self Service" package, which should prevent it from being
+	// associated to a policy.
+	msiPayload2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some pkg install script 2",
+		Filename:      "fleet-osquery.msi",
+		TeamID:        &team1.ID,
+		SelfService:   true,
+	}
+	s.uploadSoftwareInstaller(msiPayload2, http.StatusOK, "")
+	// Get software title ID of the uploaded installer.
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "Fleet osquery",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	msiPayload2TitleID := resp.SoftwareTitles[0].ID
+	require.NotZero(t, msiPayload2TitleID)
+
 	// policy0AllTeams is a global policy that runs on all devices.
 	policy0AllTeams, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
 		Name:     "policy0AllTeams",
@@ -12963,8 +13033,36 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	})
 	require.NoError(t, err)
 
-	// Associate dummy_installer.pkg to policy1Team1.
+	// Attempt to associate to an unknown software title.
 	mtplr := modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: ptr.Uint(999_999),
+		},
+	}, http.StatusBadRequest, &mtplr)
+	// Attempt to associate to a software title without associated installer.
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: ptr.Uint(foobarAppTitleID),
+		},
+	}, http.StatusBadRequest, &mtplr)
+	// Attempt to associate vppApp to policy1Team1 which should fail because we only allow associating software installers.
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: &vppAppTitleID,
+		},
+	}, http.StatusBadRequest, &mtplr)
+	// Attempt to associate a Self Service software installer, should fail.
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: ptr.Uint(msiPayload2TitleID),
+		},
+	}, http.StatusBadRequest, &mtplr)
+	// Associate dummy_installer.pkg to policy1Team1.
+	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			SoftwareTitleID: &dummyInstallerPkgTitleID,

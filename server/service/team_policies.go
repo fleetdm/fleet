@@ -542,9 +542,19 @@ func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, te
 		}
 		return nil, ctxerr.Wrap(ctx, err, "software title by id")
 	}
+	if softwareTitle.AppStoreApp != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("software_title_id %d on team_id %d is assocated to a VPP app, only software installers are supported", *softwareTitleID, *teamID),
+		})
+	}
 	if softwareTitle.SoftwarePackage == nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("software_title_id %d on team_id %d does not have associated package", *softwareTitleID, *teamID),
+		})
+	}
+	if softwareTitle.SoftwarePackage.SelfService {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("software_title_id %d on team_id %d is assocated to a Self Service software installer", *softwareTitleID, *teamID),
 		})
 	}
 

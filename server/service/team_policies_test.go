@@ -32,7 +32,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.TeamPolicyFunc = func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
-		return nil, nil
+		return &fleet.Policy{}, nil
 	}
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
 		if id == 1 {
@@ -67,6 +67,9 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{}, nil
 	}
 
 	testCases := []struct {
