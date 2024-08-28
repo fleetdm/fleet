@@ -28,6 +28,8 @@ See step by step section below.
    do it.
    TODO: Sharon - add link to SW install doc.
 
+![Add Software](../website/assets/images/articles/automatic-software-install-add-software.png)
+
 2. In Fleet, add a policy that failure to pass it will trigger the required installation.
   Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy"
   --> Save --> Fill details in the Save modal and Save.
@@ -42,6 +44,10 @@ See step by step section below.
    drop-down list the software you would like to be installed upon failure of this policy.
 
 ![Install Software Modal](../website/assets/images/articles/automatic-software-install-install-software.png)
+
+Upon failure of the select policy, the selected software installation will be triggered.
+Note that all steps of the software installation as set in step 1 above will be respected including
+'Pre-install query', 'Install script' and 'Post-install script'.
 
 
 
