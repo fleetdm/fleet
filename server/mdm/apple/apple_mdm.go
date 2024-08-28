@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"net/url"
 	"slices"
@@ -659,11 +658,15 @@ func NewDEPClient(storage godep.ClientStorage, appCfgUpdater fleet.AppConfigUpda
 	}))
 }
 
+var funcMap = map[string]any{
+	"xml": mobileconfig.XMLEscapeString,
+}
+
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and
 // PayloadUUID in the old and new profiles.
-var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
+var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -676,7 +679,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<key>Key Type</key>
 				<string>RSA</string>
 				<key>Challenge</key>
-				<string>{{ .SCEPChallenge }}</string>
+				<string>{{ .SCEPChallenge | xml }}</string>
 				<key>Key Usage</key>
 				<integer>5</integer>
 				<key>Keysize</key>
@@ -727,11 +730,11 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} enrollment</string>
+	<string>{{ .Organization | xml }} enrollment</string>
 	<key>PayloadIdentifier</key>
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
-	<string>{{ .Organization }}</string>
+	<string>{{ .Organization | xml }}</string>
 	<key>PayloadScope</key>
 	<string>System</string>
 	<key>PayloadType</key>
@@ -753,13 +756,8 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
 	}
 
-	var escaped strings.Builder
-	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
-		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
-	}
-
 	var buf bytes.Buffer
-	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
+	if err := enrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
 		Organization  string
 		SCEPURL       string
 		SCEPChallenge string
@@ -768,7 +766,7 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
-		SCEPChallenge: escaped.String(),
+		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
 	}); err != nil {
