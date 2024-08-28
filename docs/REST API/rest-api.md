@@ -9055,7 +9055,7 @@ _Available in Fleet Premium._
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 
-`PATCH /api/v1/fleet/software/package/{titleID}`
+`PATCH /api/v1/fleet/software/package/:title_id`
 
 #### Parameters
 
