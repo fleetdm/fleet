@@ -81,14 +81,14 @@ func TestDEPService(t *testing.T) {
 		}
 
 		var defaultProfileUUID string
-		ds.GetMDMAppleDefaultSetupAssistantFunc = func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+		ds.GetMDMAppleDefaultSetupAssistantFunc = func(ctx context.Context, teamID *uint, orgName string) (profileUUID string, updatedAt time.Time, err error) {
 			if defaultProfileUUID == "" {
 				return "", time.Time{}, nil
 			}
 			return defaultProfileUUID, time.Now(), nil
 		}
 
-		ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc = func(ctx context.Context, teamID *uint, profileUUID string) error {
+		ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc = func(ctx context.Context, teamID *uint, profileUUID, orgName string) error {
 			require.Nil(t, teamID)
 			defaultProfileUUID = profileUUID
 			return nil
@@ -119,7 +119,7 @@ func TestDEPService(t *testing.T) {
 			return 0, nil
 		}
 
-		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil)
+		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil, "")
 		require.NoError(t, err)
 		require.Equal(t, "abcd", profUUID)
 		require.NotZero(t, modTime)

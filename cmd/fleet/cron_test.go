@@ -42,7 +42,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	// to avoid issues with syncer, use that constant as org name for now
-	const tokenOrgName = apple_mdm.DEPName
+	const tokenOrgName = "fleet"
 
 	// insert an ABM token as if it had been migrated by the DB migration script
 	tok := mysql.SetTestABMAssets(t, ds, "")
@@ -74,7 +74,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	err = depStorage.StoreConfig(ctx, tokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 	err = depStorage.StoreConfig(ctx, apple_mdm.UnsavedABMTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.NotEmpty(t, defProf.Token)
 
 	// no profile UUID was assigned for no-team (because there are no hosts right now)
-	profUUID, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
+	profUUID, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, "", profUUID)
 

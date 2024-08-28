@@ -212,6 +212,14 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	if team != nil {
 		tmID = &team.ID
 	}
+
+	// TODO(mna): I don't think we can use this approach here - to only register
+	// for ABM tokens that have hosts in their default team. That's because this
+	// gets called by the Ensure... setup assistant functions, which are called
+	// BEFORE the cron job retrieves the new hosts from ABM, so even if it
+	// doesn't have hosts now, it might have later and the goal of those Ensure
+	// calls is to have those setup assistants defined in Apple and ready to use
+	// for the hosts when they come in.
 	orgNames, err := d.ds.GetABMTokenOrgNamesForHostsInTeam(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
@@ -219,7 +227,11 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 
 	if len(orgNames) == 0 {
 		d.logger.Log("msg", "skipping defining profile for team with no hosts")
-		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, ""); err != nil {
+		// TODO(mna): not sure this is needed, as long as the profiles don't
+		// change, the profile uuids can stay there.
+
+		// clear any existing profile UUIDs in this case
+		if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, "", ""); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting empty default profile UUID for team with no hosts")
 		}
 		return nil
@@ -232,12 +244,11 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		}
 
 		if setupAsst != nil {
-			setupAsst.ProfileUUID = res.ProfileUUID
-			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
+			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID, orgName); err != nil {
 				return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
 			}
 		} else {
-			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID); err != nil {
+			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID, orgName); err != nil {
 				return ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}
 		}
@@ -247,9 +258,10 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 
 // EnsureDefaultSetupAssistant ensures that the default Setup Assistant profile
 // is created and registered with Apple for the provided team/no-team (if team
-// is nil), and returns its profile UUID. It does not re-define the profile if
-// it already exists and registered.
-func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *fleet.Team) (string, time.Time, error) {
+// is nil) using the specified ABM token, and returns its profile UUID. It does
+// not re-define the profile if it already exists and registered for that
+// token.
+func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *fleet.Team, abmTokenOrgName string) (string, time.Time, error) {
 	// the first step is to ensure that the default profile entry exists in the
 	// mdm_apple_enrollment_profiles table. When we create it there we also
 	// create the authentication token to retrieve enrollment profiles, and
@@ -265,12 +277,12 @@ func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *flee
 	}
 
 	// now that the default automatic profile is created and a token generated,
-	// check if the default profile was registered with Apple for that team.
+	// check if the default profile was registered with Apple for the ABM token.
 	var tmID *uint
 	if team != nil {
 		tmID = &team.ID
 	}
-	profUUID, modTime, err := d.ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+	profUUID, modTime, err := d.ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, abmTokenOrgName)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get default setup assistant profile uuid")
 	}
@@ -279,7 +291,7 @@ func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *flee
 		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, nil); err != nil {
 			return "", time.Time{}, ctxerr.Wrap(ctx, err, "register default setup assistant with Apple")
 		}
-		profUUID, modTime, err = d.ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		profUUID, modTime, err = d.ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, abmTokenOrgName)
 		if err != nil {
 			return "", time.Time{}, ctxerr.Wrap(ctx, err, "get default setup assistant profile uuid after registering")
 		}
@@ -289,14 +301,16 @@ func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *flee
 
 // EnsureCustomSetupAssistantIfExists ensures that the custom Setup Assistant
 // profile associated with the provided team (or no team) is registered with
-// Apple, and returns its profile UUID. It does not re-define the profile if it
-// is already registered. If no custom setup assistant exists, it returns an
-// empty string and timestamp and no error.
-func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, team *fleet.Team) (string, time.Time, error) {
+// Apple for the specified ABM token, and returns its profile UUID. It does not
+// re-define the profile if it is already registered for that token. If no
+// custom setup assistant exists, it returns an empty string and timestamp and
+// no error.
+func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, team *fleet.Team, abmTokenOrgName string) (string, time.Time, error) {
 	var tmID *uint
 	if team != nil {
 		tmID = &team.ID
 	}
+
 	asst, err := d.ds.GetMDMAppleSetupAssistant(ctx, tmID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -306,12 +320,22 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 		return "", time.Time{}, err
 	}
 
-	if asst.ProfileUUID == "" {
+	// if we get here, there IS a custom setup assistant, so get its profile UUID
+	profileUUID, modTime, err := d.ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, tmID, abmTokenOrgName)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", time.Time{}, err
+	}
+
+	if profileUUID == "" {
+		// registers the profile for all tokens associated with the team (unless
+		// there's no host in the team, will that be a problem?)
 		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, asst); err != nil {
 			return "", time.Time{}, err
 		}
+		// TODO(mna): that won't work as-is, need a way to get the profile UUID
+		// back for the specific token we care about here (abmTokenOrgName)
 	}
-	return asst.ProfileUUID, asst.UploadedAt, nil
+	return profileUUID, modTime, nil
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
@@ -354,14 +378,14 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 		for _, team := range teams {
 			// ensure the default (fallback) setup assistant profile exists, registered
 			// with Apple DEP.
-			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team)
+			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
 			if err != nil {
 				return err
 			}
 
 			// if the team/no-team has a custom setup assistant, ensure it is registered
 			// with Apple DEP.
-			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team)
+			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team, token.OrganizationName)
 			if err != nil {
 				return err
 			}
@@ -549,7 +573,7 @@ func (d *DEPService) processDeviceResponse(
 			devicesByTeam[host.TeamID] = append(devicesByTeam[host.TeamID], dd)
 		}
 		for team, devices := range devicesByTeam {
-			profUUID, err := d.getProfileUUIDForTeam(ctx, team)
+			profUUID, err := d.getProfileUUIDForTeam(ctx, team, "TODO ABM TOKEN ORG NAME")
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 			}
@@ -636,14 +660,23 @@ func (d *DEPService) processDeviceResponse(
 	return nil
 }
 
-func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, team *fleet.Team) (string, error) {
+func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmTokenOrgName string) (string, error) {
+	var appleBMTeam *fleet.Team
+	if tmID != nil {
+		tm, err := d.ds.Team(ctx, *tmID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return "", ctxerr.Wrap(ctx, err, "get team")
+		}
+		appleBMTeam = tm
+	}
+
 	// get profile uuid of team or default
-	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, team)
+	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam, abmTokenOrgName)
 	if err != nil {
 		return "", fmt.Errorf("ensure setup assistant for team: %w", err)
 	}
 	if profUUID == "" {
-		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, team)
+		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam, abmTokenOrgName)
 		if err != nil {
 			return "", fmt.Errorf("ensure default setup assistant: %w", err)
 		}
