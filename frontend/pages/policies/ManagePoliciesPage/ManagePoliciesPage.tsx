@@ -494,48 +494,48 @@ const ManagePolicyPage = ({
 
   const onUpdatePolicySoftwareInstall = async (
     formData: IInstallSoftwareFormData
-  ) =>
-    // TODO - finalize
-
-    // formData: IPolicySWInstallFormData
-    // {policyIDs: swTitleIds}
-    {
-      setIsUpdatingPolicySoftwareInstall(true);
-      // get policyIds: swTitleIds that have changed
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-        return (
-          formPolicy.installSoftwareEnabled !==
-          prevPolicyState?.install_software
-        );
-      });
-      // if there are any:
-      try {
-        const responses: Promise<any>[] = [];
-        responses.concat(
-          changedPolicies.map((changedPolicy) => {
-            return teamPoliciesAPI.update(changedPolicy.id, {
-              software_title_id: changedPolicy.software_title_id || null, // TODO: confirm undefined/null
-              team_id: teamIdForApi,
-            });
-          })
-        );
-        await Promise.all(responses);
-        await wait(100); // Wait 100ms to avoid race conditions with refetch
-        await refetchTeamPolicies();
-        renderFlash("success", "Successfully updated policy automations.");
-      } catch {
-        renderFlash(
-          "error",
-          "Could not update policy automations. Please try again."
-        );
-      } finally {
-        toggleInstallSoftwareModal();
-        setIsUpdatingPolicySoftwareInstall(false);
-      }
-    };
+  ) => {
+    setIsUpdatingPolicySoftwareInstall(true);
+    const changedPolicies = formData.filter((formPolicy) => {
+      const prevPolicyState = policiesAvailableToAutomate.find(
+        (policy) => policy.id === formPolicy.id
+      );
+      return (
+        formPolicy.swIdToInstall !==
+        prevPolicyState?.install_software?.software_title_id
+      );
+    });
+    if (!changedPolicies.length) {
+      renderFlash("success", "No changes detected.");
+      return;
+    }
+    try {
+      const responses: Promise<any>[] = [];
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            // "software_title_id" not set in the PATCH request, won't change the value.
+            // "software_title_id": null will unset the software title from the policy.
+            // "software_title_id": X will set the value to the given integer.
+            software_title_id: changedPolicy.swIdToInstall || null,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+      await Promise.all(responses);
+      await wait(100); // prevent race
+      await refetchTeamPolicies();
+      renderFlash("success", "Successfully updated policy automations.");
+    } catch {
+      renderFlash(
+        "error",
+        "Could not update policy automations. Please try again."
+      );
+    } finally {
+      toggleInstallSoftwareModal();
+      setIsUpdatingPolicySoftwareInstall(false);
+    }
+  };
 
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
     setIsUpdatingCalendarEvents(true);

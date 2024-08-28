@@ -100,7 +100,8 @@ export interface IPolicyFormData {
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
-  software_title_id?: number;
+  // undefined from GET/LIST when not set, null for PATCH to unset
+  software_title_id?: number | null;
 }
 
 export interface IPolicyNew {
