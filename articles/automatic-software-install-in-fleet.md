@@ -90,125 +90,14 @@ Upon failure of the select policy, the selected software installation will be tr
 * TODO: Add other docs
 
 
-### Using fleet API:
-The following is the API for adding a Policy. Note the addition of the "install_software" field.
-#### Add team policy
-The semantics for creating a team policy are the same as for global policies.
+### Using the REST API for self-service software packages
 
-`POST /api/v1/fleet/teams/:id/policies`
+Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-policy).
 
-##### Parameters
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| id         | integer | path | Defines what team ID to operate on.  |
-| name        | string  | body | The policy's name.                    |
-| query       | string  | body | The policy's query in SQL.                    |
-| description | string  | body | The policy's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
+### Managing self-service software packages with GitOps
 
-Either `query` or `query_id` must be provided.
-##### Example
-`POST /api/v1/fleet/teams/1/policies`
-###### Request body
-```json
-{
-  "name": "Gatekeeper enabled",
-  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-  "description": "Checks if gatekeeper is enabled on macOS devices",
-  "critical": true,
-  "resolution": "Resolution steps",
-  "platform": "darwin"
-}
-```
-###### Default response
-`Status: 200`
-```json
-{
-  "policy": {
-    "id": 43,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "critical": true,
-    "author_id": 42,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "team_id": 1,
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "created_at": "2021-12-16T14:37:37Z",
-    "updated_at": "2021-12-16T16:39:00Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
-    "host_count_updated_at": null,
-    "calendar_events_enabled": false,
-    "install_software": {
-      "name": "Adobe Acrobat.app",
-      "software_title_id": 1234
-    }
-  }
-}
-```
+To manage self-service software packages using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
 
-### Using fleet GitOps:
-The same result can be achieved by using Fleet API, Fleetctl ot GitOps.
-
-The following text files provide a Gitops example:
-
-```
-File name: software-install-policies.yml
-
-name: Adobe Acrobat Reader.app
-platform: darwin
-description: This policy checks if Adobe Acrobat is installed.
-resolution: An IT admin, upload Adobe Acrobat installer and deploy to the host..
-query: SELECT 1 FROM apps WHERE name == Adobe Acrobat.app' AND version == "";
-install_software:
-  package_path: ../lib/software/adobe-acrobat.software.yml
-```
-
-
-```
-File name: lib/software/adobe-acrobat.software.yml
-
-url: https://github.com/organinzation/repository/apps/AdobeAcrobatReaderInstallerFull-24_002_20687.pkg
-pre_install_query: 
-  path: ../lib/check-if-acrobat-running.queries.yml
-install_script: 
-  path: ../lib/adobe-acrobat-install.sh
-post_install_script: 
-  path: ../lib/adobe-acrobat-post-install.sh
-post_install_script: 
-  path: ../lib/adobe-acrobat-post-install.sh
-self_service: true
-```
-
-
-```
-File name: teams/no-team.yml
-
-name: No team
-policies:
-  - path: ../lib/software-install.policies.yml 
-  - path: ../lib/macos-device-health.policies.yml
-controls:
-software:
-  packages:
-   - url: https://github.com/organinzation/repository/installer.pkg
-     install_script:
-       path: /lib/crowdstrike-install.sh 
-     pre_install_query: 
-       path: /lib/check-crowdstrike-configuration-profile.queries.yml
-     post_install_script:
-       path: /lib/crowdstrike-post-install.sh 
-     self_service: true
-   - path: ..lib/software/adobe-acrobat.software.yml
-  app_store_apps:
-   - app_store_id: 1091189122
-```
 
 ## Conclusion
 
