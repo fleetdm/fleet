@@ -19,6 +19,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
+import IosIpadosPanel from "./IosIpadosPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -324,7 +325,7 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderTab = (packageType: string) => {
+  const renderPanel = (packageType: string) => {
     const CHROME_OS_INFO = {
       extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
       installationUrl: "https://chrome.fleetdm.com/updates.xml",
@@ -395,19 +396,7 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "ios-ipados") {
-      return (
-        <div className={`${baseClass}__ios-ipados--info`}>
-          <p>
-            Enroll iPhones and iPads by adding them to Fleet in Apple Business
-            Manager (ABM).{" "}
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/setup-abm"
-              text="Learn more"
-              newTab
-            />
-          </p>
-        </div>
-      );
+      return <IosIpadosPanel />;
     }
 
     if (packageType === "advanced") {
@@ -590,7 +579,7 @@ const PlatformWrapper = ({
             return (
               <TabPanel className={`${baseClass}__info`} key={navItem.type}>
                 <div className={`${baseClass} form`}>
-                  {renderTab(navItem.type)}
+                  {renderPanel(navItem.type)}
                 </div>
               </TabPanel>
             );
