@@ -434,8 +434,9 @@ type HostDEPAssignment struct {
 	AddedAt time.Time `db:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
 	// MDM server in Apple Busines Manager (ABM).
-	DeletedAt  *time.Time `db:"deleted_at"`
-	ABMTokenID *uint      `db:"abm_token_id"`
+	DeletedAt *time.Time `db:"deleted_at"`
+	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
+	ABMTokenID *uint `db:"abm_token_id"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
