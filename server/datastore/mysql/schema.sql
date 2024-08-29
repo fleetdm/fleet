@@ -1335,7 +1335,6 @@ CREATE TABLE `policies` (
   `software_installer_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policies_checksum` (`checksum`),
-  UNIQUE KEY `unique_policy_and_installer` (`id`,`software_installer_id`),
   KEY `idx_policies_author_id` (`author_id`),
   KEY `idx_policies_team_id` (`team_id`),
   KEY `fk_policies_software_installer_id` (`software_installer_id`),
