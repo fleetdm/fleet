@@ -4,7 +4,7 @@ This section provides instructions for migrating your hosts away from your old M
 
 ## Requirements
 
-1. A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet0
+1. A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet)
 2. [Fleet connected to Apple](https://fleetdm.com/guides/macos-mdm-setup)
 
 ## Migrate manually enrolled hosts
