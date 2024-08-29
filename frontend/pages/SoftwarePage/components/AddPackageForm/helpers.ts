@@ -37,28 +37,11 @@ const FORM_VALIDATION_CONFIG: Record<
   preInstallQuery: {
     validations: [
       {
-        name: "required",
-        isValid: (formData: IAddPackageFormData) => {
-          return (
-            formData.preInstallQuery !== undefined &&
-            !validator.isEmpty(formData.preInstallQuery)
-          );
-        },
-        message: (formData) => {
-          // we dont want an error message until the user has interacted with
-          // the field. This is why we check for undefined here.
-          if (formData.preInstallQuery === undefined) {
-            return "";
-          }
-          return "Pre-install condition is required when enabled.";
-        },
-      },
-      {
         name: "invalidQuery",
         isValid: (formData) => {
+          const query = formData.preInstallQuery;
           return (
-            formData.preInstallQuery !== undefined &&
-            validateQuery(formData.preInstallQuery).valid
+            query === undefined || query === "" || validateQuery(query).valid
           );
         },
         message: (formData) => validateQuery(formData.preInstallQuery).error,
