@@ -83,7 +83,7 @@ These fields will appear in the details of the scheduled event.
 * **Rescheduled to the past**: If the user reschedules the event to a time before the current time, the Fleet server will reschedule it to the day after the original date.
 * **Deleted maintenance window**: If the user deletes an event, the Fleet server reschedules it to the day after the original date. If it is deleted again, it will be rescheduled for the following day.
 
-> The Fleet server handles monitoring the user’s calendar event in real time. Changes to the scheduled event will typically be monitored and addressed within 30 seconds. However, to save load on the Google calendar, only the next week is monitored. In the case of the event being rescheduled to more than a week from the present time, it will still be addressed within 30 minutes rather than in real-time.
+> The Fleet server handles monitoring the user’s calendar event in real time. For example, if the end user deletes the calendar event it will be rescheduled within 30 seconds. However, to save load on the Google calendar, only the next week is monitored. In the case of the event being rescheduled to more than a week from the present time, it will still be addressed within 30 minutes rather than in real-time.
 
 ## Additional Information
 
