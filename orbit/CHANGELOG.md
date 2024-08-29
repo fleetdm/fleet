@@ -2,7 +2,7 @@
 
 * Bumped macadmins extension to use SOFA feed sofafeed.macadmins.io
 
-* In Fleet Desktop, "My Device" status is now refreshed when user clicks on "My Device" or "Self-service" dropdown option.
+* Fixed Fleet Desktop to refresh host status when the user clicks on "My Device" or "Self-service" dropdown option.
 
 * Updated go to go1.22.6
 
