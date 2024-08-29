@@ -3618,10 +3618,10 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	// TODO(mna): ideally the profiles would not be cleared when the profile
 	// stayed the same, but does not work at the moment and we're pressed by
 	// time.
-	//gotProf, gotTs, err = ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, &tm.ID, "o2")
-	//require.NoError(t, err)
-	//require.Equal(t, profUUID2, gotProf)
-	//require.Equal(t, tmAsst3.UploadedAt, gotTs)
+	// gotProf, gotTs, err = ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, &tm.ID, "o2")
+	// require.NoError(t, err)
+	// require.Equal(t, profUUID2, gotProf)
+	// require.Equal(t, tmAsst3.UploadedAt, gotTs)
 
 	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
 
@@ -4318,6 +4318,8 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, depHostID, depAssignment.HostID)
 		require.Nil(t, depAssignment.DeletedAt)
 		require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
+		require.NotNil(t, depAssignment.ABMTokenID)
+		require.Equal(t, *depAssignment.ABMTokenID, abmToken.ID)
 
 		// simulate initial osquery enrollment via Orbit
 		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
