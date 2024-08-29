@@ -35,6 +35,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Reference documentation changes: TODO <!-- Specify references documentation changes at fleetdm.com/docs -->
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the CLI. -->
+- [ ] YAML changes: TODO <!-- Specify changes as a draft PR to the YAML files doc page and request the API DRI for review (codeowner reviews are not automatically requested for drafts). Remove this checkbox if there are no changes necessary. -->
 - [ ] REST API changes: TODO <!-- Specify changes as a draft PR to the REST API doc page and request the API DRI for review (codeowner reviews are not automatically requested for drafts). Remove this checkbox if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Remove this checkbox if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes as a draft PR to the Manage access doc page. If doc changes aren't necessary, explicitly mention no changes to the doc page. Remove this checkbox if there are no permissions changes. -->
