@@ -600,6 +600,26 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, hasSelfService)
 
+	// Create a non self-service VPP for global/linux (not truly possible as VPP is Apple but for testing)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: platform}}, Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil)
+	require.NoError(t, err)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService)
+
+	// Create a self-service VPP for global/linux (not truly possible as VPP is Apple but for testing)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: platform}, SelfService: true}, Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil)
+	require.NoError(t, err)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService)
+
 	// Create a global self-service installer
 	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "foo global",
@@ -618,11 +638,14 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, hasSelfService)
 
-	// Check another platform
+	// Create a self-service VPP for team/darwin
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID)
+	require.NoError(t, err)
+	// Check darwin
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", nil)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &team.ID)
 	require.NoError(t, err)
-	assert.False(t, hasSelfService)
+	assert.True(t, hasSelfService)
 }

@@ -11,6 +11,7 @@ import {
   trim,
   trimEnd,
   union,
+  uniqueId,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -819,6 +820,17 @@ export const syntaxHighlight = (json: any): string => {
     }
   );
   /* eslint-enable no-useless-escape */
+};
+
+export const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={uniqueId()}>
+        {line}
+        <br />
+      </span>
+    );
+  });
 };
 
 export const getSortedTeamOptions = memoize((teams: ITeam[]) =>

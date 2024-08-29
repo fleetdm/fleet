@@ -29,7 +29,7 @@ func NewLock(pool fleet.RedisPool) fleet.Lock {
 	return fleet.Lock(lock)
 }
 
-func (r *redisLock) AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (ok bool, err error) {
+func (r *redisLock) SetIfNotExist(ctx context.Context, key string, value string, expireMs uint64) (ok bool, err error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -114,5 +114,27 @@ func (r *redisLock) Get(ctx context.Context, key string) (*string, error) {
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "redis get")
 	}
+	return &res, nil
+}
+
+func (r *redisLock) GetAndDelete(ctx context.Context, key string) (*string, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Note: In Redis 6.2.0, this can be accomplished with a single command: GETDEL.
+
+	res, err := redigo.String(conn.Do("GET", r.testPrefix+key))
+	if errors.Is(err, redigo.ErrNil) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "redis GET")
+	}
+
+	_, err = conn.Do("DEL", r.testPrefix+key)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "redis DEL")
+	}
+
 	return &res, nil
 }

@@ -1,0 +1,2 @@
+* Fixed a bug where the "Self-service" filter for the list of software and the list of host's software did not take App Store apps into account.
+* Fixed a bug where the "My device" page in Fleet Desktop did not show the self-service software tab when App Store apps were available as self-install.

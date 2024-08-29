@@ -2599,6 +2599,7 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 

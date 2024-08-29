@@ -4822,6 +4822,108 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
+
+	// vulnerable param required when using vulnerability filters
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"exploit", "true",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"min_cvss_score", "1.1",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusUnprocessableEntity, &respVersions,
+		"max_cvss_score", "10.0",
+	)
+
+	// vulnerability filters
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 0)
+	require.Nil(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"max_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 0)
+	require.Nil(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
+
+	respVersions = listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Len(t, respVersions.Software, 1)
+	require.NotEmpty(t, respVersions.CountsUpdatedAt)
 }
 
 // TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
@@ -7691,6 +7793,15 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "cve-123-123-132",
+			CVSSScore:        ptr.Float64(7.8),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+	})
+	require.NoError(t, err)
+
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
@@ -7793,16 +7904,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
 
 	// asking for vulnerable only software returns the expected values
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"vulnerable", "true",
-	)
-	require.Equal(t, 1, resp.Count)
-	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
+	expectedVulnSoftware := []fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7812,7 +7914,127 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
 		},
-	}, resp.SoftwareTitles)
+	}
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	// vulnerable param required when using vulnerability filters
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"exploit", "true",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"min_cvss_score", "1",
+	)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusUnprocessableEntity, &resp,
+		"max_cvss_score", "10",
+	)
+
+	// vulnerability filters
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Zero(t, resp.Count)
+	require.Nil(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"max_cvss_score", "1",
+		"vulnerable", "true",
+	)
+	require.Zero(t, resp.Count)
+	require.Nil(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"min_cvss_score", "1",
+		"max_cvss_score", "10",
+		"exploit", "true",
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitleListResultsMatch(expectedVulnSoftware, resp.SoftwareTitles)
 
 	// request titles for team1, nothing there yet
 	resp = listSoftwareTitlesResponse{}
@@ -9822,6 +10044,35 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getDeviceSw.Software, 1) // bar only
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
+
+	// Add new software to host -- installed on host, but not by Fleet
+	installedVersion := "1.0.1"
+	softwareAlreadyInstalled := fleet.Software{Name: "DummyApp.app", Version: installedVersion, Source: "apps",
+		BundleIdentifier: "com.example.dummy"}
+	software = append(software, softwareAlreadyInstalled)
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	err = s.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+	// Add installer for software that is already installed on host
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Version:       "0.0.2", // The version can be anything -- we match on title
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	// Get software available for install
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install",
+		"true", "order_key", "name", "order_direction", "asc")
+	require.Len(t, getHostSw.Software, 2) // DummyApp.app and ruby
+	assert.Equal(t, softwareAlreadyInstalled.Name, getHostSw.Software[0].Name)
+	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
+	assert.Nil(t, getHostSw.Software[0].Status)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
@@ -9994,6 +10245,29 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 		checkDownloadResponse(t, r, payload.Filename)
+
+		// download the installer by getting token first
+		tokenResp := getSoftwareInstallerTokenResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil, http.StatusOK,
+			&tokenResp, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		require.NotEmpty(t, tokenResp.Token)
+		r = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", titleID, tokenResp.Token), nil,
+			http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// downloading a second time using the same token should fail
+		_ = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", titleID, tokenResp.Token), nil,
+			http.StatusForbidden)
+
+		// alt != media should fail
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=bozo", titleID), nil,
+			http.StatusUnprocessableEntity,
+			&tokenResp, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+
+		// missing team_id should fail
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", titleID), nil,
+			http.StatusBadRequest,
+			&tokenResp)
 
 		// create an orbit host that is not in the team
 		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
@@ -10526,6 +10800,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	t := s.T()
 
+	// Enabling software inventory globally, which will be inherited by the team
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.Features.EnableSoftwareInventory = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
+
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
 		Name: t.Name(),
@@ -10722,6 +11004,50 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
+
+	// Return installed app with software detail query
+	distributedReq := submitDistributedQueryResultsRequestShim{
+		NodeKey: *h2.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_linux": json.RawMessage(fmt.Sprintf(
+				`[{"name": "%s", "version": "1.0", "type": "Package (deb)",
+					"source": "deb_packages", "last_opened_at": "", 
+					"installed_path": "/bin/ruby"}]`, payload.Title)),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_linux": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].Status)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.NotEmpty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should exist")
+
+	// Remove the installed app by not returning it
+	distributedReq = submitDistributedQueryResultsRequestShim{
+		NodeKey: *h2.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_linux": json.RawMessage(`[]`),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_linux": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	assert.Nil(t, getHostSoftwareResp.Software[0].Status)
+	assert.Nil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should now not exist")
 
 	// Access software install result after host is deleted
 	err = s.ds.DeleteHost(context.Background(), h.ID)
@@ -11800,7 +12126,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	// Grab the distributed lock for this event
 	distributedLock := redis_lock.NewLock(s.redisPool)
 	lockValue := uuid.New().String()
-	result, err := distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	result, err := distributedLock.SetIfNotExist(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
@@ -11824,7 +12150,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	ok, err := distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
 	require.NoError(t, err)
 	assert.True(t, ok)
-	result, err = distributedLock.AcquireLock(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue, 0)
+	result, err = distributedLock.SetIfNotExist(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
@@ -11842,7 +12168,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 
 	// We grab the normal lock again.
 	lockValue2 := uuid.New().String()
-	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2, 0)
+	result, err = distributedLock.SetIfNotExist(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 	// We release the reserve lock.
@@ -11970,7 +12296,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	// Grab the lock
 	event = eventUpdated
 	lockValue = uuid.New().String()
-	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	result, err = distributedLock.SetIfNotExist(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
@@ -12043,7 +12369,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	), http.StatusOK, &distributedResp)
 
 	// We set a flag that event was updated recently. Callback shouldn't do anything since event was updated recently
-	_, err = distributedLock.AcquireLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue,
+	_, err = distributedLock.SetIfNotExist(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue,
 		1000)
 	require.NoError(t, err)
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,

@@ -3655,6 +3655,18 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
+func (ds *Datastore) UpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	enrolled bool,
+) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm SET enrolled = ? WHERE host_id = ?`, enrolled, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host_mdm.enrolled")
+	}
+	return nil
+}
+
 func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,

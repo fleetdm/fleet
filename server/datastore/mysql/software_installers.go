@@ -400,6 +400,7 @@ WHERE
 		WHERE
 			software_installer_id = :installer_id
 			AND host_deleted_at IS NULL
+			AND removed = 0
 		GROUP BY
 			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
 
@@ -469,6 +470,7 @@ WHERE
 			FROM host_software_installs
 		WHERE
 			software_installer_id = :installer_id
+			AND removed = 0
 		GROUP BY
 			host_id, software_installer_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
@@ -646,12 +648,21 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	if fleet.IsLinux(hostPlatform) {
 		hostPlatform = "linux"
 	}
-	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?`
+	stmt := `SELECT 1
+		WHERE EXISTS (
+			SELECT 1
+			FROM software_installers
+			WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?
+		) OR EXISTS (
+			SELECT 1
+			FROM vpp_apps_teams
+			WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?
+		)`
 	var globalOrTeamID uint
 	if hostTeamID != nil {
 		globalOrTeamID = *hostTeamID
 	}
-	args := []interface{}{hostPlatform, globalOrTeamID}
+	args := []interface{}{hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
 	var hasInstallers bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
