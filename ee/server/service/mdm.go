@@ -1285,6 +1285,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 		token.MacOSTeam.Name = macOSTeam.Name
 		token.MacOSTeam.ID = *macOSTeamID
+		token.MacOSDefaultTeamID = macOSTeamID
 	}
 
 	if iOSTeamID != nil {
@@ -1297,6 +1298,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		}
 		token.IOSTeam.Name = iOSTeam.Name
 		token.IOSTeam.ID = *iOSTeamID
+		token.IOSDefaultTeamID = iOSTeamID
 	}
 
 	if iPadOSTeamID != nil {
@@ -1309,6 +1311,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		}
 		token.IPadOSTeam.Name = iPadOSTeam.Name
 		token.IPadOSTeam.ID = *iPadOSTeamID
+		token.IPadOSDefaultTeamID = iPadOSTeamID
 	}
 
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {

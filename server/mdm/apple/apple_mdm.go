@@ -12,18 +12,17 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-multierror"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -347,9 +346,9 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "listing teams")
 	}
 
-	teamsByID := make(map[*uint]*fleet.Team, len(teams))
+	teamsByID := make(map[uint]*fleet.Team, len(teams))
 	for _, tm := range teams {
-		teamsByID[&tm.ID] = tm
+		teamsByID[tm.ID] = tm
 	}
 
 	tokens, err := d.ds.ListABMTokens(ctx)
@@ -357,33 +356,38 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
 	}
 
+	var result error
 	for _, token := range tokens {
-		macOSTeam := teamsByID[token.MacOSDefaultTeamID]
-		iosTeam := teamsByID[token.IOSDefaultTeamID]
-		ipadTeam := teamsByID[token.IPadOSDefaultTeamID]
+		var macOSTeam, iosTeam, ipadTeam *fleet.Team
 
-		decryptedToken, err := assets.ABMToken(ctx, d.ds, token.OrganizationName)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting ABM token with organization name %s in ADE ingestion", token.OrganizationName)
+		if token.MacOSDefaultTeamID != nil {
+			macOSTeam = teamsByID[*token.MacOSDefaultTeamID]
 		}
 
-		// FIXME: downstream depClient methods need the token in the context.
-		ctx = apple_bm.NewContext(ctx, decryptedToken)
-		teams := []*fleet.Team{macOSTeam, iosTeam, ipadTeam}
+		if token.IOSDefaultTeamID != nil {
+			iosTeam = teamsByID[*token.IOSDefaultTeamID]
+		}
 
+		if token.IPadOSDefaultTeamID != nil {
+			ipadTeam = teamsByID[*token.IPadOSDefaultTeamID]
+		}
+
+		teams := []*fleet.Team{macOSTeam, iosTeam, ipadTeam}
 		for _, team := range teams {
 			// ensure the default (fallback) setup assistant profile exists, registered
 			// with Apple DEP.
 			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
 			if err != nil {
-				return err
+				result = multierror.Append(result, err)
+				continue
 			}
 
 			// if the team/no-team has a custom setup assistant, ensure it is registered
 			// with Apple DEP.
 			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team, token.OrganizationName)
 			if err != nil {
-				return err
+				result = multierror.Append(result, err)
+				continue
 			}
 
 			// get the modification timestamp of the effective profile (custom or default)
@@ -394,13 +398,15 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 			cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, token.OrganizationName)
 			if err != nil {
-				return err
+				result = multierror.Append(result, err)
+				continue
 			}
 
 			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-				d.logger.Log("msg", "clearing device syncer cursor")
+				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName, "team", team.Name)
 				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
-					return err
+					result = multierror.Append(result, err)
+					continue
 				}
 			}
 
@@ -422,11 +428,13 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			}),
 		)
 
-		return syncer.Run(ctx)
-
+		if err := syncer.Run(ctx); err != nil {
+			result = multierror.Append(result, err)
+			continue
+		}
 	}
 
-	return nil
+	return result
 }
 
 func NewDEPService(
@@ -534,55 +542,66 @@ func (d *DEPService) processDeviceResponse(
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
+	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevices), "to_remove", deletedSerials, "to_modify", modifiedSerials)
+
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
 	//
 	// collect a map of all the profiles => serials we need to assign.
 	profileToDevices := map[string][]godep.Device{}
+	var iosTeamID, macOSTeamID, ipadTeamID *uint
+	if iosTeam != nil {
+		iosTeamID = &iosTeam.ID
+	}
+	if macOSTeam != nil {
+		macOSTeamID = &macOSTeam.ID
+	}
+	if ipadTeam != nil {
+		ipadTeamID = &ipadTeam.ID
+	}
 
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
-	if len(addedDevices) > 0 {
-		// TODO: fix this
-		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
-		profUUID, err := d.getProfileUUIDForTeam(ctx, &macOSTeam.ID, abmOrganizationName)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", macOSTeam.ID)
+	devicesByTeam := map[*uint][]godep.Device{}
+	for _, newDevice := range addedDevices {
+		var teamID *uint
+		switch newDevice.DeviceFamily {
+		case "iPhone":
+			teamID = iosTeamID
+		case "iPad":
+			teamID = ipadTeamID
+		default:
+			teamID = macOSTeamID
 		}
+		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
 
-		profileToDevices[profUUID] = addedDevices
-	} else {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "no added devices to assign DEP profiles")
 	}
 
-	// for all other hosts we received, find out the right DEP profile to assign, based on the team.
-	if len(existingSerials) > 0 {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
-		devicesByTeam := map[*uint][]godep.Device{}
-		hosts := []fleet.Host{}
-		for _, host := range existingSerials {
-			dd, ok := modifiedDevices[host.HardwareSerial]
-			if !ok {
-				return ctxerr.Errorf(ctx, "serial %s coming from ABM is in the databse, but it's not in the list of modified devices", host.HardwareSerial)
-			}
-			hosts = append(hosts, *host)
-			devicesByTeam[host.TeamID] = append(devicesByTeam[host.TeamID], dd)
+	// for all other hosts we received, find out the right DEP profile to
+	// assign, based on the team.
+	existingHosts := []fleet.Host{}
+	for _, existingHost := range existingSerials {
+		dd, ok := modifiedDevices[existingHost.HardwareSerial]
+		if !ok {
+			level.Error(kitlog.With(d.logger)).Log("msg", "serial coming from ABM is in the databse, but it's not in the list of modified devices", "serial", existingHost.HardwareSerial)
+			continue
 		}
-		for team, devices := range devicesByTeam {
-			profUUID, err := d.getProfileUUIDForTeam(ctx, team, "TODO ABM TOKEN ORG NAME")
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
-			}
+		existingHosts = append(existingHosts, *existingHost)
+		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
+	}
 
-			profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
+	// assign the profile to each device
+	for team, devices := range devicesByTeam {
+		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 		}
 
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing device")
-		}
+		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
+	}
 
-	} else {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
+	if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
