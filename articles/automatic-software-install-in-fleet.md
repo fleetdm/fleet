@@ -65,7 +65,7 @@ Coming soon:
 The same result can be achieved by using Fleet API, Fleetctl ot GitOps.
 
 
-The following text file provide a Gitops example:
+The following text files provide a Gitops example:
 
 
 ```
