@@ -16,7 +16,10 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
-export type ITokenTeam = Pick<ITeamSummary, "id" | "name">;
+export type ITokenTeam = {
+  team_id: number;
+  name: string;
+};
 
 export interface IMdmAbmToken {
   id: number;

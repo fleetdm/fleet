@@ -564,7 +564,6 @@ the way that the Fleet server works.
 				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
 					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
-					{Name: fleet.MDMAssetABMTokenDeprecated, Value: appleBM.EncryptedToken},
 				})
 				if err != nil {
 					// duplicate key errors mean that we already
@@ -576,6 +575,18 @@ the way that the Fleet server works.
 					}
 
 					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
+				} else {
+					// insert the ABM token without any metdata,
+					// it'll be picked by the
+					// apple_mdm_dep_profile_assigner cron and
+					// backfilled
+					tok := &fleet.ABMToken{
+						EncryptedToken: appleBM.EncryptedToken,
+					}
+					tok, err = ds.InsertABMToken(context.Background(), tok)
+					if err != nil {
+						initFatal(err, "save ABM token")
+					}
 				}
 			}
 
