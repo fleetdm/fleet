@@ -198,6 +198,26 @@ jobs:
       uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
       with:
         pattern: '*-coverage'
+    - name: Download artifacts
+      uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+      with:
+        pattern: coverage
+    - name: Download artifacts
+      uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+      with:
+        name: core-mysql8.0.36-coverage
+    - name: Download artifacts
+      uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+      with:
+        name: core-mysql8.4.2-coverage
+    - name: Download artifacts
+      uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+      with:
+        name: integration-mysql8.0.36-coverage
+    - name: Download artifacts
+      uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+      with:
+        name: integration-mysql8.4.2-coverage
     - name: List dir for debug
       run: ls -la
     - name: Upload to Codecov
