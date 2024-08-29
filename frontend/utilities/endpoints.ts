@@ -96,12 +96,11 @@ export default {
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
-  MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
   MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`, // TODO: Deprecated?
   MDM_VPP_TOKENS: `/${API_VERSION}/fleet/vpp_tokens`,
   MDM_VPP_TOKEN: (id: number) => `/${API_VERSION}/fleet/vpp_tokens/${id}`,
   MDM_VPP_TOKENS_RENEW: (id: number) =>
-    `/${API_VERSION}/fleet/vpp_tokens/renew/${id}`,
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/renew`,
   MDM_VPP_TOKEN_TEAMS: (id: number) =>
     `/${API_VERSION}/fleet/vpp_tokens/${id}/teams`,
 
