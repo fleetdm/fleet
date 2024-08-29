@@ -521,13 +521,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       renderFlash,
     ]
   );
-  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
-  // collecting inventory
-  const isCollectingInventory =
-    !isAnyTeamSelected &&
-    !softwarePageIndex &&
-    !software?.software &&
-    software?.counts_updated_at === null;
 
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
@@ -640,7 +633,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     children: (
       <Software
         errorSoftware={errorSoftware}
-        isCollectingInventory={isCollectingInventory}
         isSoftwareFetching={isSoftwareFetching}
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}

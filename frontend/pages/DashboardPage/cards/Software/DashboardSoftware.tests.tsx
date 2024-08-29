@@ -62,7 +62,6 @@ describe("Dashboard software card", () => {
     render(
       <Software
         errorSoftware={null}
-        isCollectingInventory={false}
         isSoftwareFetching={false}
         isSoftwareEnabled
         navTabIndex={0}
@@ -118,7 +117,6 @@ describe("Dashboard software card", () => {
     render(
       <Software
         errorSoftware={null}
-        isCollectingInventory={false}
         isSoftwareFetching={false}
         isSoftwareEnabled
         navTabIndex={1}
