@@ -2,15 +2,16 @@ package tables
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240827100329, Down_20240827100329)
+	MigrationClient.AddMigration(Up_20240829165930, Down_20240829165930)
 }
 
-func Up_20240827100329(tx *sql.Tx) error {
+func Up_20240829165930(tx *sql.Tx) error {
 	// mdm_apple_default_setup_assistants will now track profile_uuids per team
 	// AND ABM token.
 	const alterDefaultStmt = `
@@ -112,6 +113,6 @@ CREATE TABLE mdm_apple_setup_assistant_profiles (
 	return nil
 }
 
-func Down_20240827100329(tx *sql.Tx) error {
+func Down_20240829165930(tx *sql.Tx) error {
 	return nil
 }

@@ -14,10 +14,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240814142344, Down_20240814142344)
+	MigrationClient.AddMigration(Up_20240829165605, Down_20240829165605)
 }
 
-func Up_20240814142344(tx *sql.Tx) error {
+func Up_20240829165605(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE vpp_tokens (
 	id                     int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -176,6 +176,6 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 	return nil
 }
 
-func Down_20240814142344(tx *sql.Tx) error {
+func Down_20240829165605(tx *sql.Tx) error {
 	return nil
 }

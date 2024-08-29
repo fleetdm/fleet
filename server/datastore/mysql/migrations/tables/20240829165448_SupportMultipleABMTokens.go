@@ -13,10 +13,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240813103800, Down_20240813103800)
+	MigrationClient.AddMigration(Up_20240829165448, Down_20240829165448)
 }
 
-func Up_20240813103800(tx *sql.Tx) error {
+func Up_20240829165448(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE abm_tokens (
 	id                     int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -191,6 +191,6 @@ WHERE
 	return nil
 }
 
-func Down_20240813103800(tx *sql.Tx) error {
+func Down_20240829165448(tx *sql.Tx) error {
 	return nil
 }

@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5" //nolint:gosec
+	"crypto/md5"
 	"database/sql"
 	"testing"
 	"time"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240813103800(t *testing.T) {
+func TestUp_20240829165448(t *testing.T) {
 	createTokenAndHash := func() (string, []byte) {
 		tok := uuid.NewString()
 		h := md5.New() //nolint:gosec
