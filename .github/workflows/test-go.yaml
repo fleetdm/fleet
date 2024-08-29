@@ -131,6 +131,22 @@ jobs:
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 
+    - name: Create mysql identifier without colon
+      if: always()
+      run: |
+        echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
+
+    - name: Rename coverage
+      run: |
+        mv coverage.txt coverage-${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}.out
+
+    - name: Save coverage
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      with:
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-coverage
+        path: ./coverage-${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}.out
+        if-no-files-found: error
+
     # note: it's fine to upload multiple reports (one per matrix combination)
     # for the same run, see https://docs.codecov.com/docs/merging-reports
     - name: Upload to Codecov
@@ -167,11 +183,6 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
-    - name: Create mysql identifier without colon
-      if: always()
-      run: |
-        echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
-
     - name: Upload test log
       if: always()
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
@@ -186,3 +197,16 @@ jobs:
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
+
+  upload-coverage:
+    needs: [test-go]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+    - name: List dir for debug
+      run: ls -la
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      with:
+        flags: backend
