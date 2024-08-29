@@ -998,8 +998,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")
 		}
 
-		var user *fleet.User
 		// Self-Service packages will have a nil author for the activity.
+		var user *fleet.User
 		if !hsi.SelfService {
 			if hsi.UserID != nil {
 				user, err = svc.ds.UserByID(ctx, *hsi.UserID)

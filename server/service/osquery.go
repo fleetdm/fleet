@@ -1723,7 +1723,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
-			installerMetadata.SelfService,
+			false, // Set Self-service as false because this is triggered by Fleet.
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,

@@ -12829,9 +12829,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	dummyInstallerPkgInstallerID := dummyInstallerPkg.ID
 	require.NotZero(t, dummyInstallerPkgInstallerID)
 	require.NotNil(t, dummyInstallerPkg.UserID)
-	u, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+	globalAdmin, err := s.ds.UserByEmail(ctx, "admin1@example.com")
 	require.NoError(t, err)
-	require.Equal(t, u.ID, *dummyInstallerPkg.UserID)
+	require.Equal(t, globalAdmin.ID, *dummyInstallerPkg.UserID)
 	require.Equal(t, "Test Name admin1@example.com", dummyInstallerPkg.UserName)
 	require.Equal(t, "admin1@example.com", dummyInstallerPkg.UserEmail)
 
@@ -12903,6 +12903,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		InstallScript: "some msi install script",
 		Filename:      "fleet-osquery.msi",
 		TeamID:        &team2.ID,
+		// Set as Self-service to check that the generated host_software_installs
+		// is generated with self_service=false and the activity has the correct
+		// author (the admin that uploaded the installer).
+		SelfService: true,
 	}
 	s.uploadSoftwareInstaller(fleetOsqueryPayload, http.StatusOK, "")
 	// Get software title ID of the uploaded installer.
@@ -12975,29 +12979,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Nil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	foobarAppTitleID := resp.SoftwareTitles[0].ID
 
-	// Upload fleet-osquery.msi to team1 but as "Self Service" package, which should prevent it from being
-	// associated to a policy.
-	msiPayload2 := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "some pkg install script 2",
-		Filename:      "fleet-osquery.msi",
-		TeamID:        &team1.ID,
-		SelfService:   true,
-	}
-	s.uploadSoftwareInstaller(msiPayload2, http.StatusOK, "")
-	// Get software title ID of the uploaded installer.
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"query", "Fleet osquery",
-		"team_id", fmt.Sprintf("%d", team1.ID),
-	)
-	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	msiPayload2TitleID := resp.SoftwareTitles[0].ID
-	require.NotZero(t, msiPayload2TitleID)
-
 	// policy0AllTeams is a global policy that runs on all devices.
 	policy0AllTeams, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
 		Name:     "policy0AllTeams",
@@ -13052,13 +13033,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			SoftwareTitleID: &vppAppTitleID,
-		},
-	}, http.StatusBadRequest, &mtplr)
-	// Attempt to associate a Self Service software installer, should fail.
-	mtplr = modifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: ptr.Uint(msiPayload2TitleID),
 		},
 	}, http.StatusBadRequest, &mtplr)
 	// Associate dummy_installer.pkg to policy1Team1.
@@ -13224,6 +13198,11 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotEmpty(t, host3LastInstall.ExecutionID)
 	require.NotNil(t, host3LastInstall.Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *host3LastInstall.Status)
+	host3LastInstallDetails, err := s.ds.GetSoftwareInstallDetails(ctx, host3LastInstall.ExecutionID)
+	require.NoError(t, err)
+	// Even if fleet-osquery.msi was uploaded as Self-service, it was installed by Fleet, so
+	// host3LastInstallDetails.SelfService should be false.
+	require.False(t, host3LastInstallDetails.SelfService)
 
 	//
 	// The following increase coverage of policies result processing in distributed/write.
@@ -13273,6 +13252,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		},
 	), http.StatusOK, &distributedResp)
 
+	//
+	// Finally have orbit install the packages and check activities.
+	//
+
 	// host1Team1 posts the installation result for dummy_installer.pkg.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
@@ -13281,7 +13264,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			"install_script_exit_code": 0,
 			"install_script_output": "ok"
 		}`, *host1Team1.OrbitNodeKey, host1LastInstall.ExecutionID)), http.StatusNoContent)
-
 	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
 		"host_id": %d,
 		"host_display_name": "%s",
@@ -13300,7 +13282,6 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			"install_script_exit_code": 1,
 			"install_script_output": "failed"
 		}`, *host2Team1.OrbitNodeKey, host2LastInstall.ExecutionID)), http.StatusNoContent)
-
 	activityID := s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
 		"host_id": %d,
 		"host_display_name": "%s",
@@ -13310,6 +13291,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"install_uuid": "%s",
 		"status": "failed"
 	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID), 0)
+
 	// Check that the activity item generated for ruby.deb installation has a null user,
 	// but has name and email set.
 	var actor struct {
@@ -13328,4 +13310,36 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, actor.UserName)
 	require.Equal(t, "admin team1", *actor.UserName)
 	require.Equal(t, "admin_team1@example.com", actor.UserEmail)
+
+	// host3Team2 posts the installation result for fleet-osquery.msi.
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "ok",
+			"install_script_exit_code": 1,
+			"install_script_output": "failed"
+		}`, *host3Team2.OrbitNodeKey, host3LastInstall.ExecutionID)), http.StatusNoContent)
+	activityID = s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
+		"host_id": %d,
+		"host_display_name": "%s",
+		"software_title": "%s",
+		"software_package": "%s",
+		"self_service": false,
+		"install_uuid": "%s",
+		"status": "failed"
+	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID), 0)
+
+	// Check that the activity item generated for fleet-osquery.msi installation has the admin user set as author.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&actor,
+			`SELECT user_id, user_name, user_email FROM activities WHERE id = ?`,
+			activityID,
+		)
+	})
+	require.NotNil(t, actor.UserID)
+	require.Equal(t, globalAdmin.ID, *actor.UserID)
+	require.NotNil(t, actor.UserName)
+	require.Equal(t, "Test Name admin1@example.com", *actor.UserName)
+	require.Equal(t, "admin1@example.com", actor.UserEmail)
 }
