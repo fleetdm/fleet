@@ -2635,8 +2635,9 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		return nil, ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
 
-	act := fleet.ActivityEnabledVPP{}
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEnabledVPP{
+		Location: locName,
+	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
 	}
 
@@ -2849,6 +2850,15 @@ func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errore
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return err
+	}
+	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting vpp token")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDisabledVPP{
+		Location: tok.Location,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for delete VPP token")
 	}
 
 	return svc.ds.DeleteVPPToken(ctx, tokenID)

@@ -1218,15 +1218,33 @@ This activity contains the following fields:
 
 ## enabled_vpp
 
-Generated when the VPP feature is enabled in Fleet.
+Generated when VPP features are enabled in Fleet.
 
+This activity contains the following fields:
+- "location": Location associated with the VPP content token for the enabled VPP features.
 
+#### Example
+
+```json
+{
+  "location": "Acme Inc."
+}
+```
 
 ## disabled_vpp
 
-Generated when the VPP feature is disabled in Fleet.
+Generated when VPP features are disabled in Fleet.
 
+This activity contains the following fields:
+- "location": Location associated with the VPP content token for the disabled VPP features.
 
+#### Example
+
+```json
+{
+  "location": "Acme Inc."
+}
+```
 
 ## added_app_store_app
 
