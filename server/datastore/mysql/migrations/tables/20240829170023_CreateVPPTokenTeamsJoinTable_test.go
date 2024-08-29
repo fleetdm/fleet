@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240828150145(t *testing.T) {
+func TestUp_20240829170023(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec("INSERT INTO teams (name) VALUES (?)", "team1")

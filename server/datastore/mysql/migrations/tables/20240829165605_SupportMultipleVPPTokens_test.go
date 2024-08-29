@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240814142344(t *testing.T) {
+func TestUp_20240829165605(t *testing.T) {
 	createTokenAndHash := func() (string, []byte) {
 		tok := uuid.NewString()
 		h := md5.New() //nolint:gosec

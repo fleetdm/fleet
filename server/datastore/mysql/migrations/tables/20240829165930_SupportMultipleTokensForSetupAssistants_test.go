@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240827100329_None(t *testing.T) {
+func TestUp_20240829165930_None(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Apply current migration.
@@ -32,7 +32,7 @@ func TestUp_20240827100329_None(t *testing.T) {
 	require.Zero(t, count)
 }
 
-func TestUp_20240827100329_Existing(t *testing.T) {
+func TestUp_20240829165930_Existing(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create the single ABM token (can only have 1 when this migration runs)
