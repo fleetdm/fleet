@@ -50,8 +50,6 @@ Note that all steps of the software installation as set in step 1 above will be 
 'Pre-install query', 'Install script' and 'Post-install script'.
 
 
-
-
 ```
 Current supported installation files, manual upload of these formats:
 - Macos: .pkg
@@ -66,10 +64,62 @@ Coming soon:
 ## Using fleet API/GitOps:
 The same result can be achieved by using Fleet API, Fleetctl ot GitOps.
 
-Example:
-TODO - add API usage
-TODO - Add Fleetctl usage
-TODO - link to relevant GitOps 
+
+The following text file provide a Gitops example:
+
+
+```
+File name: software-install-policies.yml
+
+name: Adobe Acrobat Reader.app
+platform: darwin
+description: This policy checks if Adobe Acrobat is installed.
+resolution: An IT admin, upload Adobe Acrobat installer and deploy to the host..
+query: SELECT 1 FROM apps WHERE name == Adobe Acrobat.app' AND version == "";
+install_software:
+  package_path: ../lib/software/adobe-acrobat.software.yml
+```
+
+
+```
+File name: lib/software/adobe-acrobat.software.yml
+
+url: https://github.com/organinzation/repository/apps/AdobeAcrobatReaderInstallerFull-24_002_20687.pkg
+pre_install_query: 
+  path: ../lib/check-if-acrobat-running.queries.yml
+install_script: 
+  path: ../lib/adobe-acrobat-install.sh
+post_install_script: 
+  path: ../lib/adobe-acrobat-post-install.sh
+post_install_script: 
+  path: ../lib/adobe-acrobat-post-install.sh
+self_service: true
+```
+
+
+```
+File name: teams/no-team.yml
+
+name: No team
+policies:
+  - path: ../lib/software-install.policies.yml 
+  - path: ../lib/macos-device-health.policies.yml
+controls:
+software:
+  packages:
+   - url: https://github.com/organinzation/repository/installer.pkg
+     install_script:
+       path: /lib/crowdstrike-install.sh 
+     pre_install_query: 
+       path: /lib/check-crowdstrike-configuration-profile.queries.yml
+     post_install_script:
+       path: /lib/crowdstrike-post-install.sh 
+     self_service: true
+   - path: ..lib/software/adobe-acrobat.software.yml
+  app_store_apps:
+   - app_store_id: 1091189122
+```
+
 
 
 
