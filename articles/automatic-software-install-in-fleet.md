@@ -144,7 +144,6 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": false
     "calendar_events_enabled": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
