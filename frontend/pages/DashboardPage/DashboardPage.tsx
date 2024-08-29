@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
@@ -520,13 +521,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       renderFlash,
     ]
   );
-  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
-  // collecting inventory
-  const isCollectingInventory =
-    !isAnyTeamSelected &&
-    !softwarePageIndex &&
-    !software?.software &&
-    software?.counts_updated_at === null;
 
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
@@ -639,7 +633,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     children: (
       <Software
         errorSoftware={errorSoftware}
-        isCollectingInventory={isCollectingInventory}
         isSoftwareFetching={isSoftwareFetching}
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
@@ -652,14 +645,19 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ),
   });
 
-  const MunkiCard = useInfoCard({
-    title: "Munki",
-    titleDetail: (
+  const munkiTitleDetail = useMemo(
+    () => (
       <LastUpdatedText
         lastUpdatedAt={munkiCountsUpdatedAt}
         whatToRetrieve="Munki"
       />
     ),
+    [munkiCountsUpdatedAt]
+  );
+
+  const MunkiCard = useInfoCard({
+    title: "Munki",
+    titleDetail: munkiTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
       <p>

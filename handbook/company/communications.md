@@ -58,6 +58,21 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+## Tech stack admins
+
+| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
+|:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
+| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
+| CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ Admin | ❌ | ❌ |
+| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
+| BizOps Engineer | ✅ Super admin| ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
+| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
+| Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ Admin| ❌ | ❌ |
+| Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
+| Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin  | ❌ | ✅ Admin | ❌ |
 
 ### Docs
 

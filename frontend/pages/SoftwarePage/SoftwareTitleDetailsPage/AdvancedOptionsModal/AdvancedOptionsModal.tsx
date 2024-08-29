@@ -22,7 +22,7 @@ const AdvancedOptionsModal = ({
   onExit,
 }: IAdvancedOptionsModalProps) => {
   return (
-    <Modal className={baseClass} title="Advanced Options" onExit={onExit}>
+    <Modal className={baseClass} title="Advanced options" onExit={onExit}>
       <>
         <p>
           Advanced options are read-only. To change options, delete software and
