@@ -9,6 +9,7 @@
     display: flex;
     justify-content: space-between;
     width: 100%;
+    gap: $pad-medium;
   }
 
   &__main-info {
@@ -27,7 +28,7 @@
     font-size: $x-small;
     font-weight: $bold;
     @include ellipse-text;
-    max-width: 290px;
+    max-width: 48vw;
   }
 
   &__details {
@@ -91,6 +92,7 @@
     color: $ui-fleet-black-75;
     font-size: $xx-small;
     font-weight: $bold;
+    white-space: nowrap;
   }
 
   &__actions {

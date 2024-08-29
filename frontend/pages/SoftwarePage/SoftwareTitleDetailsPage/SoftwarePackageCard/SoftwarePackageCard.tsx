@@ -43,10 +43,15 @@ function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
 
   useLayoutEffect(() => {
     const element = ref.current;
-    if (element) {
-      const { scrollWidth, clientWidth } = element;
-      setIsTruncated(scrollWidth > clientWidth);
+    function updateIsTruncated() {
+      if (element) {
+        const { scrollWidth, clientWidth } = element;
+        setIsTruncated(scrollWidth > clientWidth);
+      }
     }
+    window.addEventListener("resize", updateIsTruncated);
+    updateIsTruncated();
+    return () => window.removeEventListener("resize", updateIsTruncated);
   }, [ref]);
 
   return isTruncated;
