@@ -67,10 +67,3 @@
   frequency: "Triweekly"
   description: "Discuss what stories weren't completed in the previous sprint. Record the number of stories in KPIs. Align on priorities for upcoming sprint."
   dri: "noahtalerman"
--
-  task: "🦢🗣 Apple MDM maturity review"
-  startedOn: "2024-07-29" 
-  frequency: "Weekly" 
-  description: "Review stories in the “In review“ column on the drafting board with the “~apple-mdm-maturity“ label. Would this be usable for an IT admin and how does it compare to Jamf?" 
-  moreInfoUrl: 
-  dri: "lukeheath"
