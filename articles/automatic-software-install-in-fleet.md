@@ -1,4 +1,4 @@
-# Automatic policy based installation of software on hosts
+# Automatic policy-based installation of software on hosts
 
 TODO: Add general image here
 
@@ -30,7 +30,7 @@ See step by step section below.
    policy that may trigger this software installations.
    ('Pre-install query', 'Install script' and 'Post-install script').
 
-   TODO: Sharon - add link to SW install doc.
+   See detailed instructions [here](https://fleetdm.com/guides/deploy-security-agents).
 
 ![Add Software](../website/assets/images/articles/automatic-software-install-add-software.png)
 
