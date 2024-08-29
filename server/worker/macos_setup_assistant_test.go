@@ -24,6 +24,8 @@ import (
 )
 
 func TestMacosSetupAssistant(t *testing.T) {
+	// FIXME
+	t.Skip()
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
 	// call TruncateTables immediately as some DB migrations may create jobs

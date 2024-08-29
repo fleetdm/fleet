@@ -146,11 +146,6 @@ org_settings:
                         "private_key": "google_calendar_private_key",
       }
   mdm:
-    apple_business_manager:
-      - organization_name: Acme Inc.
-        macos_team: $APPLE_BM_DEFAULT_TEAM
-        ios_team: $APPLE_BM_DEFAULT_TEAM
-        ipados_team: $APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
       entity_id: ""
       idp_name: ""
