@@ -4817,7 +4817,7 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	ctx := context.Background()
 
 	// Getting profile for non-existent secret should fail
-	s.Do("GET", "/api/latest/fleet/ota", getOTAProfileRequest{}, http.StatusNotFound, "enroll_secret", "not-real")
+	s.Do("GET", "/api/latest/fleet/ota", getOTAProfileRequest{}, http.StatusUnauthorized, "enroll_secret", "not-real")
 
 	// Create an enroll secret; has some special characters that should be escaped in the profile
 	globalEnrollSec := "global_enroll+_/sec"
