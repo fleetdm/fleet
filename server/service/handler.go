@@ -568,6 +568,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/manual_enrollment_profile", getManualEnrollmentProfileEndpoint, getManualEnrollmentProfileRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/manual", getManualEnrollmentProfileEndpoint, getManualEnrollmentProfileRequest{})
 
+	// Get OTA profile
+	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/ota", getOTAProfileEndpoint, getOTAProfileRequest{})
+
 	// bootstrap-package routes
 
 	// Deprecated: POST /mdm/bootstrap is now deprecated, replaced by the
@@ -755,9 +758,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
-
-	otaQuota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9}
-	mdmAppleMW.WithCustomMiddleware(errorLimiter.Limit("get_ota_enrollment", otaQuota)).GET("/api/_version_/fleet/enrollment_profiles/ota", getOTAProfileEndpoint, getOTAProfileRequest{})
 
 	// device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
