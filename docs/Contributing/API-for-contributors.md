@@ -3186,8 +3186,9 @@ solely on the response status code returned by this endpoint.
 
 ```http
   Content-Length: 542
-  Content-Type: application/octet-stream
+  Content-Type: application/x-apple-aspen-config; charset=urf-8
   Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+  X-Content-Type-Options: nosniff
 ```
 
 ###### Example response body
@@ -3200,13 +3201,13 @@ solely on the response status code returned by this endpoint.
     <key>PayloadContent</key>
     <dict>
       <key>URL</key>
-      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foo</string>
+      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foobar</string>
       <key>DeviceAttributes</key>
       <array>
         <string>UDID</string>
         <string>VERSION</string>
         <string>PRODUCT</string>
-	    <string>SERIAL</string>
+	<string>SERIAL</string>
       </array>
     </dict>
     <key>PayloadOrganization</key>
