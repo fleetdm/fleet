@@ -113,9 +113,14 @@ func testLiveQueryExpiredQuery(t *testing.T, store fleet.LiveQueryStore) {
 	assert.Len(t, queries, 1)
 	assert.Equal(t, map[string]string{"test": "select 1"}, queries)
 
-	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	require.NoError(t, err)
-	require.Equal(t, []string{"test"}, activeNames)
+	assert.Eventually(t, func() bool {
+		activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+		require.NoError(t, err)
+		if len(activeNames) == 1 && activeNames[0] == "test" {
+			return true
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
