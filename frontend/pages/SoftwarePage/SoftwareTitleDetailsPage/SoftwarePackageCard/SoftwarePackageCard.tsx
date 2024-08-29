@@ -4,8 +4,6 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-import FileSaver from "file-saver";
-import { parse } from "content-disposition";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -139,7 +137,7 @@ const PackageStatusCount = ({
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
-            <span>{displayData.displayName}</span>
+            <div>{displayData.displayName}</div>
           </div>
         </TooltipWrapper>
       }
@@ -148,6 +146,7 @@ const PackageStatusCount = ({
           {count} hosts
         </a>
       }
+      className={`${baseClass}__status`}
     />
   );
 };
@@ -305,7 +304,7 @@ const SoftwarePackageCard = ({
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__main-content`}>
+      <div className={`${baseClass}__row-1`}>
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
@@ -315,46 +314,46 @@ const SoftwarePackageCard = ({
             <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
-        <div className={`${baseClass}__package-statuses`}>
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="installed"
-            count={status.installed}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="pending"
-            count={status.pending}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="failed"
-            count={status.failed}
-            teamId={teamId}
-          />
+        <div className={`${baseClass}__actions-wrapper`}>
+          {isSelfService && (
+            <div className={`${baseClass}__self-service-badge`}>
+              <Icon
+                name="install-self-service"
+                size="small"
+                color="ui-fleet-black-75"
+              />
+              Self-service
+            </div>
+          )}
+          {showActions && (
+            <ActionsDropdown
+              isSoftwarePackage={!!softwarePackage}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              onAdvancedOptionsClick={onAdvancedOptionsClick}
+            />
+          )}
         </div>
       </div>
-      <div className={`${baseClass}__actions-wrapper`}>
-        {isSelfService && (
-          <div className={`${baseClass}__self-service-badge`}>
-            <Icon
-              name="install-self-service"
-              size="small"
-              color="ui-fleet-black-75"
-            />
-            Self-service
-          </div>
-        )}
-        {showActions && (
-          <ActionsDropdown
-            isSoftwarePackage={!!softwarePackage}
-            onDownloadClick={onDownloadClick}
-            onDeleteClick={onDeleteClick}
-            onAdvancedOptionsClick={onAdvancedOptionsClick}
-          />
-        )}
+      <div className={`${baseClass}__package-statuses`}>
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="installed"
+          count={status.installed}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="pending"
+          count={status.pending}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="failed"
+          count={status.failed}
+          teamId={teamId}
+        />
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
