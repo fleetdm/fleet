@@ -52,9 +52,9 @@ When starting a new draft:
     - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
       
 ### Prepare for design review
-- Link to your draft in the user story issue.
-- Add the user story to the agenda for your the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
-- Attend design review or schedule an ad-hoc design review if you need to move faster. (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
+1. Link to your draft in the user story issue.
+2. Add the user story to the agenda for your the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
+3. Attend design review or schedule an ad-hoc design review if you need to move faster.
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
@@ -267,6 +267,9 @@ Please see [handbook/product-groups#after-the-feature-is-accepted](https://fleet
 
 ##### Restart Algolia manually
 Please see [handbook/digital-experience#restart-algolia-manually](https://fleetdm.com/handbook/digital-experience#restart-algolia-manually)
+
+##### Schedule a design review
+Please see [handbook/product#prepare-for-design-review](https://fleetdm.com/handbook/product#prepare-for-design-review)
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="🦢 Product design">
