@@ -99,6 +99,7 @@ type integrationMDMTestSuite struct {
 	appleVPPConfigSrv          *httptest.Server
 	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
+	appleGDMFSrv               *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
@@ -534,6 +535,16 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
 	}))
 
+	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(s.T(), err)
+		_, err = w.Write(b)
+		require.NoError(s.T(), err)
+	}))
+
+	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
 
@@ -570,6 +581,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 	s.T().Cleanup(s.appleITunesSrv.Close)
+	s.T().Cleanup(s.appleGDMFSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
