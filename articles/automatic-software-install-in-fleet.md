@@ -92,7 +92,7 @@ Upon failure of the select policy, the selected software installation will be tr
 
 ### Using the REST API for self-service software packages
 
-Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-policy).
+Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
 
 ### Managing self-service software packages with GitOps
 
