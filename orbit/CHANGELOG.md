@@ -1,14 +1,12 @@
 ## Orbit 1.32.0 (Aug 29, 2024)
 
-* bumped macadmins extension to use SOFA feed sofafeed.macadmins.io
+* Bumped macadmins extension to use SOFA feed sofafeed.macadmins.io
 
-In Fleet Desktop, My Device status is now refreshed when user clicks on My Device or Self-Service dropdown option.
+* In Fleet Desktop, "My Device" status is now refreshed when user clicks on "My Device" or "Self-service" dropdown option.
 
 * Updated go to go1.22.6
 
-* Adds ability for MDM migrations if the host is manually enrolled to a 3rd party MDM.
-
-* Fixed an issue that would display a disk encryption modal with MDM configured and FileVault enabled if the user hadn't escrowed the key in the past.
+* Added ability for MDM migrations if the host is manually enrolled to a 3rd party MDM.
 
 * Fixed a formatting error when an unrecognized error happens during BitLocker encryption.
 
