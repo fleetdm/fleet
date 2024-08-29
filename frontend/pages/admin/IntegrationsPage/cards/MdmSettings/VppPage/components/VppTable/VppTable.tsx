@@ -42,6 +42,7 @@ const VppTable = ({
   return (
     <TableContainer<IMdmVppToken>
       columnConfigs={tableConfig}
+      defaultSortHeader="org_name"
       disableTableHeader
       disablePagination
       showMarkAllPages={false}
