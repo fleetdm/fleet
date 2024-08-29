@@ -1329,7 +1329,7 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
