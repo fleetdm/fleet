@@ -1,21 +1,30 @@
 # Product Design
+
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
+
 ## Team
+
 | Role                             | Contributor(s)           |
 |:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
 | Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+
 ## Contact us
+
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
 
+
 ## Responsibilities
+
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
+
 ### Release relavent Figma files
+
 - Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
@@ -23,7 +32,9 @@ The Product Design department is responsible for reviewing and collecting feedba
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
+
 ### Create a new Figma file
+
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 - Take the top user story that is assigned to you in the "Prioritized" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
@@ -50,22 +61,28 @@ When starting a new draft:
     -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
 - If the story requires API changes, open a draft PR with the proposed API design.
     - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
+
       
 ### Prepare for design review
+
 1. Link to your draft in the user story issue.
 2. Add the user story to the agenda for your the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
 3. Attend design review or schedule an ad-hoc design review if you need to move faster.
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
+
 ### Ensure story drafting is complete
+
 Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Produce Designer is responsible for moving the user story to the "Ready to spec" column and assigning the appropriate Engineering Manager (EM).
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
 Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
 
+
 ### Revise a draft currently in development
+
 Expedited drafting is the revision of drafted changes currently being developed by
 the engineering team. Expedited drafting aims to quickly adapt to unknown edge cases and
 changing specifications while ensuring that Fleet meets our brand and quality guidelines. 
@@ -81,7 +98,9 @@ What happens during expedited drafting?
 3. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 4. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
+
 ### Correctly prioritize a bug
+
 Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
 1. Quality: product does what it's supposed to (what is documented).
 2. Common-sense user criticality: If no one can load any page, that's obviously important.
@@ -101,17 +120,23 @@ After aligning with the Director of Product Development on the outcomes, The Hea
 - **Schedule**: Remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Engineering Manager so that it can be prioritized into the sprint backlog.
 - **De-prioritized**: The Head of Product Design should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
+
 ### Write a user story
+
 Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
+
 ### Draft a user story
+
 Product Designers [draft user stories](https://fleetdm.com/handbook/company/product-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
 
 If an issue's title or user story summary (_"as a…I want to…so that"_) does not match the intended change being discussed, the designer will move the issue to the "Needs clarity" column of the drafting board and assign the group product manager.  The group product manager will revisit ASAP and edit the issue title and user story summary, then reassign the designer and move the issue back to the "Prioritized" column.
 
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
+
 ### Rank features before release
+
 These measures exist to keep all contributors (including other departments besides engineering and product) up to date with improvements and changes to the Fleet product.  This helps folks plan and communicate with customers and users more effectively.
 
 After the kickoff of a product sprint, the demand and product teams decide which improvements are most important to highlight in this release, whether that's through social media "drumbeat" tweets, collaboration with partners, or emphasized [content blocks](https://about.gitlab.com/handbook/marketing/blog/release-posts/#3rd-to-10th) within the release blog post.
@@ -122,12 +147,16 @@ When an improvement gets scheduled for release, the Head of Product sets its "ec
 - **Echelon 2: A highlighted feature in the release notes.** This product feature will be highlighted at the top of the Sprint Release blog post. Depending on the feature specifics this will include: a 1-2 paragraph write-up of the feature, a demo video (if applicable) and a link to the docs. Ideally there would be no more than three _echelon 2_ features in a release post, otherwise the top features will be crowded.
 - **Echelon 3: A notable feature to mention in the [changelog](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md)**. Most product improvements fit into this echelon. This includes 1-2 sentences in the changelog and [release blog post](https://fleetdm.com/releases).
 
+
 ### Create release issue
+
 Before each release, the Head of Product [creates a "Release" issue](https://github.com/fleetdm/confidential/issues/new/choose), which includes a list of all improvements included in the upcoming release.  Each improvement links to the relevant bug or user story issue on GitHub so it is easy to read the related discussion and history.
 
 The product team is responsible for providing the demand team with the necessary information for writing the release blog post. Every three weeks after the sprint is kicked off, the product team meets with the relevant demand team members to go over the features for that sprint and recommend items to highlight as _echelon 2_ features and provide relevant context for other features to help demand decide which features to highlight.
 
+
 ### Consider a feature eligible to be flagged
+
 At Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities. The following highlights should be considered when deciding if we should leverage feature flags:
 
 - The feature flag must be disabled by default.
@@ -139,7 +168,9 @@ At Fleet, features are placed behind feature flags if the changes could affect F
 
 > Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
 
+
 ### Consider promoting a feature as "beta"
+
 At Fleet, features are advertised as "beta" if there are concerns that the feature may not work as intended in certain Fleet
 deployments. For example, these concerns could be related to the feature's performance in Fleet
 deployments with hundreds of thousands of hosts.
@@ -151,7 +182,9 @@ The following highlights should be considered when deciding if we promote a feat
   explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
+
 ### View Fleet usage statistics
+
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
 Fleeties can view these statistics in the Google spreadsheet [Fleet
