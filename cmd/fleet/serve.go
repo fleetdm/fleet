@@ -583,7 +583,7 @@ the way that the Fleet server works.
 					tok := &fleet.ABMToken{
 						EncryptedToken: appleBM.EncryptedToken,
 					}
-					tok, err = ds.InsertABMToken(context.Background(), tok)
+					_, err = ds.InsertABMToken(context.Background(), tok)
 					if err != nil {
 						initFatal(err, "save ABM token")
 					}
