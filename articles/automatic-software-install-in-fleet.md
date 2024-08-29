@@ -34,6 +34,18 @@ See step by step section below.
 
 ![Add Software](../website/assets/images/articles/automatic-software-install-add-software.png)
 
+```
+Current supported installation files, manual upload of these formats:
+- Macos: .pkg
+- Windows: .msi, .exe
+- Linux: .deb
+
+Coming soon:
+- Ability to auto install from App store (VPP).
+- Install on iOS and iPadOS
+```
+
+
 2. In Fleet, add a policy that failure to pass it will trigger the required installation.
   Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy"
   --> Save --> Fill details in the Save modal and Save.
@@ -52,16 +64,6 @@ See step by step section below.
 Upon failure of the select policy, the selected software installation will be triggered.
 
 
-```
-Current supported installation files, manual upload of these formats:
-- Macos: .pkg
-- Windows: .msi, .exe
-- Linux: .deb
-
-Coming soon:
-- Ability to auto install from App store (VPP).
-- Install on iOS and iPadOS
-```
 
 ## Using fleet API/GitOps:
 The same result can be achieved by using Fleet API, Fleetctl ot GitOps.
