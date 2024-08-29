@@ -33,10 +33,10 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		t.Cleanup(srv.Close)
 		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
 
-		err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+		err = depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
 		require.NoError(t, err)
 
-		mysql.SetTestABMAssets(t, ds, apple_mdm.DEPName)
+		mysql.SetTestABMAssets(t, ds, "fleet")
 
 		logger := log.NewNopLogger()
 		return apple_mdm.NewDEPService(ds, depStorage, logger)

@@ -32,7 +32,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	org1Name := "org1"
 	org2Name := "org2"
 
-	mysql.SetTestABMAssets(t, ds, apple_mdm.DEPName)
+	mysql.SetTestABMAssets(t, ds, "fleet")
 	tok := mysql.CreateAndSetABMToken(t, ds, org1Name)
 	tok2 := mysql.CreateAndSetABMToken(t, ds, org2Name)
 
@@ -138,7 +138,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	err = depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 	err = depStorage.StoreConfig(ctx, org1Name, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	// the default token is not used by any team, only defined for no team (due
 	// to it defaulting to no team)
 	for _, tmID := range tmIDs {
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, apple_mdm.DEPName)
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, "FIXME")
 		if tmID == nil {
 			require.NoError(t, err)
 			require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))

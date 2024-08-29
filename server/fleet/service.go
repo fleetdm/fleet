@@ -799,9 +799,6 @@ type Service interface {
 	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
-	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
-	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
-
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
 	//
 	// Deprecated: NewMDMAppleDEPKeyPair exists only to support a deprecated endpoint.

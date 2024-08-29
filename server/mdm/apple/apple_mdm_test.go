@@ -107,7 +107,6 @@ func TestDEPService(t *testing.T) {
 		}
 
 		depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
-			require.Equal(t, name, DEPName)
 			require.NotEmpty(t, profileUUID)
 			return nil
 		}

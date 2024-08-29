@@ -22,20 +22,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-multierror"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
 	kitlog "github.com/go-kit/log"
 )
-
-// DEPName is the identifier/name used in nanodep MySQL storage which
-// holds the DEP configuration.
-//
-// Fleet uses only one DEP configuration set for the whole deployment.
-// TODO: this shouldn't be used anywhere after the multiple ABM tokens support is done
-// (this was the "name" of the one and only token before).
-const DEPName = "fleet"
 
 const (
 	// SCEPPath is Fleet's HTTP path for the SCEP service.
@@ -84,7 +77,7 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 type DEPService struct {
 	ds         fleet.Datastore
 	depStorage nanodep_storage.AllDEPStorage
-	syncer     *depsync.Syncer
+	depClient  *godep.Client
 	logger     kitlog.Logger
 }
 
@@ -341,62 +334,107 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	// get the Apple BM default team
-	appCfg, err := d.ds.AppConfig(ctx)
+	syncerLogger := logging.NewNanoDEPLogger(kitlog.With(d.logger, "component", "nanodep-syncer"))
+	teams, err := d.ds.ListTeams(
+		ctx, fleet.TeamFilter{
+			User: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
+		}, fleet.ListOptions{},
+	)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "listing teams")
 	}
-	// TODO(mna): not addressing as part of my current work (outside the scope),
-	// but this needs to get the default team associated with each ABM token.
-	// So I think the RunAssigner logic will have to load all ABM tokens, get the
-	// default team(s) for each, and loop for each token, ensuring the default and
-	// custom setup assistant profiles are registered with Apple for each token.
-	//
-	// Given that, I think I'll refactor the Ensure... functions to receive the
-	// org name.
-	var appleBMTeam *fleet.Team
-	if appCfg.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		if err != nil && !fleet.IsNotFound(err) {
-			return err
+
+	teamsByID := make(map[uint]*fleet.Team, len(teams))
+	for _, tm := range teams {
+		teamsByID[tm.ID] = tm
+	}
+
+	tokens, err := d.ds.ListABMTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+
+	var result error
+	for _, token := range tokens {
+		var macOSTeam, iosTeam, ipadTeam *fleet.Team
+
+		if token.MacOSDefaultTeamID != nil {
+			macOSTeam = teamsByID[*token.MacOSDefaultTeamID]
 		}
-		appleBMTeam = tm
-	}
 
-	// ensure the default (fallback) setup assistant profile exists, registered
-	// with Apple DEP.
-	_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, appleBMTeam, "TODO ABM TOKEN ORG NAME")
-	if err != nil {
-		return err
-	}
+		if token.IOSDefaultTeamID != nil {
+			iosTeam = teamsByID[*token.IOSDefaultTeamID]
+		}
 
-	// if the team/no-team has a custom setup assistant, ensure it is registered
-	// with Apple DEP.
-	customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam, "TODO ABM TOKEN ORG NAME")
-	if err != nil {
-		return err
-	}
+		if token.IPadOSDefaultTeamID != nil {
+			ipadTeam = teamsByID[*token.IPadOSDefaultTeamID]
+		}
 
-	// get the modification timestamp of the effective profile (custom or default)
-	effectiveProfModTime := defModTime
-	if customUUID != "" {
-		effectiveProfModTime = customModTime
-	}
+		teams := []*fleet.Team{macOSTeam, iosTeam, ipadTeam}
+		for _, team := range teams {
+			// ensure the default (fallback) setup assistant profile exists, registered
+			// with Apple DEP.
+			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
+			if err != nil {
+				result = multierror.Append(result, err)
+				continue
+			}
 
-	cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, DEPName)
-	if err != nil {
-		return err
-	}
+			// if the team/no-team has a custom setup assistant, ensure it is registered
+			// with Apple DEP.
+			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team, token.OrganizationName)
+			if err != nil {
+				result = multierror.Append(result, err)
+				continue
+			}
 
-	// If the effective profile was changed since last sync then we clear
-	// the cursor and perform a full sync of all devices and profile assigning.
-	if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-		d.logger.Log("msg", "clearing device syncer cursor")
-		if err := d.depStorage.StoreCursor(ctx, DEPName, ""); err != nil {
-			return err
+			// get the modification timestamp of the effective profile (custom or default)
+			effectiveProfModTime := defModTime
+			if customUUID != "" {
+				effectiveProfModTime = customModTime
+			}
+
+			cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, token.OrganizationName)
+			if err != nil {
+				result = multierror.Append(result, err)
+				continue
+			}
+
+			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
+				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName, "team", team.Name)
+				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
+					result = multierror.Append(result, err)
+					continue
+				}
+			}
+
+		}
+
+		syncer := depsync.NewSyncer(
+			d.depClient,
+			token.OrganizationName,
+			d.depStorage,
+			depsync.WithLogger(syncerLogger),
+			depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+				// the nanodep syncer just logs the error of the callback, so in order to
+				// capture it we need to do this here.
+				err := d.processDeviceResponse(ctx, resp, token.ID, token.OrganizationName, macOSTeam, iosTeam, ipadTeam)
+				if err != nil {
+					ctxerr.Handle(ctx, err)
+				}
+				return err
+			}),
+		)
+
+		if err := syncer.Run(ctx); err != nil {
+			result = multierror.Append(result, err)
+			continue
 		}
 	}
-	return d.syncer.Run(ctx)
+
+	return result
 }
 
 func NewDEPService(
@@ -404,28 +442,12 @@ func NewDEPService(
 	depStorage nanodep_storage.AllDEPStorage,
 	logger kitlog.Logger,
 ) *DEPService {
-	depClient := NewDEPClient(depStorage, ds, logger)
 	depSvc := &DEPService{
 		depStorage: depStorage,
 		logger:     logger,
 		ds:         ds,
+		depClient:  NewDEPClient(depStorage, ds, logger),
 	}
-
-	depSvc.syncer = depsync.NewSyncer(
-		depClient,
-		DEPName,
-		depStorage,
-		depsync.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
-		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			// the nanodep syncer just logs the error of the callback, so in order to
-			// capture it we need to do this here.
-			err := depSvc.processDeviceResponse(ctx, depClient, resp)
-			if err != nil {
-				ctxerr.Handle(ctx, err)
-			}
-			return err
-		}),
-	)
 
 	return depSvc
 }
@@ -433,14 +455,19 @@ func NewDEPService(
 // processDeviceResponse processes the device response from the device sync
 // DEP API endpoints and assigns the profile UUID associated with the DEP
 // client DEP name.
-func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep.Client, resp *godep.DeviceResponse) error {
+func (d *DEPService) processDeviceResponse(
+	ctx context.Context,
+	resp *godep.DeviceResponse,
+	abmTokenID uint,
+	abmOrganizationName string,
+	macOSTeam *fleet.Team,
+	iosTeam *fleet.Team,
+	ipadTeam *fleet.Team,
+) error {
 	if len(resp.Devices) < 1 {
 		// no devices means we can't assign anything
 		return nil
 	}
-
-	// TODO(mna): outside the scope of my PR, but this needs to be addressed.
-	abmTokenID := uint(0)
 
 	var addedDevices []godep.Device
 	var deletedSerials []string
@@ -504,10 +531,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	// TODO(mna): outside the scope of my PR, but this needs to know which
-	// default team to create the host into (the default team associated with the
-	// ABM token used).
-	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID)
+	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID, macOSTeam, iosTeam, ipadTeam)
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
@@ -518,54 +542,68 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
+	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevices), "to_remove", deletedSerials, "to_modify", modifiedSerials)
+
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
 	//
 	// collect a map of all the profiles => serials we need to assign.
 	profileToDevices := map[string][]godep.Device{}
+	var iosTeamID, macOSTeamID, ipadTeamID *uint
+	if iosTeam != nil {
+		iosTeamID = &iosTeam.ID
+	}
+	if macOSTeam != nil {
+		macOSTeamID = &macOSTeam.ID
+	}
+	if ipadTeam != nil {
+		ipadTeamID = &ipadTeam.ID
+	}
 
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
-	if len(addedDevices) > 0 {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
-		profUUID, err := d.getProfileUUIDForTeam(ctx, defaultABMTeamID, "TODO ABM TOKEN ORG NAME")
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", defaultABMTeamID)
+	devicesByTeam := map[*uint][]godep.Device{}
+	for _, newDevice := range addedDevices {
+		var teamID *uint
+		switch newDevice.DeviceFamily {
+		case "iPhone":
+			teamID = iosTeamID
+		case "iPad":
+			teamID = ipadTeamID
+		default:
+			teamID = macOSTeamID
 		}
+		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
 
-		profileToDevices[profUUID] = addedDevices
-	} else {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "no added devices to assign DEP profiles")
 	}
 
-	// for all other hosts we received, find out the right DEP profile to assign, based on the team.
-	if len(existingSerials) > 0 {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
-		devicesByTeam := map[*uint][]godep.Device{}
-		hosts := []fleet.Host{}
-		for _, host := range existingSerials {
-			dd, ok := modifiedDevices[host.HardwareSerial]
-			if !ok {
-				return ctxerr.Errorf(ctx, "serial %s coming from ABM is in the databse, but it's not in the list of modified devices", host.HardwareSerial)
-			}
-			hosts = append(hosts, *host)
-			devicesByTeam[host.TeamID] = append(devicesByTeam[host.TeamID], dd)
+	// for all other hosts we received, find out the right DEP profile to
+	// assign, based on the team.
+	existingHosts := []fleet.Host{}
+	for _, existingHost := range existingSerials {
+		dd, ok := modifiedDevices[existingHost.HardwareSerial]
+		if !ok {
+			level.Error(kitlog.With(d.logger)).Log("msg", "serial coming from ABM is in the databse, but it's not in the list of modified devices", "serial", existingHost.HardwareSerial)
+			continue
 		}
-		for team, devices := range devicesByTeam {
-			profUUID, err := d.getProfileUUIDForTeam(ctx, team, "TODO ABM TOKEN ORG NAME")
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
-			}
+		existingHosts = append(existingHosts, *existingHost)
+		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
+	}
 
-			profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
+	// assign the profile to each device
+	for team, devices := range devicesByTeam {
+		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 		}
 
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing device")
-		}
+		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
+	}
 
-	} else {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
+	if len(existingHosts) > 0 {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
+		}
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
@@ -603,7 +641,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		}
 
 		for orgName, serials := range assignSerials {
-			apiResp, err := depClient.AssignProfile(ctx, orgName, profUUID, serials...)
+			apiResp, err := d.depClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
 				level.Error(logger).Log(
 					"msg", "assign profile",
@@ -646,7 +684,7 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmT
 	// get profile uuid of team or default
 	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam, abmTokenOrgName)
 	if err != nil {
-		return "", fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
+		return "", fmt.Errorf("ensure setup assistant for team: %w", err)
 	}
 	if profUUID == "" {
 		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam, abmTokenOrgName)

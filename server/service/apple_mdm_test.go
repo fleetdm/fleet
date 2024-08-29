@@ -246,8 +246,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleDEPDevices(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
 
 		// check EULA routes
 		_, err = svc.MDMGetEULAMetadata(ctx)

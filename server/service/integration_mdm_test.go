@@ -651,11 +651,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
 	t := s.T()
 	srv := httptest.NewServer(handler)
-	err := s.depStorage.StoreConfig(context.Background(), apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	err := s.depStorage.StoreConfig(context.Background(), "fleet", &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		srv.Close()
-		err := s.depStorage.StoreConfig(context.Background(), apple_mdm.DEPName, &nanodep_client.Config{BaseURL: nanodep_client.DefaultBaseURL})
+		err := s.depStorage.StoreConfig(context.Background(), "fleet", &nanodep_client.Config{BaseURL: nanodep_client.DefaultBaseURL})
 		require.NoError(t, err)
 	})
 }

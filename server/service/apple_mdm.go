@@ -35,7 +35,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -1152,45 +1151,6 @@ func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	}
 
 	return svc.ds.MDMAppleListDevices(ctx)
-}
-
-type listMDMAppleDEPDevicesRequest struct{}
-
-type listMDMAppleDEPDevicesResponse struct {
-	Devices []fleet.MDMAppleDEPDevice `json:"devices"`
-	Err     error                     `json:"error,omitempty"`
-}
-
-func (r listMDMAppleDEPDevicesResponse) error() error { return r.Err }
-
-func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	devices, err := svc.ListMDMAppleDEPDevices(ctx)
-	if err != nil {
-		return listMDMAppleDEPDevicesResponse{Err: err}, nil
-	}
-	return &listMDMAppleDEPDevicesResponse{
-		Devices: devices,
-	}, nil
-}
-
-func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppleDEPDevice, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
-
-	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
-	// This single-request version supports up to 1000 devices (max to return in one call).
-	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple_mdm.DEPName, godep.WithLimit(1000))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	devices := make([]fleet.MDMAppleDEPDevice, len(fetchDevicesResponse.Devices))
-	for i := range fetchDevicesResponse.Devices {
-		devices[i] = fleet.MDMAppleDEPDevice{Device: fetchDevicesResponse.Devices[i]}
-	}
-	return devices, nil
 }
 
 type newMDMAppleDEPKeyPairResponse struct {
