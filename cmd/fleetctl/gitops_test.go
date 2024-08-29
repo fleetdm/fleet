@@ -1386,8 +1386,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 					Location:  "Earth",
 					RenewDate: c.tokenExpiration,
 					Token:     string(token),
-					TeamID:    teamID,
-					NullTeam:  fleet.NullTeamNoTeam,
+					Teams:     nil,
 				}, nil
 			}
 
@@ -1773,7 +1772,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil
 	}
 
-	ds.InsertVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenData, teamID *uint, nullTeam fleet.NullTeamType) (*fleet.VPPTokenDB, error) {
+	ds.InsertVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
 	}
 	ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
@@ -1785,11 +1784,8 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
-	ds.UpdateVPPTokenTeamFunc = func(ctx context.Context, id uint, teamID *uint, nullTeam fleet.NullTeamType) error {
-		return nil
-	}
-	ds.UpdateVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenDB) error {
-		return nil
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{}, nil
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil

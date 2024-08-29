@@ -1336,13 +1336,13 @@ type Datastore interface {
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
-	InsertVPPToken(ctx context.Context, tok *VPPTokenData, teamID *uint, nullTeam NullTeamType) (*VPPTokenDB, error)
-	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
-	UpdateVPPToken(ctx context.Context, tok *VPPTokenDB) error
-	DeleteVPPToken(ctx context.Context, tokenID uint) error
+	InsertVPPToken(ctx context.Context, tok *VPPTokenData) (*VPPTokenDB, error)
 	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
+	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
-	UpdateVPPTokenTeam(ctx context.Context, id uint, teamID *uint, nullTeam NullTeamType) error
+	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
+	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
+	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.
@@ -1368,9 +1368,11 @@ type Datastore interface {
 	// GetABMTokenCount returns the number of ABM tokens in the DB.
 	GetABMTokenCount(ctx context.Context) (int, error)
 
-	// GetABMTokenOrgNamesForHostsInTeam returns the set of ABM organization names that correspond to each of
-	// the hosts in the team.
-	GetABMTokenOrgNamesForHostsInTeam(ctx context.Context, teamID *uint) ([]string, error)
+	// GetABMTokenOrgNamesAssociatedWithTeam returns the set of ABM organization
+	// names that correspond to the union of
+	// - the tokens used to create each of the DEP hosts in that team.
+	// - the tokens targeting that team as default for any platform.
+	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

@@ -10288,7 +10288,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
 
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_token/%d", vppRes.Token.ID), &deleteVPPTokenRequest{}, http.StatusNoContent)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", vppRes.Token.ID), &deleteVPPTokenRequest{}, http.StatusNoContent)
 
 	// Check if the host is listed as pending
 	var listResp listHostsResponse
@@ -10557,6 +10557,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Delete VPP token and check that it's not appearing anymore
 
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_token/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
 }
