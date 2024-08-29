@@ -7,14 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"encoding/xml"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -4160,37 +4157,6 @@ func (svc *Service) DisableABM(ctx context.Context) error {
 // GET /ota
 ////////////////////////////////////////////////////////////////////////////////
 
-var otaTmpl = template.Must(template.New("").Parse(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>PayloadContent</key>
-    <dict>
-      <key>URL</key>
-      <string>{{ .URL }}/api/fleet/ota_enrollment?enroll_secret={{ .EnrollSecret }}</string>
-      <key>DeviceAttributes</key>
-      <array>
-        <string>UDID</string>
-        <string>VERSION</string>
-        <string>PRODUCT</string>
-	    <string>SERIAL</string>
-      </array>
-    </dict>
-    <key>PayloadOrganization</key>
-    <string>{{ .Organization }}</string>
-    <key>PayloadDisplayName</key>
-    <string>{{ .Organization }} enrollment</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
-    <key>PayloadUUID</key>
-    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
-    <key>PayloadIdentifier</key>
-    <string>com.fleetdm.fleet.mdm.apple.ota</string>
-    <key>PayloadType</key>
-    <string>Profile Service</string>
-  </dict>
-</plist>`))
-
 type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 }
@@ -4214,7 +4180,8 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
-	// Skip authz as this endpoint is used by end users from their iPhones or iPads
+	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
+	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
 
 	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
@@ -4231,28 +4198,12 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	var escOrgName strings.Builder
-	if err := xml.EscapeText(&escOrgName, []byte(cfg.OrgInfo.OrgName)); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "XML escaping org name")
-	}
-
-	var profileBytes bytes.Buffer
-	tmplArgs := struct {
-		Organization string
-		URL          string
-		EnrollSecret string
-	}{
-		Organization: escOrgName.String(),
-		URL:          cfg.ServerSettings.ServerURL,
-		EnrollSecret: url.QueryEscape(enrollSecret),
-	}
-
-	err = otaTmpl.Execute(&profileBytes, tmplArgs)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "executing profile template")
+		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
 
-	signed, err := mdmcrypto.Sign(ctx, profileBytes.Bytes(), svc.ds)
+	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}

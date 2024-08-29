@@ -906,3 +906,59 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	return nil
 }
+
+var otaMobileConfigTemplate = template.Must(template.New("").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>{{ .URL }}/api/fleet/ota_enrollment?enroll_secret={{ .EnrollSecret }}</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	    <string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>{{ .Organization }}</string>
+    <key>PayloadDisplayName</key>
+    <string>{{ .Organization }} enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>`))
+
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+	var escOrgName strings.Builder
+	if err := xml.EscapeText(&escOrgName, []byte(orgName)); err != nil {
+		return nil, fmt.Errorf("XML escaping org name: %w", err)
+	}
+
+	var profileBuf bytes.Buffer
+	tmplArgs := struct {
+		Organization string
+		URL          string
+		EnrollSecret string
+	}{
+		Organization: escOrgName.String(),
+		URL:          fleetURL,
+		EnrollSecret: url.QueryEscape(enrollSecret),
+	}
+
+	err := otaMobileConfigTemplate.Execute(&profileBuf, tmplArgs)
+	if err != nil {
+		return nil, fmt.Errorf("executing ota profile template: %w", err)
+	}
+
+	return profileBuf.Bytes(), nil
+}
