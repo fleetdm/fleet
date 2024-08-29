@@ -26,6 +26,10 @@ See step by step section below.
 
 1. Add any software to be available for installation. Follow this document with instruction how to
    do it.
+   Note that all steps of the software installation as set here will be respected regardless to the
+   policy that may trigger this software installations.
+   ('Pre-install query', 'Install script' and 'Post-install script').
+
    TODO: Sharon - add link to SW install doc.
 
 ![Add Software](../website/assets/images/articles/automatic-software-install-add-software.png)
@@ -46,8 +50,6 @@ See step by step section below.
 ![Install Software Modal](../website/assets/images/articles/automatic-software-install-install-software.png)
 
 Upon failure of the select policy, the selected software installation will be triggered.
-Note that all steps of the software installation as set in step 1 above will be respected including
-'Pre-install query', 'Install script' and 'Post-install script'.
 
 
 ```
