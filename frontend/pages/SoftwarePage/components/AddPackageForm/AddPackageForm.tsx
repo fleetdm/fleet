@@ -160,7 +160,6 @@ const AddPackageForm = ({
               preInstallQuery: formValidation.preInstallQuery?.message,
               postInstallScript: formValidation.postInstallScript?.message,
             }}
-            showInstallScript={!!formData.software}
             preInstallQuery={formData.preInstallQuery}
             postInstallScript={formData.postInstallScript}
             onChangePreInstallQuery={onChangePreInstallQuery}

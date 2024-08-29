@@ -9,24 +9,22 @@ const baseClass = "add-package-advanced-options";
 
 interface IAddPackageAdvancedOptionsProps {
   errors: { preInstallQuery?: string; postInstallScript?: string };
-  showInstallScript: boolean;
   preInstallQuery?: string;
+  installScript: string;
   postInstallScript?: string;
   onChangePreInstallQuery: (value?: string) => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
-  installScript: string;
 }
 
 const AddPackageAdvancedOptions = ({
   errors,
-  showInstallScript,
   preInstallQuery,
+  installScript,
   postInstallScript,
   onChangePreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
-  installScript,
 }: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -64,26 +62,23 @@ const AddPackageAdvancedOptions = ({
               </>
             }
           />
-          {showInstallScript && (
-            <Editor
-              wrapEnabled
-              maxLines={10}
-              name="install-script"
-              onChange={onChangeInstallScript}
-              value={installScript}
-              helpText="Shell (macOS and Linux) or PowerShell (Windows)."
-              label="Install script"
-              labelTooltip={
-                <>
-                  Fleet will run this script on hosts to install software. Use
-                  the
-                  <br />
-                  $INSTALLER_PATH variable to point to the installer.
-                </>
-              }
-              isFormField
-            />
-          )}
+          <Editor
+            wrapEnabled
+            maxLines={10}
+            name="install-script"
+            onChange={onChangeInstallScript}
+            value={installScript}
+            helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+            label="Install script"
+            labelTooltip={
+              <>
+                Fleet will run this script on hosts to install software. Use the
+                <br />
+                $INSTALLER_PATH variable to point to the installer.
+              </>
+            }
+            isFormField
+          />
           <Editor
             label="Post-install script"
             labelTooltip="Fleet will run this script after install."
