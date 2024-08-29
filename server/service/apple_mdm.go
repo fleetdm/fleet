@@ -4209,7 +4209,7 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return &getOTAProfileResponse{Err: err}, err
 	}
 
-	reader := bytes.NewReader([]byte(profile))
+	reader := bytes.NewReader(profile)
 	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "foobar.mobileconfig"}, nil
 }
 
