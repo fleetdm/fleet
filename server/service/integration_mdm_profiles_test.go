@@ -4817,7 +4817,7 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	ctx := context.Background()
 
 	// Getting profile for non-existent secret should fail
-	s.Do("GET", "/api/latest/fleet/ota", getOTAProfileRequest{}, http.StatusUnauthorized, "enroll_secret", "not-real")
+	s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusUnauthorized, "enroll_secret", "not-real")
 
 	// Create an enroll secret; has some special characters that should be escaped in the profile
 	globalEnrollSec := "global_enroll+_/sec"
@@ -4832,7 +4832,7 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	require.NoError(t, err)
 
 	// Get profile with that enroll secret
-	resp := s.Do("GET", "/api/latest/fleet/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
+	resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
 	require.NotZero(t, resp.ContentLength)
 	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
 	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")

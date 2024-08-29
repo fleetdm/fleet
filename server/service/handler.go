@@ -754,9 +754,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
-	ue.GET("/api/_version_/fleet/ota", getOTAProfileEndpoint, getOTAProfileRequest{})
-
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
+
+	otaQuota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9}
+	mdmAppleMW.WithCustomMiddleware(errorLimiter.Limit("get_ota_enrollment", otaQuota)).GET("/api/_version_/fleet/enrollment_profiles/ota", getOTAProfileEndpoint, getOTAProfileRequest{})
 
 	// device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
