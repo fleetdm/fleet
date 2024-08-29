@@ -602,6 +602,8 @@ Design reviews operate in "Feedback" mode on Mondays and "Final review" mode all
   - **Feedback** mode — contributor knows the design is not ready for final review, but would like to get early feedback. Anyone at Fleet can attend and provide feedback.
   - **Final review** mode contributor is 70% sure the design is 100% done. Only Head of Product Design + CTO + Product Designers give feedback. Anyone at Fleet can attend as a shadow. This helps the team iterate and move designs to ready for dev faster. 
 
+> In addtion to design reviews, Fleeties or community member can provide feedback asynchronously at anytime. To do this, find the GitHub issue (user story) associated with the designs and @ mention the assigned Product Designer in the comment section.
+
 Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  
 
 After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The Head of Product Design is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
@@ -612,8 +614,6 @@ Here are some tips for making this meeting effective:
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
-
-> To allow for asynchronous participation, instead of attending, contributors can alternatively choose to add an agenda item to the "Product design review" meeting with a GitHub link.  Then, the Head of Product Design will review during the meeting and provide feedback.  Every "Product design review" is recorded and automatically transcribed to a Google Doc so that it is searchable by every Fleet team member.
 
 ### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
