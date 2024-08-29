@@ -101,7 +101,7 @@ export default {
   MDM_VPP_TOKENS: `/${API_VERSION}/fleet/vpp_tokens`,
   MDM_VPP_TOKEN: (id: number) => `/${API_VERSION}/fleet/vpp_tokens/${id}`,
   MDM_VPP_TOKENS_RENEW: (id: number) =>
-    `/${API_VERSION}/fleet/vpp_tokens/renew/${id}`,
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/renew`,
   MDM_VPP_TOKEN_TEAMS: (id: number) =>
     `/${API_VERSION}/fleet/vpp_tokens/${id}/teams`,
 
