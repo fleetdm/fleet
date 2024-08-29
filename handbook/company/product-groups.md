@@ -595,7 +595,9 @@ Design consultations are scheduled as needed with the relevant participants, typ
 - Discuss design input
 - Discuss implementation details
 
+
 ### Design reviews
+
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team), [CTO](https://fleetdm.com/handbook/engineering#team),  and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback.  This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API.
 
 Design reviews operate in "Feedback" mode on Mondays and "Final review" mode all other days of the week:
