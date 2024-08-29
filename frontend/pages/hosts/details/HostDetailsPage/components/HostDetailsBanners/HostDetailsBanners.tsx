@@ -29,6 +29,7 @@ const HostDetailsBanners = ({
     isAppleBmExpired,
     isApplePnsExpired,
     isVppExpired,
+    needsAbmTermsRenewal,
     willAppleBmExpire,
     willApplePnsExpire,
     willVppExpire,
@@ -37,14 +38,13 @@ const HostDetailsBanners = ({
   // Checks to see if an app-wide banner is being shown (the ABM terms, ABM expiry,
   // or APNs expiry banner) in a parent component. App-wide banners found in parent
   // component take priority over host details page-level banners.
-  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
   const isFleetLicenseExpired = hasLicenseExpired(
     config?.license.expiration || ""
   );
 
   const showingAppWideBanner =
     isPremiumTier &&
-    (isAppleBmTermsExpired ||
+    (needsAbmTermsRenewal ||
       isApplePnsExpired ||
       willApplePnsExpire ||
       isAppleBmExpired ||

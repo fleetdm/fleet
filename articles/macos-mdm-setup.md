@@ -20,7 +20,18 @@ To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > 
 
 > Available in Fleet Premium
 
-To connect Fleet to ABM or renew ABM, head to the **Settings > Integrations > Automatic enrollment > Apple Business Manager** page.
+To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token: 
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under "Automatic enrollment", click "Add ABM", and then click "Add ABM" again on the next page. Follow the instructions in the modal and upload an ABM token to Fleet.
+
+When one of your uploaded ABM tokens has expired or is within 30 days of expiring, you will see a warning
+banner at the top of page reminding you to renew your token.
+
+To renew an ABM token:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under "Automatic enrollment", click "Edit", and then fin
 
 After connecting Fleet to ABM, set Fleet to be the MDM for all Macs: 
 
@@ -32,7 +43,13 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 
 macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
 
-macOS hosts that automatically enroll will be assigned to a default team. If no default team is set, then the host will be placed in "No team". 
+Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts by:
+
+1. Navigating to the **Settings > Integrations > Mobile device management (MDM)** page and clicking "Edit" under "Automatic enrollment".
+2. Click on the "Actions" dropdown for the ABM token you want to update, and then click "Edit teams".
+3. Use the dropdowns in the modal to select the default team for each type of host, and click "Save" to save your selections.
+
+If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 

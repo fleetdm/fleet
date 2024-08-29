@@ -443,7 +443,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		}
 	}
 
-	token, err := svc.getVPPToken(ctx)
+	token, err := svc.getVPPToken(ctx, host.TeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting VPP token")
 	}
