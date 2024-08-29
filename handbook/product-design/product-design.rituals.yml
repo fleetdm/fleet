@@ -30,7 +30,7 @@
   task: "🦢🗣 Design review"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
+  description: "On Mondays, contributors present wireframes in 'Feedback' mode and anyone can give feedback. 'Final review mode' during all other days and only Head of Product Design + CTO + Product Designers give feedback." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -

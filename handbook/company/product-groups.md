@@ -596,16 +596,21 @@ Design consultations are scheduled as needed with the relevant participants, typ
 - Discuss implementation details
 
 ### Design reviews
-Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and contributors proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback.  This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API.
+Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team), [CTO](https://fleetdm.com/handbook/engineering#team),  and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback.  This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API.
 
-Product designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  The Head of Product Design and other participants review the changes quickly and give feedback, and then the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The Head of Product Design is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
+Design reviews operate in "Feedback" mode on Mondays and "Final review" mode all other days of the week:
+  - **Feedback** mode — contributor knows the design is not ready for final review, but would like to get early feedback. Anyone at Fleet can attend and provide feedback.
+  - **Final review** mode contributor is 70% sure the design is 100% done. Only Head of Product Design + CTO + Product Designers give feedback. Anyone at Fleet can attend as a shadow. This helps the team iterate and move designs to ready for dev faster. 
+
+Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  
+
+After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The Head of Product Design is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
 
 Here are some tips for making this meeting effective:
-- Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Say the user story out loud to remind participants of what it is.
-- At the beginning of describing your change, indicate whether you are 70% sure you are 100% done, or are looking for early feedback.
 - Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
+- Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
 > To allow for asynchronous participation, instead of attending, contributors can alternatively choose to add an agenda item to the "Product design review" meeting with a GitHub link.  Then, the Head of Product Design will review during the meeting and provide feedback.  Every "Product design review" is recorded and automatically transcribed to a Google Doc so that it is searchable by every Fleet team member.

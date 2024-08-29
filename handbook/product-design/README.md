@@ -51,26 +51,19 @@ When starting a new draft:
 - If the story requires API changes, open a draft PR with the proposed API design.
     - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
       
-### Schedule a design review
-- Prepare your draft in the user story issue.
-- Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
-- Review the draft with the CEO at one of the daily design review meetings, or schedule an ad-hoc design review if you need to move faster.  (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
-- When introducing a story, clarify which review "mode" the CEO should operate in:
-  + **Final review** mode — you are 70% sure the design is 100% done.
-  + **Feedback** mode — you know the design is not ready for final review, but would like to get early feedback. Before bringing something in feedback mode consider whether the CEO will be best for giving feedback or if it would be better suited for someone else (engineer or PM).
-- During the review meeting, take detailed notes of any feedback on the draft.
-- Address the feedback by modifying your draft.
-- Rinse and repeat at subsequent sessions until there is no more feedback.
+### Prepare for design review
+- Link to your draft in the user story issue.
+- Add the user story to the agenda for your the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
+- Attend design review or schedule an ad-hoc design review if you need to move faster. (Efficient access to design reviews on-demand [is a priority for Fleet's CEO](https://fleetdm.com/handbook/company/ceo). Emphasizing design helps us live our [empathy](https://fleetdm.com/handbook/company#empathy) value.)
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 ### Ensure story drafting is complete
-<!--TODO update responsibility to reflect reality (e.g. line 75 == "Bugs board"?)-->
-Once a story has gone through design and is considered "Settled", it moves to the "Settled" column on the drafting board and assign to the Engineering Manager (EM).
+Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Produce Designer is responsible for moving the user story to the "Ready to spec" column and assigning the appropriate Engineering Manager (EM).
 
-Before assigning an EM to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
-Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board and assigns the group engineering manager. 
+Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
 
 ### Revise a draft currently in development
 Expedited drafting is the revision of drafted changes currently being developed by
