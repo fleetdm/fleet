@@ -6,7 +6,9 @@ import { InjectedRouter } from "react-router";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { AppContext } from "context/app";
 import { IMdmApple } from "interfaces/mdm";
-import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import MdmSettingsSection from "./components/MdmSettingsSection";
@@ -53,12 +55,11 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
   // get the vpp info
   const {
     data: vppData,
-    error: vppError,
     isLoading: isLoadingVpp,
     isError: isVppError,
-  } = useQuery<IGetVppInfoResponse, AxiosError>(
+  } = useQuery<IGetVppTokensResponse, AxiosError>(
     "vppInfo",
-    () => mdmAppleAPI.getVppInfo(),
+    () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
@@ -87,12 +88,10 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
   // and should show a spinner.
   const isLoading = isLoadingAPNSInfo || isLoadingVpp || isLoadingEula;
 
-  // vpp request have an error only if the status is not 404.
-  // 404 means that the VPP is not enabled and we dont want to show an error in that case.
-  const noVppTokenUploaded = vppError && vppError.status === 404 && !vppData;
+  const noVppTokenUploaded = !vppData || !vppData.vpp_tokens.length;
   const hasVppError = isVppError && !noVppTokenUploaded;
 
-  // Similar to the vpp request, we are relying on the API to give us a 404 to
+  // We are relying on the API to give us a 404 to
   // tell use the user has not uploaded a eula.
   const noEulaUploaded = eulaError && eulaError.status === 404;
   const hasEulaError = isEulaError && !noEulaUploaded;
