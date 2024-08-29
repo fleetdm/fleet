@@ -9,7 +9,6 @@ import mdmAppleAPI, {
   IVppApp,
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";

@@ -1,5 +1,3 @@
-import { AxiosResponse } from "axios";
-
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
@@ -26,6 +24,7 @@ export interface ISoftwareApiParams {
   min_cvss_score?: number;
   exploit?: boolean;
   availableForInstall?: boolean;
+  packagesOnly?: boolean;
   selfService?: boolean;
   teamId?: number;
 }
