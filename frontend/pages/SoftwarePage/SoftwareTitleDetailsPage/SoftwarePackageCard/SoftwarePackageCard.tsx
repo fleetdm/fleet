@@ -90,20 +90,29 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     tooltip: (
       <>
-        Fleet installed software on these hosts. Currently, if the software is
-        uninstalled, the &quot;Installed&quot; status won&apos;t be updated.
+        Software is installed on these hosts (install script finished
+        <br />
+        with exit code 0). Currently, if the software is uninstalled, the
+        <br />
+        &quot;installed&quot; status won&apos;t be updated.
       </>
     ),
   },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet will install software when these hosts come online.",
+    tooltip: "Fleet is installing or will install when the host comes online.",
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
-    tooltip: "Fleet failed to install software on these hosts.",
+    tooltip: (
+      <>
+        These hosts failed to install software. Click on a host to view
+        <br />
+        error(s).
+      </>
+    ),
   },
 };
 
@@ -134,6 +143,7 @@ const PackageStatusCount = ({
           tipContent={displayData.tooltip}
           underline={false}
           showArrow
+          tipOffset={10}
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />

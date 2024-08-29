@@ -55,6 +55,10 @@
     &:last-child {
       border-right: none;
     }
+
+    .react-tooltip {
+      text-align: center;
+    }
   }
 
   &__status-title{
