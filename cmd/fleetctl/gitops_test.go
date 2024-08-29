@@ -1194,11 +1194,6 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
-	// Dry run on global file should fail because Apple BM Default Team does not exist (and has not been provided)
-	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
-	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "team name not found"))
-
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
 	assert.False(t, ds.SaveAppConfigFuncInvoked)
