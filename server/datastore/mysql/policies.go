@@ -1439,11 +1439,17 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 	return policies, nil
 }
 
-func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint) ([]fleet.PolicySoftwareInstallerData, error) {
-	query := `SELECT id, software_installer_id FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL;`
-	var policies []fleet.PolicySoftwareInstallerData
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, teamID)
+func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+	if len(policyIDs) == 0 {
+		return nil, nil
+	}
+	query := `SELECT id, software_installer_id FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL AND id IN (?);`
+	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated installer")
+	}
+	var policies []fleet.PolicySoftwareInstallerData
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies with associated installer")
 	}
 	return policies, nil

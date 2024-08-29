@@ -494,7 +494,7 @@ type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[s
 
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
-type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint) ([]fleet.PolicySoftwareInstallerData, error)
+type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
@@ -4208,11 +4208,11 @@ func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain st
 	return s.GetTeamHostsPolicyMembershipsFunc(ctx, domain, teamID, policyIDs, hostID)
 }
 
-func (s *DataStore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint) ([]fleet.PolicySoftwareInstallerData, error) {
+func (s *DataStore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
 	s.mu.Lock()
 	s.GetPoliciesWithAssociatedInstallerFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPoliciesWithAssociatedInstallerFunc(ctx, teamID)
+	return s.GetPoliciesWithAssociatedInstallerFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {

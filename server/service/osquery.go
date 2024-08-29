@@ -1626,9 +1626,11 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
 	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
 			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
 	if len(incomingFailingPolicies) == 0 {
@@ -1636,7 +1638,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 
 	// Get policies with associated installers for the team.
-	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, *hostTeamID)
+	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, *hostTeamID, incomingFailingPoliciesIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
 	}

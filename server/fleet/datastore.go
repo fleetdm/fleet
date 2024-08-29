@@ -680,7 +680,7 @@ type Datastore interface {
 	GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint,
 		hostID *uint) ([]HostPolicyMembershipData, error)
 	// GetPoliciesWithAssociatedInstaller returns team policies that have an associated installer.
-	GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint) ([]PolicySoftwareInstallerData, error)
+	GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicySoftwareInstallerData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 
 	// Methods used for async processing of host policy query results.

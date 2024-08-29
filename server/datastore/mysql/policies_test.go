@@ -3963,11 +3963,25 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.SoftwareInstallerID)
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
-	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID)
+	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithInstallers)
+
+	// p1 has no associated installers.
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithInstallers)
+
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{p2.ID})
 	require.NoError(t, err)
 	require.Len(t, policiesWithInstallers, 1)
 	require.Equal(t, p2.ID, policiesWithInstallers[0].ID)
 	require.Equal(t, installerID, policiesWithInstallers[0].InstallerID)
+
+	// p2 has associated installer but belongs to team1.
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithInstallers)
 
 	p1.SoftwareInstallerID = ptr.Uint(installerID)
 	err = ds.SavePolicy(ctx, p1, false, false)
@@ -3978,7 +3992,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.SoftwareInstallerID)
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
-	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID)
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Len(t, policiesWithInstallers, 2)
 	require.Equal(t, p1.ID, policiesWithInstallers[0].ID)
@@ -3986,7 +4000,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Equal(t, p2.ID, policiesWithInstallers[1].ID)
 	require.Equal(t, installerID, policiesWithInstallers[1].InstallerID)
 
-	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID)
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithInstallers)
 }

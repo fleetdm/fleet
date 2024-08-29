@@ -13,8 +13,7 @@ func Up_20240826160026(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE policies
 		ADD COLUMN software_installer_id INT UNSIGNED DEFAULT NULL,
-		ADD FOREIGN KEY fk_policies_software_installer_id (software_installer_id) REFERENCES software_installers (id),
-		ADD UNIQUE KEY unique_policy_and_installer (id, software_installer_id)
+		ADD FOREIGN KEY fk_policies_software_installer_id (software_installer_id) REFERENCES software_installers (id);
 	`); err != nil {
 		return fmt.Errorf("failed to add software_installer_id to policies: %w", err)
 	}
