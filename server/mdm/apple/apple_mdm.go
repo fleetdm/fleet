@@ -600,8 +600,10 @@ func (d *DEPService) processDeviceResponse(
 		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
 	}
 
-	if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
+	if len(existingHosts) > 0 {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
+		}
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
