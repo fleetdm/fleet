@@ -4,17 +4,14 @@ import Editor from "components/Editor";
 import CustomLink from "components/CustomLink";
 import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
-import Checkbox from "components/forms/fields/Checkbox";
 
 const baseClass = "add-package-advanced-options";
 
 interface IAddPackageAdvancedOptionsProps {
   errors: { preInstallQuery?: string; postInstallScript?: string };
   showInstallScript: boolean;
-  showPostInstallScript: boolean;
   preInstallQuery?: string;
   postInstallScript?: string;
-  onTogglePostInstallScript: (value: boolean) => void;
   onChangePreInstallQuery: (value?: string) => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
@@ -24,20 +21,14 @@ interface IAddPackageAdvancedOptionsProps {
 const AddPackageAdvancedOptions = ({
   errors,
   showInstallScript,
-  showPostInstallScript,
   preInstallQuery,
   postInstallScript,
-  onTogglePostInstallScript,
   onChangePreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
   installScript,
 }: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-
-  const onChangePostInstallCheckbox = () => {
-    onTogglePostInstallScript(!showPostInstallScript);
-  };
 
   return (
     <div className={baseClass}>
@@ -93,29 +84,19 @@ const AddPackageAdvancedOptions = ({
               isFormField
             />
           )}
-          <Checkbox
-            value={showPostInstallScript}
-            onChange={onChangePostInstallCheckbox}
-          >
-            Post-install script
-          </Checkbox>
-          {showPostInstallScript && (
-            <>
-              <Editor
-                label="Script"
-                labelTooltip="Fleet will run this script after install."
-                focus
-                error={errors.postInstallScript}
-                wrapEnabled
-                name="post-install-script-editor"
-                maxLines={10}
-                onChange={onChangePostInstallScript}
-                value={postInstallScript}
-                helpText="Shell (macOS and Linux) or PowerShell (Windows)."
-                isFormField
-              />
-            </>
-          )}
+          <Editor
+            label="Post-install script"
+            labelTooltip="Fleet will run this script after install."
+            focus
+            error={errors.postInstallScript}
+            wrapEnabled
+            name="post-install-script-editor"
+            maxLines={10}
+            onChange={onChangePostInstallScript}
+            value={postInstallScript}
+            helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+            isFormField
+          />
         </div>
       )}
     </div>

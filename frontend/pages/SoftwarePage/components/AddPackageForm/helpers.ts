@@ -15,10 +15,7 @@ type IValidationMessage = string | IMessageFunc;
 
 interface IValidation {
   name: string;
-  isValid: (
-    formData: IAddPackageFormData,
-    enabledPostInstallScript?: boolean
-  ) => boolean;
+  isValid: (formData: IAddPackageFormData) => boolean;
   message?: IValidationMessage;
 }
 
@@ -69,28 +66,8 @@ const FORM_VALIDATION_CONFIG: Record<
     ],
   },
   postInstallScript: {
-    validations: [
-      {
-        name: "required",
-        message: (formData) => {
-          // we dont want an error message until the user has interacted with
-          // the field. This is why we check for undefined here.
-          if (formData.postInstallScript === undefined) {
-            return "";
-          }
-          return "Post-install script is required when enabled.";
-        },
-        isValid: (formData, enabledPostInstallScript) => {
-          if (!enabledPostInstallScript) {
-            return true;
-          }
-          return (
-            formData.postInstallScript !== undefined &&
-            !validator.isEmpty(formData.postInstallScript)
-          );
-        },
-      },
-    ],
+    // no validations related to postInstallScript
+    validations: [],
   },
   selfService: {
     // no validations related to self service
@@ -108,10 +85,7 @@ const getErrorMessage = (
   return message(formData);
 };
 
-export const generateFormValidation = (
-  formData: IAddPackageFormData,
-  showingPostInstallScript: boolean
-) => {
+export const generateFormValidation = (formData: IAddPackageFormData) => {
   const formValidation: IFormValidation = {
     isValid: true,
     software: {
@@ -122,7 +96,7 @@ export const generateFormValidation = (
   Object.keys(FORM_VALIDATION_CONFIG).forEach((key) => {
     const objKey = key as keyof typeof FORM_VALIDATION_CONFIG;
     const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
-      (validation) => !validation.isValid(formData, showingPostInstallScript)
+      (validation) => !validation.isValid(formData)
     );
 
     if (!failedValidation) {

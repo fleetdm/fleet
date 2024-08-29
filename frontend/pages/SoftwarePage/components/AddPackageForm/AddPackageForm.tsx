@@ -57,7 +57,6 @@ const AddPackageForm = ({
 }: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
@@ -88,7 +87,7 @@ const AddPackageForm = ({
         installScript,
       };
       setFormData(newData);
-      setFormValidation(generateFormValidation(newData, showPostInstallScript));
+      setFormValidation(generateFormValidation(newData));
     }
   };
 
@@ -97,33 +96,26 @@ const AddPackageForm = ({
     onSubmit(formData);
   };
 
-  const onTogglePostInstallScriptCheckbox = (value: boolean) => {
-    const newData = { ...formData, postInstallScript: undefined };
-    setShowPostInstallScript(value);
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData, value));
-  };
-
   const onChangeInstallScript = (value: string) => {
     setFormData({ ...formData, installScript: value });
   };
 
   const onChangePreInstallQuery = (value?: string) => {
-    const newData = { ...formData, preInstallCondition: value };
+    const newData = { ...formData, preInstallQuery: value };
     setFormData(newData);
-    setFormValidation(generateFormValidation(newData, showPostInstallScript));
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onChangePostInstallScript = (value?: string) => {
     const newData = { ...formData, postInstallScript: value };
     setFormData(newData);
-    setFormValidation(generateFormValidation(newData, showPostInstallScript));
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
-    setFormValidation(generateFormValidation(newData, showPostInstallScript));
+    setFormValidation(generateFormValidation(newData));
   };
 
   const isSubmitDisabled = !formValidation.isValid;
@@ -169,10 +161,8 @@ const AddPackageForm = ({
               postInstallScript: formValidation.postInstallScript?.message,
             }}
             showInstallScript={!!formData.software}
-            showPostInstallScript={showPostInstallScript}
             preInstallQuery={formData.preInstallQuery}
             postInstallScript={formData.postInstallScript}
-            onTogglePostInstallScript={onTogglePostInstallScriptCheckbox}
             onChangePreInstallQuery={onChangePreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
