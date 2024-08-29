@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"database/sql"
 	"testing"
 	"time"
