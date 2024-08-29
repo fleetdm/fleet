@@ -15,6 +15,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -2748,7 +2749,7 @@ func (svc *Service) DeleteMDMAppleVPPToken(ctx context.Context) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /ota
+// GET /ota
 ////////////////////////////////////////////////////////////////////////////////
 
 var otaTmpl = template.Must(template.New("").Parse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -2826,7 +2827,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 	}{
 		Organization: cfg.OrgInfo.OrgName,
 		URL:          cfg.ServerSettings.ServerURL,
-		EnrollSecret: enrollSecret,
+		EnrollSecret: url.QueryEscape(enrollSecret),
 	}
 
 	err = otaTmpl.Execute(&profileBytes, tmplArgs)

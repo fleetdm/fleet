@@ -10728,35 +10728,3 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
 	s.lastActivityMatches(fleet.ActivityDisabledVPP{}.ActivityName(), "", 0)
 }
-
-func (s *integrationMDMTestSuite) TestOTAProfile() {
-	t := s.T()
-	ctx := context.Background()
-
-	// Getting profile for non-existent secret should fail
-	s.Do("GET", "/api/latest/fleet/ota", getOTAProfileRequest{}, http.StatusNotFound, "enroll_secret", "not-real")
-
-	// Create an enroll secret
-	globalEnrollSec := "global_enroll_sec"
-	s.Do("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
-		Spec: &fleet.EnrollSecretSpec{
-			Secrets: []*fleet.EnrollSecret{{Secret: globalEnrollSec}},
-		},
-	}, http.StatusOK)
-
-	cfg, err := s.ds.AppConfig(ctx)
-	require.NoError(t, err)
-
-	// Get profile with that enroll secret
-	resp := s.Do("GET", "/api/latest/fleet/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
-	require.NotZero(t, resp.ContentLength)
-	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
-	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
-	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
-	b, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, resp.ContentLength, int64(len(b)))
-	require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
-	require.Contains(t, string(b), fmt.Sprintf("%s/api/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, globalEnrollSec))
-	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
-}
