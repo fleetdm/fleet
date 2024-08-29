@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -29,6 +30,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+// addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
+var addHostMDMCommandsBatchSize = 10000
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
@@ -1329,7 +1333,7 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -1726,18 +1730,38 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern).
-	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to install statement")
+	// batches of 10K hosts because h.uuid appears three times in the
+	// query, and the max number of prepared statements is 65K, this was
+	// good enough during a load test and gives us wiggle room if we add
+	// more arguments and we forget to update the batch size.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
 	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(uuids)) / float64(selectProfilesBatchSize)))
 
 	var wantedProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &wantedProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		wantedProfiles = append(wantedProfiles, partialResult...)
 	}
 
 	// Exclude macOS only profiles from iPhones/iPads.
@@ -1774,17 +1798,27 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		)
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern). Note that uuids are provided twice.
-	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
-	}
 	var currentProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
+		}
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+		}
+
+		currentProfiles = append(currentProfiles, partialResult...)
 	}
 
 	if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
@@ -1794,6 +1828,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	// delete all host profiles to start from a clean slate, new entries will be added next
 	// TODO(roberto): is this really necessary? this was pre-existing
 	// behavior but I think it can be refactored. For now leaving it as-is.
+	//
+	// TODO part II(roberto): we found this call to be a major bottleneck during load testing
+	// https://github.com/fleetdm/fleet/issues/21338
 	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete all profiles")
 	}
@@ -4798,19 +4835,22 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
 // (their details haven't been updated in the given `interval`).
-func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
-	var deviceUUIDs []string
+func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
+	err error,
+) {
 	hostsStmt := fmt.Sprintf(`
-SELECT h.uuid FROM hosts h
-JOIN host_mdm hmdm ON hmdm.host_id = h.id
+SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
+INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
+LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
-AND hmdm.enrolled
-AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`)
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &deviceUUIDs, hostsStmt, interval.Seconds()); err != nil {
+AND TRIM(h.uuid) != ''
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+GROUP BY h.id`)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, hostsStmt, interval.Seconds()); err != nil {
 		return nil, err
 	}
 
-	return deviceUUIDs, nil
+	return devices, nil
 }
 
 func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
@@ -5183,4 +5223,127 @@ WHERE
 	}
 
 	return orgNames, nil
+}
+
+func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	const baseStmt = `
+		INSERT INTO host_mdm_commands (host_id, command_type)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+		command_type = VALUES(command_type)`
+
+	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
+		start := i
+		end := i + hostIssuesInsertBatchSize
+		if end > len(commands) {
+			end = len(commands)
+		}
+		totalToProcess := end - start
+		const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?),", totalToProcess), ",",
+		)
+		stmt := fmt.Sprintf(baseStmt, values)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerInsert)
+		for j := start; j < end; j++ {
+			item := commands[j]
+			args = append(
+				args, item.HostID, item.CommandType,
+			)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
+	const stmt = `SELECT host_id, command_type FROM host_mdm_commands WHERE host_id = ?`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt, hostID); err != nil {
+		return nil, err
+	}
+	return commands, nil
+}
+
+func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.HostMDMCommand) error {
+	const stmt = `
+		DELETE FROM host_mdm_commands
+		WHERE host_id = ? AND command_type = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
+	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
+	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
+	const stmt = `
+		DELETE hmc FROM host_mdm_commands AS hmc
+		LEFT JOIN hosts h ON h.id = hmc.host_id
+		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+	stmt := `
+SELECT 
+	team_id, platform 
+FROM 
+	hosts h 
+JOIN 
+	host_dep_assignments hdep ON h.id = host_id 
+WHERE 
+	hardware_serial = ? AND deleted_at IS NULL 
+LIMIT 1`
+
+	var dest struct {
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+	}
+
+	var settings fleet.AppleOSUpdateSettings
+	if dest.TeamID == nil {
+		// use the global settings
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = ac.MDM.IOSUpdates
+		case "ipados":
+			settings = ac.MDM.IPadOSUpdates
+		case "darwin":
+			settings = ac.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	} else {
+		// use the team settings
+		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = tm.Config.MDM.IOSUpdates
+		case "ipados":
+			settings = tm.Config.MDM.IPadOSUpdates
+		case "darwin":
+			settings = tm.Config.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	}
+
+	return &settings, nil
 }

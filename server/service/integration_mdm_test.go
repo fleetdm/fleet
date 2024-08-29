@@ -99,6 +99,7 @@ type integrationMDMTestSuite struct {
 	appleVPPConfigSrv          *httptest.Server
 	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
+	appleGDMFSrv               *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
@@ -290,11 +291,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					return integrationsSchedule, nil
 				}
 			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
+					logger := cronLog
+					refetcherSchedule := schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger)
+						}),
+					)
+					return refetcherSchedule, nil
+				}
+			},
 		},
 		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
 
-	s.scepChallenge = "scepchallenge"
+	// ensure all our tests support challenges with invalid XML characters
+	s.scepChallenge = "scepcha/><llenge"
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
 	})
@@ -522,6 +538,16 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
 	}))
 
+	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(s.T(), err)
+		_, err = w.Write(b)
+		require.NoError(s.T(), err)
+	}))
+
+	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
 
@@ -547,6 +573,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	appConf, err = s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.ServerSettings.ServerURL = server.URL
+	appConf.Features.EnableSoftwareInventory = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -557,6 +584,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 	s.T().Cleanup(s.appleITunesSrv.Close)
+	s.T().Cleanup(s.appleGDMFSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -9838,6 +9866,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Enroll host
 	host, mdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "https://foo.com", true, "", ""))
 
 	// Refetch host
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
@@ -9848,6 +9877,17 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	assert.Equal(t, host.ID, hostResp.Host.ID)
 	assert.True(t, hostResp.Host.RefetchRequested)
+
+	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Len(t, commands, commandsSent)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	}, commands)
+
+	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 
 	// Check the MDM commands and send response
 	cmd, err := mdmClient.Idle()
@@ -9872,6 +9912,10 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
 	require.NoError(t, err)
+
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Empty(t, commands)
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -10005,6 +10049,64 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.False(t, hostResp.Host.RefetchRequested)
 	assert.Equal(t, deviceNameRenamed, hostResp.Host.ComputerName)
 	assert.Empty(t, hostResp.Host.Software)
+
+	// Mark host as unenrolled and refetch.
+	require.NoError(t, s.ds.UpdateMDMData(ctx, host.ID, false))
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NoError(t, err)
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
+
+	// Set iOS detail_updated_at as 2 hours in the past.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, host.ID)
+		return err
+	})
+	trigger := triggerRequest{
+		Name: string(fleet.CronAppleMDMIPhoneIPadRefetcher),
+	}
+	_ = s.Do("POST", "/api/latest/fleet/trigger", trigger, http.StatusOK)
+	commandsSent += commandsSentPerRefetch
+
+	// Wait until MDM commands are set up
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for range ticker.C {
+			commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
+			require.NoError(t, err)
+			if len(commands) == commandsSentPerRefetch {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Error("Timeout: MDM commands not queued up")
+	}
+
+	// Check the MDM commands and send response
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
+	require.NoError(t, err)
+	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, host.ID, hostResp.Host.ID)
+	assert.False(t, hostResp.Host.RefetchRequested)
+	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (automatic)", *hostResp.Host.MDM.EnrollmentStatus)
 
 	// list commands should return all the commands we sent
 	var listCmdResp listMDMAppleCommandsResponse
@@ -10152,6 +10254,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
 
+	// listing with the self-service filter also returns it
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "self_service", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	require.Equal(t, macOSTitleID, listSw.SoftwareTitles[0].ID)
+
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprint(team.ID))
@@ -10197,6 +10305,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Len(t, listSw.SoftwareTitles, 1)
 	macOSTitleID = listSw.SoftwareTitles[0].ID
 	assert.Equal(t, "ipados_apps", listSw.SoftwareTitles[0].Source)
+
+	// filtering by self-service returns nothing
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
+		"self_service", "true")
+	require.Len(t, listSw.SoftwareTitles, 0)
 
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
@@ -10430,12 +10544,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, *got1.Status)
+	require.NotNil(t, got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
-	require.NotNil(t, *got2.Status)
+	require.NotNil(t, got2.Status)
 	require.Equal(t, *got2.Status, fleet.SoftwareInstallerFailed)
 	require.NotNil(t, got2.AppStoreApp)
 	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
@@ -10457,10 +10571,64 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name)
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, *got1.Status)
+	require.NotNil(t, got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
+
+	// Filter the self-service apps for that host
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, appSelfService.Name, got1.Name)
+
+	// Return installed app with software detail query
+	distributedReq := submitDistributedQueryResultsRequestShim{
+		NodeKey: *mdmHost.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_macos": json.RawMessage(fmt.Sprintf(
+				`[{"name": "%s", "version": "%s", "type": "Application (macOS)",
+					"bundle_identifier": "%s", "source": "apps", "last_opened_at": "", 
+					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier)),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_macos": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	// Remove the installed app by not returning it
+	distributedReq = submitDistributedQueryResultsRequestShim{
+		NodeKey: *mdmHost.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_macos": json.RawMessage(`[]`),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_macos": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	// Check list host software
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	gotSW = getHostSw.Software
+	require.Len(t, gotSW, 2) // App 1 and App 2
+	got1, got2 = gotSW[0], gotSW[1]
+	require.Equal(t, got1.Name, "App 1")
+	require.NotNil(t, got1.AppStoreApp)
+	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
+	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
+	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
+	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
+	assert.Nil(t, got1.Status)
+	assert.Nil(t, got1.AppStoreApp.LastInstall)
 
 	// Install on iOS and iPadOS devices
 	installs := map[string]struct {
@@ -10505,6 +10673,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
 			require.Equal(t, 1, countResp.Count)
 
+			// send an idle request to grab the command uuid
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmdUUID = cmd.CommandUUID
+
 			// Get pending activity
 			var hostActivitiesResp listHostUpcomingActivitiesResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
@@ -10519,20 +10694,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
 			assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
 			assert.EqualValues(t, 1, hostActivitiesResp.Count)
+			assert.JSONEq(
+				t,
+				fmt.Sprintf(
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
+					installHost.ID,
+					installHost.DisplayName(),
+					app.Name,
+					app.AdamID,
+					cmdUUID,
+					fleet.SoftwareInstallerPending,
+					install.deviceToken != "",
+				),
+				string(*hostActivitiesResp.Activities[0].Details),
+			)
 
 			// Simulate successful installation on the host
-			cmd, err = mdmClient.Idle()
+			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
-			for cmd != nil {
-				var fullCmd micromdm.CommandPayload
-				switch cmd.Command.RequestType {
-				case "InstallApplication":
-					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-					cmdUUID = cmd.CommandUUID
-					cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
-					require.NoError(t, err)
-				}
-			}
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
@@ -10593,4 +10772,78 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
+	t := s.T()
+	ctx := context.Background()
+
+	initialConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	initialSecrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+
+	nameWithInvalidChars := "Fleet & Device <3 Management"
+	/* #nosec G101 -- this is a made up value for tests */
+	enrollSecretWithInvalidChars := "1<2>3&4&/"
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"org_info": {
+			"org_name": %q
+		}
+	}`, nameWithInvalidChars)), http.StatusOK, &acResp)
+	enrollSecretResp := applyEnrollSecretSpecResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: enrollSecretWithInvalidChars}},
+		},
+	}, http.StatusOK, &enrollSecretResp)
+	t.Cleanup(func() {
+		acResp := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		  "org_info": {
+			  "org_name": %q
+		  }
+		}`, initialConfig.OrgInfo.OrgName)), http.StatusOK, &acResp)
+		s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+			Spec: &fleet.EnrollSecretSpec{
+				Secrets: initialSecrets,
+			},
+		}, http.StatusOK, &enrollSecretResp)
+	})
+
+	// manual enrollment from My Device
+	token := "token_test_manual_enroll"
+	createHostAndDeviceToken(t, s.ds, token)
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+
+	// automatic enrollment by token
+	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
+	_, err = s.ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       "automatic",
+		DEPProfile: &rawMsg,
+		Token:      "abcd",
+	})
+	require.NoError(t, err)
+	s.downloadAndVerifyEnrollmentProfile(apple_mdm.EnrollPath + "?token=abcd")
+
+	// unsigned manual enrollment profile for IT admins
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/enrollment_profiles/manual")
+
+	// ensure the fleetd profile sends a good enroll secret too
+	s.awaitTriggerProfileSchedule(t)
+	prof := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+	type fleetdPlist struct {
+		PayloadContent []struct {
+			EnrollSecret string `plist:"EnrollSecret"`
+		} `plist:"PayloadContent"`
+	}
+
+	// Parse the plist data
+	var parsedData fleetdPlist
+	err = plist.NewDecoder(bytes.NewReader(prof.Mobileconfig)).Decode(&parsedData)
+	require.NoError(t, err)
+	require.Equal(t, enrollSecretWithInvalidChars, parsedData.PayloadContent[0].EnrollSecret)
 }

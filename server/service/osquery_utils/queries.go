@@ -1599,6 +1599,31 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 				s.Version = strings.Join(newParts, ".")
 			},
 		},
+		{
+			// Trim the "RELEASE." prefix from Minio versions.
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
+			},
+		},
+		{
+			// Convert the timestamp to NVD's format for Minio versions.
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				regex := regexp.MustCompile(`^\d{14}$`)
+
+				return s.Name == "minio" && regex.MatchString(s.Version)
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				timestamp, err := time.Parse("20060102150405", s.Version)
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
+			},
+		},
 	}
 
 	for _, softwareSanitizer := range softwareSanitizers {

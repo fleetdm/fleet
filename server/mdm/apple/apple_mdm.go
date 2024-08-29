@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"text/template"
 	"time"
@@ -795,11 +795,15 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 	}))
 }
 
+var funcMap = map[string]any{
+	"xml": mobileconfig.XMLEscapeString,
+}
+
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and
 // PayloadUUID in the old and new profiles.
-var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
+var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -812,7 +816,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<key>Key Type</key>
 				<string>RSA</string>
 				<key>Challenge</key>
-				<string>{{ .SCEPChallenge }}</string>
+				<string>{{ .SCEPChallenge | xml }}</string>
 				<key>Key Usage</key>
 				<integer>5</integer>
 				<key>Keysize</key>
@@ -863,11 +867,11 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} enrollment</string>
+	<string>{{ .Organization | xml }} enrollment</string>
 	<key>PayloadIdentifier</key>
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
-	<string>{{ .Organization }}</string>
+	<string>{{ .Organization | xml }}</string>
 	<key>PayloadScope</key>
 	<string>System</string>
 	<key>PayloadType</key>
@@ -889,13 +893,8 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
 	}
 
-	var escaped strings.Builder
-	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
-		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
-	}
-
 	var buf bytes.Buffer
-	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
+	if err := enrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
 		Organization  string
 		SCEPURL       string
 		SCEPChallenge string
@@ -904,7 +903,7 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
-		SCEPChallenge: escaped.String(),
+		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
 	}); err != nil {
@@ -976,4 +975,69 @@ func (pb *ProfileBimap) IntersectByIdentifierAndHostUUID(wantedProfiles, current
 func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfilePayload) {
 	pb.wantedState[wantedProfile] = currentProfile
 	pb.currentState[currentProfile] = wantedProfile
+}
+
+func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+		return nil
+	}
+
+	start := time.Now()
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+	}
+	if len(devices) == 0 {
+		return nil
+	}
+	logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
+	commandUUID := uuid.NewString()
+
+	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2*len(devices))
+	installedAppsUUIDs := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
+			installedAppsUUIDs = append(installedAppsUUIDs, device.UUID)
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      device.HostID,
+				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+			})
+		}
+	}
+	if len(installedAppsUUIDs) > 0 {
+		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+		}
+	}
+
+	// DeviceInformation is last because the refetch response clears the refetch_requested flag
+	deviceInfoUUIDs := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
+			deviceInfoUUIDs = append(deviceInfoUUIDs, device.UUID)
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      device.HostID,
+				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+			})
+		}
+	}
+	if len(deviceInfoUUIDs) > 0 {
+		if err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+		}
+	}
+
+	// Add commands to the database to track the commands sent
+	err = ds.AddHostMDMCommands(ctx, hostMDMCommands)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add host mdm commands")
+	}
+	return nil
 }

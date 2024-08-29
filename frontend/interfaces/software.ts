@@ -40,6 +40,8 @@ export interface ISoftware {
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
+  browser?: string;
+  vendor?: string;
 }
 
 export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {

@@ -15,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -187,7 +186,8 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 }
 
 func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*fleet.SoftwareInstaller,
-	error) {
+	error,
+) {
 	if !skipAuthz {
 		if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -244,7 +244,8 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt stri
 }
 
 func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, token string,
-	titleID uint) (*fleet.SoftwareInstallerTokenMetadata, error) {
+	titleID uint,
+) (*fleet.SoftwareInstallerTokenMetadata, error) {
 	// We will manually authorize this endpoint based on the token.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -274,7 +275,8 @@ func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, token
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
-	teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	teamID *uint,
+) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	downloadRequested := alt == "media"
 	if !downloadRequested {
 		svc.authz.SkipAuthorization(ctx)
@@ -510,8 +512,6 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 	}
 
-	user := authz.UserFromContext(ctx)
-
 	// add command to install
 	cmdUUID := uuid.NewString()
 	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
@@ -519,7 +519,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
 	}
 
-	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService)
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}

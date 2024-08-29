@@ -41,10 +41,9 @@ import {
   ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
-  SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
-  getSoftwareFilterForQueryKey,
-  getSoftwareVulnFiltersForQueryKey,
-  getVulnFilterDetails,
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getVulnFilterRenderDetails,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -78,7 +77,7 @@ interface ISoftwareTableProps {
   teamId?: number;
   isLoading: boolean;
   resetPageIndex: boolean;
-  onAddFilterClick: () => void;
+  onAddFiltersClick: () => void;
 }
 
 const baseClass = "software-table";
@@ -99,7 +98,7 @@ const SoftwareTable = ({
   teamId,
   isLoading,
   resetPageIndex,
-  onAddFilterClick,
+  onAddFiltersClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
@@ -134,6 +133,7 @@ const SoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       if (softwareFilter === "installableSoftware") {
         newQueryParam.available_for_install = true.toString();
@@ -142,7 +142,7 @@ const SoftwareTable = ({
         newQueryParam.self_service = true.toString();
       }
 
-      return { ...newQueryParam, ...vulnFilters };
+      return newQueryParam;
     },
     [softwareFilter, teamId, vulnFilters]
   );
@@ -195,7 +195,8 @@ const SoftwareTable = ({
   const hasQuery = query !== "";
   const hasSoftwareFilter = softwareFilter !== "allSoftware";
   const hasVersionFilter = showVersions;
-  const hasVulnFilters = getVulnFilterDetails(vulnFilters).filterCount > 0;
+  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
+  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   const showFilterHeaders =
     isSoftwareEnabled &&
@@ -212,8 +213,8 @@ const SoftwareTable = ({
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
-      ...getSoftwareFilterForQueryKey("allSoftware"), // Reset to all software
-      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
+      ...buildSoftwareFilterQueryParams("allSoftware"), // Reset to all software
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
     router.replace(
@@ -236,8 +237,8 @@ const SoftwareTable = ({
       orderDirection,
       orderKey,
       page: 0, // resets page index
-      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
-      ...getSoftwareFilterForQueryKey(value),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFilterQueryParams(value),
     };
 
     router.replace(
@@ -290,17 +291,13 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    const options = showVersions
-      ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
-      : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
-
     return (
       <div className={`${baseClass}__filter-controls`}>
         {!showVersions && ( // Hidden when viewing versions table
           <Dropdown
             value={softwareFilter}
             className={`${baseClass}__vuln_dropdown`}
-            options={options}
+            options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
             searchable={false}
             onChange={handleCustomFilterDropdownChange}
             tableFilterDropdown
@@ -316,9 +313,7 @@ const SoftwareTable = ({
     );
   };
 
-  const renderCustomFilters = () => {
-    const vulnFilterDetails = getVulnFilterDetails(vulnFilters);
-
+  const renderCustomFiltersButton = () => {
     return (
       <TooltipWrapper
         className={`${baseClass}__filters`}
@@ -327,9 +322,9 @@ const SoftwareTable = ({
         showArrow
         tipOffset={12}
         tipContent={vulnFilterDetails.tooltipText}
-        disableTooltip={vulnFilterDetails.filterCount === 0}
+        disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFilterClick}>
+        <Button variant="text-link" onClick={onAddFiltersClick}>
           <Icon name="filter" color="core-fleet-blue" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
@@ -337,18 +332,16 @@ const SoftwareTable = ({
     );
   };
 
-  const renderTableFooter = () => {
-    return (
-      <div>
-        Seeing unexpected software or vulnerabilities?{" "}
-        <CustomLink
-          url={GITHUB_NEW_ISSUE_LINK}
-          text="File an issue on GitHub"
-          newTab
-        />
-      </div>
-    );
-  };
+  const renderTableHelpText = () => (
+    <div>
+      Seeing unexpected software or vulnerabilities?{" "}
+      <CustomLink
+        url={GITHUB_NEW_ISSUE_LINK}
+        text="File an issue on GitHub"
+        newTab
+      />
+    </div>
+  );
 
   return (
     <div className={baseClass}>
@@ -363,7 +356,6 @@ const SoftwareTable = ({
             vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
-            isCollectingSoftware={data?.counts_updated_at === null}
             installableSoftwareExists={installableSoftwareExists}
           />
         )}
@@ -384,10 +376,12 @@ const SoftwareTable = ({
         // the TableContainer.
         // additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
-        customFilters={showFilterHeaders ? renderCustomFilters : undefined}
+        customFiltersButton={
+          showFilterHeaders ? renderCustomFiltersButton : undefined
+        }
         stackControls
         renderCount={renderSoftwareCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}
