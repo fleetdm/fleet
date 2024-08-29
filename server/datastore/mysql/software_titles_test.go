@@ -653,10 +653,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	}, &team2.ID)
 	require.NoError(t, err)
 
-	// create a VPP app for "No team"
+	// create a VPP app for "No team", allowing self-service
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, ptr.Uint(0))
 	require.NoError(t, err)
 
@@ -708,6 +708,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Equal(t, "vpp3", titles[0].Name)
+	require.NotNil(t, titles[0].AppStoreApp)
+	require.NotNil(t, titles[0].AppStoreApp.SelfService)
+	require.True(t, *titles[0].AppStoreApp.SelfService)
 
 	// Get title of bar software.
 	title, err := ds.SoftwareTitleByID(context.Background(), barTitle.ID, nil, globalTeamFilter)
@@ -835,6 +838,15 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, titles, 0)
+
+	// Testing the no-team filter with self-service only
+	titles, _, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, SelfServiceOnly: true, TeamID: ptr.Uint(0)}, fleet.TeamFilter{
+		User:            userGlobalAdmin,
+		IncludeObserver: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "vpp3", titles[0].Name)
 }
 
 func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
@@ -989,6 +1001,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "vpp1", Version: "0.0.1", Source: "apps"},
+		{Name: "installer1", Version: "0.0.1", Source: "apps"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -1028,6 +1042,63 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{name: "vpp2", source: "ios_apps"},
 		{name: "vpp2", source: "ipados_apps"},
 		{name: "vpp2", source: "apps"},
+	}, names)
+
+	var vppVersionID uint
+	var installer1ID uint
+	var fooID uint
+	for _, title := range titles {
+		switch title.Name {
+		case "vpp1":
+			vppVersionID = title.Versions[0].ID
+		case "installer1":
+			installer1ID = title.Versions[0].ID
+		case "foo":
+			fooID = title.Versions[0].ID
+		}
+	}
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: vppVersionID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: installer1ID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: fooID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID:              ptr.Uint(0),
+			AvailableForInstall: true,
+			VulnerableOnly:      true,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, counts)
+	require.Len(t, titles, 2)
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "installer1", source: "apps"},
+		{name: "vpp1", source: "apps"},
 	}, names)
 
 	// with filter returns only available for install

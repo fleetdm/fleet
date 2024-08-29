@@ -129,7 +129,6 @@ variable "fleet_config" {
     extra_iam_policies           = []
     extra_execution_iam_policies = []
     extra_secrets                = {}
-    security_groups              = null
     security_group_name          = "fleet"
     iam_role_arn                 = null
     repository_credentials       = ""

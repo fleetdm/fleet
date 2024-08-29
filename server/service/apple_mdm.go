@@ -31,6 +31,7 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
@@ -1247,6 +1248,39 @@ func (svc *Service) EnqueueMDMAppleCommand(
 type mdmAppleEnrollRequest struct {
 	Token               string `query:"token"`
 	EnrollmentReference string `query:"enrollment_reference,optional"`
+	MachineInfo         *fleet.MDMAppleMachineInfo
+}
+
+func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := mdmAppleEnrollRequest{}
+
+	tok := r.URL.Query().Get("token")
+	if tok == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "token is required",
+		}
+	}
+	decoded.Token = tok
+
+	er := r.URL.Query().Get("enrollment_reference")
+	decoded.EnrollmentReference = er
+
+	// Parse the machine info from the request body
+	di := r.Header.Get("x-apple-aspen-deviceinfo")
+	if di != "" {
+		// extract x-apple-aspen-deviceinfo custom header from request
+		parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "unable to parse deviceinfo header",
+				InternalErr: err,
+			}
+		}
+		p := fleet.MDMAppleMachineInfo(*parsed)
+		decoded.MachineInfo = &p
+	}
+
+	return &decoded, nil
 }
 
 func (r mdmAppleEnrollResponse) error() error { return r.Err }
@@ -1256,9 +1290,20 @@ type mdmAppleEnrollResponse struct {
 
 	// Profile field is used in hijackRender for the response.
 	Profile []byte
+
+	SoftwareUpdateRequired *fleet.MDMAppleSoftwareUpdateRequired
 }
 
 func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	if r.SoftwareUpdateRequired != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		if err := json.NewEncoder(w).Encode(r.SoftwareUpdateRequired); err != nil {
+			encodeError(ctx, ctxerr.New(ctx, "failed to encode software update required"), w)
+		}
+		return
+	}
+
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -1275,6 +1320,16 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
+
+	sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
+	if err != nil {
+		return mdmAppleEnrollResponse{Err: err}, nil
+	}
+	if sur != nil {
+		return mdmAppleEnrollResponse{
+			SoftwareUpdateRequired: sur,
+		}, nil
+	}
 
 	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference)
 	if err != nil {
@@ -1334,6 +1389,89 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	}
 
 	return signed, nil
+}
+
+func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
+	// skipauth: The enroll profile endpoint is unauthenticated.
+	svc.authz.SkipAuthorization(ctx)
+
+	if m == nil {
+		level.Debug(svc.logger).Log("msg", "no machine info, skipping os version check")
+		return nil, nil
+	}
+
+	level.Debug(svc.logger).Log("msg", "checking os version", "serial", m.Serial, "current_version", m.OSVersion)
+
+	if !m.MDMCanRequestSoftwareUpdate {
+		level.Debug(svc.logger).Log("msg", "mdm cannot request software update, skipping os version check", "serial", m.Serial)
+		return nil, nil
+	}
+
+	needsUpdate, err := svc.needsOSUpdateForDEPEnrollment(ctx, *m)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking os updates settings", "serial", m.Serial)
+	}
+
+	if !needsUpdate {
+		level.Debug(svc.logger).Log("msg", "device is above minimum, skipping os version check", "serial", m.Serial)
+		return nil, nil
+	}
+
+	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(*m)
+	if err != nil {
+		// log for debugging but allow enrollment to proceed
+		level.Info(svc.logger).Log("msg", "getting apple software update required", "serial", m.Serial, "err", err)
+		return nil, nil
+	}
+
+	return sur, nil
+}
+
+func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
+	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
+	// look up DEP hosts by serial number. It grabs the team id and platform from the
+	// hosts table. Then it uses the team id to get either the global config or team config.
+	// Finally, it uses the platform to get os updates settings from the config for
+	// one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
+	// least of which is that the platform is correct in the hosts table. If the platform is wrong,
+	// we'll end up with a meaningless comparison of unrelated versions. We could potentially add
+	// some cross-check against the machine info to ensure that the platform of the host aligns with
+	// what we expect from the machine info. But that would involve work to derive the platform from
+	// the machine info (presumably from the product name, but that's not a 1:1 mapping).
+	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			level.Info(svc.logger).Log("msg", "checking os updates settings, settings not found", "serial", m.Serial)
+			return false, nil
+		}
+		return false, err
+	}
+	// TODO: confirm what this check should do
+	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
+		level.Info(svc.logger).Log("msg", "checking os updates settings, minimum version not set", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
+		return false, nil
+	}
+
+	return apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+}
+
+func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
+	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(m))
+	if err != nil {
+		return nil, err
+	}
+
+	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, latest.ProductVersion)
+	if err != nil {
+		return nil, err
+	} else if !needsUpdate {
+		return nil, nil
+	}
+
+	return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
+		ProductVersion: latest.ProductVersion,
+		Build:          latest.Build,
+	}), nil
 }
 
 func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
@@ -2676,7 +2814,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
-	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) {
 		return svc.handleRefetch(r, cmdResult)
 	}
 
@@ -2753,6 +2891,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 	}
 
 	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+		// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+		err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+			HostID:      host.ID,
+			CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
+		}
+
 		if host.Platform != "ios" && host.Platform != "ipados" {
 			return nil, ctxerr.New(ctx, "refetch apps command sent to non-iOS/non-iPadOS host")
 		}
@@ -2772,6 +2919,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		}
 
 		return nil, nil
+	}
+
+	// Otherwise, the command has prefix fleet.RefetchDeviceCommandUUIDPrefix, which is a refetch device command.
+	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID:      host.ID,
+		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
 	}
 
 	var deviceInformationResponse struct {
@@ -2819,6 +2976,14 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		Platform: platform,
 	}); err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
+	}
+
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {
+		// Since the device has been refetched, we can assume it's enrolled.
+		err = svc.ds.UpdateMDMData(ctx, host.ID, true)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update MDM data")
+		}
 	}
 	return nil, nil
 }
