@@ -91,10 +91,12 @@ Upon failure of the select policy, the selected software installation will be tr
 
 
 ### Using fleet API:
-The same result can be achieved by using Fleet API directly.
+The following is the API for adding a Policy. Note the addition of the "install_software" field.
 #### Add team policy
-The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
+The semantics for creating a team policy are the same as for global policies.
+
 `POST /api/v1/fleet/teams/:id/policies`
+
 ##### Parameters
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
@@ -214,7 +216,7 @@ software:
 Software deployment can be time consumng and risky if not done the proper way.
 This guide presents Fleet's ability to mass deploy software to your fleet in a way that is both
 simple and safe. Starting with uploading a trusted installer and ending with deploying it to the
-proper set of machines.
+proper set of machines answering the exact policy defined by you.
 
 Leveraging Fleet’s ability to install and upgrade software on your hosts, you can streamline the
 process of controlling your hosts, replacing old versions of software and having the up-to-date info
