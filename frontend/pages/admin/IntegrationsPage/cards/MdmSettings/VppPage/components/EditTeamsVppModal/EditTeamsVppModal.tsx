@@ -209,7 +209,7 @@ const EditTeamsVppModal = ({
             showArrow
             tipContent={
               <div className={`${baseClass}__tooltip--all-teams`}>
-                You can’t choose teams because you already have a VPP token
+                You can&apos;t choose teams because you already have a VPP token
                 assigned to all teams. First, edit teams for that VPP token to
                 choose teams here.
               </div>
@@ -223,6 +223,7 @@ const EditTeamsVppModal = ({
               placeholder="Search teams"
               value={selectedValue}
               label="Teams"
+              className={`${baseClass}__vpp-dropdown`}
               wrapperClassName={`${baseClass}__form-field--vpp-teams ${
                 isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
               }`}
@@ -230,7 +231,7 @@ const EditTeamsVppModal = ({
                 isDropdownDisabled ? undefined : (
                   <>
                     Each team can have only one VPP token. Teams that already
-                    have a VPP token won’t show up here.
+                    have a VPP token won&apos;t show up here.
                   </>
                 )
               }
