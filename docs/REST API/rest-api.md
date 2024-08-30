@@ -8839,6 +8839,7 @@ Returns information about the specified software. By default, `versions` are sor
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
+    "versions_updated_at": "2024-04-01T14:22:58Z",
     "versions": [
       {
         "id": 123,
@@ -8892,6 +8893,7 @@ Returns information about the specified software. By default, `versions` are sor
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
+    "versions_updated_at": "2024-04-01T14:22:58Z",
     "versions": [
       {
         "id": 123,
