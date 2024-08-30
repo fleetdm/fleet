@@ -11117,7 +11117,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 
-	// create a software installer and some host install requests
+	// Create software installers and corresponding host install requests.
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install script",
 		PreInstallQuery:   "pre install query",
@@ -11127,6 +11127,24 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+	payload2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script 2",
+		PreInstallQuery:   "pre install query 2",
+		PostInstallScript: "post install script 2",
+		Filename:          "vim.deb",
+		Title:             "vim",
+	}
+	s.uploadSoftwareInstaller(payload2, http.StatusOK, "")
+	titleID2 := getSoftwareTitleID(t, s.ds, payload2.Title, "deb_packages")
+	payload3 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script 3",
+		PreInstallQuery:   "pre install query 3",
+		PostInstallScript: "post install script 3",
+		Filename:          "emacs.deb",
+		Title:             "emacs",
+	}
+	s.uploadSoftwareInstaller(payload3, http.StatusOK, "")
+	titleID3 := getSoftwareTitleID(t, s.ds, payload3.Title, "deb_packages")
 
 	latestInstallUUID := func() string {
 		var id string
@@ -11138,9 +11156,10 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 
 	// create some install requests for the host
 	installUUIDs := make([]string, 3)
+	titleIDs := []uint{titleID, titleID2, titleID3}
 	for i := 0; i < len(installUUIDs); i++ {
 		resp := installSoftwareResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, titleID), nil, http.StatusAccepted, &resp)
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, titleIDs[i]), nil, http.StatusAccepted, &resp)
 		installUUIDs[i] = latestInstallUUID()
 	}
 
@@ -11203,7 +11222,14 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		Status:                fleet.SoftwareInstallerFailed,
 		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQueryFailCopy),
 	})
-	wantAct.InstallUUID = installUUIDs[1]
+	wantAct = fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload2.Title,
+		SoftwarePackage: payload2.Filename,
+		InstallUUID:     installUUIDs[1],
+		Status:          string(fleet.SoftwareInstallerFailed),
+	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -11225,8 +11251,14 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		Output:                  ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success")),
 		PostInstallScriptOutput: ptr.String(fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok")),
 	})
-	wantAct.InstallUUID = installUUIDs[2]
-	wantAct.Status = string(fleet.SoftwareInstallerInstalled)
+	wantAct = fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload3.Title,
+		SoftwarePackage: payload3.Filename,
+		InstallUUID:     installUUIDs[2],
+		Status:          string(fleet.SoftwareInstallerInstalled),
+	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
 	// non-existing installation uuid
@@ -13072,6 +13104,11 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host1LastInstall.Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
 	prevExecutionID := host1LastInstall.ExecutionID
+
+	// Request a manual installation on the host for the same installer, which should fail.
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d",
+		host1Team1.ID, dummyInstallerPkgTitleID), nil, http.StatusBadRequest, &installResp)
 
 	// Submit same results as before, which should not trigger a installation because the policy is already failing.
 	distributedResp = submitDistributedQueryResultsResponse{}
