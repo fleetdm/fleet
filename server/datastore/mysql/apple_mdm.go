@@ -3502,7 +3502,7 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 	// because the updated_at update condition is too complex?), so at the moment
 	// this clears the profile uuids at all times, even if the profile did not
 	// change.
-	if insertOnDuplicateDidUpdate(res) {
+	if insertOnDuplicateDidInsertOrUpdate(res) {
 		// profile was updated, need to clear the profile uuids
 		if err := ds.SetMDMAppleSetupAssistantProfileUUID(ctx, asst.TeamID, "", ""); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "clear mdm apple setup assistant profiles")
