@@ -343,7 +343,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -401,6 +401,7 @@ func (n notFoundErr) Error() string {
 }
 
 func TestCalendarEvents1KHosts(t *testing.T) {
+	t.Parallel()
 	ds := new(mock.Store)
 	ctx := context.Background()
 	var logger kitlog.Logger
@@ -633,7 +634,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -923,7 +924,7 @@ func TestEventBody(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {

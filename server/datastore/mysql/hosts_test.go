@@ -1245,13 +1245,17 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	// enrollment: pending (with Fleet mdm)
-	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: "532141num832", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
-	})
+	}, abmToken.ID, nil, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
-	require.Nil(t, tmID)
 
 	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
 	err = ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "") // enrollment: automatic
@@ -6683,7 +6687,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		Sha256: sha256.New().Sum(nil),
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
-	})
+	}, nil)
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(context.Background(), "command-uuid", host.UUID)
 	require.NoError(t, err)
@@ -6741,6 +6745,16 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		          INSERT INTO host_calendar_events (host_id, calendar_event_id, webhook_status)
 		          VALUES (?, ?, 1);
 			`, host.ID, calendarEventID)
+	require.NoError(t, err)
+
+	softwareInstaller, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "",
+		PreInstallQuery: "",
+		Title:           "ChocolateRain",
+		UserID:          user1.ID,
+	})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -7546,6 +7560,11 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -7574,7 +7593,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.True(t, info.OsqueryEnrolled)
 	require.Equal(t, "darwin", info.Platform)
 
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmToken.ID)
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
@@ -7601,6 +7620,11 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(ctx, false, tt.uuid, tt.uuid, "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
@@ -7616,7 +7640,6 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
 		h.OrbitNodeKey = &orbitKey
-		h.DiskEncryptionResetRequested = ptr.Bool(false)
 		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
 
@@ -7628,7 +7651,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	}
 
 	// test loading an unknown orbit key
-	_, err := ds.LoadHostByOrbitNodeKey(ctx, uuid.New().String())
+	_, err = ds.LoadHostByOrbitNodeKey(ctx, uuid.New().String())
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
@@ -7696,13 +7719,13 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
-	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
 	require.NoError(t, err)
+	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
 
 	// simulate the device being assigned to Fleet in ABM
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet})
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet}, abmToken.ID)
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
@@ -8258,7 +8281,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
 		require.NoError(t, err)
-		require.NotEqual(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		// orbit should not update last_enrolled_at if re-enrolling (because last_enrolled_at
+		// is to be set by osquery only).
+		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
 		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
 		require.NoError(t, err)
@@ -8359,8 +8384,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 	// no disk encryption key information
 	got, err := ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, -1, *got.MDM.TestGetRawDecryptable())
 
 	// create the encryption key row, but unknown decryptable
@@ -8378,8 +8403,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, 0, *got.MDM.TestGetRawDecryptable())
 
 	// mark the key as decryptable
@@ -8388,8 +8413,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.True(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.True(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, 1, *got.MDM.TestGetRawDecryptable())
 }
 
@@ -9617,9 +9642,9 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	startTime := time.Now().UTC().Add(30 * time.Minute)
 	endTime := startTime.Add(30 * time.Minute)
 	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, uuid.New().String(), "foo@example.com", startTime, endTime, []byte(`{}`),
-		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		&timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
-	require.Equal(t, calendarEvent.TimeZone, timeZone)
+	require.Equal(t, *calendarEvent.TimeZone, timeZone)
 
 	mWs, err = ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
 	require.NoError(t, err)

@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
+	"golang.org/x/text/unicode/norm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -413,6 +414,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
+	abmAssignments, err := svc.validateABMAssignments(ctx, &appConfig.MDM, &oldAppConfig.MDM, invalid, license)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
+	}
+
+	vppAssignments, err := svc.validateVPPAssignments(ctx, &appConfig.MDM, invalid, license)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -534,6 +545,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if appConfig.MDM.AppleBussinessManager.Set || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if appConfig.MDM.VolumePurchasingProgram.Set {
+		for tokenID, tokenTeams := range vppAssignments {
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
 	// retrieve new app config with obfuscated secrets
 	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -558,27 +585,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// if the macOS minimum version requirement changed, create the corresponding
-	// activity
-	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
-		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
-		if license.IsPremium() {
-			// macOS updates are premium feature
-			if err := svc.EnterpriseOverrides.MDMAppleEditedMacOSUpdates(ctx, nil, appConfig.MDM.MacOSUpdates); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "update DDM profile after macOS updates change")
-			}
-		}
-
-		if err := svc.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeEditedMacOSMinVersion{
-				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion.Value,
-				Deadline:       appConfig.MDM.MacOSUpdates.Deadline.Value,
-			},
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
-		}
+	//
+	// Process OS updates config changes for Apple devices.
+	//
+	if err := svc.processAppleOSUpdateSettings(ctx, license, fleet.MacOS,
+		oldAppConfig.MDM.MacOSUpdates,
+		appConfig.MDM.MacOSUpdates,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
+	}
+	if err := svc.processAppleOSUpdateSettings(ctx, license, fleet.IOS,
+		oldAppConfig.MDM.IOSUpdates,
+		appConfig.MDM.IOSUpdates,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
+	}
+	if err := svc.processAppleOSUpdateSettings(ctx, license, fleet.IPadOS,
+		oldAppConfig.MDM.IPadOSUpdates,
+		appConfig.MDM.IPadOSUpdates,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
 	}
 
 	// if the Windows updates requirements changed, create the corresponding
@@ -668,6 +694,47 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+// processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.
+func (svc *Service) processAppleOSUpdateSettings(
+	ctx context.Context,
+	license *fleet.LicenseInfo,
+	appleDevice fleet.AppleDevice,
+	oldOSUpdateSettings fleet.AppleOSUpdateSettings,
+	newOSUpdateSettings fleet.AppleOSUpdateSettings,
+) error {
+	if oldOSUpdateSettings.MinimumVersion.Value != newOSUpdateSettings.MinimumVersion.Value ||
+		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value {
+		if license.IsPremium() {
+			if err := svc.EnterpriseOverrides.MDMAppleEditedAppleOSUpdates(ctx, nil, appleDevice, newOSUpdateSettings); err != nil {
+				return ctxerr.Wrap(ctx, err, "update DDM profile after Apple OS updates change")
+			}
+		}
+
+		var activity fleet.ActivityDetails
+		switch appleDevice {
+		case fleet.MacOS:
+			activity = fleet.ActivityTypeEditedMacOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
+		case fleet.IOS:
+			activity = fleet.ActivityTypeEditedIOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
+		case fleet.IPadOS:
+			activity = fleet.ActivityTypeEditedIPadOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
+		}
+	}
+	return nil
 }
 
 func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error) {
@@ -773,23 +840,25 @@ func (svc *Service) validateMDM(
 	}
 	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
 
-	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
-		if !license.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil
-		}
-		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
-			invalid.Append("apple_bm_default_team", "team name not found")
-		}
-	}
-
 	// MacOSUpdates
-	updatingVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
+	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
-	updatingDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
+	updatingMacOSDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
+	// IOSUpdates
+	updatingIOSVersion := mdm.IOSUpdates.MinimumVersion.Value != "" &&
+		mdm.IOSUpdates.MinimumVersion != oldMdm.IOSUpdates.MinimumVersion
+	updatingIOSDeadline := mdm.IOSUpdates.Deadline.Value != "" &&
+		mdm.IOSUpdates.Deadline != oldMdm.IOSUpdates.Deadline
+	// IPadOSUpdates
+	updatingIPadOSVersion := mdm.IPadOSUpdates.MinimumVersion.Value != "" &&
+		mdm.IPadOSUpdates.MinimumVersion != oldMdm.IPadOSUpdates.MinimumVersion
+	updatingIPadOSDeadline := mdm.IPadOSUpdates.Deadline.Value != "" &&
+		mdm.IPadOSUpdates.Deadline != oldMdm.IPadOSUpdates.Deadline
 
-	if updatingVersion || updatingDeadline {
+	if updatingMacOSVersion || updatingMacOSDeadline ||
+		updatingIOSVersion || updatingIOSDeadline ||
+		updatingIPadOSVersion || updatingIPadOSDeadline {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !license.IsPremium() {
@@ -799,6 +868,12 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.MacOSUpdates.Validate(); err != nil {
 		invalid.Append("macos_updates", err.Error())
+	}
+	if err := mdm.IOSUpdates.Validate(); err != nil {
+		invalid.Append("ios_updates", err.Error())
+	}
+	if err := mdm.IPadOSUpdates.Validate(); err != nil {
+		invalid.Append("ipados_updates", err.Error())
 	}
 
 	// WindowsUpdates
@@ -887,6 +962,182 @@ func (svc *Service) validateMDM(
 	}
 
 	return nil
+}
+
+func (svc *Service) validateABMAssignments(
+	ctx context.Context,
+	mdm, oldMdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	license *fleet.LicenseInfo,
+) ([]*fleet.ABMToken, error) {
+	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
+		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
+		return nil, nil
+	}
+
+	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
+			return nil, nil
+		}
+		team, err := svc.ds.TeamByName(ctx, name)
+		if err != nil {
+			invalid.Append("mdm.apple_bm_default_team", "team name not found")
+			return nil, nil
+		}
+		tokens, err := svc.ds.ListABMTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(tokens) > 1 {
+			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
+			return nil, nil
+		}
+
+		if len(tokens) == 0 {
+			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
+			return nil, nil
+		}
+
+		tok := tokens[0]
+		tok.MacOSDefaultTeamID = &team.ID
+		tok.IOSDefaultTeamID = &team.ID
+		tok.IPadOSDefaultTeamID = &team.ID
+
+		return []*fleet.ABMToken{tok}, nil
+	}
+
+	if mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
+			return nil, nil
+		}
+
+		teams, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		teamsByName := map[string]*uint{"": nil, "No team": nil}
+		for _, tm := range teams {
+			teamsByName[tm.Name] = &tm.ID
+		}
+		tokens, err := svc.ds.ListABMTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tokensByName := map[string]*fleet.ABMToken{}
+		for _, token := range tokens {
+			// The default assignments for all tokens is "no team"
+			// (ie: team_id IS NULL), here we reset the assignments
+			// for all tokens, those will be re-added below.
+			//
+			// This ensures any unassignments are properly handled.
+			token.MacOSDefaultTeamID = nil
+			token.IOSDefaultTeamID = nil
+			token.IPadOSDefaultTeamID = nil
+			tokensByName[token.OrganizationName] = token
+		}
+
+		var tokensToSave []*fleet.ABMToken
+		for _, bm := range mdm.AppleBussinessManager.Value {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
+					return nil, nil
+				}
+			}
+
+			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
+				invalid.Appendf("mdm.apple_business_manager", "token with organization name %s doesn't exist", bm.OrganizationName)
+				return nil, nil
+			}
+
+			tok := tokensByName[bm.OrganizationName]
+			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
+			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
+			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tokensToSave = append(tokensToSave, tok)
+		}
+
+		return tokensToSave, nil
+	}
+
+	return nil, nil
+}
+
+func (svc *Service) validateVPPAssignments(
+	ctx context.Context,
+	mdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	license *fleet.LicenseInfo,
+) (map[uint][]uint, error) {
+	if mdm.VolumePurchasingProgram.Set && mdm.VolumePurchasingProgram.Valid {
+		if !license.IsPremium() {
+			invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
+			return nil, nil
+		}
+
+		teams, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+		for _, tm := range teams {
+			teamsByName[tm.Name] = tm.ID
+		}
+		tokens, err := svc.ds.ListVPPTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tokensByLocation := map[string]*fleet.VPPTokenDB{}
+		for _, token := range tokens {
+			// The default assignments for all tokens is "no team"
+			// (ie: team_id IS NULL), here we reset the assignments
+			// for all tokens, those will be re-added below.
+			//
+			// This ensures any unassignments are properly handled.
+			tokensByLocation[token.Location] = token
+			token.Teams = nil
+		}
+
+		var tokensToSave map[uint][]uint
+		for _, vpp := range mdm.VolumePurchasingProgram.Value {
+			for _, tmName := range vpp.Teams {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+					invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+					return nil, nil
+				}
+			}
+
+			loc := norm.NFC.String(vpp.Location)
+			if _, ok := tokensByLocation[loc]; !ok {
+				invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+				return nil, nil
+			}
+
+			var tokenTeams []uint
+			for _, teamName := range vpp.Teams {
+				if teamName == fleet.TeamNameAllTeams {
+					if len(vpp.Teams) > 1 {
+						invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
+						return nil, nil
+					}
+					tokenTeams = []uint{}
+					break
+				}
+				teamID := teamsByName[teamName]
+				tokenTeams = append(tokenTeams, teamID)
+			}
+
+			tok := tokensByLocation[loc]
+			tokensToSave[tok.ID] = tokenTeams
+		}
+
+		return tokensToSave, nil
+	}
+
+	return nil, nil
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {

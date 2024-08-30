@@ -17,6 +17,7 @@ module.exports = {
     firstName: { type: 'string', required: true },
     lastName: { type: 'string', required: true },
     organization: { type: 'string' },
+    description: { type: 'string' },
     primaryBuyingSituation: { type: 'string' },
     psychologicalStage: {
       type: 'string',
@@ -29,13 +30,21 @@ module.exports = {
         '6 - Has team buy-in'
       ]
     },
-    leadSource: {
+    psychologicalStageChangeReason: {
+      type: 'string',
+      example: 'Website - Organic start flow'
+    },
+    contactSource: {
       type: 'string',
       isIn: [
         'Website - Contact forms',
         'Website - Sign up',
       ],
     },
+    getStartedResponses: {
+      type: 'string',
+    }
+
   },
 
 
@@ -51,7 +60,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, leadSource}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -95,6 +104,15 @@ module.exports = {
     if(psychologicalStage) {
       valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
     }
+    if(getStartedResponses) {
+      valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
+    }
+    if(description) {
+      valuesToSet.Description = description;
+    }
+    if(psychologicalStageChangeReason) {
+      valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
+    }
 
     let existingContactRecord;
     // Search for an existing Contact record using the provided email address or linkedIn profile URL.
@@ -111,6 +129,10 @@ module.exports = {
     }
 
     if(existingContactRecord) {
+      // If a description was provided and the contact has a description, append the new description to it.
+      if(description && existingContactRecord.Description) {
+        valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
       salesforceContactId = existingContactRecord.Id;
@@ -182,7 +204,7 @@ module.exports = {
             Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
             Website: enrichmentData.employer.emailDomain,
             LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
-            NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
+            NumberOfEmployees: Number(enrichmentData.employer.numberOfEmployees),
             OwnerId: salesforceAccountOwnerId
           });
           salesforceAccountId = newAccountRecord.id;
@@ -190,9 +212,9 @@ module.exports = {
         // console.log('New account created!', salesforceAccountId);
       }//ﬁ
 
-      // Only add leadSource to valuesToSet if we're creating a new contact record.
-      if(leadSource) {
-        valuesToSet.LeadSource = leadSource;
+      // Only add contactSource to valuesToSet if we're creating a new contact record.
+      if(contactSource) {
+        valuesToSet.Contact_source__c = contactSource;// eslint-disable-line camelcase
       }
       // console.log(`creating new Contact record.`)
       // Create a new Contact record for this person.

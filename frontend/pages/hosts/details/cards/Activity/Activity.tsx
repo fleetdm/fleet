@@ -31,11 +31,12 @@ const UpcomingTooltip = () => {
     <TooltipWrapper
       tipContent={
         <>
-          Upcoming activities will run as listed. Failure of one activity
-          won&apos;t cancel other activities.
+          Currently, only scripts run before other scripts and
+          <br />
+          software is installed before other software.
           <br />
           <br />
-          Currently, only scripts are guaranteed to run in order.
+          Failure of one activity won&apos;t cancel other activities.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}
@@ -68,7 +69,6 @@ const Activity = ({
   onPreviousPage,
   onShowDetails,
 }: IActivityProps) => {
-  // TODO: add count to upcoming activities tab when available via API
   return (
     <Card
       borderRadiusSize="xxlarge"

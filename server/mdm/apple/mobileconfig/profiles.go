@@ -2,6 +2,10 @@ package mobileconfig
 
 import "text/template"
 
+var funcMap = map[string]any{
+	"xml": XMLEscapeString,
+}
+
 // FleetdProfileOptions are the keys required to execute a
 // FleetdProfileTemplate.
 type FleetdProfileOptions struct {
@@ -20,7 +24,7 @@ type FleetdProfileOptions struct {
 //
 // Internally, this is used by Fleet MDM to configure the installer delivered
 // to hosts during DEP enrollment.
-var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+var FleetdProfileTemplate = template.Must(template.New("").Funcs(funcMap).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
@@ -28,7 +32,7 @@ var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=er
     <array>
       <dict>
         <key>EnrollSecret</key>
-        <string>{{ .EnrollSecret }}</string>
+        <string>{{ .EnrollSecret | xml }}</string>
         <key>FleetURL</key>
         <string>{{ .ServerURL }}</string>
         <key>EnableScripts</key>

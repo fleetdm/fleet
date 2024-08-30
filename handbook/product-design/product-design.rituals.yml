@@ -1,14 +1,4 @@
 -
-  task: "Prioritize for next sprint" # Title that will actually show in rituals table
-  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Triweekly" # must be supported by
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
-  dri: "noahtalerman" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-endpoint-ops" ] # label to be applied to issue
-    repo: "confidential"
--
   task: "Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
@@ -37,19 +27,12 @@
   moreInfoUrl: 
   dri: "noahtalerman"
 -
-  task: "🦢🗣 Design review (#g-mdm)"
+  task: "🦢🗣 Design review"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
   description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
-  dri: "marko-lisica"
--
-  task: "🦢🗣 Design review (#g-endpoint-ops)"
-  startedOn: "2024-03-07" 
-  frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
-  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
-  dri: "rachaelshaw"
+  dri: "noahtalerman"
 -
   task: "🦢🔄 Product design sync"
   startedOn: "2023-07-11" 
@@ -81,7 +64,6 @@
 -
   task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
-  frequency: "Triweekly" 
-  description: "The Head of Product Design and each group's EM meet before each sprint to align on priorities and discuss what stories weren't completed in the previous sprint. Head of Product Design records number of stories that weren't completed in the “Stories dropped” product KPI." 
-  moreInfoUrl: 
+  frequency: "Triweekly"
+  description: "Discuss what stories weren't completed in the previous sprint. Record the number of stories in KPIs. Align on priorities for upcoming sprint."
   dri: "noahtalerman"

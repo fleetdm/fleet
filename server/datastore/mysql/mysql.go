@@ -82,6 +82,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
@@ -158,6 +160,22 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		ds.stmtCache[query] = stmt
 	}
 	return stmt
+}
+
+func (ds *Datastore) deleteCachedStmt(query string) {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+	stmt, ok := ds.stmtCache[query]
+	if ok {
+		if err := stmt.Close(); err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to close prepared statement before deleting it",
+				"query", query,
+				"err", err,
+			)
+		}
+		delete(ds.stmtCache, query)
+	}
 }
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
@@ -901,7 +919,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
-	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
 }
@@ -1282,6 +1300,13 @@ type parameterizedStmt struct {
 //
 // The read statement must only SELECT the id column.
 func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insertStmt *parameterizedStmt) (id uint, err error) {
+	return ds.optimisticGetOrInsertWithWriter(ctx, ds.writer(ctx), readStmt, insertStmt)
+}
+
+// optimisticGetOrInsertWithWriter is the same as optimisticGetOrInsert but it
+// uses the provided writer to perform the insert or second read operations.
+// This makes it possible to use this from inside a transaction.
+func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer sqlx.ExtContext, readStmt, insertStmt *parameterizedStmt) (id uint, err error) { //nolint: gocritic // it's ok in this case to use ds.reader even if we receive an ExtContext
 	readID := func(q sqlx.QueryerContext) (uint, error) {
 		var id uint
 		err := sqlx.GetContext(ctx, q, &id, readStmt.Statement, readStmt.Args...)
@@ -1293,12 +1318,12 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// this does not exist yet, try to insert it
-			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			res, err := writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
 				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
-					id, err := readID(ds.writer(ctx))
+					id, err := readID(writer)
 					if err != nil {
 						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
 					}

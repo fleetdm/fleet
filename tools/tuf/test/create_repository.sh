@@ -28,8 +28,7 @@ SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows}
 echo "Generating packages for $SYSTEMS"
 
 NUDGE_VERSION=stable
-SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
-SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
+ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
     OSQUERY_VERSION=5.12.2
@@ -91,7 +90,6 @@ for system in $SYSTEMS; do
     # Apple keychain, some tables, etc), if this is the case, compile an
     # universal binary.
     #
-    # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error).
     if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
        CGO_ENABLED=1 \
        CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
@@ -99,7 +97,23 @@ for system in $SYSTEMS; do
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     else
-      CGO_ENABLED=0 GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      race_value=false
+      # Enable race on macOS Intel at least.
+      #
+      # For cross-compiling to Windows with `-race` we need CGO_ENABLED=1 but we cannot
+      # do cross-compilation with CGO_ENABLED=1.
+      if [ "$goose_value" = "darwin" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
+        race_value=true
+      fi
+      # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error),
+      # thus on Intel we do not build an universal binary.
+      CGO_ENABLED=0 \
+      GOOS=$goose_value \
+      GOARCH=$goarch_value \
+      go build \
+      -race=$race_value \
+      -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" \
+      -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
@@ -152,6 +166,20 @@ for system in $SYSTEMS; do
             --version 42.0.0 -t 42.0 -t 42 -t stable
         rm swiftDialog.app.tar.gz
     fi
+
+    # Add Escrow Buddy on macos (if enabled).
+    if [[ $system == "macos" && -n "$ESCROW_BUDDY" ]]; then
+	make escrow-buddy-pkg version=$ESCROW_BUDDY_PKG_VERSION out-path=.
+
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target escrowBuddy.pkg \
+            --platform macos \
+            --name escrowBuddy \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm escrowBuddy.pkg
+    fi
+
 
     # Add Fleet Desktop application on windows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then

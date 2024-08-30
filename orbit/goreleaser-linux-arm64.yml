@@ -8,11 +8,8 @@ builds:
   - id: orbit
     dir: ./orbit/cmd/orbit/
     binary: orbit
-    env:
-      # CGO is enabled intentionally for Linux because some users need to be
-      # able to use the cgo versions of the networking libraries (see
-      # https://github.com/fleetdm/fleet/issues/8992)
-      - CGO_ENABLED=1
+    # NOTE: We tried building with CGO_ENABLED=1 but it caused failures
+    # in CI so for now we'll stick to building linux arm64 without cgo enabled.
     goos:
       - linux
     goarch:

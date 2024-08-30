@@ -5,7 +5,7 @@ services:
   # officially supported).
   # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
   mysql:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7.21}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume:/tmp
@@ -30,7 +30,7 @@ services:
       - "3306:3306"
 
   mysql_test:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7.21}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
@@ -56,7 +56,7 @@ services:
       - /tmpfs
 
   mysql_replica_test:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7.21}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
@@ -166,12 +166,6 @@ services:
       MINIO_ROOT_PASSWORD: minio123!
     volumes:
       - data-minio:/data
-
-  toxiproxy:
-    image: shopify/toxiproxy
-    ports:
-      - "22220:22220"
-      - "8474:8474"
 
 volumes:
   mysql-persistent-volume:

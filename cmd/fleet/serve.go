@@ -76,6 +76,7 @@ import (
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const softwareInstallerUploadTimeout = 4 * time.Minute
+const liveQueryMemCacheDuration = 1 * time.Second
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -124,6 +125,10 @@ the way that the Fleet server works.
 			}
 
 			logger := initLogger(config)
+
+			if dev {
+				createTestBucketForInstallers(&config, logger)
+			}
 
 			// Init tracing
 			if config.Logging.TracingEnabled {
@@ -346,7 +351,7 @@ the way that the Fleet server works.
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 				log.With(logger, "component", "query-results"),
 			)
-			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
+			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			// Set common configuration for all logging.
@@ -564,7 +569,6 @@ the way that the Fleet server works.
 				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
 					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
-					{Name: fleet.MDMAssetABMToken, Value: appleBM.EncryptedToken},
 				})
 				if err != nil {
 					// duplicate key errors mean that we already
@@ -576,6 +580,20 @@ the way that the Fleet server works.
 					}
 
 					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
+				} else {
+					// insert the ABM token without any metdata,
+					// it'll be picked by the
+					// apple_mdm_dep_profile_assigner cron and
+					// backfilled
+					tok := &fleet.ABMToken{
+						EncryptedToken: appleBM.EncryptedToken,
+						// 2000-01-01 is our "zero value" for time
+						RenewAt: time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC),
+					}
+					_, err = ds.InsertABMToken(context.Background(), tok)
+					if err != nil {
+						initFatal(err, "save ABM token")
+					}
 				}
 			}
 
@@ -608,13 +626,22 @@ the way that the Fleet server works.
 					initFatal(err, "validating MDM assets from database")
 				}
 
-				appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+				var appleBMCerts bool
+				appleBMCerts, err = checkMDMAssets([]fleet.MDMAssetName{
 					fleet.MDMAssetABMCert,
 					fleet.MDMAssetABMKey,
-					fleet.MDMAssetABMToken,
 				})
 				if err != nil {
 					initFatal(err, "validating MDM ABM assets from database")
+				}
+				if appleBMCerts {
+					// the ABM certs are there, check if a token exists and if so, apple
+					// BM is enabled and configured.
+					count, err := ds.GetABMTokenCount(context.Background())
+					if err != nil {
+						initFatal(err, "validating MDM ABM token from database")
+					}
+					appCfg.MDM.AppleBMEnabledAndConfigured = count > 0
 				}
 			}
 
@@ -692,6 +719,7 @@ the way that the Fleet server works.
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
+			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
@@ -705,6 +733,13 @@ the way that the Fleet server works.
 					}
 					softwareInstallStore = store
 					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
+
+					bstore, err := s3.NewBootstrapPackageStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 bootstrap package store")
+					}
+					bootstrapPackageStore = bstore
+					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -733,6 +768,7 @@ the way that the Fleet server works.
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
+					bootstrapPackageStore,
 					distributedLock,
 				)
 				if err != nil {
@@ -787,7 +823,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore,
 					)
 				},
 			); err != nil {
@@ -1373,4 +1409,19 @@ var _ push.Pusher = nopPusher{}
 // Push implements push.Pusher.
 func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, error) {
 	return nil, nil
+}
+
+func createTestBucketForInstallers(config *configpkg.FleetConfig, logger log.Logger) {
+	store, err := s3.NewSoftwareInstallerStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 software installer store")
+	}
+	if err := store.CreateTestBucket(config.S3.SoftwareInstallersBucket); err != nil {
+		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		level.Info(logger).Log(
+			"err", err,
+			"msg", "failed to create test bucket",
+			"name", config.S3.SoftwareInstallersBucket,
+		)
+	}
 }

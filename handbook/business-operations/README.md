@@ -48,8 +48,8 @@ Fleet must register as an employer in any state where we hire new teammates. To 
 4. Select “Have us register for you” and then “Start registration.”
 5. Verify, add, and amend any company information to ensure accuracy.
 6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
+7. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/business-operations#review-state-employment-tax-filings-for-the-previous-quarter).
     
-
 
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
@@ -63,19 +63,48 @@ In Gusto, you can click **How to review your notice** to help you understand wha
 
 > **Note:** Many agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes, in case you have to do something.  If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
 
-<!-- 2023-08-19: I commented this out because I wasn't sure if we were still doing it this way and I didn't want to leave infomration that was potentially incorrect or contradictory.  -mikermcneil
-#### Process an email from a state agency with help from CorpNet
-In CorpNet, select "place an order for an existing business":
-- Email the CorpNet account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
-- Select "Foreign Qualification," place the order and email the confirmation to the CorpNet rep for "Payroll registration" (this is a shorter turnaround).
-  - You can also do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
--->
-
-<!-- 2023-08-19: This linked sheet is out of date so I'm commenting it out.  -mikermcneil
-For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc). -->
-
-<!-- 2023-08-19: I commented this out because I wasn't sure how to map it to an imperative mood verb phrase (responsibility) that bizops is doing either ad hoc or as part of a ritual (recurring task). -mikermcneil
 Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review.  You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. -->
+
+
+### Review state employment tax filings for the previous quarter
+
+Every quarter, payroll and tax filings are due for each state. Gusto automates this process, however there are often delays or quirks between Gusto's submission and the state receiving the filings.
+To mitigate the risk of penalties and to ensure filings occur as expected, follow these steps in the first month of the new quarter, verifying past quarter submission:
+1. Create an issue to "Review state filings for the previous quarter".
+2. Copy this text block into the issue to track progress by state:
+
+
+```
+States checked:
+- [ ] California
+- [ ] Colorado
+- [ ] Connecticut
+- [ ] Florida
+- [ ] Georgia
+- [ ] Hawaii
+- [ ] Illinois
+- [ ] Kansas
+- [ ] Maryland
+- [ ] Massachusetts
+- [ ] New York
+- [ ] Ohio
+- [ ] Oregon
+- [ ] Pennsylvania
+- [ ] Rhode Island
+- [ ] Tennessee
+- [ ] Texas
+- [ ] Utah
+- [ ] Virginia
+- [ ] Washington
+- [ ] Washington, DC
+- [ ] West Virginia
+- [ ] Wisconsin
+```
+ 
+
+3. Login to Gusto and navigate to "Taxes and compliance", then "Tax documents".
+4. Login to each State portal (using the details saved in 1Password) and verify that the portal has received the automated submission from Gusto.
+5. Check off states that are correct, and use comments to explain any quirks or remediation that's needed.
 
 
 ### Inform managers about hours worked
@@ -84,12 +113,11 @@ Every Friday at 2:00 PM CT, we collect hours worked for all hourly employees at 
 
 Here's how:
 
-1. For each hourly core team member in Gusto or Plane.com, find the DRI by checking [who they report to](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
-   - If any direct report is hourly in Plane.com and submits hours monthly, still list them and provide an explanation.
-2. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval. Find the DRI using the [Business Operations KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-3. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
-4. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
-   - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
+1. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval (generally their manager) for hours worked. Find the DRI using the [Business Operations KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
+     - For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
+3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
+     - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
 
 ### Change the DRI of a consultant
@@ -255,7 +283,7 @@ When BizOps receives notification of a Fleetie's job title changing, follow thes
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
-    - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
+    - Search for the Fleetie whose manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
     - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
     - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
     - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
@@ -306,18 +334,28 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 
 
 ### Update a team member's compensation
-To [change a team member's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
-1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the team member's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+To [change a teammate's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
+1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
 2. Share the values assessment document with the manager and ask them to perform the values assessment.
-3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and set a meeting between the manager, head of department, and Head of Business Operations about level of job skill in relation to compensation benchmarking levels.
-4. Schedule a new calendar event for the Head of Business Operations with the founders over an existing founders' 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking. During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
-5. Head of Business Operations will post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
-6. Communicate via Slack DM the decision to the teammate's people manager, who will then communicate to their teammate.
-7. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-8. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Business Operations so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
+   - If the teammate's manager is not part of the e-group, the Head of Business Operations will ensure they're included in the discussion at e-group as well. 
+4. Once compensation decisions have been finalized, the Head of Business Operations will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
+5. Send the teammates manager a Slack DM to determine who will communicate the decision to the teammate.
+6. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+8. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
+### Review Fleet's US company benefits
+
+Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
+1. Log in to your [Gusto admin account](https://gusto.com/).
+2. Navigate to "Benefits" and select "Renewal survey".
+3. Complete the survey questions, aiming for minimal changes.
+4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+   
 
 ### Process monthly accounting
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
@@ -346,7 +384,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 ### Check finances for quirks
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
 3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
 

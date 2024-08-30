@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
+	InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -433,6 +435,8 @@ type HostDEPAssignment struct {
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
 	// MDM server in Apple Busines Manager (ABM).
 	DeletedAt *time.Time `db:"deleted_at"`
+	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
+	ABMTokenID *uint `db:"abm_token_id"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -495,12 +499,11 @@ type MDMAppleCommand struct {
 // MDMAppleSetupAssistant represents the setup assistant set for a given team
 // or no team.
 type MDMAppleSetupAssistant struct {
-	ID          uint            `json:"-" db:"id"`
-	TeamID      *uint           `json:"team_id" db:"team_id"`
-	Name        string          `json:"name" db:"name"`
-	Profile     json.RawMessage `json:"enrollment_profile" db:"profile"`
-	ProfileUUID string          `json:"-" db:"profile_uuid"`
-	UploadedAt  time.Time       `json:"uploaded_at" db:"uploaded_at"`
+	ID         uint            `json:"-" db:"id"`
+	TeamID     *uint           `json:"team_id" db:"team_id"`
+	Name       string          `json:"name" db:"name"`
+	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
+	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -839,4 +842,68 @@ type MDMAppleDDMActivation struct {
 	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
 	ServerToken string                       `json:"ServerToken"`
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
+}
+
+// MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
+// package files. Fleet supports storing to the database and to an S3 bucket.
+type MDMBootstrapPackageStore interface {
+	Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
+	Exists(ctx context.Context, packageID string) (bool, error)
+	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
+}
+
+// MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
+type MDMAppleMachineInfo struct {
+	IMEI                        string `plist:"IMEI,omitempty"`
+	Language                    string `plist:"LANGUAGE,omitempty"`
+	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
+	MEID                        string `plist:"MEID,omitempty"`
+	OSVersion                   string `plist:"OS_VERSION"`
+	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
+	Product                     string `plist:"PRODUCT"`
+	Serial                      string `plist:"SERIAL"`
+	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
+	UDID                        string `plist:"UDID"`
+	Version                     string `plist:"VERSION"`
+}
+
+// MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired
+const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
+
+// MDMAppleSoftwareUpdateRequiredDetails is the [details][1] specified by Apple for the
+// required software update.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired/details
+type MDMAppleSoftwareUpdateRequiredDetails struct {
+	OSVersion    string `json:"OSVersion"`
+	BuildVersion string `json:"BuildVersion"`
+}
+
+// MDMAppleSoftwareUpdateRequired is the [error response][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired
+type MDMAppleSoftwareUpdateRequired struct {
+	Code    string                                `json:"code"` // "com.apple.softwareupdate.required"
+	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
+}
+
+func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
+	return &MDMAppleSoftwareUpdateRequired{
+		Code:    MDMAppleSoftwareUpdateRequiredCode,
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
+	}
+}
+
+type MDMAppleSoftwareUpdateAsset struct {
+	ProductVersion string `json:"ProductVersion"`
+	Build          string `json:"Build"`
 }

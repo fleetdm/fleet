@@ -7,10 +7,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +30,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+// addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
+var addHostMDMCommandsBatchSize = 10000
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
@@ -895,36 +900,49 @@ type hostWithEnrolled struct {
 	Enrolled *bool `db:"enrolled"`
 }
 
-func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (createdCount int64, teamID *uint, err error) {
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
+	ctx context.Context,
+	devices []godep.Device,
+	abmTokenID uint,
+	macOSTeam, iosTeam, ipadTeam *fleet.Team,
+) (createdCount int64, err error) {
 	if len(devices) < 1 {
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
-		return 0, nil, nil
+		return 0, nil
 	}
 
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
 	}
 
-	args := []interface{}{nil}
-	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
-		team, err := ds.TeamByName(ctx, name)
-		switch {
-		case fleet.IsNotFound(err):
-			level.Debug(ds.logger).Log(
-				"msg",
-				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
-				"team_name",
-				name,
-			)
-			// If the team doesn't exist, we still ingest the device, but it won't
-			// belong to any team.
-		case err != nil:
-			return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
-		default:
-			args[0] = team.ID
-			teamID = &team.ID
+	var args []any
+	teams := []*fleet.Team{iosTeam, ipadTeam, macOSTeam}
+	for _, team := range teams {
+		if team == nil {
+			args = append(args, nil)
+			continue
 		}
+
+		exists, err := ds.TeamExists(ctx, team.ID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+		}
+
+		if exists {
+			args = append(args, team.ID)
+			continue
+		}
+
+		// If the team doesn't exist, we still ingest the device, but it won't
+		// belong to any team.
+		level.Debug(ds.logger).Log(
+			"msg",
+			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
+			"team_id",
+			team,
+		)
+		args = append(args, nil)
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -950,7 +968,11 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
 				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
-				? AS team_id
+				CASE
+					WHEN us.platform = 'ios' THEN ?
+					WHEN us.platform = 'ipados' THEN ?
+					ELSE ?
+				END AS team_id
 			FROM (%s) us
 			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
 		WHERE
@@ -1011,7 +1033,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hosts...); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 		}
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
 
@@ -1035,12 +1057,12 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		return nil
 	})
 
-	return createdCount, teamID, err
+	return createdCount, err
 }
 
-func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host) error {
+func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert host DEP assignments")
 		}
 
@@ -1048,13 +1070,13 @@ func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts
 	})
 }
 
-func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host) error {
+func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host, abmTokenID uint) error {
 	if len(hosts) == 0 {
 		return nil
 	}
 
 	stmt := `
-		INSERT INTO host_dep_assignments (host_id)
+		INSERT INTO host_dep_assignments (host_id, abm_token_id)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  added_at = CURRENT_TIMESTAMP,
@@ -1063,8 +1085,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	args := []interface{}{}
 	values := []string{}
 	for _, host := range hosts {
-		args = append(args, host.ID)
-		values = append(values, "(?)")
+		args = append(args, host.ID, abmTokenID)
+		values = append(values, "(?, ?)")
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
@@ -1311,7 +1333,7 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -1708,18 +1730,38 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern).
-	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to install statement")
+	// batches of 10K hosts because h.uuid appears three times in the
+	// query, and the max number of prepared statements is 65K, this was
+	// good enough during a load test and gives us wiggle room if we add
+	// more arguments and we forget to update the batch size.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
 	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(uuids)) / float64(selectProfilesBatchSize)))
 
 	var wantedProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &wantedProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		wantedProfiles = append(wantedProfiles, partialResult...)
 	}
 
 	// Exclude macOS only profiles from iPhones/iPads.
@@ -1756,17 +1798,27 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		)
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern). Note that uuids are provided twice.
-	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
-	}
 	var currentProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := start + selectProfilesBatchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
+		}
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+		}
+
+		currentProfiles = append(currentProfiles, partialResult...)
 	}
 
 	if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
@@ -1776,6 +1828,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	// delete all host profiles to start from a clean slate, new entries will be added next
 	// TODO(roberto): is this really necessary? this was pre-existing
 	// behavior but I think it can be refactored. For now leaving it as-is.
+	//
+	// TODO part II(roberto): we found this call to be a major bottleneck during load testing
+	// https://github.com/fleetdm/fleet/issues/21338
 	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete all profiles")
 	}
@@ -2960,21 +3015,74 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 	return nil
 }
 
-func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
-	stmt := `
-          INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token)
-	  VALUES (?, ?, ?, ?, ?)
-	`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
-	if err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+func isMDMAppleBootstrapPackageInDB(ctx context.Context, q sqlx.QueryerContext, teamID uint) (isInDB, existsForTeam bool, err error) {
+	const stmt = `SELECT COALESCE(LENGTH(bytes), 0) FROM mdm_apple_bootstrap_packages WHERE team_id = ?`
+	var pkgLen int
+	if err := sqlx.GetContext(ctx, q, &pkgLen, stmt, teamID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, false, nil
 		}
-		return ctxerr.Wrap(ctx, err, "create bootstrap package")
+		return false, false, ctxerr.Wrapf(ctx, err, "check for bootstrap package content in database for team %d", teamID)
+	}
+	return pkgLen > 0, true, nil
+}
+
+func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
+	const insStmt = `INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token) VALUES (?, ?, ?, ?, ?)`
+	execInsert := func(args ...any) error {
+		if _, err := ds.writer(ctx).ExecContext(ctx, insStmt, args...); err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+			}
+			return ctxerr.Wrap(ctx, err, "create bootstrap package")
+		}
+		return nil
 	}
 
-	return nil
+	if pkgStore == nil {
+		// no S3 storage configured, insert the metadata and the content in the DB
+		return execInsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
+	}
+
+	// using distinct storages for content and metadata introduces an
+	// intractable problem: the operation cannot be atomic (all succeed or all
+	// fail together), so what we do instead is to minimize the risk of data
+	// inconsistency:
+	//
+	//   1. check if the row exists in the DB, if so fail immediately with a
+	//   duplicate error (which would happen at the INSERT stage anyway
+	//   otherwise).
+	//   2. if it does not exist in the DB, check if the package is already on
+	//   S3, to avoid a costly upload if it is.
+	//   3. if it is not already on S3, upload the package - if this fails,
+	//   return and the DB was not touched and data is still consistent.
+	//   4. after upload, insert the metadata in the DB - if this fails, the
+	//   only possible inconsistency is an unused package stored on S3, which a
+	//   cron job will eventually cleanup.
+	//   5. if everything succeeds, data is consistent and the S3 package
+	//   cannot be used before it is uploaded (since the DB row is inserted
+	//   after upload).
+	_, existsInDB, err := isMDMAppleBootstrapPackageInDB(ctx, ds.writer(ctx), bp.TeamID)
+	if err != nil {
+		return err
+	}
+	if existsInDB {
+		return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+	}
+
+	pkgID := hex.EncodeToString(bp.Sha256)
+	ok, err := pkgStore.Exists(ctx, pkgID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "check if bootstrap package %s already exists", pkgID)
+	}
+	if !ok {
+		if err := pkgStore.Put(ctx, pkgID, bytes.NewReader(bp.Bytes)); err != nil {
+			return ctxerr.Wrapf(ctx, err, "upload bootstrap package %s to S3", pkgID)
+		}
+	}
+
+	// insert in the DB with a NULL bytes content (to indicate it is on S3)
+	return execInsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
 }
 
 func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
@@ -2985,6 +3093,9 @@ func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac
 		return ctxerr.New(ctx, "team id must not be zero")
 	}
 
+	// NOTE: if the bootstrap package is stored in S3, nothing needs to happen on
+	// S3 for a copy of it since the bytes are the same and the stored contents
+	// is the same (the sha256 is copied, so it points to the same file on S3).
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Copy the bytes for the default bootstrap package to the specified team
 		insertStmt := `
@@ -3029,6 +3140,12 @@ WHERE id = ?
 }
 
 func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	// NOTE: if S3 storage is used for the bootstrap package, we don't delete it
+	// here. The reason for this is that other teams may be using the same
+	// package, so it would use the same S3 key (based on its hash). Instead we
+	// rely on the cron job to clear unused packages from S3. Outside of using up
+	// space in the bucket, an unused package on S3 is not a problem.
+
 	stmt := "DELETE FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID)
 	if err != nil {
@@ -3042,14 +3159,33 @@ func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID 
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
-	stmt := "SELECT name, bytes FROM mdm_apple_bootstrap_packages WHERE token = ?"
+func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string, pkgStore fleet.MDMBootstrapPackageStore) (*fleet.MDMAppleBootstrapPackage, error) {
+	const stmt = `SELECT name, bytes, sha256 FROM mdm_apple_bootstrap_packages WHERE token = ?`
+
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, token); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithMessage(token))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package bytes")
+	}
+
+	if pkgStore != nil && len(bp.Bytes) == 0 {
+		// bootstrap package is stored on S3, retrieve it
+		pkgID := hex.EncodeToString(bp.Sha256)
+		rc, _, err := pkgStore.Get(ctx, pkgID)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "get bootstrap package %s from S3", pkgID)
+		}
+		defer rc.Close()
+
+		// TODO: optimize memory usage by supporting a streaming approach
+		// throughout the API (we have a similar issue with software installers).
+		// Currently we load everything in memory and those can be quite big.
+		bp.Bytes, err = io.ReadAll(rc)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "reading bootstrap package %s from S3", pkgID)
+		}
 	}
 	return &bp, nil
 }
@@ -3153,6 +3289,27 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID
 	return &bp, nil
 }
 
+func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error {
+	if pkgStore == nil {
+		// no-op in this case, possible if not running with a Premium license or
+		// configured S3 storage
+		return nil
+	}
+
+	// get the list of bootstrap package hashes that are in use
+	var shaIDs [][]byte
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &shaIDs, `SELECT DISTINCT sha256 FROM mdm_apple_bootstrap_packages`); err != nil {
+		return ctxerr.Wrap(ctx, err, "get list of bootstrap packages in use")
+	}
+	var pkgIDs []string
+	for _, sha := range shaIDs {
+		pkgIDs = append(pkgIDs, hex.EncodeToString(sha))
+	}
+
+	_, err := pkgStore.Cleanup(ctx, pkgIDs, removeCreatedBefore)
+	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
+}
+
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
@@ -3230,7 +3387,6 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 			(?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			updated_at = IF(profile = VALUES(profile) AND name = VALUES(name), updated_at, CURRENT_TIMESTAMP),
-			profile_uuid = IF(profile = VALUES(profile) AND name = VALUES(name), profile_uuid, ''),
 			name = VALUES(name),
 			profile = VALUES(profile)
 `
@@ -3238,39 +3394,114 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 	if asst.TeamID != nil {
 		globalOrTmID = *asst.TeamID
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, asst.TeamID, globalOrTmID, asst.Name, asst.Profile)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, asst.TeamID, globalOrTmID, asst.Name, asst.Profile)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upsert mdm apple setup assistant")
+	}
+
+	// TODO(mna): to improve, previously we only cleared the profile UUIDs if the
+	// profile/name did change, but from tests it seems we can't rely on
+	// insertOnDuplicateDidUpdate to handle this case properly (presumably
+	// because the updated_at update condition is too complex?), so at the moment
+	// this clears the profile uuids at all times, even if the profile did not
+	// change.
+	if insertOnDuplicateDidUpdate(res) {
+		// profile was updated, need to clear the profile uuids
+		if err := ds.SetMDMAppleSetupAssistantProfileUUID(ctx, asst.TeamID, "", ""); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear mdm apple setup assistant profiles")
+		}
 	}
 
 	// reload to return the proper timestamp and id
 	return ds.getMDMAppleSetupAssistant(ctx, ds.writer(ctx), asst.TeamID)
 }
 
-func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
-	const stmt = `
-	UPDATE
-		mdm_apple_setup_assistants
-	SET
-		profile_uuid = ?,
-		-- ensure updated_at does not change, as it is used to reflect the time
-		-- the setup assistant was uploaded, not when its profile was defined
-		-- with Apple's API.
-		updated_at = updated_at
-	WHERE global_or_team_id = ?`
+func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID, abmTokenOrgName string) error {
+	const clearStmt = `
+		DELETE FROM mdm_apple_setup_assistant_profiles
+			WHERE setup_assistant_id = (
+				SELECT
+					id
+				FROM
+					mdm_apple_setup_assistants
+				WHERE
+					global_or_team_id = ?
+			)`
+
+	const upsertStmt = `
+	INSERT INTO mdm_apple_setup_assistant_profiles (
+		setup_assistant_id, abm_token_id, profile_uuid
+	) (
+		SELECT
+			mas.id, abt.id, ?
+		FROM
+			mdm_apple_setup_assistants mas,
+			abm_tokens abt
+		WHERE
+			mas.global_or_team_id = ? AND
+			abt.organization_name = ? AND
+			mas.id IS NOT NULL AND
+			abt.id IS NOT NULL
+	)
+	ON DUPLICATE KEY UPDATE
+		profile_uuid = VALUES(profile_uuid)
+	`
 
 	var globalOrTmID uint
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, globalOrTmID)
+
+	if profileUUID == "" && abmTokenOrgName == "" {
+		// delete all profile uuids for that team, regardless of ABM token
+		_, err := ds.writer(ctx).ExecContext(ctx, clearStmt, globalOrTmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm apple setup assistant profiles")
+		}
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, profileUUID, globalOrTmID, abmTokenOrgName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set mdm apple setup assistant profile uuid")
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
-	}
 	return nil
+}
+
+func (ds *Datastore) GetMDMAppleSetupAssistantProfileForABMToken(ctx context.Context, teamID *uint, abmTokenOrgName string) (string, time.Time, error) {
+	// to preserve previous behavior, the updated_at we use is the one of the
+	// setup assistant (what we refer to as "uploaded_at" in the API responses),
+	// as the important signal is when the content of the setup assistant
+	// changes.
+	const stmt = `
+	SELECT
+		msap.profile_uuid,
+		mas.updated_at
+	FROM
+		mdm_apple_setup_assistants mas
+	INNER JOIN
+		mdm_apple_setup_assistant_profiles msap ON mas.id = msap.setup_assistant_id
+	INNER JOIN
+		abm_tokens abt ON abt.id = msap.abm_token_id
+	WHERE
+		mas.global_or_team_id = ? AND
+		abt.organization_name = ?
+`
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	var asstProf struct {
+		ProfileUUID string    `db:"profile_uuid"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asstProf, stmt, globalOrTmID, abmTokenOrgName); err != nil {
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
+		}
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple setup assistant")
+	}
+	return asstProf.ProfileUUID, asstProf.UpdatedAt, nil
 }
 
 func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -3284,7 +3515,6 @@ func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.Query
 		team_id,
 		name,
 		profile,
-		profile_uuid,
 		updated_at as uploaded_at
 	FROM
 		mdm_apple_setup_assistants
@@ -3305,6 +3535,8 @@ func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.Query
 }
 
 func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	// this deletes the setup assistant for that team, and via foreign key
+	// cascade also the profiles associated with it.
 	const stmt = `
 		DELETE FROM mdm_apple_setup_assistants
 		WHERE global_or_team_id = ?`
@@ -3377,12 +3609,20 @@ WHERE
 	return serials, nil
 }
 
-func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
-	const stmt = `
+func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID, abmTokenOrgName string) error {
+	const clearStmt = `
+		DELETE FROM mdm_apple_default_setup_assistants
+			WHERE global_or_team_id = ?`
+
+	const upsertStmt = `
 		INSERT INTO
-			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid)
-		VALUES
-			(?, ?, ?)
+			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid, abm_token_id)
+		SELECT
+			?, ?, ?, abt.id
+		FROM
+			abm_tokens abt
+		WHERE
+			abt.organization_name = ?
 		ON DUPLICATE KEY UPDATE
 			profile_uuid = VALUES(profile_uuid)
 `
@@ -3390,34 +3630,53 @@ func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Con
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, globalOrTmID, profileUUID)
+
+	if profileUUID == "" && abmTokenOrgName == "" {
+		// delete all profile uuids for that team, regardless of ABM token
+		_, err := ds.writer(ctx).ExecContext(ctx, clearStmt, globalOrTmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm apple default setup assistant")
+		}
+		return nil
+	}
+
+	// upsert the profile uuid for the provided token
+	_, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, teamID, globalOrTmID, profileUUID, abmTokenOrgName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert mdm apple default setup assistant")
 	}
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint, abmTokenOrgName string) (profileUUID string, updatedAt time.Time, err error) {
 	const stmt = `
 	SELECT
-		profile_uuid,
-		updated_at as uploaded_at
+		mad.profile_uuid,
+		mad.updated_at
 	FROM
-		mdm_apple_default_setup_assistants
-	WHERE global_or_team_id = ?`
+		mdm_apple_default_setup_assistants mad
+	INNER JOIN
+		abm_tokens abt ON mad.abm_token_id = abt.id
+	WHERE
+		mad.global_or_team_id = ? AND
+		abt.organization_name = ?
+	`
 
 	var globalOrTmID uint
 	if teamID != nil {
 		globalOrTmID = *teamID
 	}
-	var asst fleet.MDMAppleSetupAssistant
-	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asst, stmt, globalOrTmID); err != nil {
+	var asstProf struct {
+		ProfileUUID string    `db:"profile_uuid"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	if err := sqlx.GetContext(ctx, ds.writer(ctx) /* needs to read recent writes */, &asstProf, stmt, globalOrTmID, abmTokenOrgName); err != nil {
 		if err == sql.ErrNoRows {
 			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleDefaultSetupAssistant").WithID(globalOrTmID))
 		}
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple default setup assistant")
 	}
-	return asst.ProfileUUID, asst.UploadedAt, nil
+	return asstProf.ProfileUUID, asstProf.UpdatedAt, nil
 }
 
 func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
@@ -3499,9 +3758,9 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
-		return skipSerials, assignSerials, nil
+		return skipSerials, serialsByOrgName, nil
 	}
 
 	stmt := `
@@ -3511,12 +3770,14 @@ SELECT
 	ELSE
 		'assign'
 	END AS status,
-	hardware_serial
+	h.hardware_serial,
+	abm.organization_name
 FROM
-	host_dep_assignments
-	JOIN hosts ON id = host_id
+	host_dep_assignments hda
+	JOIN hosts h ON h.id = hda.host_id
+	JOIN abm_tokens abm ON abm.id = hda.abm_token_id
 WHERE
-	hardware_serial IN (?)
+	h.hardware_serial IN (?)
 `
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
@@ -3527,15 +3788,18 @@ WHERE
 	var rows []struct {
 		Status         string `db:"status"`
 		HardwareSerial string `db:"hardware_serial"`
+		ABMOrgName     string `db:"organization_name"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
 	}
 
+	serialsByOrgName = make(map[string][]string)
+
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
-			assignSerials = append(assignSerials, r.HardwareSerial)
+			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
 			skipSerials = append(skipSerials, r.HardwareSerial)
 		default:
@@ -3543,7 +3807,7 @@ WHERE
 		}
 	}
 
-	return skipSerials, assignSerials, nil
+	return skipSerials, serialsByOrgName, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
@@ -4392,41 +4656,20 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 
 	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
+		return nil, fmt.Errorf("decrypting: %w", err)
 	}
 
 	return decrypted, nil
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	stmt := `
-INSERT INTO mdm_config_assets
-  (name, value, md5_checksum)
-VALUES
-  %s`
-
-	var args []any
-	var insertVals strings.Builder
-
-	for _, a := range assets {
-		encryptedVal, err := encrypt(a.Value, ds.serverPrivateKey)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert mdm config assets")
 		}
 
-		hexChecksum := md5ChecksumBytes(encryptedVal)
-		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
-		args = append(args, a.Name, encryptedVal, hexChecksum)
-	}
-
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
-
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, stmt, args...)
-		return err
+		return nil
 	})
-
-	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -4512,6 +4755,16 @@ WHERE name IN (?) AND deletion_uuid = ''`
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, assetNames); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm config assets by name")
+		}
+
+		return nil
+	})
+}
+
+func softDeleteMDMConfigAssetsByName(ctx context.Context, tx sqlx.ExtContext, assetNames []fleet.MDMAssetName) error {
 	stmt := `
 UPDATE
     mdm_config_assets
@@ -4526,28 +4779,78 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
+		return ctxerr.Wrap(ctx, err, "sqlx.In softDeleteMDMConfigAssetsByName")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "deleting mdm config assets")
+}
+
+func insertMDMConfigAssets(ctx context.Context, tx sqlx.ExtContext, assets []fleet.MDMConfigAsset, privateKey string) error {
+	stmt := `
+INSERT INTO mdm_config_assets
+  (name, value, md5_checksum)
+VALUES
+  %s`
+
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range assets {
+		encryptedVal, err := encrypt(a.Value, privateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+		}
+
+		hexChecksum := md5ChecksumBytes(encryptedVal)
+		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum)
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	_, err := tx.ExecContext(ctx, stmt, args...)
+
+	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
+}
+
+func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var names []fleet.MDMAssetName
+		for _, a := range assets {
+			names = append(names, a.Name)
+		}
+
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, names); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert mdm config assets soft delete")
+		}
+
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert mdm config assets insert")
+		}
+
+		return nil
+	})
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
 // (their details haven't been updated in the given `interval`).
-func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
-	var deviceUUIDs []string
+func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
+	err error,
+) {
 	hostsStmt := fmt.Sprintf(`
-SELECT h.uuid FROM hosts h
-JOIN host_mdm hmdm ON hmdm.host_id = h.id
+SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
+INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
+LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
-AND hmdm.enrolled
-AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`)
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &deviceUUIDs, hostsStmt, interval.Seconds()); err != nil {
+AND TRIM(h.uuid) != ''
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+GROUP BY h.id`)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, hostsStmt, interval.Seconds()); err != nil {
 		return nil, err
 	}
 
-	return deviceUUIDs, nil
+	return devices, nil
 }
 
 func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
@@ -4566,4 +4869,481 @@ LIMIT 500
 	}
 
 	return deviceUUIDs, nil
+}
+
+func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	tok, err := ds.getABMToken(ctx, 0, orgName)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by org name")
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
+	const stmt = `
+UPDATE
+	abm_tokens
+SET
+	organization_name = ?,
+	apple_id = ?,
+	terms_expired = ?,
+	renew_at = ?,
+	token = ?,
+	macos_default_team_id = ?,
+	ios_default_team_id = ?,
+	ipados_default_team_id = ?
+WHERE
+	id = ?`
+
+	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt with datastore.serverPrivateKey")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrganizationName,
+		tok.AppleID,
+		tok.TermsExpired,
+		tok.RenewAt.UTC(),
+		doubleEncTok,
+		tok.MacOSDefaultTeamID,
+		tok.IOSDefaultTeamID,
+		tok.IPadOSDefaultTeamID,
+		tok.ID)
+	return ctxerr.Wrap(ctx, err, "updating abm_token")
+}
+
+func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	const stmt = `
+INSERT INTO
+	abm_tokens
+	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`
+	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		tok.OrganizationName,
+		tok.AppleID,
+		tok.TermsExpired,
+		tok.RenewAt,
+		doubleEncTok,
+		tok.MacOSDefaultTeamID,
+		tok.IOSDefaultTeamID,
+		tok.IPadOSDefaultTeamID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token")
+	}
+
+	tokenID, _ := res.LastInsertId()
+
+	tok.ID = uint(tokenID)
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	return tok, nil
+}
+
+func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	stmt := `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, :no_team) as macos_team,
+	COALESCE(t2.name, :no_team) as ios_team,
+	COALESCE(t3.name, :no_team) as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+
+	`
+
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
+	}
+
+	var tokens []*fleet.ABMToken
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &tokens, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list ABM tokens")
+	}
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	for _, tok := range tokens {
+		tok.MDMServerURL = url
+
+		// Promote DB fields into respective objects
+		var macOSTeamID, iOSTeamID, iPadIOSTeamID uint
+		if tok.MacOSDefaultTeamID != nil {
+			macOSTeamID = *tok.MacOSDefaultTeamID
+		}
+		if tok.IOSDefaultTeamID != nil {
+			iOSTeamID = *tok.IOSDefaultTeamID
+		}
+		if tok.IPadOSDefaultTeamID != nil {
+			iPadIOSTeamID = *tok.IPadOSDefaultTeamID
+		}
+
+		tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
+		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
+		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
+
+	}
+
+	return tokens, nil
+}
+
+func (ds *Datastore) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	const stmt = `
+DELETE FROM
+	abm_tokens
+WHERE ID = ?
+		`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, tokenID)
+
+	return ctxerr.Wrap(ctx, err, "deleting ABM token")
+}
+
+func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+	tok, err := ds.getABMToken(ctx, tokenID, "")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string) (*fleet.ABMToken, error) {
+	stmt := `
+SELECT
+	abt.id,
+	abt.organization_name,
+	abt.apple_id,
+	abt.terms_expired,
+	abt.renew_at,
+	abt.token,
+	abt.macos_default_team_id,
+	abt.ios_default_team_id,
+	abt.ipados_default_team_id,
+	COALESCE(t1.name, :no_team) as macos_team,
+	COALESCE(t2.name, :no_team) as ios_team,
+	COALESCE(t3.name, :no_team) as ipados_team
+FROM
+	abm_tokens abt
+LEFT OUTER JOIN
+	teams t1 ON t1.id = abt.macos_default_team_id
+LEFT OUTER JOIN
+	teams t2 ON t2.id = abt.ios_default_team_id
+LEFT OUTER JOIN
+	teams t3 ON t3.id = abt.ipados_default_team_id
+%s
+	`
+
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
+	}
+
+	var ident any = orgName
+	clause := "WHERE abt.organization_name = ?"
+	if tokenID != 0 {
+		clause = "WHERE abt.id = ?"
+		ident = tokenID
+	}
+
+	stmt = fmt.Sprintf(stmt, clause)
+
+	args = append(args, ident)
+
+	var tok fleet.ABMToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tok, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token")
+	}
+
+	// decrypt the token with the serverPrivateKey, the resulting value will be
+	// the token still encrypted, but just with the ABM cert and key (it is that
+	// encrypted value that is stored with another layer of encryption with the
+	// serverPrivateKey).
+	decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+	}
+	tok.EncryptedToken = decrypted
+
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
+	}
+
+	tok.MDMServerURL = url
+
+	// Promote DB fields into respective objects
+	var macOSTeamID, iOSTeamID, iPadIOSTeamID uint
+	if tok.MacOSDefaultTeamID != nil {
+		macOSTeamID = *tok.MacOSDefaultTeamID
+	}
+	if tok.IOSDefaultTeamID != nil {
+		iOSTeamID = *tok.IOSDefaultTeamID
+	}
+	if tok.IPadOSDefaultTeamID != nil {
+		iPadIOSTeamID = *tok.IPadOSDefaultTeamID
+	}
+
+	tok.MacOSTeam = fleet.ABMTokenTeam{Name: tok.MacOSTeamName, ID: macOSTeamID}
+	tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
+	tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
+
+	return &tok, nil
+}
+
+func (ds *Datastore) GetABMTokenCount(ctx context.Context) (int, error) {
+	var count int
+	const countStmt = `SELECT COUNT(*) FROM abm_tokens`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting existing ABM tokens")
+	}
+
+	return count, nil
+}
+
+func (ds *Datastore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {
+	const stmt = `UPDATE abm_tokens SET terms_expired = ? WHERE organization_name = ? AND terms_expired != ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, expired, orgName, expired)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update abm_tokens terms_expired")
+	}
+	affRows, _ := res.RowsAffected()
+
+	if affRows > 0 {
+		// if it did update the row, then the previous value was the opposite of
+		// expired
+		wasSet = !expired
+	} else {
+		// if it did not update any row, then the previous value was the same
+		wasSet = expired
+	}
+	return wasSet, nil
+}
+
+func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
+	// The expectation is that abm_tokens will have few rows (we don't even
+	// support pagination on the "list ABM tokens" endpoint), so this query
+	// should be very fast even without index on terms_expired.
+	const stmt = `SELECT COUNT(*) FROM abm_tokens WHERE terms_expired = 1`
+
+	var count int
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens with terms expired")
+	}
+	return count, nil
+}
+
+func (ds *Datastore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	stmt := `
+SELECT DISTINCT
+	abmt.organization_name
+FROM
+	abm_tokens abmt
+	JOIN host_dep_assignments hda ON hda.abm_token_id = abmt.id
+	JOIN hosts h ON hda.host_id = h.id
+WHERE
+	%s
+UNION
+SELECT DISTINCT
+	abmt.organization_name
+FROM
+	abm_tokens abmt
+WHERE
+	%s
+`
+	var args []any
+	teamFilter := `h.team_id IS NULL`
+	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL`
+	if teamID != nil {
+		teamFilter = `h.team_id = ?`
+		abmtFilter = `abmt.macos_default_team_id = ? OR abmt.ios_default_team_id = ? OR abmt.ipados_default_team_id = ?`
+		args = append(args, *teamID, *teamID, *teamID, *teamID)
+	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter, abmtFilter)
+
+	var orgNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &orgNames, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting org names for team from db")
+	}
+
+	return orgNames, nil
+}
+
+func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	const baseStmt = `
+		INSERT INTO host_mdm_commands (host_id, command_type)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+		command_type = VALUES(command_type)`
+
+	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
+		start := i
+		end := i + hostIssuesInsertBatchSize
+		if end > len(commands) {
+			end = len(commands)
+		}
+		totalToProcess := end - start
+		const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?),", totalToProcess), ",",
+		)
+		stmt := fmt.Sprintf(baseStmt, values)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerInsert)
+		for j := start; j < end; j++ {
+			item := commands[j]
+			args = append(
+				args, item.HostID, item.CommandType,
+			)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
+	const stmt = `SELECT host_id, command_type FROM host_mdm_commands WHERE host_id = ?`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt, hostID); err != nil {
+		return nil, err
+	}
+	return commands, nil
+}
+
+func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.HostMDMCommand) error {
+	const stmt = `
+		DELETE FROM host_mdm_commands
+		WHERE host_id = ? AND command_type = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
+	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
+	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
+	const stmt = `
+		DELETE hmc FROM host_mdm_commands AS hmc
+		LEFT JOIN hosts h ON h.id = hmc.host_id
+		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+	stmt := `
+SELECT 
+	team_id, platform 
+FROM 
+	hosts h 
+JOIN 
+	host_dep_assignments hdep ON h.id = host_id 
+WHERE 
+	hardware_serial = ? AND deleted_at IS NULL 
+LIMIT 1`
+
+	var dest struct {
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+	}
+
+	var settings fleet.AppleOSUpdateSettings
+	if dest.TeamID == nil {
+		// use the global settings
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = ac.MDM.IOSUpdates
+		case "ipados":
+			settings = ac.MDM.IPadOSUpdates
+		case "darwin":
+			settings = ac.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	} else {
+		// use the team settings
+		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = tm.Config.MDM.IOSUpdates
+		case "ipados":
+			settings = tm.Config.MDM.IPadOSUpdates
+		case "darwin":
+			settings = tm.Config.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	}
+
+	return &settings, nil
 }

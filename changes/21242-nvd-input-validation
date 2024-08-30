@@ -1,0 +1,1 @@
+Continue with an empty CVE description when the NVD CVE feed doesn't include description entries (instead of panicking)

@@ -1,35 +1,37 @@
 # Sales
+
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
+
 ## Team
+
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer (CRO)                  | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consulting (SC)                    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_ <br> [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_ <br> [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
+| Solutions Consulting (SC)                    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_ <br> [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_ <br> [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
 | Channel Sales                                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
 | Account Executive (AE)                       | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_
 
 
 ## Contact us
+
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
-<!---
-Rituals (out-dated 2023-10-19)
-
-| Opportunity pipeline review | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps, amounts, dates, and status (including choosing Closed Lost if no communications for >= 45 days). | Alex Mitchell
-
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. Clean up Open MQL list. Ask CRO if questions. | Alex Mitchell |
---->
 
 ## Responsibilities
+
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
+
 ### Onboard a new sales team member
+
 Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
 
+
 ### Send a quote
+
 During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
 
 All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request Fleet business operations/legal of any unique terms required.
@@ -39,15 +41,21 @@ The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/
 - Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
 - Before sending to prospect, work with the Business operations team to verify if sales tax needs to be charged and, if so, how much.
 
+
 ### Obtain a copy of Fleet's W-9
+
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
 
+
 ### Provide payment information to a prospect
+
 For customers with large deployments, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
 
 Provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
 
+
 ### Review rep activity
+
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
 
 To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep activity on a regular basis following these steps:
@@ -57,6 +65,7 @@ To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep ac
 
 
 ### Validate Salesforce data (RevOps) 
+
 In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
 
 1. Make sure the default tabs for a standard user include a detailed view of contacts, opportunities, accounts, and leads. No other tabs should exist.
@@ -93,6 +102,7 @@ In order to maintain a consistent contributor experience in Salesforce, we log i
 
 
 ### Invite new customer DRI
+
 Sometimes there is a change in the champion within the customer's organization.
 1. Get an introduction to the new DRIs including names, roles, contact information.
 2. Make sure they're in the Slack channel.
@@ -103,14 +113,18 @@ Sometimes there is a change in the champion within the customer's organization.
     3. Offer training to get them up to speed.
     4. Provide a white glove experience.
 
+
 ### To schedule Solutions Consultant (SC) for a prospect meeting
+
 To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet prospect, the Account Executive (AE) will [open an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=custom-request.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). 
  - Use [this calendly link](https://calendly.com/fleetdm/talk-to-a-solutions-consultant) to obtain SC availability.
  - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external prospect meeting.
  - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
 
+
 ### Hand off a technical evaluation to a temporary DRI
+
 Tech evals will have a DRI at all times; should the DRI be unavailable (ie: vacation), a hand off process to a temporary DRI will be required. In advance of vacation time (target one week in advance), refer to the following examples and review with each individual that will act as the temporary DRI for the technical evaluation while you are away. This can be documented as a google doc or can be added to the relevant tech eval epic issue in github.
 
 Ensure that our valued customers know that you will be away and that the temporary DRI has been debriefed on their setup and can handle any technical questions that come up. 
@@ -158,14 +172,18 @@ Temp Transfer to: Temp technical DRI
   - an alternative date and time. Suggest two to three options from which the prospect can choose.
     - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
    
+
 ### Send an NDA to a customer
+
 - Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
 > If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
 3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that BizOps can look over any proposed changes and provide guidance on how to proceed.
 
+
 ### Create a customer agreement
+
 - **Contract terms:** Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
   - **Effective date:** The start date for the subscription service.
   - **Close date:** The date the last party to the contract signed the agreement.
@@ -176,18 +194,25 @@ Temp Transfer to: Temp technical DRI
 
 > All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from the Business Operations department before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
 
+
 ### Close a new customer deal
+
 To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hughestaylor&labels=%23g-business-operations&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
+
 ### Change customer credit card number
+
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
 
+
 ### Process a security questionnaire
+
 - The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Business Operations (#g-business-operations)](https://fleetdm.com/handbook/business-operations#contact-us)  with a requested timeline for completion defined.
 - BizOps consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, BizOps will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
 - The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
 - The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
 - Any questions answered by the infra team will be added to the handbook by the SC.
+
 
 ## Rituals
 

@@ -1,11 +1,12 @@
 import {
   ISoftware,
   ISoftwareVersion,
-  ISoftwareTitleWithPackageDetail,
-  ISoftwareTitleWithPackageName,
   ISoftwareVulnerability,
   ISoftwareTitleVersion,
   ISoftwarePackage,
+  ISoftwareTitle,
+  ISoftwareTitleDetails,
+  IAppStoreApp,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -42,53 +43,6 @@ export const createMockSoftwareTitleVersion = (
   overrides?: Partial<ISoftwareTitleVersion>
 ): ISoftwareTitleVersion => {
   return { ...DEFAULT_SOFTWARE_TITLE_VERSION_MOCK, ...overrides };
-};
-
-type MockSoftwareTitle =
-  | Partial<ISoftwareTitleWithPackageDetail>
-  | Partial<ISoftwareTitleWithPackageName>;
-
-const DEFAULT_SOFTWARE_TITLE_MOCK = {
-  id: 1,
-  name: "mock software 1.app",
-  software_package: null,
-  versions_count: 1,
-  source: "apps",
-  hosts_count: 1,
-  browser: "chrome",
-  versions: [createMockSoftwareTitleVersion()],
-};
-
-export const createMockSoftwareTitle = <
-  T extends
-    | Partial<ISoftwareTitleWithPackageDetail>
-    | Partial<ISoftwareTitleWithPackageName>
->(
-  overrides: T
-) => {
-  const mock = {
-    ...DEFAULT_SOFTWARE_TITLE_MOCK,
-    ...overrides,
-  };
-  return mock;
-};
-
-const DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK: ISoftwareTitlesResponse = {
-  counts_updated_at: "2020-01-01T00:00:00.000Z",
-  count: 1,
-  software_titles: [
-    createMockSoftwareTitle({ software_package: null, self_service: false }),
-  ],
-  meta: {
-    has_next_results: false,
-    has_previous_results: false,
-  },
-};
-
-export const createMockSoftwareTitlesReponse = (
-  overrides?: Partial<ISoftwareTitlesResponse>
-): ISoftwareTitlesResponse => {
-  return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
 };
 
 const DEFAULT_SOFTWARE_VULNERABILITY_MOCK = {
@@ -145,17 +99,49 @@ export const createMockSoftwareVersionsReponse = (
   return { ...DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK, ...overrides };
 };
 
-const DEFAULT_SOFTWARE_TITLE_RESPONSE = {
-  software_title: createMockSoftwareTitle({
-    software_package: null,
-  } as Partial<ISoftwareTitleWithPackageDetail>),
+const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
+  name: "test app",
+  app_store_id: 1,
+  icon_url: "https://via.placeholder.com/512",
+  latest_version: "1.2.3",
+  self_service: true,
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+};
+
+export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
+  return { ...DEFAULT_APP_STORE_APP_MOCK, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
+  id: 1,
+  name: "test.app",
+  software_package: null,
+  app_store_app: null,
+  source: "test_package",
+  hosts_count: 1,
+  versions: [createMockSoftwareTitleVersion()],
+  bundle_identifier: "com.test.Desktop",
+  versions_count: 1,
+};
+
+export const createMockSoftwareTitleDetails = (
+  overrides?: Partial<ISoftwareTitleDetails>
+) => {
+  return { ...DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_TITLE_RESPONSE: ISoftwareTitleResponse = {
+  software_title: createMockSoftwareTitleDetails(),
 };
 
 export const createMockSoftwareTitleResponse = (
-  overrides: Partial<ISoftwareTitleWithPackageDetail> = {}
+  overrides?: Partial<ISoftwareTitleResponse>
 ): ISoftwareTitleResponse => {
-  const mock = DEFAULT_SOFTWARE_TITLE_RESPONSE.software_title;
-  return { software_title: { ...mock, ...overrides } };
+  return { ...DEFAULT_SOFTWARE_TITLE_RESPONSE, ...overrides };
 };
 
 const DEFAULT_SOFTWARE_VERSION_RESPONSE = {
@@ -168,7 +154,7 @@ export const createMockSoftwareVersionResponse = (
   return { ...DEFAULT_SOFTWARE_VERSION_RESPONSE, ...overrides };
 };
 
-const DEFAULT_SOFTWAREPACKAGE_MOCK: ISoftwarePackage = {
+const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   name: "TestPackage-1.2.3.pkg",
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
@@ -177,6 +163,7 @@ const DEFAULT_SOFTWAREPACKAGE_MOCK: ISoftwarePackage = {
   post_install_script:
     "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
   self_service: false,
+  icon_url: null,
   status: {
     installed: 1,
     pending: 2,
@@ -187,5 +174,42 @@ const DEFAULT_SOFTWAREPACKAGE_MOCK: ISoftwarePackage = {
 export const createMockSoftwarePackage = (
   overrides?: Partial<ISoftwarePackage>
 ) => {
-  return { ...DEFAULT_SOFTWAREPACKAGE_MOCK, ...overrides };
+  return { ...DEFAULT_SOFTWARE_PACKAGE_MOCK, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
+  id: 1,
+  name: "mock software 1.app",
+  versions_count: 1,
+  source: "apps",
+  hosts_count: 1,
+  browser: "chrome",
+  versions: [createMockSoftwareTitleVersion()],
+  software_package: createMockSoftwarePackage(),
+  app_store_app: null,
+};
+
+export const createMockSoftwareTitle = (
+  overrides?: Partial<ISoftwareTitle>
+): ISoftwareTitle => {
+  return {
+    ...DEFAULT_SOFTWARE_TITLE_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK: ISoftwareTitlesResponse = {
+  counts_updated_at: "2020-01-01T00:00:00.000Z",
+  count: 1,
+  software_titles: [createMockSoftwareTitle()],
+  meta: {
+    has_next_results: false,
+    has_previous_results: false,
+  },
+};
+
+export const createMockSoftwareTitlesReponse = (
+  overrides?: Partial<ISoftwareTitlesResponse>
+): ISoftwareTitlesResponse => {
+  return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
 };

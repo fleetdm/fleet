@@ -4,6 +4,8 @@ Fleet server configuration options update the internals of the Fleet server (MyS
 
 Only self-managed users and customers can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
 
+## Configuration options
+
 You can specify configuration options in the following formats:
 
 1. YAML file
@@ -11,58 +13,6 @@ You can specify configuration options in the following formats:
 3. Command-line flags
 
 All duration-based settings accept valid time units of `s`, `m`, `h`.
-
-## YAML file
-
-```sh
-echo '
-
-mysql:
-  address: 127.0.0.1:3306
-  database: fleet
-  username: root
-  password: toor
-redis:
-  address: 127.0.0.1:6379
-server:
-  cert: /tmp/server.cert
-  key: /tmp/server.key
-logging:
-  json: true
-' > /tmp/fleet.yml
-fleet serve --config /tmp/fleet.yml
-```
-
-## Environment variables
-
-```sh
-FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=fleet \
-FLEET_MYSQL_USERNAME=root \
-FLEET_MYSQL_PASSWORD=toor \
-FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
-FLEET_SERVER_CERT=/tmp/server.cert \
-FLEET_SERVER_KEY=/tmp/server.key \
-FLEET_LOGGING_JSON=true \
-/usr/bin/fleet serve
-```
-
-## Command-line flags
-
-```sh
-/usr/bin/fleet serve \
---mysql_address=127.0.0.1:3306 \
---mysql_database=fleet \
---mysql_username=root \
---mysql_password=toor \
---redis_address=127.0.0.1:6379 \
---server_cert=/tmp/server.cert \
---server_key=/tmp/server.key \
---logging_json
-```
-
-
-## Configuration options
 
 #### MySQL
 
@@ -236,7 +186,7 @@ The maximum amount of time, in seconds, a connection may be reused.
 
 ##### mysql_sql_mode
 
-Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html) for more details.
 This setting should not usually be used.
 
 - Default value: `""`
@@ -2247,7 +2197,7 @@ The IAM identity used in this context must be allowed to perform the following a
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:
@@ -2891,7 +2841,7 @@ packaging:
     region: us-east-1
 ```
 
-## Mobile device management (MDM)
+#### Mobile device management (MDM)
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
@@ -2961,11 +2911,6 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
   ```
-
-
-## Managing osquery configurations
-
-We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
 
 <h2 id="running-with-systemd">Running with systemd</h2>
 

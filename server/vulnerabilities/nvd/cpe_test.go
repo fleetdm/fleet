@@ -676,7 +676,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "1Password - Password Manager",
+				Name:             "1Password – Password Manager",
 				Source:           "chrome_extensions",
 				Version:          "2.3.8",
 				Vendor:           "",
@@ -762,7 +762,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "18.9.0",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:*:*:*",
+			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1342,7 +1342,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "",
 			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:*:*:*",
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1643,7 +1643,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{
@@ -1693,7 +1693,7 @@ func TestContainsNonASCII(t *testing.T) {
 	}{
 		{"hello", false},
 		{"hello world", false},
-		{"hello world!", false},
+		{"hello – world!", false},
 		{"😊👍", true},
 		{"hello world! 😊👍", true},
 		{"Девушка Фонарём", true},
