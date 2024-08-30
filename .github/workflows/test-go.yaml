@@ -141,7 +141,7 @@ jobs:
         mv coverage.txt coverage-${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}.txt
 
     - name: Save coverage
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-coverage
         path: ./coverage-${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}.txt
@@ -177,7 +177,7 @@ jobs:
 
     - name: Upload test log
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-test-log
         path: /tmp/gotest.log
@@ -185,7 +185,7 @@ jobs:
 
     - name: Upload summary test log
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
