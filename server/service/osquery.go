@@ -1008,7 +1008,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1616,8 +1616,13 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostID uint,
 	hostTeamID *uint,
 	hostPlatform string,
+	hostOrbitNodeKey *string,
 	incomingPolicyResults map[uint]*bool,
 ) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// We do not want to queue software installations on vanilla osquery hosts.
+		return nil
+	}
 	if hostTeamID == nil {
 		// TODO(lucas): Support hosts in "No team".
 		return nil

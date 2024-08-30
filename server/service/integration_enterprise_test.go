@@ -12732,7 +12732,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 
-	newFleetdHost := func(name string, teamID *uint, platform string) *fleet.Host {
+	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -12746,6 +12746,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			TeamID:          teamID,
 		})
 		require.NoError(t, err)
+		return h
+	}
+	newFleetdHost := func(name string, teamID *uint, platform string) *fleet.Host {
+		h := newHost(name, teamID, platform)
 		orbitKey := setOrbitEnrollment(t, h, s.ds)
 		h.OrbitNodeKey = &orbitKey
 		return h
@@ -12755,6 +12759,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	host1Team1 := newFleetdHost("host1Team1", &team1.ID, "darwin")
 	host2Team1 := newFleetdHost("host2Team1", &team1.ID, "ubuntu")
 	host3Team2 := newFleetdHost("host3Team2", &team2.ID, "windows")
+	hostVanillaOsquery5Team1 := newHost("hostVanillaOsquery5Team2", &team1.ID, "darwin")
 
 	// Upload dummy_installer.pkg to team1.
 	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
@@ -13304,4 +13309,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, actor.UserName)
 	require.Equal(t, "Test Name admin1@example.com", *actor.UserName)
 	require.Equal(t, "admin1@example.com", actor.UserEmail)
+
+	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
+	// Fleet should not queue an install for vanilla osquery hosts.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostVanillaOsquery5Team1,
+		map[uint]*bool{
+			policy1Team1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	hostVanillaOsquery5Team1LastInstall, err := s.ds.GetHostLastInstallData(ctx, hostVanillaOsquery5Team1.ID, dummyInstallerPkgInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
 }
