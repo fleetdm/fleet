@@ -75,10 +75,10 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
 	l := strings.ToLower(*p.Name)
-	if l == "all teams" {
+	if l == strings.ToLower(fleet.ReservedNameAllTeams) {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be all teams")
 	}
-	if l == "no team" {
+	if l == strings.ToLower(fleet.ReservedNameNoTeam) {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be no team")
 	}
 	team.Name = *p.Name
@@ -138,10 +138,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
 		l := strings.ToLower(*payload.Name)
-		if l == "all teams" {
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be all teams")
 		}
-		if l == "no team" {
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be no team")
 		}
 		team.Name = *payload.Name
@@ -876,10 +876,10 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		l := strings.ToLower(spec.Name)
-		if l == "all teams" {
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
 			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
 		}
-		if l == "no team" {
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
 			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
 		}
 
