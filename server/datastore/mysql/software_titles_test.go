@@ -271,6 +271,8 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
@@ -303,6 +305,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer1.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -317,6 +320,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
@@ -594,6 +598,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -627,6 +633,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "foo.bar",
 		TeamID:           &team1.ID,
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -642,6 +649,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
 		TeamID:        &team2.ID,
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -856,12 +864,15 @@ func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	// create a couple software installers not installed on any host
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer1.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -870,6 +881,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -955,6 +967,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 
 func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// create 2 software installers
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -962,6 +975,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer1.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -970,6 +984,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -1140,6 +1155,8 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	// Create a macOS software foobar installer on "No team".
 	macOSInstallerNoTeam, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "foobar",
@@ -1148,6 +1165,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo",
 		Filename:         "foobar.pkg",
 		TeamID:           nil,
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 
@@ -1322,6 +1340,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
 	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer1",
@@ -1329,6 +1348,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo",
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "com.foo.installer1",
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -1339,6 +1359,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		Filename:         "installer2.pkg",
 		TeamID:           &tm.ID,
 		BundleIdentifier: "com.foo.installer2",
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
