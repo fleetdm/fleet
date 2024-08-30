@@ -25,25 +25,20 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
-      </>
-    ),
+    tooltip: ({ lastInstalledAt }) =>
+      `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
   pending: {
     iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
+    displayText: "Pending",
+    tooltip: () => "Fleet is installing software.",
   },
   failed: {
     iconName: "error",
     displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
-        Software failed to install
+        Software failed to install{" "}
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>

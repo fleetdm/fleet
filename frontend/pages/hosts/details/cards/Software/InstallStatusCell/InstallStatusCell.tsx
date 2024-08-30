@@ -13,6 +13,8 @@ const baseClass = "install-status-cell";
 type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
 interface TootipArgs {
   softwareName?: string | null;
+  // this field is used in My device > Self-service
+  lastInstalledAt?: string;
   isAppStoreApp?: boolean;
 }
 
