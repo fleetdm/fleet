@@ -361,44 +361,52 @@
       line-height: 24px;
     }
   }
-
   [purpose='three-column-features'] {
-    margin-bottom: 160px;
     max-width: 1080px;
-    [purpose='feature-row'] {
-      &:not(:last-of-type) {
-        margin-bottom: 60px;
-      }
-      [purpose='feature-item'] {
-        margin-left: 40px;
-        margin-right: 40px;
-        max-width: 266px;
-        width: 33%;
-        p {
-          font-size: 14px;
-          font-weight: 400;
-          line-height: 21px;
-        }
-      }
-    }
+    margin-bottom: 160px;
     h2 {
       font-size: 32px;
       line-height: 48px;
       margin-bottom: 40px;
     }
   }
+  [purpose='responsive-feature-row'] {
+    margin-right: 0px;
+    margin-left: 0px;
+    [purpose='feature-item'] {
+      padding-right: 24px;
+      padding-left: 24px;
+      margin-bottom: 64px;
+      h5 {
+        font-size: 16px;
+        line-height: 1.2;
+        font-weight: 800;
+      }
+      a {
+        color: @core-fleet-black-75;
+        text-decoration: underline;
+        &:hover {
+          color: @core-fleet-black-75;
+        }
+      }
+      img {
+        height: 48px;
+        width: auto;
+        margin-bottom: 16px;
+      }
+      h5 {
+        font-weight: 800;
+        font-size: 16px;
+        line-height: 1.2;
+        margin-bottom: 16px;
+      }
 
-  [purpose='feature-item'] {
-    img {
-      height: 48px;
-      width: auto;
-      margin-bottom: 16px;
-    }
-    h5 {
-      font-weight: 800;
-      font-size: 16px;
-      line-height: 27px;
-      margin-bottom: 16px;
+      p {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 21px;
+        margin-bottom: 0px;
+      }
     }
   }
 
@@ -540,6 +548,18 @@
     }
     [purpose='feature-text'] {
       width: 410px;
+    }
+    [purpose='responsive-feature-row'] {
+      [purpose='feature-item'] {
+        padding-right: 24px;
+        padding-left: 24px;
+        margin-bottom: 64px;
+        p {
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 21px;
+        }
+      }
     }
   }
 
@@ -701,18 +721,16 @@
         margin-left: 10px;
       }
     }
-    [purpose='three-column-features'] {
-      [purpose='feature-row'] {
-        [purpose='feature-item'] {
-
-          margin-left: 0;
-          margin-right: 0;
-          text-align: center;
-          max-width: 320px;
-          width: 100%;
-          &:not(:last-of-type) {
-            margin-bottom: 60px;
-          }
+    [purpose='responsive-feature-row'] {
+      [purpose='feature-item'] {
+        padding-right: 0px;
+        padding-left: 0px;
+        margin-bottom: 64px;
+        text-align: center;
+        p {
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 21px;
         }
       }
     }

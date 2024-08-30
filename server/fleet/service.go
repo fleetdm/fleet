@@ -710,9 +710,12 @@ type Service interface {
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
-	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
-	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
-	DeleteMDMAppleVPPToken(ctx context.Context) error
+	UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*VPPTokenDB, error)
+	UpdateVPPToken(ctx context.Context, id uint, token io.ReadSeeker) (*VPPTokenDB, error)
+	UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) (*VPPTokenDB, error)
+	GetVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
+	DeleteVPPToken(ctx context.Context, tokenID uint) error
+
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
@@ -794,9 +797,6 @@ type Service interface {
 	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
-	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
-	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
-
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
 	//
 	// Deprecated: NewMDMAppleDEPKeyPair exists only to support a deprecated endpoint.
@@ -806,12 +806,21 @@ type Service interface {
 	// private keys to use in ABM to generate an encrypted auth token.
 	GenerateABMKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// SaveABMToken reads and validates if the provided token can be
+	// UploadABMToken reads and validates if the provided token can be
 	// decrypted using the keys stored in the database, then saves the token.
-	SaveABMToken(ctx context.Context, token io.Reader) error
+	UploadABMToken(ctx context.Context, token io.Reader) (*ABMToken, error)
 
-	// DisableABM disables ABM by soft-deleting the relevant assets
-	DisableABM(ctx context.Context) error
+	// ListABMTokens lists all the ABM tokens in Fleet.
+	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
+	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
+
+	// DeleteABMToken deletes the given ABM token.
+	DeleteABMToken(ctx context.Context, tokenID uint) error
+
+	// RenewABMToken replaces the contents of the given ABM token with the given bytes.
+	RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*ABMToken, error)
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.

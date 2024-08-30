@@ -279,7 +279,7 @@ module.exports = {
 
           if (openAiResponse) {
             try {
-              employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content);
+              employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content).employees;
             } catch (unusedErr) {
               employer.numberOfEmployees = 1;
             }
