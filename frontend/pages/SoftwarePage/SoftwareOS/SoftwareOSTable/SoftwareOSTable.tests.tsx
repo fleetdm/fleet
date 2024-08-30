@@ -1,8 +1,6 @@
 import React from "react";
-import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { render, screen } from "@testing-library/react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockOSVersionsResponse } from "__mocks__/softwareMock";
 
 import SoftwareOSTable from "./SoftwareOSTable";
@@ -22,15 +20,6 @@ const mockRouter = {
 
 describe("Software operating systems table", () => {
   it("Renders the page-wide disabled state when software inventory is disabled", async () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
     render(
       <SoftwareOSTable
         router={mockRouter}
@@ -53,15 +42,6 @@ describe("Software operating systems table", () => {
   });
 
   it("Renders the page-wide empty state when no software is present", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
     render(
       <SoftwareOSTable
         router={mockRouter}
