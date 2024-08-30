@@ -875,6 +875,14 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		l := strings.ToLower(spec.Name)
+		if l == "all teams" {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == "no team" {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		}
+
 		var team *fleet.Team
 		// If filename is provided, try to find the team by filename first.
 		// This is needed in case user is trying to modify the team name.
@@ -898,6 +906,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				}
 			}
 		}
+
 		var create bool
 		if team == nil {
 			team, err = svc.ds.TeamByName(ctx, spec.Name)
