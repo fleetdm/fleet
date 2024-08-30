@@ -74,6 +74,8 @@ interface IFileUploaderProps {
    */
   filePreview?: ReactNode; // TODO: refactor this to be a function that returns a ReactNode?
   onFileUpload: (files: FileList | null) => void;
+  /** renders the current file with the edit pencil button */
+  editFile?: boolean;
 }
 
 /**
@@ -91,8 +93,9 @@ export const FileUploader = ({
   buttonMessage = "Upload",
   buttonType = "button",
   onFileUpload,
+  editFile = false,
 }: IFileUploaderProps) => {
-  const [isFileSelected, setIsFileSelected] = useState(false);
+  const [isFileSelected, setIsFileSelected] = useState(editFile);
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: filePreview !== undefined && isFileSelected,

@@ -4,12 +4,12 @@ export const SOFTWARE_PACAKGE_DROPDOWN_OPTIONS = [
     value: "download",
   },
   {
-    label: "Delete",
-    value: "delete",
+    label: "Edit software",
+    value: "edit",
   },
   {
-    label: "Advanced options",
-    value: "advanced",
+    label: "Delete",
+    value: "delete",
   },
 ] as const;
 

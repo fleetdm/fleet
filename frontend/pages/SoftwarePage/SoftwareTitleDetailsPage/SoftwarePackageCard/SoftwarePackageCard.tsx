@@ -28,7 +28,7 @@ import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
-import AdvancedOptionsModal from "../AdvancedOptionsModal";
+import EditSoftwareModal from "../EditSoftwareModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
@@ -179,14 +179,14 @@ interface IActionsDropdownProps {
   isSoftwarePackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
-  onAdvancedOptionsClick: () => void;
+  onEditSoftwareClick: () => void;
 }
 
 const ActionsDropdown = ({
   isSoftwarePackage,
   onDownloadClick,
   onDeleteClick,
-  onAdvancedOptionsClick,
+  onEditSoftwareClick,
 }: IActionsDropdownProps) => {
   const onSelect = (value: string) => {
     switch (value) {
@@ -196,8 +196,8 @@ const ActionsDropdown = ({
       case "delete":
         onDeleteClick();
         break;
-      case "advanced":
-        onAdvancedOptionsClick();
+      case "edit":
+        onEditSoftwareClick();
         break;
       default:
       // noop
@@ -260,13 +260,11 @@ const SoftwarePackageCard = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
-    false
-  );
+  const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const onAdvancedOptionsClick = () => {
-    setShowAdvancedOptionsModal(true);
+  const onEditSoftwareClick = () => {
+    setShowEditSoftwareModal(true);
   };
 
   const onDeleteClick = () => {
@@ -354,7 +352,7 @@ const SoftwarePackageCard = ({
               isSoftwarePackage={!!softwarePackage}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
-              onAdvancedOptionsClick={onAdvancedOptionsClick}
+              onEditSoftwareClick={onEditSoftwareClick}
             />
           )}
         </div>
@@ -379,12 +377,13 @@ const SoftwarePackageCard = ({
           teamId={teamId}
         />
       </div>
-      {showAdvancedOptionsModal && (
-        <AdvancedOptionsModal
+      {showEditSoftwareModal && (
+        <EditSoftwareModal
+          software={softwarePackage}
           installScript={softwarePackage?.install_script ?? ""}
           preInstallQuery={softwarePackage?.pre_install_query}
           postInstallScript={softwarePackage?.post_install_script}
-          onExit={() => setShowAdvancedOptionsModal(false)}
+          onExit={() => setShowEditSoftwareModal(false)}
         />
       )}
       {showDeleteModal && (
