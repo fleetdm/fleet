@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/groob/plist"
+	"github.com/hashicorp/go-multierror"
 )
 
 // commandPayload is the common structure all MDM commands use
@@ -384,13 +385,15 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 	// Even if we didn't get an error, some of the APNs
 	// responses might have failed, signal that to the caller.
 	var failed []string
+	var multiErr error
 	for uuid, response := range apnsResponses {
 		if response.Err != nil {
 			failed = append(failed, uuid)
+			multiErr = multierror.Append(multiErr, response.Err)
 		}
 	}
 	if len(failed) > 0 {
-		return &APNSDeliveryError{FailedUUIDs: failed, Err: err}
+		return &APNSDeliveryError{FailedUUIDs: failed, Err: multiErr}
 	}
 
 	return nil
