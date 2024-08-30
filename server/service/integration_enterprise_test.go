@@ -13073,6 +13073,11 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
 	prevExecutionID := host1LastInstall.ExecutionID
 
+	// Request a manual installation on the host for the same installer, which should fail.
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d",
+		host1Team1.ID, dummyInstallerPkgTitleID), nil, http.StatusBadRequest, &installResp)
+
 	// Submit same results as before, which should not trigger a installation because the policy is already failing.
 	distributedResp = submitDistributedQueryResultsResponse{}
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
