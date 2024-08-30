@@ -316,10 +316,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending software installs
 		fmt.Sprintf(`SELECT
 			hsi.execution_id as uuid,
-			u.name as name,
-			u.id as user_id,
-			u.gravatar_url as gravatar_url,
-			u.email as user_email,
+			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
+			-- thus the user_id for the upcoming activity needs to be the user that uploaded the software installer.
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.name, u.name) AS name,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.id, u.id) as user_id,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.gravatar_url, u.gravatar_url) as gravatar_url,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.email, u.email) AS user_email,
 			:installed_software_type as activity_type,
 			hsi.created_at as created_at,
 			JSON_OBJECT(
@@ -339,6 +341,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			software_titles st ON st.id = si.title_id
 		LEFT OUTER JOIN
 			users u ON u.id = hsi.user_id
+		LEFT OUTER JOIN
+			users u2 ON u2.id = si.user_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE

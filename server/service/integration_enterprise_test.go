@@ -13214,6 +13214,16 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		},
 	), http.StatusOK, &distributedResp)
 
+	// Upcoming activities for host1Team1 should show the automatic installation of dummy_installer.pkg.
+	// Check the author should be the admin that uploaded the installer.
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1Team1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	require.NotNil(t, listUpcomingAct.Activities[0].ActorID)
+	require.Equal(t, globalAdmin.ID, *listUpcomingAct.Activities[0].ActorID)
+	require.Equal(t, globalAdmin.Name, *listUpcomingAct.Activities[0].ActorFullName)
+	require.Equal(t, globalAdmin.Email, *listUpcomingAct.Activities[0].ActorEmail)
+
 	//
 	// Finally have orbit install the packages and check activities.
 	//

@@ -123,7 +123,7 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 		return false, ctxerr.Wrap(ctx, err, "insert operating system vulnerability")
 	}
 
-	return insertOnDuplicateDidInsert(res), nil
+	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
 func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {
