@@ -1,0 +1,12 @@
+.teams-cell {
+  &__team-text-with-tooltip {
+    display: inline-block;
+  }
+
+  &__team-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+}

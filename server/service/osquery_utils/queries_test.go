@@ -1830,6 +1830,30 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.6.00.34263",
 			},
 		},
+		{
+			name: "minio",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "20200310000000",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2020-03-10T00-00-00Z",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
