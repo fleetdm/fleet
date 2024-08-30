@@ -1271,10 +1271,13 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	// validate the team IDs
 
 	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.MacOSDefaultTeamID = nil
 	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.IOSDefaultTeamID = nil
 	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.IPadOSDefaultTeamID = nil
 
-	if macOSTeamID != nil {
+	if macOSTeamID != nil && *macOSTeamID != 0 {
 		macOSTeam, err := svc.ds.Team(ctx, *macOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
@@ -1288,7 +1291,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		token.MacOSDefaultTeamID = macOSTeamID
 	}
 
-	if iOSTeamID != nil {
+	if iOSTeamID != nil && *iOSTeamID != 0 {
 		iOSTeam, err := svc.ds.Team(ctx, *iOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
@@ -1301,7 +1304,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		token.IOSDefaultTeamID = iOSTeamID
 	}
 
-	if iPadOSTeamID != nil {
+	if iPadOSTeamID != nil && *iPadOSTeamID != 0 {
 		iPadOSTeam, err := svc.ds.Team(ctx, *iPadOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{

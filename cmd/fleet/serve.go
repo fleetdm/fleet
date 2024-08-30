@@ -583,6 +583,8 @@ the way that the Fleet server works.
 					// backfilled
 					tok := &fleet.ABMToken{
 						EncryptedToken: appleBM.EncryptedToken,
+						// 2000-01-01 is our "zero value" for time
+						RenewAt: time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC),
 					}
 					_, err = ds.InsertABMToken(context.Background(), tok)
 					if err != nil {
