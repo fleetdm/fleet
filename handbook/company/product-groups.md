@@ -604,7 +604,7 @@ Design reviews operate in "Feedback" mode on Mondays and "Final review" mode all
   - **Feedback** mode — contributor knows the design is not ready for final review, but would like to get early feedback. Anyone at Fleet can attend and provide feedback.
   - **Final review** mode — contributor is 70% sure the design is 100% done. Only Head of Product Design + CTO + Product Designers give feedback. Anyone at Fleet can attend as a shadow. This helps the team iterate and move designs to ready for dev faster. 
 
-> In addtion to design reviews, Fleeties or community member can provide feedback asynchronously at anytime. To do this, find the GitHub issue (user story) associated with the designs and @ mention the assigned Product Designer in the comment section.
+> In addition to design reviews, Fleeties or community member can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
 Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  
 
