@@ -190,7 +190,7 @@ jobs:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
 
-  # We upload all backend coverage in one step so that we don't end up in a situation with a partial coverage report.
+  # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
     needs: [test-go]
     runs-on: ubuntu-latest
@@ -202,6 +202,7 @@ jobs:
     - name: List dir for debug
       run: ls -la
     - name: Upload to Codecov
-      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         flags: backend
