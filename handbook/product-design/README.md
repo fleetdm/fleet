@@ -66,7 +66,7 @@ When starting a new draft:
 ### Prepare for design review
 
 1. Link to your draft in the user story issue.
-2. Add the user story to the agenda for your the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
+2. Add the user story to the agenda for the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
 3. Attend design review or schedule an ad-hoc design review if you need to move faster.
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
