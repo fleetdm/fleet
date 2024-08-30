@@ -1120,6 +1120,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
+	// create a team with reserved team names
+	teamReserved := &fleet.Team{
+		Name:        "no TeAm",
+		Description: "description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "foobar"}},
+	}
+
+	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "may not be no team")
+
+	teamReserved.Name = "AlL TeaMS"
+	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "may not be all teams")
+
 	// create a team with too many secrets
 	team3 := &fleet.Team{
 		Name:        name + "lots_of_secrets",
@@ -10009,8 +10023,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 
 	// Add new software to host -- installed on host, but not by Fleet
 	installedVersion := "1.0.1"
-	softwareAlreadyInstalled := fleet.Software{Name: "DummyApp.app", Version: installedVersion, Source: "apps",
-		BundleIdentifier: "com.example.dummy"}
+	softwareAlreadyInstalled := fleet.Software{
+		Name: "DummyApp.app", Version: installedVersion, Source: "apps",
+		BundleIdentifier: "com.example.dummy",
+	}
 	software = append(software, softwareAlreadyInstalled)
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -10034,7 +10050,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	assert.Nil(t, getHostSw.Software[0].Status)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
