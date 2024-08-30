@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -16,7 +17,20 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
+	TeamNameNoTeam   = "No team"
+	TeamNameAllTeams = "All teams"
 )
+
+const (
+	ReservedNameAllTeams = "All teams"
+	ReservedNameNoTeam   = "No team"
+)
+
+// IsReservedTeamName checks if the name provided is a reserved team name
+func IsReservedTeamName(name string) bool {
+	normalizedName := norm.NFC.String(name)
+	return normalizedName == ReservedNameAllTeams || normalizedName == ReservedNameNoTeam
+}
 
 type TeamPayload struct {
 	Name               *string              `json:"name"`

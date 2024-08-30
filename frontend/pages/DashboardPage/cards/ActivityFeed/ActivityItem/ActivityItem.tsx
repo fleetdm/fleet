@@ -1,5 +1,5 @@
 import React from "react";
-import { find, lowerCase, noop } from "lodash";
+import { find, lowerCase, noop, trimEnd } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
@@ -868,19 +868,37 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enabledVpp: () => {
+  enabledVpp: (activity: IActivity) => {
     return (
       <>
         {" "}
-        enabled <b>Volume Purchasing Program (VPP)</b>.
+        enabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
       </>
     );
   },
-  disabledVpp: () => {
+  disabledVpp: (activity: IActivity) => {
     return (
       <>
         {" "}
-        disabled <b>Volume Purchasing Program (VPP)</b>.
+        disabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
       </>
     );
   },
@@ -1121,10 +1139,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
     }
     case ActivityType.EnabledVpp: {
-      return TAGGED_TEMPLATES.enabledVpp();
+      return TAGGED_TEMPLATES.enabledVpp(activity);
     }
     case ActivityType.DisabledVpp: {
-      return TAGGED_TEMPLATES.disabledVpp();
+      return TAGGED_TEMPLATES.disabledVpp(activity);
     }
 
     default: {

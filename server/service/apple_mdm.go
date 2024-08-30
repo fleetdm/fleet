@@ -36,7 +36,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -1153,45 +1152,6 @@ func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	}
 
 	return svc.ds.MDMAppleListDevices(ctx)
-}
-
-type listMDMAppleDEPDevicesRequest struct{}
-
-type listMDMAppleDEPDevicesResponse struct {
-	Devices []fleet.MDMAppleDEPDevice `json:"devices"`
-	Err     error                     `json:"error,omitempty"`
-}
-
-func (r listMDMAppleDEPDevicesResponse) error() error { return r.Err }
-
-func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	devices, err := svc.ListMDMAppleDEPDevices(ctx)
-	if err != nil {
-		return listMDMAppleDEPDevicesResponse{Err: err}, nil
-	}
-	return &listMDMAppleDEPDevicesResponse{
-		Devices: devices,
-	}, nil
-}
-
-func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppleDEPDevice, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
-
-	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
-	// This single-request version supports up to 1000 devices (max to return in one call).
-	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple_mdm.DEPName, godep.WithLimit(1000))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	devices := make([]fleet.MDMAppleDEPDevice, len(fetchDevicesResponse.Devices))
-	for i := range fetchDevicesResponse.Devices {
-		devices[i] = fleet.MDMAppleDEPDevice{Device: fetchDevicesResponse.Devices[i]}
-	}
-	return devices, nil
 }
 
 type newMDMAppleDEPKeyPairResponse struct {
@@ -4017,7 +3977,8 @@ func (uploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 }
 
 type uploadABMTokenResponse struct {
-	Err error `json:"error,omitempty"`
+	Token *fleet.ABMToken `json:"abm_token,omitempty"`
+	Err   error           `json:"error,omitempty"`
 }
 
 func (r uploadABMTokenResponse) error() error { return r.Err }
@@ -4030,125 +3991,189 @@ func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}
 	defer ff.Close()
 
-	if err := svc.SaveABMToken(ctx, ff); err != nil {
+	token, err := svc.UploadABMToken(ctx, ff)
+	if err != nil {
 		return uploadABMTokenResponse{
 			Err: err,
 		}, nil
 	}
 
-	return uploadABMTokenResponse{}, nil
+	return uploadABMTokenResponse{Token: token}, nil
 }
 
-func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
-	// first check for reads as we need to load the cert/key from the db. We will
-	// do another write check below.
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return err
-	}
+func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-	})
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "Please generate a keypair first.",
-			}, "saving ABM token")
-		}
-
-		return ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
-	}
-
-	tokenBytes, err := io.ReadAll(token)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading token bytes")
-	}
-
-	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
-	if derCert == nil {
-		return ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
-	}
-
-	cert, err := x509.ParseCertificate(derCert.Bytes)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing ABM certificate")
-	}
-
-	if _, err := assets.DecryptRawABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value); err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
-			InternalErr: err,
-		}, "validating ABM token")
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// delete the old token and insert the new one
-	// TODO(roberto): replacing the token should be done in a single transaction in the DB
-	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMToken})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting old ABM token in database")
-	}
-	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "saving ABM token in database")
-	}
-
-	// flip the app config flag
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving app config")
-	}
-
-	appCfg.MDM.AppleBMEnabledAndConfigured = true
-
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Disable ABM endpoint
 ////////////////////////////////////////////////////////////////////////////////
 
-type disableABMResponse struct {
+type deleteABMTokenRequest struct {
+	TokenID uint `url:"id"`
+}
+
+type deleteABMTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r disableABMResponse) error() error { return r.Err }
-func (r disableABMResponse) Status() int  { return http.StatusNoContent }
+func (r deleteABMTokenResponse) error() error { return r.Err }
+func (r deleteABMTokenResponse) Status() int  { return http.StatusNoContent }
 
-func disableABMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	if err := svc.DisableABM(ctx); err != nil {
-		return disableABMResponse{Err: err}, nil
+func deleteABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteABMTokenRequest)
+	if err := svc.DeleteABMToken(ctx, req.TokenID); err != nil {
+		return deleteABMTokenResponse{Err: err}, nil
 	}
 
-	return disableABMResponse{}, nil
+	return deleteABMTokenResponse{}, nil
 }
 
-func (svc *Service) DisableABM(ctx context.Context) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
-		return err
-	}
+func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMToken,
-	})
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List ABM tokens endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type listABMTokensResponse struct {
+	Err    error             `json:"error,omitempty"`
+	Tokens []*fleet.ABMToken `json:"abm_tokens"`
+}
+
+func (r listABMTokensResponse) error() error { return r.Err }
+
+func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	tokens, err := svc.ListABMTokens(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "disabling ABM config")
+		return &listABMTokensResponse{Err: err}, nil
 	}
 
-	// flip the app config flag
-	appCfg, err := svc.ds.AppConfig(ctx)
+	if tokens == nil {
+		tokens = []*fleet.ABMToken{}
+	}
+
+	return &listABMTokensResponse{Tokens: tokens}, nil
+}
+
+func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Update ABM token teams endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type updateABMTokenTeamsRequest struct {
+	TokenID      uint  `url:"id"`
+	MacOSTeamID  *uint `json:"macos_team_id"`
+	IOSTeamID    *uint `json:"ios_team_id"`
+	IPadOSTeamID *uint `json:"ipados_team_id"`
+}
+
+type updateABMTokenTeamsResponse struct {
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty"`
+	Err      error           `json:"error,omitempty"`
+}
+
+func (r updateABMTokenTeamsResponse) error() error { return r.Err }
+
+func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateABMTokenTeamsRequest)
+
+	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving app config")
+		return &updateABMTokenTeamsResponse{Err: err}, nil
 	}
 
-	appCfg.MDM.AppleBMEnabledAndConfigured = false
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	return &updateABMTokenTeamsResponse{ABMToken: tok}, nil
+}
+
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Renew ABM token endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type renewABMTokenRequest struct {
+	TokenID uint `url:"id"`
+	Token   *multipart.FileHeader
+}
+
+func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	token, ok := r.MultipartForm.File["token"]
+	if !ok || len(token) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for token"}
+	}
+
+	// because we are in this method, we know that the path has 7 parts, e.g:
+	// /api/latest/fleet/abm_tokens/19/renew
+
+	id, err := intFromRequest(r, "id")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to parse abm token id")
+	}
+
+	return &renewABMTokenRequest{
+		Token:   token[0],
+		TokenID: uint(id),
+	}, nil
+}
+
+type renewABMTokenResponse struct {
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty"`
+	Err      error           `json:"error,omitempty"`
+}
+
+func (r renewABMTokenResponse) error() error { return r.Err }
+
+func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*renewABMTokenRequest)
+	ff, err := req.Token.Open()
+	if err != nil {
+		return &renewABMTokenResponse{Err: err}, nil
+	}
+	defer ff.Close()
+
+	tok, err := svc.RenewABMToken(ctx, ff, req.TokenID)
+	if err != nil {
+		return &renewABMTokenResponse{Err: err}, nil
+	}
+
+	return &renewABMTokenResponse{ABMToken: tok}, nil
+}
+
+func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

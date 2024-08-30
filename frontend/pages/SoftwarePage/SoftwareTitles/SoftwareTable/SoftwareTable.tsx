@@ -356,7 +356,6 @@ const SoftwareTable = ({
             vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
-            isCollectingSoftware={data?.counts_updated_at === null}
             installableSoftwareExists={installableSoftwareExists}
           />
         )}
