@@ -136,15 +136,11 @@ jobs:
       run: |
         echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
 
-    - name: Rename coverage
-      run: |
-        mv coverage.txt coverage-${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}.txt
-
     - name: Save coverage
       uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-coverage
-        path: ./coverage-${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}.txt
+        path: ./coverage.txt
         if-no-files-found: error
 
     - name: Generate summary of errors
