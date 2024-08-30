@@ -51,7 +51,9 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 
 For customers with large deployments, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
 
-Provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
+Payment information for customers within the United States is on Fleet's invoices so typically payment information will not need to be sent separately.
+
+For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
 
 
 ### Review rep activity
