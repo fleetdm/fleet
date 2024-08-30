@@ -624,7 +624,11 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 		Commander: commander,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM)
+	dbMigrate := &worker.DBMigration{
+		Datastore: ds,
+		Log:       logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -1062,29 +1066,57 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	var fleetSyncer *apple_mdm.DEPService
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving app config")
-			}
-
-			if !appCfg.MDM.AppleBMEnabledAndConfigured {
-				return nil
-			}
-
-			if fleetSyncer == nil {
-				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
-			}
-
-			return fleetSyncer.RunAssigner(ctx)
-		}),
+		schedule.WithJob("dep_syncer", appleMDMDEPSyncerJob(ds, depStorage, logger)),
 	)
 
 	return s, nil
+}
+
+func appleMDMDEPSyncerJob(
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+) func(context.Context) error {
+	var fleetSyncer *apple_mdm.DEPService
+	return func(ctx context.Context) error {
+		appCfg, err := ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving app config")
+		}
+
+		if !appCfg.MDM.AppleBMEnabledAndConfigured {
+			return nil
+		}
+
+		// As part of the DB migration of the single ABM token to the multi-ABM
+		// token world (where the token was migrated from mdm_config_assets to
+		// abm_tokens), we need to complete migration of the existing token as
+		// during the DB migration we didn't have the organization name, apple id
+		// and renewal date.
+		incompleteToken, err := ds.GetABMTokenByOrgName(ctx, "")
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
+		}
+		if incompleteToken != nil {
+			logger.Log("msg", "migrated ABM token found, updating its metadata")
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
+			}
+			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
+				return ctxerr.Wrap(ctx, err, "saving updated migrated ABM token")
+			}
+			logger.Log("msg", "completed migration of existing ABM token")
+		}
+
+		if fleetSyncer == nil {
+			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+		}
+
+		return fleetSyncer.RunAssigner(ctx)
+	}
 }
 
 func newMDMProfileManager(

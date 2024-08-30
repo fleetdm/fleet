@@ -565,7 +565,6 @@ the way that the Fleet server works.
 				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
 					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
-					{Name: fleet.MDMAssetABMToken, Value: appleBM.EncryptedToken},
 				})
 				if err != nil {
 					// duplicate key errors mean that we already
@@ -577,6 +576,18 @@ the way that the Fleet server works.
 					}
 
 					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
+				} else {
+					// insert the ABM token without any metdata,
+					// it'll be picked by the
+					// apple_mdm_dep_profile_assigner cron and
+					// backfilled
+					tok := &fleet.ABMToken{
+						EncryptedToken: appleBM.EncryptedToken,
+					}
+					_, err = ds.InsertABMToken(context.Background(), tok)
+					if err != nil {
+						initFatal(err, "save ABM token")
+					}
 				}
 			}
 
@@ -609,13 +620,22 @@ the way that the Fleet server works.
 					initFatal(err, "validating MDM assets from database")
 				}
 
-				appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+				var appleBMCerts bool
+				appleBMCerts, err = checkMDMAssets([]fleet.MDMAssetName{
 					fleet.MDMAssetABMCert,
 					fleet.MDMAssetABMKey,
-					fleet.MDMAssetABMToken,
 				})
 				if err != nil {
 					initFatal(err, "validating MDM ABM assets from database")
+				}
+				if appleBMCerts {
+					// the ABM certs are there, check if a token exists and if so, apple
+					// BM is enabled and configured.
+					count, err := ds.GetABMTokenCount(context.Background())
+					if err != nil {
+						initFatal(err, "validating MDM ABM token from database")
+					}
+					appCfg.MDM.AppleBMEnabledAndConfigured = count > 0
 				}
 			}
 

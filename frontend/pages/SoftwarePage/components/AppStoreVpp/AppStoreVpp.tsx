@@ -5,13 +5,11 @@ import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import mdmAppleAPI, {
-  IGetVppInfoResponse,
+  IGetVppTokensResponse,
   IVppApp,
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
@@ -27,6 +25,7 @@ import {
   generateRedirectQueryParams,
   getErrorMessage,
   getUniqueAppId,
+  teamHasVPPToken,
 } from "./helpers";
 
 const baseClass = "app-store-vpp";
@@ -153,9 +152,9 @@ const AppStoreVpp = ({
     data: vppInfo,
     isLoading: isLoadingVppInfo,
     error: errorVppInfo,
-  } = useQuery<IGetVppInfoResponse, AxiosError>(
+  } = useQuery<IGetVppTokensResponse, AxiosError>(
     ["vppInfo"],
-    () => mdmAppleAPI.getVppInfo(),
+    () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 30000,
@@ -163,13 +162,15 @@ const AppStoreVpp = ({
     }
   );
 
+  const hasVPPToken = teamHasVPPToken(teamId, vppInfo?.vpp_tokens);
+
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
     error: errorVppApps,
   } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: !!vppInfo,
+    enabled: hasVPPToken,
     staleTime: 30000,
     select: (res) => res.app_store_apps,
   });
@@ -214,10 +215,7 @@ const AppStoreVpp = ({
       return <Spinner />;
     }
 
-    if (
-      errorVppInfo &&
-      getErrorReason(errorVppInfo).includes("MDMConfigAsset was not found")
-    ) {
+    if (!hasVPPToken) {
       return <EnableVppCard />;
     }
 
