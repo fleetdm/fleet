@@ -1,6 +1,6 @@
 # MDM migration
 
-This guide provides instructions for migrating your hosts away from your old MDM solution to Fleet.
+This guide provides instructions for migrating devices from your current MDM solution to Fleet.
 
 > For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
 
