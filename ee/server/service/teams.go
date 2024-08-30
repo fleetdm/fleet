@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -72,6 +73,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+	}
+	l := strings.ToLower(*p.Name)
+	if l == "all teams" {
+		return nil, fleet.NewInvalidArgumentError("name", "may not be all teams")
+	}
+	if l == "no team" {
+		return nil, fleet.NewInvalidArgumentError("name", "may not be no team")
 	}
 	team.Name = *p.Name
 
