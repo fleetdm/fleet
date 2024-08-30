@@ -2020,7 +2020,7 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
 
-	return insertOnDuplicateDidInsert(res), nil
+	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(

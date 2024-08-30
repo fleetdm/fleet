@@ -802,7 +802,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 				}
 
-				if insertOnDuplicateDidUpdate(res) {
+				if insertOnDuplicateDidInsertOrUpdate(res) {
 					// when the upsert results in an UPDATE that *did* change some values,
 					// it returns the updated ID as last inserted id.
 					if lastID, _ := res.LastInsertId(); lastID > 0 {

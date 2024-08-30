@@ -495,3 +495,24 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
 	return 0
 }
+
+func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
+	t := ts.s.T()
+
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			if details != "" {
+				require.NotNil(t, act.Details)
+				assert.NotEqual(t, details, string(*act.Details))
+			}
+			if id > 0 {
+				assert.NotEqual(t, id, act.ID)
+			}
+		}
+	}
+}

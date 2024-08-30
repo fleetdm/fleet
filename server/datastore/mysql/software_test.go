@@ -1958,11 +1958,14 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 
-		inserted, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		// Sleep so that the updated_at timestamp is guaranteed to be updated.
+		time.Sleep(1 * time.Second)
+		insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 			SoftwareID: host.Software[0].ID, CVE: "cve-1",
 		}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.False(t, inserted)
+		// This will always return true because we always update the timestamp
+		assert.True(t, insertedOrUpdated)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
@@ -2001,9 +2004,12 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 
-		inserted, err = ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
+		// Sleep so that the updated_at timestamp is guaranteed to be updated.
+		time.Sleep(1 * time.Second)
+		insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.False(t, inserted)
+		// This will always return true because we always update the timestamp
+		assert.True(t, insertedOrUpdated)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
@@ -2567,9 +2573,9 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// This should update the 'updated_at' timestamp.
-	inserted, err = ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.NVDSource)
+	insertedOrUpdated, err := ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.NVDSource)
 	require.NoError(t, err)
-	require.False(t, inserted)
+	assert.True(t, insertedOrUpdated)
 
 	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
 	require.NoError(t, err)
