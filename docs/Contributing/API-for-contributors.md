@@ -886,7 +886,7 @@ Content-Type: application/octet-stream
 
 ### Renew VPP token
 
-`PATCH /api/v1/fleet/vpp_tokens/renew/:id`
+`PATCH /api/v1/fleet/vpp_tokens/:id/renew`
 
 #### Parameters
 
