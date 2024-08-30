@@ -349,7 +349,6 @@ const TeamDetailsWrapper = ({
           renderFlash("error", "Could not create team. Please try again.");
         }
       } finally {
-        toggleRenameTeamModal();
         setIsUpdatingTeams(false);
       }
     },
