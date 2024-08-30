@@ -22,7 +22,6 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
-	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -75,7 +74,10 @@ import (
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
-const softwareInstallerUploadTimeout = 4 * time.Minute
+const (
+	softwareInstallerUploadTimeout = 4 * time.Minute
+	liveQueryMemCacheDuration      = 1 * time.Second
+)
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -505,7 +507,7 @@ the way that the Fleet server works.
 					initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
-				apnsCert, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
+				_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
 				}
@@ -514,18 +516,6 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Apple SCEP certificate and key")
 				}
-
-				const (
-					apnsConnectionTimeout = 10 * time.Second
-					apnsConnectionURL     = "https://api.sandbox.push.apple.com"
-				)
-
-				// check that the Apple APNs certificate is valid to connect to the API
-				ctx, cancel := context.WithTimeout(context.Background(), apnsConnectionTimeout)
-				if err := certificate.ValidateClientAuthTLSConnection(ctx, apnsCert, apnsConnectionURL); err != nil {
-					initFatal(err, "validate authentication with Apple APNs certificate")
-				}
-				cancel()
 
 				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 					{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM},
