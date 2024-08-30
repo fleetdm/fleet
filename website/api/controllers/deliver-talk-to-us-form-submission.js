@@ -86,15 +86,14 @@ module.exports = {
       }
     }
     if(numberOfHosts >= 700){
-      sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
         organization: organization,
-        numberOfHosts: numberOfHosts,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         contactSource: 'Website - Contact forms',
-        leadDescription: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
         ...psyStageAndChangeReason// Only (potentially) set psystage and change reason for >700 hosts.
       }).exec((err)=>{
         if(err) {
