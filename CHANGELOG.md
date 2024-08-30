@@ -756,6 +756,7 @@ enrolled into teams (or no team) with disk encryption turned on. Thank you [home
 * Fixed an issue where software from a Parallels VM on a MacOS host would show up in Fleet as if it were the host's software.
 * Removed unnecessary nested database transactions in batch-setting of MDM profiles.
 * Added count of upcoming activities to host vitals UI.
+* Fixed a bug where the manage query automations modal would lose its state when the user clicks "Preview data".
 
 ## Fleet 4.44.0 (Jan 31, 2024)
 

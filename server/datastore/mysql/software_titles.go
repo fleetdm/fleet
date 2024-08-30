@@ -268,7 +268,7 @@ SELECT
 	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
-LEFT JOIN vpp_apps vap ON vap.title_id = st.id
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND %s
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 -- placeholder for JOIN on software/software_cve
@@ -286,6 +286,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 
 	countsJoin := "TRUE"
 	softwareInstallersJoinCond := "TRUE"
+	vppAppsJoinCond := "TRUE"
 	vppAppsTeamsJoinCond := "TRUE"
 	includeVPPAppsAndSoftwareInstallers := "TRUE"
 	switch {
@@ -302,6 +303,11 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		countsJoin = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *opt.TeamID)
 		softwareInstallersJoinCond = fmt.Sprintf("si.global_or_team_id = %d", *opt.TeamID)
 		vppAppsTeamsJoinCond = fmt.Sprintf("vat.global_or_team_id = %d", *opt.TeamID)
+	}
+
+	if opt.PackagesOnly {
+		vppAppsJoinCond = "FALSE"
+		vppAppsTeamsJoinCond = "FALSE"
 	}
 
 	additionalWhere := "TRUE"
@@ -363,7 +369,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
-	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
+	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args
 }
 

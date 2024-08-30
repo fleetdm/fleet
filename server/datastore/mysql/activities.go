@@ -31,7 +31,12 @@ func (ds *Datastore) NewActivity(
 	var userName *string
 	var userEmail *string
 	if user != nil {
-		userID = &user.ID
+		// To support creating activities with users that were deleted. This can happen
+		// for automatically installed software which uses the author of the upload as the author of
+		// the installation.
+		if user.ID != 0 {
+			userID = &user.ID
+		}
 		userName = &user.Name
 		userEmail = &user.Email
 	}
@@ -356,6 +361,7 @@ SELECT
 		'software_title', st.name,
 		'app_store_id', hvsi.adam_id,
 		'command_uuid', hvsi.command_uuid,
+		'self_service', hvsi.self_service IS TRUE,
 		-- status is always pending because only pending MDM commands are upcoming.
 		'status', :software_status_pending
 	) AS details

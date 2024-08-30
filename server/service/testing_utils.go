@@ -632,7 +632,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},

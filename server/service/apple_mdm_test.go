@@ -247,8 +247,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleDEPDevices(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
 
 		// check EULA routes
 		_, err = svc.MDMGetEULAMetadata(ctx)
@@ -2597,7 +2595,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
-			appCfg.MDM.AppleBMDefaultTeam = testTeamName
+			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
@@ -2641,7 +2639,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
-			appCfg.MDM.AppleBMDefaultTeam = testTeamName
+			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
