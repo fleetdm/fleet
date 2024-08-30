@@ -199,6 +199,10 @@ const TeamManagementPage = (): JSX.Element => {
               setBackendValidators({
                 name: `"All teams" is a reserved team name.`,
               });
+            } else if (updateError.data.errors[0].reason.includes("no team")) {
+              setBackendValidators({
+                name: `"No team" is a reserved team name. Please try another name.`,
+              });
             } else {
               renderFlash(
                 "error",

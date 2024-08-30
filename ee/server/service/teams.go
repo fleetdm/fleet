@@ -137,6 +137,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
+		l := strings.ToLower(*payload.Name)
+		if l == "all teams" {
+			return nil, fleet.NewInvalidArgumentError("name", "may not be all teams")
+		}
+		if l == "no team" {
+			return nil, fleet.NewInvalidArgumentError("name", "may not be no team")
+		}
 		team.Name = *payload.Name
 	}
 	if payload.Description != nil {
