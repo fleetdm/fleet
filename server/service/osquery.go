@@ -81,7 +81,7 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key: " + nodeKey)
+		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
