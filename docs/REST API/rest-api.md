@@ -484,6 +484,22 @@ for pagination. For a comprehensive list of activity types and detailed informat
 ```json
 {
   "activities": [
+    // uninstalled_software
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 3,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko's MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb"
+      }
+    },
     {
       "created_at": "2021-07-30T13:41:07Z",
       "id": 24,
@@ -4555,6 +4571,42 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 ```json
 {
   "activities": [
+    // uninstalled_software failed
+    {
+      "created_at": "2023-07-27T14:35:08Z",\
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "id": 1,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "fleet_initiated_activity": false,
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko’s MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "failed",
+      }
+    }, 
+    // uninstalled_software uninstalled
+    {
+      "created_at": "2023-07-27T14:35:08Z",\
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "id": 1,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "fleet_initiated_activity": false,
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko’s MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "uninstalled",
+      }
+    },
     {
       "created_at": "2023-07-27T14:35:08Z",
       "id": 2,
@@ -4619,6 +4671,24 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 {
   "count": 3,
   "activities": [
+    // uninstalled_software pending
+    {
+      "created_at": "2023-07-27T14:35:08Z",\
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "uuid": "cc081637-fdf9-4d44-929f-96dfaec00f67",
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "fleet_initiated_activity": false,
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko's MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "pending",
+      }
+    },
     {
       "created_at": "2023-07-27T14:35:08Z",
       "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
