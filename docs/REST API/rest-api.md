@@ -4673,7 +4673,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   "activities": [
     // uninstalled_software pending
     {
-      "created_at": "2023-07-27T14:35:08Z",\
+      "created_at": "2023-07-27T14:35:08Z",
       "actor_id": 1,
       "actor_full_name": "Anna Chao",
       "uuid": "cc081637-fdf9-4d44-929f-96dfaec00f67",
@@ -9249,7 +9249,7 @@ _Available in Fleet Premium._
 
 Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
 
-`POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
+`POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 
 #### Parameters
 
@@ -9260,7 +9260,7 @@ Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or
 
 #### Example
 
-`POST /api/v1/fleet/hosts/123/software/install/3435`
+`POST /api/v1/fleet/hosts/123/software/3435/install`
 
 ##### Default response
 
@@ -9274,7 +9274,7 @@ _Available in Fleet Premium._
 
 Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` added to be uninstalled.
 
-`POST /api/v1/fleet/hosts/:id/software/uninstall/:software_title_id`
+`POST /api/v1/fleet/hosts/:id/software/:software_title_id/uninstall`
 
 #### Parameters
 
@@ -9285,7 +9285,7 @@ Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Softwa
 
 #### Example
 
-`POST /api/v1/fleet/hosts/123/software/uinstall/3435`
+`POST /api/v1/fleet/hosts/123/software/3435/uninstall`
 
 ##### Default response
 
@@ -9295,7 +9295,7 @@ Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Softwa
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/install/results/:install_uuid`
+`GET /api/v1/fleet/software/:install_uuid/install/results`
 
 Get the results of a software package install. 
 
@@ -9307,7 +9307,7 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
 
 #### Example
 
-`GET /api/v1/fleet/software/install/results/b15ce221-e22e-4c6a-afe7-5b3400a017da`
+`GET /api/v1/fleet/software/b15ce221-e22e-4c6a-afe7-5b3400a017da/install/results`
 
 ##### Default response
 
