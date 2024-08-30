@@ -602,7 +602,7 @@ Design reviews are conducted daily between the [Head of Product Design](https://
 
 Design reviews operate in "Feedback" mode on Mondays and "Final review" mode all other days of the week:
   - **Feedback** mode — contributor knows the design is not ready for final review, but would like to get early feedback. Anyone at Fleet can attend and provide feedback.
-  - **Final review** mode contributor is 70% sure the design is 100% done. Only Head of Product Design + CTO + Product Designers give feedback. Anyone at Fleet can attend as a shadow. This helps the team iterate and move designs to ready for dev faster. 
+  - **Final review** mode — contributor is 70% sure the design is 100% done. Only Head of Product Design + CTO + Product Designers give feedback. Anyone at Fleet can attend as a shadow. This helps the team iterate and move designs to ready for dev faster. 
 
 > In addtion to design reviews, Fleeties or community member can provide feedback asynchronously at anytime. To do this, find the GitHub issue (user story) associated with the designs and @ mention the assigned Product Designer in the comment section.
 
