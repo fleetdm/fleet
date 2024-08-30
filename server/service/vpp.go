@@ -136,7 +136,7 @@ func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return uploadVPPTokenResponse{Token: tok}, nil
 }
 
-func (svc *Service) UploadVPPToken(ctx context.Context, file io.ReadCloser) (*fleet.VPPTokenDB, error) {
+func (svc *Service) UploadVPPToken(ctx context.Context, file io.ReadSeeker) (*fleet.VPPTokenDB, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
