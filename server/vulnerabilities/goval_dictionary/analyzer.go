@@ -1,16 +1,14 @@
-package oval
+package goval_dictionary
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
-	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	kitlog "github.com/go-kit/log"
 )
 
 const (
@@ -20,28 +18,23 @@ const (
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
-// Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
-// inserting any new vulnerabilities and deleting anything patched. Returns nil, nil when
-// the platform isn't supported.
+// Analyze scans all hosts for vulnerabilities based on the sqlite output of goval-dictionary
+// for their platform,  inserting any new vulnerabilities and deleting anything patched.
+// Returns nil, nil when the platform isn't supported.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
+	logger kitlog.Logger,
 ) ([]fleet.SoftwareVulnerability, error) {
-	platform := NewPlatform(ver.Platform, ver.Name)
-
-	source := fleet.UbuntuOVALSource
-	if platform.IsRedHat() {
-		source = fleet.RHELOVALSource
-	}
-
-	if !platform.IsSupported() {
+	platform := oval.NewPlatform(ver.Platform, ver.Name)
+	source := fleet.GovalDictionarySource
+	if !platform.IsGovalDictionarySupported() {
 		return nil, ErrUnsupportedPlatform
 	}
-
-	defs, err := loadDef(platform, vulnPath)
+	db, err := loadDb(platform, vulnPath)
 	if err != nil {
 		return nil, err
 	}
@@ -72,17 +65,8 @@ func Analyze(
 				return nil, err
 			}
 
-			evalR, err := defs.Eval(ver, software)
-			if err != nil {
-				return nil, err
-			}
-			foundInBatch[hostID] = evalR
-
-			evalU, err := defs.EvalKernel(software)
-			if err != nil {
-				return nil, err
-			}
-			foundInBatch[hostID] = append(foundInBatch[hostID], evalU...)
+			vulnerabilities := db.Eval(software, logger)
+			foundInBatch[hostID] = vulnerabilities
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
@@ -91,11 +75,11 @@ func Analyze(
 		}
 
 		for _, hostID := range hostIDs {
-			insrt, del := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
-			for _, i := range insrt {
+			inserts, deletes := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
+			for _, i := range inserts {
 				toInsertSet[i.Key()] = i
 			}
-			for _, d := range del {
+			for _, d := range deletes {
 				toDeleteSet[d.Key()] = d
 			}
 		}
@@ -133,37 +117,23 @@ func Analyze(
 	return inserted, nil
 }
 
-// loadDef returns the latest oval Definition for the given platform.
-func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
-	if !platform.IsSupported() {
+// loadDb returns the latest goval_dictionary database for the given platform.
+func loadDb(platform oval.Platform, vulnPath string) (*Database, error) {
+	if !platform.IsGovalDictionarySupported() {
 		return nil, fmt.Errorf("platform %q not supported", platform)
 	}
 
-	fileName := platform.ToFilename(time.Now(), "json")
+	fileName := platform.ToGovalDictionaryFilename()
 	latest, err := utils.LatestFile(fileName, vulnPath)
 	if err != nil {
 		return nil, err
 	}
-	payload, err := os.ReadFile(latest)
+
+	sqlite, err := sql.Open("sqlite3", latest)
 	if err != nil {
 		return nil, err
 	}
 
-	if platform.IsUbuntu() {
-		result := oval_parsed.UbuntuResult{}
-		if err := json.Unmarshal(payload, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
-	}
-
-	if platform.IsRedHat() {
-		result := oval_parsed.RhelResult{}
-		if err := json.Unmarshal(payload, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
-	}
-
-	return nil, fmt.Errorf("don't know how to parse file %q for %q platform", latest, platform)
+	db := NewDB(sqlite, platform)
+	return db, nil
 }
