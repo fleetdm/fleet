@@ -147,6 +147,17 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
+            // Check for query parameters set by ad clicks.
+            // This is used to track the reason behind a psychological stage change.
+            // If the user performs any action that causes a stage change
+            // within 30 minutes of visiting the website from an ad, their psychological
+            // stage change will be attributed to the ad campaign that brought them here.
+            if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
+              req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
+              // Example adAttributionString: Linkedin - 1245983829 - 41u3985237
+              req.session.visitedSiteFromAdAt = Date.now();
+            }
+
             // Check for website personalization parameter, and if valid, absorb it in the session.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters

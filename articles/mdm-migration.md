@@ -6,8 +6,10 @@ This guide provides instructions for migrating devices from your current MDM sol
 
 ## Requirements
 
+
 - A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet)
 - Fleet is connected to Apple Push Notification service (APNs) and Apple Business Manager (ABM). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
+
 
 ## Migrate manually enrolled hosts
 

@@ -2890,44 +2890,6 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
-func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
-	t := s.T()
-
-	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
-		Description: "desc",
-	})
-	require.NoError(s.T(), err)
-
-	var acResp appConfigResponse
-
-	// try to set an invalid team name
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {
-			"apple_bm_default_team": "xyz"
-		}
-	}`), http.StatusUnprocessableEntity, &acResp)
-
-	// get the appconfig, nothing changed
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.AppleBMDefaultTeam)
-
-	// set to a valid team name
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": {
-			"apple_bm_default_team": %q
-		}
-	}`, tm.Name)), http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
-
-	// get the appconfig, set to that team name
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
-}
-
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	t := s.T()
 
@@ -10044,6 +10006,35 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getDeviceSw.Software, 1) // bar only
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
+
+	// Add new software to host -- installed on host, but not by Fleet
+	installedVersion := "1.0.1"
+	softwareAlreadyInstalled := fleet.Software{Name: "DummyApp.app", Version: installedVersion, Source: "apps",
+		BundleIdentifier: "com.example.dummy"}
+	software = append(software, softwareAlreadyInstalled)
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	err = s.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+	// Add installer for software that is already installed on host
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Version:       "0.0.2", // The version can be anything -- we match on title
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	// Get software available for install
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install",
+		"true", "order_key", "name", "order_direction", "asc")
+	require.Len(t, getHostSw.Software, 2) // DummyApp.app and ruby
+	assert.Equal(t, softwareAlreadyInstalled.Name, getHostSw.Software[0].Name)
+	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
+	assert.Nil(t, getHostSw.Software[0].Status)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
@@ -10771,6 +10762,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	t := s.T()
 
+	// Enabling software inventory globally, which will be inherited by the team
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.Features.EnableSoftwareInventory = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
+
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
 		Name: t.Name(),
@@ -10967,6 +10966,50 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
+
+	// Return installed app with software detail query
+	distributedReq := submitDistributedQueryResultsRequestShim{
+		NodeKey: *h2.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_linux": json.RawMessage(fmt.Sprintf(
+				`[{"name": "%s", "version": "1.0", "type": "Package (deb)",
+					"source": "deb_packages", "last_opened_at": "", 
+					"installed_path": "/bin/ruby"}]`, payload.Title)),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_linux": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].Status)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.NotEmpty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should exist")
+
+	// Remove the installed app by not returning it
+	distributedReq = submitDistributedQueryResultsRequestShim{
+		NodeKey: *h2.NodeKey,
+		Results: map[string]json.RawMessage{
+			hostDetailQueryPrefix + "software_linux": json.RawMessage(`[]`),
+		},
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + "software_linux": 0,
+		},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	}
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	assert.Nil(t, getHostSoftwareResp.Software[0].Status)
+	assert.Nil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should now not exist")
 
 	// Access software install result after host is deleted
 	err = s.ds.DeleteHost(context.Background(), h.ID)

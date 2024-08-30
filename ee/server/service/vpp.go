@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,38 +19,20 @@ import (
 
 // getVPPToken returns the base64 encoded VPP token, ready for use in requests to Apple's VPP API.
 // It returns an error if the token is expired.
-func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
-	configMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, error) {
+	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+		}
 		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
-	var vppTokenData fleet.VPPTokenData
-	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPToken].Value, &vppTokenData); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
-	}
-
-	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
-	}
-
-	var vppTokenRaw fleet.VPPTokenRaw
-
-	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token data")
-	}
-
-	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
-	}
-
-	if time.Now().After(exp) {
+	if time.Now().After(token.RenewDate) {
 		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
-	return vppTokenData.Token, nil
+	return token.Token, nil
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
@@ -103,7 +84,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		token, err := svc.getVPPToken(ctx)
+		token, err := svc.getVPPToken(ctx, &team.ID)
 		if err != nil {
 			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 		}
@@ -179,7 +160,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		return nil, err
 	}
 
-	vppToken, err := svc.getVPPToken(ctx)
+	vppToken, err := svc.getVPPToken(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
@@ -313,7 +294,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
 	}
 
-	vppToken, err := svc.getVPPToken(ctx)
+	vppToken, err := svc.getVPPToken(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}

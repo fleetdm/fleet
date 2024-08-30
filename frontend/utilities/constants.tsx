@@ -307,6 +307,9 @@ export const HOSTS_SEARCH_BOX_PLACEHOLDER =
 export const HOSTS_SEARCH_BOX_TOOLTIP =
   "Search hosts by name, hostname, UUID, serial number, or private IP address";
 
+export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
+  'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
+
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (
