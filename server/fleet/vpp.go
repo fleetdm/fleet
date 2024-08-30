@@ -1,6 +1,8 @@
 package fleet
 
-import "time"
+import (
+	"time"
+)
 
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in

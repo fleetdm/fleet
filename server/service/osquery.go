@@ -1008,6 +1008,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1038,6 +1042,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
+
 		// NOTE(mna): currently, failing policies webhook wouldn't see the new
 		// flipped policies on the next run if async processing is enabled and the
 		// collection has not been done yet (not persisted in mysql). Should
@@ -1602,6 +1607,136 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 		if err := svc.failingPolicySet.RemoveHosts(policyID, []fleet.PolicySetHost{host}); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (svc *Service) processSoftwareForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostTeamID == nil {
+		// TODO(lucas): Support hosts in "No team".
+		return nil
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated installers for the team.
+	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, *hostTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithInstaller) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to installers.
+	policiesWithInstallersMap := make(map[uint]fleet.PolicySoftwareInstallerData)
+	for _, policyWithInstaller := range policiesWithInstaller {
+		policiesWithInstallersMap[policyWithInstaller.ID] = policyWithInstaller
+	}
+	policyResultsOfPoliciesWithInstallers := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithInstallersMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithInstallers[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithInstallers) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with installers that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithInstallers, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithInstallers,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithInstallers) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithInstallersSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithInstallers {
+		policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with installers that are not newly failing.
+	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
+	for _, policyWithInstaller := range policiesWithInstaller {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyWithInstaller.ID]; ok {
+			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
+		}
+	}
+
+	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", failingPolicyWithInstaller.ID,
+			"software_installer_id", failingPolicyWithInstaller.InstallerID,
+			"software_title_id", installerMetadata.TitleID,
+			"software_installer_platform", installerMetadata.Platform,
+		)
+		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
+			level.Debug(logger).Log("msg", "installer platform does not match host platform")
+			continue
+		}
+		hostLastInstall, err := svc.ds.GetHostLastInstallData(ctx, hostID, installerMetadata.InstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host last install data")
+		}
+		// hostLastInstall.Status == nil can happen when a software is installed by Fleet and later removed.
+		if hostLastInstall != nil && hostLastInstall.Status != nil &&
+			*hostLastInstall.Status == fleet.SoftwareInstallerPending {
+			// There's a pending install for this host and installer,
+			// thus we do not queue another install request.
+			level.Debug(svc.logger).Log(
+				"msg", "found pending install request for this host and installer",
+				"pending_execution_id", hostLastInstall.ExecutionID,
+			)
+			continue
+		}
+		// NOTE(lucas): The user_id set in this software install will be NULL
+		// so this means that when generating the activity for this action
+		// (in SaveHostSoftwareInstallResult)
+		// the author will be set to the user that uploaded the software (we want this
+		// by design).
+		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
+			ctx, hostID,
+			installerMetadata.InstallerID,
+			false, // Set Self-service as false because this is triggered by Fleet.
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert software install request: host_id=%d, software_installer_id=%d",
+				hostID, installerMetadata.InstallerID,
+			)
+		}
+		level.Debug(logger).Log(
+			"msg", "install request sent",
+			"install_uuid", installUUID,
+		)
 	}
 	return nil
 }

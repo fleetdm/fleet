@@ -3,6 +3,7 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -43,6 +44,42 @@ func (a AppleBM) AuthzType() string {
 	return "mdm_apple"
 }
 
+// TODO: during API implementation, remove AppleBM above or reconciliate those
+// two types. We'll likely need a new authz type for the ABM token.
+type ABMToken struct {
+	ID                  uint      `db:"id" json:"id"`
+	AppleID             string    `db:"apple_id" json:"apple_id"`
+	OrganizationName    string    `db:"organization_name" json:"org_name"`
+	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	EncryptedToken      []byte    `db:"token" json:"-"`
+
+	// MDMServerURL is not a database field, it is computed from the AppConfig's
+	// Server URL and the static path to the MDM endpoint (using
+	// apple_mdm.ResolveAppleMDMURL).
+	MDMServerURL string `db:"-" json:"mdm_server_url"`
+
+	// the following fields are not in the abm_tokens table, they must be queried
+	// by a LEFT JOIN on the corresponding team, coalesced to "No team" if
+	// null (no team).
+	MacOSTeamName  string `db:"macos_team" json:"-"`
+	IOSTeamName    string `db:"ios_team" json:"-"`
+	IPadOSTeamName string `db:"ipados_team" json:"-"`
+
+	// These fields are composed of the ID and name fields above, and are used in API responses.
+	MacOSTeam  ABMTokenTeam `json:"macos_team"`
+	IOSTeam    ABMTokenTeam `json:"ios_team"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_team"`
+}
+
+type ABMTokenTeam struct {
+	Name string `json:"name"`
+	ID   uint   `json:"team_id"`
+}
+
 type AppleCSR struct {
 	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
 	APNsKey  []byte `json:"apns_key"`
@@ -54,13 +91,15 @@ func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
 }
 
-// AppConfigUpdated is the minimal interface required to get and update the
-// AppConfig, as required to handle the DEP API errors to flag that Apple's
-// terms have changed and must be accepted. The Fleet Datastore satisfies
-// this interface.
-type AppConfigUpdater interface {
+// ABMTermsUpdater is the minimal interface required to get and update the
+// AppConfig, and set an ABM token's terms_expired flag as required to handle
+// the DEP API errors to indicate that Apple's terms have changed and must be
+// accepted. The Fleet Datastore satisfies this interface.
+type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
+	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -625,14 +664,19 @@ const (
 	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
-	// MDMAssetABMToken is an encrypted JSON file that contains a token
-	// that can be used for the authentication process with the ABM API
-	MDMAssetABMToken MDMAssetName = "abm_token"
+	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API.
+	// Deprecated: ABM tokens are now stored in the abm_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
-	// MDMAssetVPPToken is the name of the token used by MDM to authenticate to Apple's VPP service.
-	MDMAssetVPPToken MDMAssetName = "vpp_token"
+	// MDMAssetVPPTokenDeprecated is the name of the token used by MDM to
+	// authenticate to Apple's VPP service.
+	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
 )
 
 type MDMConfigAsset struct {
@@ -725,6 +769,81 @@ type VPPTokenData struct {
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
 }
+
+const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
+
+// VPPTokenDB represents a VPP token record in the DB
+type VPPTokenDB struct {
+	ID        uint      `db:"id" json:"id"`
+	OrgName   string    `db:"organization_name" json:"org_name"`
+	Location  string    `db:"location" json:"location"`
+	RenewDate time.Time `db:"renew_at" json:"renew_date"`
+	// Token is the token dowloaded from ABM. It is the base64 encoded
+	// JSON object with the structure of `VPPTokenRaw`
+	Token string      `db:"token" json:"-"`
+	Teams []TeamTuple `json:"teams"`
+	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type TeamTuple struct {
+	ID   uint   `json:"team_id"`
+	Name string `json:"name"`
+}
+
+// ExtractToken extracts the metadata from the token as stored in the database,
+// and returns the raw token that can be used directly with Apple's VPP API. If
+// while extracting the token it notices that the metadata has changed, it will
+// update t and return true as second return value, indicating that it changed
+// and should be saved.
+func (t *VPPTokenDB) ExtractToken() (rawAppleToken string, didUpdateMetadata bool, err error) {
+	var vppTokenData VPPTokenData
+	if err := json.Unmarshal([]byte(t.Token), &vppTokenData); err != nil {
+		return "", false, fmt.Errorf("unmarshaling VPP token data: %w", err)
+	}
+
+	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
+	if err != nil {
+		return "", false, fmt.Errorf("decoding raw vpp token data: %w", err)
+	}
+
+	var vppTokenRaw VPPTokenRaw
+	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
+		return "", false, fmt.Errorf("unmarshaling raw vpp token data: %w", err)
+	}
+
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
+	if err != nil {
+		return "", false, fmt.Errorf("parsing vpp token expiration date: %w", err)
+	}
+
+	if vppTokenData.Location != t.Location {
+		t.Location = vppTokenData.Location
+		didUpdateMetadata = true
+	}
+	if vppTokenRaw.OrgName != t.OrgName {
+		t.OrgName = vppTokenRaw.OrgName
+		didUpdateMetadata = true
+	}
+	if !exp.Equal(t.RenewDate) {
+		t.RenewDate = exp.UTC()
+		didUpdateMetadata = true
+	}
+
+	return vppTokenRaw.Token, didUpdateMetadata, nil
+}
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
+
 type AppleDevice int
 
 const (

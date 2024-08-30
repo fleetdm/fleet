@@ -247,8 +247,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleDEPDevices(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
 
 		// check EULA routes
 		_, err = svc.MDMGetEULAMetadata(ctx)
@@ -601,8 +599,9 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.GetMDMAppleProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMProfilesSummary, error) {
 		return nil, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
 		return func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
@@ -708,8 +707,9 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, false)
@@ -1501,8 +1501,9 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
@@ -1817,8 +1818,9 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, profileUUIDs, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, profileUUIDs, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
@@ -2593,7 +2595,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
-			appCfg.MDM.AppleBMDefaultTeam = testTeamName
+			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
@@ -2637,7 +2639,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
-			appCfg.MDM.AppleBMDefaultTeam = testTeamName
+			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {

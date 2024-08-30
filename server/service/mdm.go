@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -1168,7 +1167,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	}
 
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1413,7 +1412,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1601,7 +1600,8 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, appleDecls); err != nil {
+	var profUpdates fleet.MDMProfilesUpdates
+	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, appleDecls); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
@@ -1610,7 +1610,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	for _, p := range windowsProfiles {
 		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil); err != nil {
+	winUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
 
@@ -1619,33 +1620,42 @@ func (svc *Service) BatchSetMDMProfiles(
 	for _, p := range appleProfiles {
 		appleProfUUIDs = append(appleProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil); err != nil {
+	appleUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
+	updates := fleet.MDMProfilesUpdates{
+		AppleConfigProfile:   profUpdates.AppleConfigProfile || winUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
+		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile || appleUpdates.WindowsConfigProfile,
+		AppleDeclaration:     profUpdates.AppleDeclaration || winUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+	}
 
-	// TODO(roberto): should we generate activities only of any profiles were
-	// changed? this is the existing behavior for macOS profiles so I'm
-	// leaving it as-is for now.
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-			TeamID:   tmID,
-			TeamName: tmName,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+	if updates.AppleConfigProfile {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+		}
 	}
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
-			TeamID:   tmID,
-			TeamName: tmName,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
+	if updates.WindowsConfigProfile {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
+		}
 	}
-	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
-			TeamID:   tmID,
-			TeamName: tmName,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+	if updates.AppleDeclaration {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+		}
 	}
 
 	return nil
@@ -2534,15 +2544,15 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/apple/vpp_token
+// POST /api/_version_/vpp_tokens
 ////////////////////////////////////////////////////////////////////////////////
 
-type uploadMDMAppleVPPTokenRequest struct {
+type uploadVPPTokenRequest struct {
 	File *multipart.FileHeader
 }
 
-func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := uploadMDMAppleVPPTokenRequest{}
+func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := uploadVPPTokenRequest{}
 
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
@@ -2564,34 +2574,36 @@ func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.
 	return &decoded, nil
 }
 
-type uploadMDMAppleVPPTokenResponse struct {
-	Err error `json:"error,omitempty"`
+type uploadVPPTokenResponse struct {
+	Err   error             `json:"error,omitempty"`
+	Token *fleet.VPPTokenDB `json:"token,omitempty"`
 }
 
-func (r uploadMDMAppleVPPTokenResponse) Status() int { return http.StatusAccepted }
+func (r uploadVPPTokenResponse) Status() int { return http.StatusAccepted }
 
-func (r uploadMDMAppleVPPTokenResponse) error() error {
+func (r uploadVPPTokenResponse) error() error {
 	return r.Err
 }
 
-func uploadMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*uploadMDMAppleVPPTokenRequest)
+func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadVPPTokenRequest)
 	file, err := req.File.Open()
 	if err != nil {
-		return uploadMDMAppleAPNSCertResponse{Err: err}, nil
+		return uploadVPPTokenResponse{Err: err}, nil
 	}
 	defer file.Close()
 
-	if err := svc.UploadMDMAppleVPPToken(ctx, file); err != nil {
-		return &uploadMDMAppleVPPTokenResponse{Err: err}, nil
+	tok, err := svc.UploadVPPToken(ctx, file)
+	if err != nil {
+		return uploadVPPTokenResponse{Err: err}, nil
 	}
 
-	return &uploadMDMAppleVPPTokenResponse{}, nil
+	return uploadVPPTokenResponse{Token: tok}, nil
 }
 
-func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error {
+func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
 	privateKey := svc.config.Server.PrivateKey
@@ -2600,16 +2612,16 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	if len(privateKey) == 0 {
-		return ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		return nil, ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
 	if token == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 	}
 
 	tokenBytes, err := io.ReadAll(token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading VPP token")
+		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
 	locName, err := vpp.GetConfig(string(tokenBytes))
@@ -2618,10 +2630,10 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		if errors.As(err, &vppErr) {
 			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
 			if vppErr.ErrorNumber == 9622 {
-				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 			}
 		}
-		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 
 	data := fleet.VPPTokenData{
@@ -2629,119 +2641,236 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		Location: locName,
 	}
 
-	dataBytes, err := json.Marshal(data)
+	tok, err := svc.ds.InsertVPPToken(ctx, &data)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating VPP data object for storage")
+		return nil, ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
 
-	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetVPPToken, Value: dataBytes},
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEnabledVPP{
+		Location: locName,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
 	}
 
-	act := fleet.ActivityEnabledVPP{}
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
-	}
-
-	return nil
+	return tok, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// GET /vpp
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////
+// PATCH /api/_version_/fleet/vpp_tokens/%d/renew //
+////////////////////////////////////////////////////
 
-type getMDMAppleVPPTokenRequest struct{}
-
-type getMDMAppleVPPTokenResponse struct {
-	*fleet.VPPTokenInfo
-	Err error `json:"error,omitempty"`
+type patchVPPTokenRenewRequest struct {
+	ID   uint `url:"id"`
+	File *multipart.FileHeader
 }
 
-func (r getMDMAppleVPPTokenResponse) error() error {
+func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := patchVPPTokenRenewRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+		return nil, &fleet.BadRequestError{
+			Message:     "token multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	decoded.File = r.MultipartForm.File["token"][0]
+
+	return &decoded, nil
+}
+
+type patchVPPTokenRenewResponse struct {
+	Err   error             `json:"error,omitempty"`
+	Token *fleet.VPPTokenDB `json:"token,omitempty"`
+}
+
+func (r patchVPPTokenRenewResponse) Status() int { return http.StatusAccepted }
+
+func (r patchVPPTokenRenewResponse) error() error {
 	return r.Err
 }
 
-func getMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	vpp, err := svc.GetMDMAppleVPPToken(ctx)
+func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*patchVPPTokenRenewRequest)
+	file, err := req.File.Open()
 	if err != nil {
-		return &getMDMAppleVPPTokenResponse{Err: err}, nil
+		return patchVPPTokenRenewResponse{Err: err}, nil
+	}
+	defer file.Close()
+
+	tok, err := svc.UpdateVPPToken(ctx, req.ID, file)
+	if err != nil {
+		return patchVPPTokenRenewResponse{Err: err}, nil
 	}
 
-	return &getMDMAppleVPPTokenResponse{VPPTokenInfo: vpp}, nil
+	return patchVPPTokenRenewResponse{Token: tok}, nil
 }
 
-func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInfo, error) {
+func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	if token == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+	}
+
+	tokenBytes, err := io.ReadAll(token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
+	}
+
+	locName, err := vpp.GetConfig(string(tokenBytes))
+	if err != nil {
+		var vppErr *vpp.ErrorResponse
+		if errors.As(err, &vppErr) {
+			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			if vppErr.ErrorNumber == 9622 {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+	}
+
+	data := fleet.VPPTokenData{
+		Token:    string(tokenBytes),
+		Location: locName,
+	}
+
+	tok, err := svc.ds.UpdateVPPToken(ctx, tokenID, &data)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating vpp token")
+	}
+
+	return tok, nil
+}
+
+////////////////////////////////////////////////////
+// PATCH /api/_version_/fleet/vpp_tokens/%d/teams //
+////////////////////////////////////////////////////
+
+type patchVPPTokensTeamsRequest struct {
+	ID      uint   `url:"id"`
+	TeamIDs []uint `json:"teams"`
+}
+
+type patchVPPTokensTeamsResponse struct {
+	Token *fleet.VPPTokenDB `json:"token,omitempty"`
+	Err   error             `json:"error,omitempty"`
+}
+
+func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
+
+func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*patchVPPTokensTeamsRequest)
+
+	tok, err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamIDs)
+	if err != nil {
+		return patchVPPTokensTeamsResponse{Err: err}, nil
+	}
+	return patchVPPTokensTeamsResponse{Token: tok}, nil
+}
+
+func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) (*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	tok, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
+	}
+
+	return tok, nil
+}
+
+///////////////////////////////////////////////
+// DELETE /api/_version_/fleet/vpp_tokens/%d //
+///////////////////////////////////////////////
+
+type getVPPTokensRequest struct{}
+
+type getVPPTokensResponse struct {
+	Tokens []*fleet.VPPTokenDB `json:"vpp_tokens"`
+	Err    error               `json:"error,omitempty"`
+}
+
+func (r getVPPTokensResponse) error() error { return r.Err }
+
+func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	tokens, err := svc.GetVPPTokens(ctx)
+	if err != nil {
+		return getVPPTokensResponse{Err: err}, nil
+	}
+
+	if tokens == nil {
+		tokens = []*fleet.VPPTokenDB{}
+	}
+
+	return getVPPTokensResponse{Tokens: tokens}, nil
+}
+
+func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	assetMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name VPP token")
-	}
-
-	var tokenData fleet.VPPTokenData
-	if err := json.Unmarshal(assetMap[fleet.MDMAssetVPPToken].Value, &tokenData); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
-	}
-
-	var rawToken fleet.VPPTokenRaw
-	decodedBytes, err := base64.StdEncoding.DecodeString(tokenData.Token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding VPP token")
-	}
-
-	if err := json.Unmarshal(decodedBytes, &rawToken); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token")
-	}
-
-	info := fleet.VPPTokenInfo{
-		Location:  tokenData.Location,
-		RenewDate: rawToken.ExpDate,
-		OrgName:   rawToken.OrgName,
-	}
-
-	return &info, nil
+	return svc.ds.ListVPPTokens(ctx)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// DELETE /mdm/apple/vpp_token
-////////////////////////////////////////////////////////////////////////////////
+type deleteVPPTokenRequest struct {
+	ID uint `url:"id"`
+}
 
-type deleteMDMAppleVPPTokenRequest struct{}
-
-type deleteMDMAppleVPPTokenResponse struct {
+type deleteVPPTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMAppleVPPTokenResponse) error() error { return r.Err }
+func (r deleteVPPTokenResponse) error() error { return r.Err }
 
-func (r deleteMDMAppleVPPTokenResponse) Status() int { return http.StatusNoContent }
+func (r deleteVPPTokenResponse) Status() int { return http.StatusNoContent }
 
-func deleteMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	if err := svc.DeleteMDMAppleVPPToken(ctx); err != nil {
-		return &deleteMDMAppleVPPTokenResponse{Err: err}, nil
+func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteVPPTokenRequest)
+
+	err := svc.DeleteVPPToken(ctx, req.ID)
+	if err != nil {
+		return deleteVPPTokenResponse{Err: err}, nil
 	}
 
-	return &deleteMDMAppleVPPTokenResponse{}, nil
+	return deleteVPPTokenResponse{}, nil
 }
 
-func (svc *Service) DeleteMDMAppleVPPToken(ctx context.Context) error {
+func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-
-	if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken}); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete VPP token")
+	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting vpp token")
 	}
-
-	act := fleet.ActivityDisabledVPP{}
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDisabledVPP{
+		Location: tok.Location,
+	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete VPP token")
 	}
 
-	return nil
+	return svc.ds.DeleteVPPToken(ctx, tokenID)
 }

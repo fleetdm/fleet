@@ -401,6 +401,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Title:         "foo",
 		Source:        "apps",
 		Version:       "0.0.1",
+		UserID:        u.ID,
 	})
 	require.NoError(t, err)
 	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -411,6 +412,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Title:         "bar",
 		Source:        "apps",
 		Version:       "0.0.2",
+		UserID:        u.ID,
 	})
 	require.NoError(t, err)
 	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
@@ -492,7 +494,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		InstallScriptExitCode:     ptr.Int(0),
 	})
 	require.NoError(t, err)
-	h1Foo, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, false) // no user for this one
+
+	// No user for this one and not Self-service, means it was installed by Fleet thus the author was decided to be the admin
+	// that uploaded the installer.
+	h1Foo, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, false)
 	require.NoError(t, err)
 
 	// create a single pending request for h2, as well as a non-pending one
@@ -507,6 +512,9 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// add a pending software install request for h2
 	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, false)
 	require.NoError(t, err)
+	// No user for this one and Self-service, means it was installed by the end user, so the user_id should be null/nil.
+	h2Foo, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true)
+	require.NoError(t, err)
 
 	// nothing for h3
 
@@ -515,6 +523,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Foo)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1Foo)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Foo)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
 	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
@@ -527,7 +537,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		h1E:         false,
 		h2A:         true,
 		h2F:         true,
-		h1Foo:       false,
+		h1Foo:       true,
+		h2Foo:       false,
 		h1Bar:       true,
 		h2Bar:       true,
 		vppCommand1: true,
@@ -542,6 +553,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		h1Foo: "foo",
 		h1Bar: "bar",
 		h2Bar: "bar",
+		h2Foo: "foo",
+	}
+	execIDsWithUserAdminID := map[string]struct{}{
+		h1Foo: {},
 	}
 
 	cases := []struct {
@@ -593,10 +608,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
-			opts:      fleet.ListOptions{PerPage: 3},
+			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h2.ID,
-			wantExecs: []string{h2Bar, h2A, vppCommand2},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 3},
+			wantExecs: []string{h2Foo, h2Bar, h2A, vppCommand2},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 4},
 		},
 		{
 			opts:      fleet.ListOptions{},
@@ -637,7 +652,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 				case fleet.ActivityTypeInstalledSoftware{}.ActivityName():
 					require.Equal(t, wantExec, details["install_uuid"], "result %d", i)
 					require.Equal(t, execIDsSoftwareTitle[wantExec], details["software_title"], "result %d", i)
-					wantUser = u2
+					if _, ok := execIDsWithUserAdminID[details["install_uuid"].(string)]; ok {
+						wantUser = u
+					} else {
+						wantUser = u2
+					}
 
 				case fleet.ActivityInstalledAppStoreApp{}.ActivityName():
 					require.Equal(t, wantExec, details["command_uuid"], "result %d", i)
