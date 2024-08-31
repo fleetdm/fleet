@@ -1,3 +1,9 @@
+## Fleet 4.54.2 (Aug 30, 2024)
+
+### Bug fixes
+
+* Removed validation of APNS certificate from server startup. This was no longer necessary because we now allow for APNS certificates to be renewed in the UI.
+
 ## Fleet 4.54.1 (Jul 24, 2024)
 
 ### Bug fixes
