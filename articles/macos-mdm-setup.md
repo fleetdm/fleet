@@ -4,7 +4,9 @@ To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this 
 
 To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business Manager (ABM).
 
-To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup). 
+To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
+
+> Fleet automatically renews the SCEP certificate 180 days before the expiration date.
 
 ## Apple Push Notification service (APNs)
 
