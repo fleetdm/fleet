@@ -235,7 +235,8 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, _ string
 }
 
 func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, _ string, _ uint) (*fleet.SoftwareInstallerTokenMetadata,
-	error) {
+	error,
+) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -283,7 +284,8 @@ func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, _ bool, _ string, _ uint,
 	_ *uint) (*fleet.DownloadSoftwareInstallerPayload,
-	error) {
+	error,
+) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -368,7 +370,8 @@ type batchSetSoftwareInstallersRequest struct {
 }
 
 type batchSetSoftwareInstallersResponse struct {
-	Err error `json:"error,omitempty"`
+	InstallersMetadata map[string]fleet.SoftwareInstallerPayload
+	Err                error `json:"error,omitempty"`
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -108,7 +109,15 @@ func TestValidGitOpsYaml(t *testing.T) {
 					t.Parallel()
 				}
 
-				gitops, err := GitOpsFromFile(test.filePath, "./testdata", nil)
+				var appConfig *fleet.EnrichedAppConfig
+				if test.isTeam {
+					appConfig = &fleet.EnrichedAppConfig{}
+					appConfig.License = &fleet.LicenseInfo{
+						Tier: fleet.TierPremium,
+					}
+				}
+
+				gitops, err := GitOpsFromFile(test.filePath, "./testdata", appConfig)
 				require.NoError(t, err)
 
 				if test.isTeam {
@@ -201,14 +210,32 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.Equal(t, "darwin,linux,windows", gitops.Queries[1].Platform)
 				assert.Equal(t, "osquery_info", gitops.Queries[2].Name)
 
+				// Check software
+				if test.isTeam {
+					require.Len(t, gitops.Software.Packages, 2)
+					require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					require.False(t, gitops.Software.Packages[0].SelfService)
+					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
+					require.True(t, gitops.Software.Packages[1].SelfService)
+				}
+
 				// Check policies
-				require.Len(t, gitops.Policies, 5)
+				expectedPoliciesCount := 5
+				if test.isTeam {
+					expectedPoliciesCount = 6
+				}
+				require.Len(t, gitops.Policies, expectedPoliciesCount)
 				assert.Equal(t, "😊 Failing policy", gitops.Policies[0].Name)
 				assert.Equal(t, "Passing policy", gitops.Policies[1].Name)
 				assert.Equal(t, "No root logins (macOS, Linux)", gitops.Policies[2].Name)
 				assert.Equal(t, "🔥 Failing policy", gitops.Policies[3].Name)
 				assert.Equal(t, "linux", gitops.Policies[3].Platform)
 				assert.Equal(t, "😊😊 Failing policy", gitops.Policies[4].Name)
+				if test.isTeam {
+					assert.Equal(t, "Microsoft Teams on macOS installed and up to date", gitops.Policies[5].Name)
+					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
+					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+				}
 			},
 		)
 	}
@@ -749,6 +776,106 @@ func TestGitOpsPaths(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestGitOpsGlobalPolicyWithInstallSoftware(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path: ./some_path.yml
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+}
+
+func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path: ./some_path.yml
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "failed to read install_software.package_path file")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path:
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "empty package_path")
+
+	// Policy references a software installer not present in the team.
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./team_install_software.policies.yml
+software:
+  - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+    self_service: true
+
+`
+	path, basePath := createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "team_install_software.policies.yml"),
+		filepath.Join(basePath, "team_install_software.policies.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = file.Copy(
+		filepath.Join("testdata", "microsoft-teams.pkg.software.yml"),
+		filepath.Join(basePath, "microsoft-teams.pkg.software.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig)
+	assert.ErrorContains(t, err,
+		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
+	)
+
+	// Policy references a software installer file that has an invalid yaml.
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./team_install_software.policies.yml
+software:
+  - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+    self_service: true
+`
+	path, basePath = createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "team_install_software.policies.yml"),
+		filepath.Join(basePath, "team_install_software.policies.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = os.WriteFile( // nolint:gosec
+		filepath.Join(basePath, "microsoft-teams.pkg.software.yml"),
+		[]byte("invalid yaml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig = fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig)
+	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
 }
 
 func getGlobalConfig(optsToExclude []string) string {

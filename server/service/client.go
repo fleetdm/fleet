@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
@@ -426,30 +429,6 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	if len(specs.Policies) > 0 {
-		if opts.DryRun {
-			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
-		} else {
-			// Policy names must be unique, return error if duplicate policy names are found
-			if policyName := fleet.FirstDuplicatePolicySpecName(specs.Policies); policyName != "" {
-				return nil, fmt.Errorf(
-					"applying policies: policy names must be unique. Please correct policy %q and try again.", policyName,
-				)
-			}
-
-			// If set, override the team in all the policies.
-			if opts.TeamForPolicies != "" {
-				for _, policySpec := range specs.Policies {
-					policySpec.Team = opts.TeamForPolicies
-				}
-			}
-			if err := c.ApplyPolicies(specs.Policies); err != nil {
-				return nil, fmt.Errorf("applying policies: %w", err)
-			}
-			logfn("[+] applied %d policies\n", len(specs.Policies))
-		}
-	}
-
 	if len(specs.Packs) > 0 {
 		if opts.DryRun {
 			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'team' specs\n")
@@ -609,7 +588,7 @@ func (c *Client) ApplyGroup(
 		}
 
 		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
-		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
+		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
 			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software)
 			if err != nil {
@@ -697,6 +676,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
+				logfn("[+] applying software installers for team %s\n", tmName)
 				if err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
@@ -715,6 +695,31 @@ func (c *Client) ApplyGroup(
 			logfn("[+] would've applied %d teams\n", len(specs.Teams))
 		} else {
 			logfn("[+] applied %d teams\n", len(specs.Teams))
+		}
+	}
+
+	// Policies can reference software installers thus they are applied at this point.
+	if len(specs.Policies) > 0 {
+		if opts.DryRun {
+			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			// Policy names must be unique, return error if duplicate policy names are found
+			if policyName := fleet.FirstDuplicatePolicySpecName(specs.Policies); policyName != "" {
+				return nil, fmt.Errorf(
+					"applying policies: policy names must be unique. Please correct policy %q and try again.", policyName,
+				)
+			}
+
+			// If set, override the team in all the policies.
+			if opts.TeamForPolicies != "" {
+				for _, policySpec := range specs.Policies {
+					policySpec.Team = opts.TeamForPolicies
+				}
+			}
+			if err := c.ApplyPolicies(specs.Policies); err != nil {
+				return nil, fmt.Errorf("applying policies: %w", err)
+			}
+			logfn("[+] applied %d policies\n", len(specs.Policies))
 		}
 	}
 
@@ -1455,17 +1460,17 @@ func (c *Client) DoGitOps(
 		}
 	}
 
+	err = c.doGitOpsNoTeamSoftware(group, baseDir, appConfig, logFn, dryRun)
+	if err != nil {
+		return nil, err
+	}
+
 	err = c.doGitOpsPolicies(config, logFn, dryRun)
 	if err != nil {
 		return nil, err
 	}
 
 	err = c.doGitOpsQueries(config, logFn, dryRun)
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.doGitOpsNoTeamSoftware(group, baseDir, appConfig, logFn, dryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -1499,11 +1504,49 @@ func (c *Client) doGitOpsNoTeamSoftware(specs spec.Group, baseDir string, appcon
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	// Get software titles of packages for the team.
+	if config.TeamID != nil {
+		query := url.Values{}
+		query.Set("team_id", strconv.FormatUint(uint64(*config.TeamID), 10))
+		query.Set("packages_only", "true")
+		query.Set("available_for_install", "true")
+		teamSoftwareTitles, err := c.ListSoftwareTitles(query.Encode())
+		if err != nil {
+			return fmt.Errorf("error getting software titles for team %s: %w", *config.TeamName, err)
+		}
+		softwareTitleURLs := make(map[string]uint)
+		for _, softwareTitle := range teamSoftwareTitles {
+			if softwareTitle.SoftwarePackage == nil {
+				// Should not happen because we only listed titles with packages, but to not panic we just log a warning.
+				logFn("[!] software title without installer: %d, %s", softwareTitle.ID, softwareTitle.Name)
+				continue
+			}
+			if softwareTitle.SoftwarePackage.PackageURL != nil && *softwareTitle.SoftwarePackage.PackageURL != "" {
+				softwareTitleURLs[*softwareTitle.SoftwarePackage.PackageURL] = softwareTitle.ID
+			}
+		}
+		for i := range config.Policies {
+			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
+
+			if config.Policies[i].InstallSoftware == nil {
+				continue
+			}
+			softwareTitleID, ok := softwareTitleURLs[config.Policies[i].InstallSoftwareURL]
+			if !ok {
+				// Should not happen because software packages are uploaded first.
+				logFn("[!] software URL without software title id: %s", config.Policies[i].InstallSoftwareURL)
+				continue
+			}
+			config.Policies[i].SoftwareTitleID = &softwareTitleID
+		}
+	}
+
 	// Get the ids and names of current policies to figure out which ones to delete
 	policies, err := c.GetPolicies(config.TeamID)
 	if err != nil {
 		return fmt.Errorf("error getting current policies: %w", err)
 	}
+
 	if len(config.Policies) > 0 {
 		numPolicies := len(config.Policies)
 		logFn("[+] syncing %d policies\n", numPolicies)
@@ -1516,7 +1559,12 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string,
 				}
 				totalApplied += end - i
 				// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
-				if err := c.ApplyPolicies(config.Policies[i:end]); err != nil {
+				policiesToApply := config.Policies[i:end]
+				policiesSpec := make([]*fleet.PolicySpec, len(policiesToApply))
+				for i := range policiesToApply {
+					policiesSpec[i] = &policiesToApply[i].PolicySpec
+				}
+				if err := c.ApplyPolicies(policiesSpec); err != nil {
 					return fmt.Errorf("error applying policies: %w", err)
 				}
 				logFn("[+] synced %d policies\n", totalApplied)

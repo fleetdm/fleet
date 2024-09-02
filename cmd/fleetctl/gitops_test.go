@@ -35,13 +35,13 @@ const (
 	orgName        = "GitOps Test"
 )
 
-func TestFilenameGitOpsValidation(t *testing.T) {
+func TestGitOpsFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
 	_, err := runAppNoChecks([]string{"gitops", "-f", filename})
 	assert.ErrorContains(t, err, "file name must be less than")
 }
 
-func TestBasicGlobalFreeGitOps(t *testing.T) {
+func TestGitOpsBasicGlobalFree(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	_, ds := runServerWithMockedDS(t)
@@ -153,7 +153,7 @@ org_settings:
 	assert.Empty(t, enrolledSecrets)
 }
 
-func TestBasicGlobalPremiumGitOps(t *testing.T) {
+func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -257,7 +257,7 @@ software:
 	assert.Empty(t, enrolledSecrets)
 }
 
-func TestBasicTeamGitOps(t *testing.T) {
+func TestGitOpsBasicTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
@@ -363,6 +363,9 @@ func TestBasicTeamGitOps(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -417,7 +420,7 @@ software:
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 }
 
-func TestFullGlobalGitOps(t *testing.T) {
+func TestGitOpsFullGlobal(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
@@ -578,7 +581,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
 }
 
-func TestFullTeamGitOps(t *testing.T) {
+func TestGitOpsFullTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
@@ -770,6 +773,9 @@ func TestFullTeamGitOps(t *testing.T) {
 		enrolledSecrets = secrets
 		return nil
 	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 
 	startSoftwareInstallerServer(t)
 
@@ -875,7 +881,7 @@ software:
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
 }
 
-func TestBasicGlobalAndTeamGitOps(t *testing.T) {
+func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
@@ -1000,6 +1006,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
 	}
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1134,7 +1143,7 @@ software:
 	assert.True(t, ds.DeleteTeamFuncInvoked)
 }
 
-func TestFullGlobalAndTeamGitOps(t *testing.T) {
+func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
 	ds, savedAppConfigPtr, savedTeams := setupFullGitOpsPremiumServer(t)
@@ -1214,7 +1223,7 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	require.Len(t, enrolledTeamSecrets, 2)
 }
 
-func TestTeamSofwareInstallersGitOps(t *testing.T) {
+func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 
 	cases := []struct {
@@ -1232,7 +1241,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwarePackage.packages.self_service of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -1248,7 +1257,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}
 }
 
-func TestTeamSoftwareInstallersGitopsQueryEnv(t *testing.T) {
+func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	startSoftwareInstallerServer(t)
 	ds, _, _ := setupFullGitOpsPremiumServer(t)
 
@@ -1265,7 +1274,7 @@ func TestTeamSoftwareInstallersGitopsQueryEnv(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
+func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 
 	cases := []struct {
@@ -1281,7 +1290,7 @@ func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwarePackage.packages.self_service of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -1298,7 +1307,7 @@ func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
 	}
 }
 
-func TestTeamVPPAppsGitOps(t *testing.T) {
+func TestGitOpsTeamVPPApps(t *testing.T) {
 	config := &appleVPPConfigSrvConf{
 		Assets: []vpp.Asset{
 			{
@@ -1390,7 +1399,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 	}
 }
 
-func TestCustomSettingsGitOps(t *testing.T) {
+func TestGitOpsCustomSettings(t *testing.T) {
 	cases := []struct {
 		file    string
 		wantErr string
@@ -1780,6 +1789,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
 	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
@@ -1789,7 +1801,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	return ds, &savedAppConfig, savedTeams
 }
 
-func TestABMGitOps(t *testing.T) {
+func TestGitOpsABM(t *testing.T) {
 	global := func(mdm string) string {
 		return fmt.Sprintf(`
 controls:
@@ -2143,7 +2155,7 @@ software:
 	}
 }
 
-func TestVPPGitOps(t *testing.T) {
+func TestGitOpsVPP(t *testing.T) {
 	global := func(mdm string) string {
 		return fmt.Sprintf(`
 controls:

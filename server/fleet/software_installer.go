@@ -279,6 +279,7 @@ type UploadSoftwareInstallerPayload struct {
 	BundleIdentifier  string
 	SelfService       bool
 	UserID            uint
+	URL               string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -350,6 +351,7 @@ type SoftwarePackageOrApp struct {
 	SelfService *bool                `json:"self_service,omitempty"`
 	IconURL     *string              `json:"icon_url"`
 	LastInstall *HostSoftwareInstall `json:"last_install"`
+	PackageURL  *string              `json:"package_url"`
 }
 
 type SoftwarePackageSpec struct {

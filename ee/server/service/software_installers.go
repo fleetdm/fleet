@@ -724,8 +724,6 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
 
-	client := fleethttp.NewClient()
-	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
 	for i, p := range payloads {
 		i, p := i, p
 
@@ -738,6 +736,8 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 					fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", p.URL),
 				)
 			}
+			client := fleethttp.NewClient()
+			client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
 
 			req, err := http.NewRequestWithContext(workerCtx, http.MethodGet, p.URL, nil)
 			if err != nil {
@@ -795,6 +795,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				InstallerFile:     bytes.NewReader(bodyBytes),
 				SelfService:       p.SelfService,
 				UserID:            vc.UserID(),
+				URL:               p.URL,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback

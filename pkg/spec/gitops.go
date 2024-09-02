@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/text/unicode/norm"
@@ -39,12 +40,34 @@ type Controls struct {
 
 type Policy struct {
 	BaseItem
+	GitOpsPolicySpec
+}
+
+type GitOpsPolicySpec struct {
 	fleet.PolicySpec
+	InstallSoftware *PolicyInstallSoftware `json:"install_software"`
+	// InstallSoftwareURL is populated after parsing the software installer yaml
+	// referenced by InstallSoftware.PackagePath.
+	InstallSoftwareURL string `json:"-"`
+}
+
+type PolicyInstallSoftware struct {
+	PackagePath string `json:"package_path"`
 }
 
 type Query struct {
 	BaseItem
 	fleet.QuerySpec
+}
+
+type SoftwarePackage struct {
+	BaseItem
+	fleet.SoftwarePackageSpec
+}
+
+type Software struct {
+	Packages     []SoftwarePackage           `json:"packages"`
+	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
 }
 
 type GitOps struct {
@@ -54,7 +77,7 @@ type GitOps struct {
 	OrgSettings  map[string]interface{}
 	AgentOptions *json.RawMessage
 	Controls     Controls
-	Policies     []*fleet.PolicySpec
+	Policies     []*GitOpsPolicySpec
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
@@ -113,12 +136,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Validate the required top level options
 	multiError = parseControls(top, result, baseDir, multiError)
 	multiError = parseAgentOptions(top, result, baseDir, multiError)
-	multiError = parsePolicies(top, result, baseDir, multiError)
 	multiError = parseQueries(top, result, baseDir, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
 		multiError = parseSoftware(top, result, baseDir, multiError)
 	}
+
+	// Policies can reference software installers, thus we parse them after parseSoftware.
+	multiError = parsePolicies(top, result, baseDir, multiError)
 
 	return result, multiError.ErrorOrNil()
 }
@@ -389,7 +414,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range policies {
 		item := item
 		if item.Path == nil {
-			result.Policies = append(result.Policies, &item.PolicySpec)
+			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
+				continue
+			}
+			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
 			if err != nil {
@@ -416,7 +445,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							result.Policies = append(result.Policies, &pp.PolicySpec)
+							if err := parsePolicyInstallSoftware(baseDir, result.TeamName, pp, result.Software.Packages); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
+								continue
+							}
+							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
 						}
 					}
 				}
@@ -440,7 +473,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	duplicates := getDuplicateNames(
-		result.Policies, func(p *fleet.PolicySpec) string {
+		result.Policies, func(p *GitOpsPolicySpec) string {
 			return p.Name
 		},
 	)
@@ -448,6 +481,39 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
 	}
 	return multiError
+}
+
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec) error {
+	if policy.InstallSoftware == nil {
+		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
+		return nil
+	}
+	if policy.InstallSoftware != nil && policy.InstallSoftware.PackagePath != "" && teamName == nil {
+		return errors.New("install_software can only be set on team policies")
+	}
+	if policy.InstallSoftware.PackagePath == "" {
+		return errors.New("empty package_path")
+	}
+	fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
+	if err != nil {
+		return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
+	}
+	var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
+	if err := yaml.Unmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
+		return fmt.Errorf("failed to unmarshal install_software.package_path file %s: %v", policy.InstallSoftware.PackagePath, err)
+	}
+	installerOnTeamFound := false
+	for _, pkg := range packages {
+		if pkg.URL == policyInstallSoftwareSpec.URL {
+			installerOnTeamFound = true
+			break
+		}
+	}
+	if !installerOnTeamFound {
+		return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+	}
+	policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
+	return nil
 }
 
 func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
@@ -530,31 +596,40 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	if !ok {
 		return multierror.Append(multiError, errors.New("'software' is required"))
 	}
-	var software fleet.SoftwareSpec
+	var software Software
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
 	}
-	if software.AppStoreApps.Set {
-		for _, item := range software.AppStoreApps.Value {
-			item := item
-			if item.AppStoreID == "" {
-				multiError = multierror.Append(multiError, errors.New("software app store id required"))
-				continue
-			}
-			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
+	for _, item := range software.AppStoreApps {
+		item := item
+		if item.AppStoreID == "" {
+			multiError = multierror.Append(multiError, errors.New("software app store id required"))
+			continue
 		}
+		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
-	if software.Packages.Set {
-		for _, item := range software.Packages.Value {
-			item := item
-			if item.URL == "" {
-				multiError = multierror.Append(multiError, errors.New("software URL is required"))
+	for _, item := range software.Packages {
+		var softwarePackageSpec fleet.SoftwarePackageSpec
+		if item.Path != nil {
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
 			}
-			result.Software.Packages = append(result.Software.Packages, &item)
+			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal software package file %s: %v", *item.Path, err))
+				continue
+			}
+		} else {
+			softwarePackageSpec = item.SoftwarePackageSpec
 		}
+		if softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("software URL is required"))
+			continue
+		}
+		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
 	}
 
 	return multiError

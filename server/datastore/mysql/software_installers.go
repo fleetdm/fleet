@@ -577,11 +577,34 @@ FROM
   software_titles
 WHERE (name, source, browser) IN (%s)
 `
+
+	const unsetAllInstallersFromPolicies = `
+UPDATE
+  policies
+SET
+  software_installer_id = NULL
+WHERE
+  team_id = ?
+`
+
 	const deleteAllInstallersInTeam = `
 DELETE FROM
   software_installers
 WHERE
   global_or_team_id = ?
+`
+
+	const unsetInstallersNotInListFromPolicies = `
+UPDATE
+  policies
+SET
+  software_installer_id = NULL
+WHERE
+  software_installer_id IN (
+    SELECT id FROM software_installers
+    WHERE global_or_team_id = ? AND
+    title_id NOT IN (?)
+  )
 `
 
 	const deleteInstallersNotInList = `
@@ -607,11 +630,12 @@ INSERT INTO software_installers (
 	title_id,
 	user_id,
 	user_name,
-	user_email
+	user_email,
+	url
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?)
+  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -624,7 +648,8 @@ ON DUPLICATE KEY UPDATE
   self_service = VALUES(self_service),
   user_id = VALUES(user_id),
   user_name = VALUES(user_name),
-  user_email = VALUES(user_email)
+  user_email = VALUES(user_email),
+  url = VALUES(url)
 `
 
 	// use a team id of 0 if no-team
@@ -637,8 +662,13 @@ ON DUPLICATE KEY UPDATE
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
-			_, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID)
-			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
+			}
+			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+			}
+			return nil
 		}
 
 		var args []any
@@ -659,7 +689,15 @@ ON DUPLICATE KEY UPDATE
 			return ctxerr.Wrap(ctx, err, "load existing titles")
 		}
 
-		stmt, args, err := sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err := sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete installers from policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
 		}
@@ -701,6 +739,7 @@ ON DUPLICATE KEY UPDATE
 				installer.UserID,
 				installer.UserID,
 				installer.UserID,
+				installer.URL,
 			}
 
 			if _, err := tx.ExecContext(ctx, insertNewOrEditedInstaller, args...); err != nil {
