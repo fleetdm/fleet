@@ -23,6 +23,11 @@ type MSRCAPI interface {
 	GetFeed(time.Month, int) (string, error)
 }
 
+// FeedNotFound is returned when a MSRC feed was not found.
+//
+// E.g. September 2024 bulleting was released on the 2nd.
+var FeedNotFound = errors.New("feed not found")
+
 type MSRCClient struct {
 	client  *http.Client
 	workDir string
@@ -67,7 +72,10 @@ func (msrc MSRCClient) GetFeed(month time.Month, year int) (string, error) {
 		return "", err
 	}
 
-	if err := download.Download(msrc.client, u, dst); err != nil {
+	if err := download.Download(msrc.client, u, dst, download.DontRetryOn404()); err != nil {
+		if errors.Is(err, download.NotFound) {
+			return "", FeedNotFound
+		}
 		return "", err
 	}
 
