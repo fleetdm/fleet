@@ -12,15 +12,50 @@
     <title>Fleet</title>
   </head>
   <body>
-    THIS IS THE PAGE!!!! again asdf
-    <img
-      src="{{.URLPrefix}}/assets/images/ios-settings-install.png"
-      alt="ios settings install screen"
-    />
-    <a href="{{.EnrollURL}}" download>tests</a>
+    <h1>Enroll your device to Fleet</h1>
+    <p>
+      Follow the instructions below to download and install the Fleet profile on
+      your device.
+    </p>
+    <ol>
+      <li>
+        <p>
+          <b>Download</b> the Fleet profile and select <b>Allow</b> in the
+          pop-up.
+        </p>
+        <button>Download</button>
+      </li>
+      <li>
+        <p>Navigate to <b>Settings</b> and select <b>Profile Downloaded</b>.</p>
+        <img
+          class="profile-downloaded-img"
+          src=""
+          alt="select profile downloaded in settings"
+        />
+      </li>
+      <li>
+        <p>Select <b>Install</b>.</p>
+        <img class="select-install-img" src="" alt="select install" />
+      </li>
+    </ol>
+
     <!-- TODO: proper comment for why this is needed. -->
     <script>
       document.addEventListener("touchstart", function () {}, false);
+
+      const os = navigator.userAgent.includes("iPhone") ? "ios" : "iPadOS";
+      const profileDownloadedImg = document.querySelector(
+        ".profile-downloaded-img"
+      );
+      const installProfileImg = document.querySelector(".select-install-img");
+      profileDownloadedImg.setAttribute(
+        "src",
+        `{{.URLPrefix}}/assets/images/${os}-profile-downloaded.png`
+      );
+      installProfileImg.setAttribute(
+        "src",
+        `{{.URLPrefix}}/assets/images/${os}-install-profile.png`
+      );
     </script>
   </body>
 </html>
