@@ -3,11 +3,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="{{.URLPrefix}}/assets/byod.css"
-    />
     <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
     <title>Fleet</title>
     <style>
@@ -91,17 +86,19 @@
         margin-bottom: 48px;
       }
 
-      .profile-download-container,
+      .profile-downloaded-container,
       .install-profile-container {
         width: 100%;
-        height: 150px;
         background-color: #f9fafc;
         text-align: center;
       }
 
-      .profile-downloaded-img,
+      .profile-downloaded-img {
+        max-height: 150px;
+      }
+
       .install-profile-img {
-        height: 150px;
+        max-height: 118px;
       }
 
       #main-content {
@@ -137,7 +134,7 @@
               Navigate to <b>Settings</b> and select <b>Profile Downloaded</b>.
             </span>
           </p>
-          <div class="profile-download-container">
+          <div class="profile-downloaded-container">
             <img
               class="profile-downloaded-img"
               src=""
@@ -161,10 +158,13 @@
       document.addEventListener("touchstart", function () {}, false);
 
       const os = navigator.userAgent.includes("iPhone") ? "ios" : "iPadOS";
+
       const profileDownloadedImg = document.querySelector(
         ".profile-downloaded-img"
       );
       const installProfileImg = document.querySelector(".install-profile-img");
+
+      // setting image src based on OS
       profileDownloadedImg.setAttribute(
         "src",
         `{{.URLPrefix}}/assets/images/${os}-profile-downloaded.png`
