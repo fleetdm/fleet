@@ -72,7 +72,7 @@ func (msrc MSRCClient) GetFeed(month time.Month, year int) (string, error) {
 		return "", err
 	}
 
-	if err := download.Download(msrc.client, u, dst, download.DontRetryOn404()); err != nil {
+	if err := download.Download(msrc.client, u, dst); err != nil {
 		if errors.Is(err, download.NotFound) {
 			return "", FeedNotFound
 		}
