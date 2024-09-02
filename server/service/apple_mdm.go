@@ -380,7 +380,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -470,7 +470,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
 
@@ -773,7 +773,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -853,7 +853,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1978,7 +1978,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}

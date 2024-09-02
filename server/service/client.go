@@ -1285,9 +1285,13 @@ func (c *Client) DoGitOps(
 		team["webhook_settings"] = map[string]interface{}{}
 		clearHostStatusWebhook := true
 		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
-			if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
-				clearHostStatusWebhook = false
-				team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
+			if _, ok := webhookSettings.(map[string]interface{}); ok {
+				if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
+					clearHostStatusWebhook = false
+					team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
+				}
+			} else if webhookSettings != nil {
+				return nil, fmt.Errorf("team_settings.webhook_settings config is not a map but a %T", webhookSettings)
 			}
 		}
 		if clearHostStatusWebhook {

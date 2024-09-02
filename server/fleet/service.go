@@ -672,7 +672,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, p NewTeamPolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)

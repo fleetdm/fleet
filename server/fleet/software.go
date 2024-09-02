@@ -227,6 +227,7 @@ type SoftwareTitleListOptions struct {
 	KnownExploit        bool    `query:"exploit,optional"`
 	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
+	PackagesOnly        bool    `query:"packages_only,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {

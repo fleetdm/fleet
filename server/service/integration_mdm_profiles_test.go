@@ -3782,17 +3782,18 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(
+	// Nothing changed, so no activity items
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
@@ -4062,12 +4063,13 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(
+	// Nothing changed, so no activity
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,

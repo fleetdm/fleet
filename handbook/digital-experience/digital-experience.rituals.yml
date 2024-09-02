@@ -1,5 +1,14 @@
 # https://github.com/fleetdm/fleet/pull/13084
-
+- 
+  task: "Complete Digital Experience KPIs"
+  startedOn: "2024-08-30" 
+  frequency: "Weekly"
+  description: "Complete Digital Experience KPIs for this week"
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=DB1"
+  dri: "SFriendLee"
+  autoIssue:   
+    labels: [ "#g-digital-experience" ]
+    repo: "fleet"
 - 
   task: "Prep 1:1s for OKR planning"
   startedOn: "2024-09-09" 

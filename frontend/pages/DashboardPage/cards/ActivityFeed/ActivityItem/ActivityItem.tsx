@@ -41,16 +41,19 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
+  platform: "apple" | "windows",
   teamName?: string | null
 ) => {
-  let messageSuffix = <>hosts</>;
+  const platformDisplayName =
+    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
+  let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
       </>
     ) : (
-      <>hosts with no team</>
+      <>{platformDisplayName} hosts with no team</>
     );
   }
   return messageSuffix;
@@ -364,7 +367,12 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
         .
       </>
     );
@@ -383,7 +391,12 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
@@ -394,6 +407,7 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -413,7 +427,12 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
         .
       </>
     );
@@ -432,7 +451,12 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
@@ -443,6 +467,7 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "windows",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -762,7 +787,12 @@ const TAGGED_TEMPLATES = {
         added declaration (DDM) profile <b>
           {activity.details?.profile_name}
         </b>{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
         .
       </>
     );
@@ -773,7 +803,12 @@ const TAGGED_TEMPLATES = {
         {" "}
         removed declaration (DDM) profile{" "}
         <b>{activity.details?.profile_name}</b> from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
@@ -783,7 +818,11 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited declaration (DDM) profiles{" "}
         <b>{activity.details?.profile_name}</b> for{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}{" "}
         via fleetctl.
       </>
     );
