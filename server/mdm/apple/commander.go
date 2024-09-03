@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -405,9 +406,17 @@ type APNSDeliveryError struct {
 }
 
 func (e *APNSDeliveryError) Error() string {
+	var uuids []string
+	for uuid := range e.errorsByUUID {
+		uuids = append(uuids, uuid)
+	}
+
+	// sort UUIDs alphabetically for deterministic output
+	sort.Strings(uuids)
+
 	var errStrings []string
-	for uuid, err := range e.errorsByUUID {
-		errStrings = append(errStrings, fmt.Sprintf("UUID: %s, Error: %v", uuid, err))
+	for _, uuid := range uuids {
+		errStrings = append(errStrings, fmt.Sprintf("UUID: %s, Error: %v", uuid, e.errorsByUUID[uuid]))
 	}
 
 	return fmt.Sprintf(
@@ -421,6 +430,9 @@ func (e *APNSDeliveryError) FailedUUIDs() []string {
 	for uuid := range e.errorsByUUID {
 		uuids = append(uuids, uuid)
 	}
+
+	// sort UUIDs alphabetically for deterministic output
+	sort.Strings(uuids)
 	return uuids
 }
 
