@@ -70,7 +70,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	})
 }
 
-func ServeEndUserEnroll(urlPrefix string, logger log.Logger) http.Handler {
+func ServeEndUserEnrollOTA(urlPrefix string, logger log.Logger) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
@@ -80,11 +80,9 @@ func ServeEndUserEnroll(urlPrefix string, logger log.Logger) http.Handler {
 		writeBrowserSecurityHeaders(w)
 
 		fs := newBinaryFileSystem("/frontend")
-		file, err := fs.Open("templates/byod.tmpl")
+		file, err := fs.Open("templates/enroll-ota.html")
 		if err != nil {
-			fmt.Print("test")
-			logger.Log("err", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			herr(w, "load enroll ota template: "+err.Error())
 			return
 		}
 
@@ -94,15 +92,15 @@ func ServeEndUserEnroll(urlPrefix string, logger log.Logger) http.Handler {
 			return
 		}
 
-		t, err := template.New("react").Parse(string(data))
+		t, err := template.New("enroll-ota").Parse(string(data))
 		if err != nil {
 			herr(w, "create react template: "+err.Error())
 			return
 		}
 
-		enrollURL, err := generateEnrollURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
 		if err != nil {
-			herr(w, "generate enroll url: "+err.Error())
+			herr(w, "generate enroll ota url: "+err.Error())
 			return
 		}
 		if err := t.Execute(w, struct {
@@ -118,7 +116,7 @@ func ServeEndUserEnroll(urlPrefix string, logger log.Logger) http.Handler {
 	})
 }
 
-func generateEnrollURL(fleetURL string, enrollSecret string) (string, error) {
+func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/enrollment_profiles/ota")
 	if err != nil {
 		return "", fmt.Errorf("creating path for end user ota enrollment url: %w", err)

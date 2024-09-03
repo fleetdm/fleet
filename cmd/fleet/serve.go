@@ -967,7 +967,7 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
-			var apiHandler, frontendHandler, endUserEnrollHandler http.Handler
+			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
@@ -985,10 +985,10 @@ the way that the Fleet server works.
 				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
+					endUserEnrollOTAHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollHandler = service.ServeEndUserEnroll(config.Server.URLPrefix, logger)
+					endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(config.Server.URLPrefix, logger)
 				}
 
 			}
@@ -1123,7 +1123,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
-			rootMux.Handle("/enroll", endUserEnrollHandler)
+			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)
 
 			debugHandler := &debugMux{
