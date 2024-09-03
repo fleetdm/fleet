@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -459,7 +460,13 @@ type batchAssociateAppStoreAppsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
+func (r batchAssociateAppStoreAppsResponse) error() error {
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(r.Err, &typeErr) {
+		return fmt.Errorf("Couldn't edit software. \"%s\" must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value)
+	}
+	return r.Err
+}
 
 func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
 
