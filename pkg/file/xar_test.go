@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,112 +54,145 @@ func TestCheckPKGSignature(t *testing.T) {
 
 func TestParseRealDistributionFiles(t *testing.T) {
 	tests := []struct {
-		file             string
-		expectedName     string
-		expectedVersion  string
-		expectedBundleID string
+		file               string
+		expectedName       string
+		expectedVersion    string
+		expectedBundleID   string
+		expectedPackageIDs []string
 	}{
 		{
-			file:             "distribution-1password.xml",
-			expectedName:     "1Password.app",
-			expectedVersion:  "8.10.34",
-			expectedBundleID: "com.1password.1password",
+			file:               "distribution-1password.xml",
+			expectedName:       "1Password.app",
+			expectedVersion:    "8.10.34",
+			expectedBundleID:   "com.1password.1password",
+			expectedPackageIDs: []string{"com.1password.1password"},
 		},
 		{
-			file:             "distribution-chrome.xml",
-			expectedName:     "Google Chrome.app",
-			expectedVersion:  "126.0.6478.62",
-			expectedBundleID: "com.google.Chrome",
+			file:               "distribution-chrome.xml",
+			expectedName:       "Google Chrome.app",
+			expectedVersion:    "126.0.6478.62",
+			expectedBundleID:   "com.google.Chrome",
+			expectedPackageIDs: []string{"com.google.Chrome"},
 		},
 		{
-			file:             "distribution-edge.xml",
-			expectedName:     "Microsoft Edge.app",
-			expectedVersion:  "126.0.2592.56",
-			expectedBundleID: "com.microsoft.edgemac",
+			file:               "distribution-edge.xml",
+			expectedName:       "Microsoft Edge.app",
+			expectedVersion:    "126.0.2592.56",
+			expectedBundleID:   "com.microsoft.edgemac",
+			expectedPackageIDs: []string{"com.microsoft.edgemac"},
 		},
 		{
-			file:             "distribution-firefox.xml",
-			expectedName:     "Firefox.app",
-			expectedVersion:  "99.0",
-			expectedBundleID: "org.mozilla.firefox",
+			file:               "distribution-firefox.xml",
+			expectedName:       "Firefox.app",
+			expectedVersion:    "99.0",
+			expectedBundleID:   "org.mozilla.firefox",
+			expectedPackageIDs: []string{"org.mozilla.firefox"},
 		},
 		{
-			file:             "distribution-fleet.xml",
-			expectedName:     "Fleet osquery",
-			expectedVersion:  "42.0.0",
-			expectedBundleID: "com.fleetdm.orbit",
+			file:               "distribution-fleet.xml",
+			expectedName:       "Fleet osquery",
+			expectedVersion:    "42.0.0",
+			expectedBundleID:   "com.fleetdm.orbit",
+			expectedPackageIDs: []string{"com.fleetdm.orbit.base.pkg"},
 		},
 		{
-			file:             "distribution-go.xml",
-			expectedName:     "Go",
-			expectedVersion:  "go1.22.4",
-			expectedBundleID: "org.golang.go",
+			file:               "distribution-go.xml",
+			expectedName:       "Go",
+			expectedVersion:    "go1.22.4",
+			expectedBundleID:   "org.golang.go",
+			expectedPackageIDs: []string{"org.golang.go"},
 		},
 		{
 			file:             "distribution-microsoft-teams.xml",
 			expectedName:     "Microsoft Teams.app",
 			expectedVersion:  "24124.1412.2911.3341",
 			expectedBundleID: "com.microsoft.teams2",
+			expectedPackageIDs: []string{"com.microsoft.teams2", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.MSTeamsAudioDevice"},
 		},
 		{
-			file:             "distribution-zoom.xml",
-			expectedName:     "zoom.us.app",
-			expectedVersion:  "6.0.11.35001",
-			expectedBundleID: "us.zoom.xos",
+			file:               "distribution-zoom.xml",
+			expectedName:       "zoom.us.app",
+			expectedVersion:    "6.0.11.35001",
+			expectedBundleID:   "us.zoom.xos",
+			expectedPackageIDs: []string{"us.zoom.pkg.videomeeting"},
 		},
 		{
 			file:             "distribution-acrobatreader.xml",
 			expectedName:     "Adobe Acrobat Reader.app",
 			expectedVersion:  "24.002.20857",
 			expectedBundleID: "com.adobe.Reader",
+			expectedPackageIDs: []string{"com.adobe.acrobat.DC.reader.app.pkg.MUI", "com.adobe.acrobat.DC.reader.appsupport.pkg.MUI",
+				"com.adobe.acrobat.reader.DC.reader.app.pkg.MUI", "com.adobe.armdc.app.pkg"},
 		},
 		{
-			file:             "distribution-airtame.xml",
-			expectedName:     "Airtame.app",
-			expectedVersion:  "4.10.1",
-			expectedBundleID: "com.airtame.airtame-application",
+			file:               "distribution-airtame.xml",
+			expectedName:       "Airtame.app",
+			expectedVersion:    "4.10.1",
+			expectedBundleID:   "com.airtame.airtame-application",
+			expectedPackageIDs: []string{"com.airtame.airtame-application"},
 		},
 		{
 			file:             "distribution-boxdrive.xml",
 			expectedName:     "Box.app",
 			expectedVersion:  "2.38.173",
 			expectedBundleID: "com.box.desktop",
+			expectedPackageIDs: []string{"com.box.desktop.installer.desktop", "com.box.desktop.installer.local.appsupport",
+				"com.box.desktop.installer.autoupdater", "com.box.desktop.installer.osxfuse"},
 		},
 		{
 			file:             "distribution-iriunwebcam.xml",
 			expectedName:     "IriunWebcam.app",
 			expectedVersion:  "2.8.8",
 			expectedBundleID: "com.iriun.macwebcam",
+			// Note: "com.iriun.pkg.multicam" is part of the installer package, but it is not actually installed by default.
+			// We can't reliably determine which packages are installed by the installer, so we just list all of them.
+			expectedPackageIDs: []string{"com.iriun.pkg.webcam.tmp", "com.iriun.pkg.multicam"},
 		},
 		{
 			file:             "distribution-microsoftexcel.xml",
 			expectedName:     "Microsoft Excel.app",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Excel",
+			expectedPackageIDs: []string{"com.microsoft.package.Microsoft_Excel.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.pkg.licensing"},
 		},
 		{
 			file:             "distribution-microsoftword.xml",
 			expectedName:     "Microsoft Word.app",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Word",
+			expectedPackageIDs: []string{"com.microsoft.package.Microsoft_Word.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.pkg.licensing"},
 		},
 		{
 			file:             "distribution-miscrosoftpowerpoint.xml",
 			expectedName:     "Microsoft PowerPoint.app",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Powerpoint",
+			expectedPackageIDs: []string{"com.microsoft.package.Microsoft_PowerPoint.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.pkg.licensing"},
 		},
 		{
-			file:             "distribution-ringcentral.xml",
-			expectedName:     "RingCentral.app",
-			expectedVersion:  "24.1.32.9774",
-			expectedBundleID: "com.ringcentral.glip",
+			file:               "distribution-ringcentral.xml",
+			expectedName:       "RingCentral.app",
+			expectedVersion:    "24.1.32.9774",
+			expectedBundleID:   "com.ringcentral.glip",
+			expectedPackageIDs: []string{"com.ringcentral.glip"},
 		},
 		{
-			file:             "distribution-zoom-full.xml",
-			expectedName:     "Zoom Workplace",
-			expectedVersion:  "6.1.1.36333",
-			expectedBundleID: "us.zoom.xos",
+			file:               "distribution-zoom-full.xml",
+			expectedName:       "Zoom Workplace",
+			expectedVersion:    "6.1.1.36333",
+			expectedBundleID:   "us.zoom.xos",
+			expectedPackageIDs: []string{"us.zoom.pkg.videomeeting"},
+		},
+		{
+			file:               "test-zero-installkbytes.xml",
+			expectedName:       "ZeroInstallSize.app",
+			expectedVersion:    "1.2.3",
+			expectedBundleID:   "com.bozo.zeroinstallsize",
+			expectedPackageIDs: []string{"com.bozo.zeroinstallsize.app"},
 		},
 	}
 
@@ -168,6 +202,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			require.NoError(t, err)
 			metadata, err := parseDistributionFile(rawXML)
 			require.NoError(t, err)
+			assert.ElementsMatch(t, tt.expectedPackageIDs, metadata.PackageIDs)
 			require.Equal(t, tt.expectedName, metadata.Name)
 			require.Equal(t, tt.expectedVersion, metadata.Version)
 			require.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
