@@ -1090,7 +1090,7 @@ Modifies the Fleet's configuration with the supplied information.
 | integrations             | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
-| scripts                  | list    | body  | A list of script files to add so they can be executed at a later time.                                                               |
+| scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 
@@ -1518,10 +1518,10 @@ _Available in Fleet Premium._
 
 | Name                              | Type  | Description   |
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
-| host_status_webhook               | list  | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook).           |
-| failing_policies_webhook          | list  | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
-| vulnerabilities_webhook           | list  | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook).   |
-| activities_webhook                | list  | See [`webhook_settings.activities_webhook`](#webhook-settings-activities-webhook).             |
+| host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook).           |
+| failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
+| vulnerabilities_webhook           | array | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook).   |
+| activities_webhook                | array | See [`webhook_settings.activities_webhook`](#webhook-settings-activities-webhook).             |
 
 <br/>
 
@@ -1614,9 +1614,9 @@ _Available in Fleet Premium._
 
 | Name                  | Type  | Description   |
 | --------------------- | ----- | -------------------------------------------------------------------- |
-| jira                  | list  | See [`integrations.jira`](#integrations-jira).                       |
-| zendesk               | list  | See [`integrations.zendesk`](#integrations-zendesk).                 |
-| google_calendar       | list  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| jira                  | array | See [`integrations.jira`](#integrations-jira).                       |
+| zendesk               | array | See [`integrations.zendesk`](#integrations-zendesk).                 |
+| google_calendar       | array | See [`integrations.google_calendar`](#integrations-google-calendar). |
 
 
 > Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
@@ -1792,7 +1792,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | list    | macOS hosts that belong to no team will have custom profiles applied. |
+| custom_settings                   | array   | macOS hosts that belong to no team will have custom profiles applied. |
 
 <br/>
 
@@ -1802,7 +1802,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | list    | Windows hosts that belong to no team will have custom profiles applied. |
+| custom_settings                   | array   | Windows hosts that belong to no team will have custom profiles applied. |
 
 <br/>
 
@@ -2099,7 +2099,7 @@ Delete all of a team's existing enroll secrets
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
-| teams       | list    | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
@@ -2299,7 +2299,7 @@ Verify the specified invite.
 | email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
 | name        | string  | body | The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
-| teams       | list    | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
@@ -3699,7 +3699,7 @@ _Available in Fleet Premium_
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
+| ids     | array   | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
 | filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
 
 Either ids or filters are required.
@@ -4666,9 +4666,9 @@ Adds manual labels to a host.
 
 #### Parameters
 
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| labels   | list | body | The list of label names to add to the host. |
+| Name   | Type    | In   | Description                  |
+| ------ | ------- | ---- | ---------------------------- |
+| labels | array   | body | The list of label names to add to the host. |
 
 
 #### Example
@@ -4695,9 +4695,9 @@ Removes manual labels from a host.
 
 #### Parameters
 
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| labels   | list | body | The list of label names to delete from the host. |
+| Name   | Type    | In   | Description                  |
+| ------ | ------- | ---- | ---------------------------- |
+| labels | array   | body | The list of label names to delete from the host. |
 
 
 #### Example
@@ -6561,7 +6561,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 | Name     | Type    | In   | Description                                       |
 | -------- | ------- | ---- | ------------------------------------------------- |
-| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+| ids      | array   | body | **Required.** The IDs of the policies to delete.  |
 
 #### Example
 
@@ -6655,8 +6655,8 @@ Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-a
 
 | Name        | Type     | In   | Description                                              |
 | ----------  | -------- | ---- | -------------------------------------------------------- |
-| policy_ids  | list     | body | Filters to only run policy automations for the specified policies. |
-| team_ids    | list     | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
+| policy_ids  | array    | body | Filters to only run policy automations for the specified policies. |
+| team_ids    | array    | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
 
 
 #### Example
@@ -6996,7 +6996,7 @@ Either `query` or `query_id` must be provided.
 | Name     | Type    | In   | Description                                       |
 | -------- | ------- | ---- | ------------------------------------------------- |
 | team_id  | integer | path  | **Required.** Defines what team ID to operate on                |
-| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+| ids      | array   | body | **Required.** The IDs of the policies to delete.  |
 
 #### Example
 
@@ -7433,14 +7433,14 @@ Creates a global query or team query.
 | name                            | string  | body | **Required**. The name of the query.                                                                                                                   |
 | query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description                     | string  | body | The query's description.                                                                                                                               |
-| observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
-| interval                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| interval                        | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. Default: `false`. |
+| logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
+| discard_data                    | boolean | body | Whether to skip saving the latest query results for each host. Default: `false`. |
 
 
 #### Example
@@ -7507,13 +7507,13 @@ Modifies the query specified by ID.
 | name                        | string  | body | The name of the query.                                                                                                                                 |
 | query                       | string  | body | The query in SQL syntax.                                                                                                                               |
 | description                 | string  | body | The query's description.                                                                                                                               |
-| observer_can_run            | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
+| discard_data        | boolean  | body | Whether to skip saving the latest query results for each host. |
 
 > Note that any of the following conditions will cause the existing query report to be deleted:
 > - Updating the `query` (SQL) field
@@ -7617,9 +7617,9 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 #### Parameters
 
-| Name | Type | In   | Description                           |
-| ---- | ---- | ---- | ------------------------------------- |
-| ids  | list | body | **Required.** The IDs of the queries. |
+| Name | Type  | In   | Description                           |
+| ---- | ----- | ---- | ------------------------------------- |
+| ids  | array | body | **Required.** The IDs of the queries. |
 
 #### Example
 
@@ -8508,9 +8508,9 @@ Get a list of all software.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                                        |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                            |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
-| self_service    | bool    | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
+| vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
+| self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
 
 #### Example
 
@@ -8629,7 +8629,7 @@ Get a list of all software versions.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                             |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| vulnerable              | boolean    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 
 #### Example
 
@@ -9836,8 +9836,8 @@ _Available in Fleet Premium_
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
 | name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
-| host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
-| user_ids                                                | list    | body | A list of users on the team.                                                                                                                                                             |
+| host_ids                                                | array    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
+| user_ids                                                | array    | body | A list of users on the team.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                                                                   |
 | &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
@@ -9872,10 +9872,10 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 | integrations                                            | object  | body | Integration settings for this team.                                                                                                                                                                   |
@@ -10095,8 +10095,8 @@ _Available in Fleet Premium_
 | Name                             | Type    | In    | Description                                                                                                                                                  |
 | ---                              | ---     | ---   | ---                                                                                                                                                          |
 | id                               | integer | path  | **Required.** The desired team's ID.                                                                                                                         |
-| force                            | bool    | query | Force apply the options even if there are validation errors.                                                                                                 |
-| dry_run                          | bool    | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
+| force                            | boolean | query | Force apply the options even if there are validation errors.                                                                                                 |
+| dry_run                          | boolean | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
 | _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) for details.                              |
 
 #### Example
@@ -10207,9 +10207,9 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 #### Parameters
 
-| Name | Type  | In   | Description                              |
-| ---- | ----- | ---- | ---------------------------------------- |
-| list | array | body | **Required** list of items to translate. |
+| Name  | Type  | In   | Description                              |
+| ----- | ----- | ---- | ---------------------------------------- |
+| array | array | body | **Required** list of items to translate. |
 
 #### Example
 
