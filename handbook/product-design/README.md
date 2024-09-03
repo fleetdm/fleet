@@ -23,35 +23,32 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
 
-### Create a new Figma file
+### Drafting
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-- Take the top user story that is assigned to you in the "Prioritized" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
+- Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board) and move it to "In progress."
   
-- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project. See [Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) below for more details.
-  
-- Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
+- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
+
+- The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
+  -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
+  -  **Ready.** Use this page to communicate designs reviews and development.
+  -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
+
+- If the story requires API or YAML file changes, open a draft PR with the proposed design.
+
+- Add links to the Figma file's cover page and draft PRs in the user story.
 
 - Draft changes to the Fleet product that solve the problem specified in the story. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
+
+- Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
 - Be intentional about changes to design components (e.g. button border-radius or modal width) because these are expensive. They'll require code changes and QA in multiple parts of the product. Propose changes to a design component as part of an already-prioritized user story instead of [making a new request](#making-a-request) in 🎁🗣 Feature Fest.
 
 - While drafting, reach out to sales, customer success, and demand for a business perspective.
 
 - While drafting, engage engineering to gain insight into technical costs and feasibility.
-
-When starting a new draft:
-- Move the user story to the "In progress" column.
-- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
-- Right-click on the duplicated file, select "Share", and ensure **anyone with the link** can view the file.
-- Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
-- The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
-    -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
-    -  **Ready.** Use this page to communicate designs reviews and development.
-    -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
-- If the story requires API changes, open a draft PR with the proposed API design.
-    - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
 
 >**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
 >
@@ -70,7 +67,7 @@ When starting a new draft:
 
 Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer is responsible for moving the user story to the "Ready to spec" column, assigning the appropriate Engineering Manager (EM), and changing the status on the cover page of the relevant Figma file to "Approved".
 
-The EM is responsible for moving the user story to the "Specified" and "Estimated" columns.
+The EM is responsible for moving the user story to the "Specified" and "Estimated"
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
@@ -299,6 +296,9 @@ Please see [handbook/digital-experience#restart-algolia-manually](https://fleetd
 
 ##### Schedule a design review
 Please see [handbook/product#prepare-for-design-review](https://fleetdm.com/handbook/product#prepare-for-design-review)
+
+##### Create a new Figma file
+Please see [handbook/product#drafting](https://fleetdm.com/handbook/product#drafting)
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="🦢 Product design">
