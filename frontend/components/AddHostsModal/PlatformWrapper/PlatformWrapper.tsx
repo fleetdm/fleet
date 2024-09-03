@@ -396,7 +396,7 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "ios-ipados") {
-      return <IosIpadosPanel />;
+      return <IosIpadosPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "advanced") {
