@@ -364,6 +364,13 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - Google Drive 
   6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped.
 
+- **Confirm the CEO shadow dates.**
+  
+1. Create an "all day" event on the calendar labeled "CEO shadow - [Name of onbaording Fleetie] (Job title)".
+2. Go through the meetings for the day(s) and make sure all private meetings have "[no shadows]" in the event title(s).
+   - Confirm external with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
+   - For internal meetings such as, 1:1's, scheduled meetings with the CEO, mock board, e-group, etc. should have "[no shadows]" in the event title. The other meetings should be considered having shadowability, unless said otherwise. 
+
 
 ### Process the CEO's inbox
 
