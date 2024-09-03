@@ -5424,7 +5424,6 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
         {
           "name": "Label name 2",
           "broken": true,
-          "id": 2
         },
         {
           "name": "Label name 3",
