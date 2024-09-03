@@ -139,7 +139,6 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
     case "installed":
       return "Reinstall";
     default:
-      // we don't show a button for pending installs
       return "";
   }
 };
@@ -160,10 +159,7 @@ const InstallerStatusAction = ({
     SoftwareInstallStatus | undefined
   >(undefined);
 
-  // displayStatus allows us to display the localStatus (if any) or the status from the list
-  // software reponse
-  const displayStatus = localStatus || status;
-  const installButtonText = getInstallButtonText(displayStatus);
+  const installButtonText = getInstallButtonText(status);
 
   // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
@@ -195,21 +191,16 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-status`}>
-        <InstallerStatus
-          id={id}
-          status={displayStatus}
-          last_install={lastInstall}
-        />
+        <InstallerStatus id={id} status={status} last_install={lastInstall} />
       </div>
       <div className={`${baseClass}__item-action`}>
         {!!installButtonText && (
           <Button
             variant="text-icon"
             type="button"
-            className={`${baseClass}__item-action-button${
-              localStatus === "pending" ? "--installing" : ""
-            }`}
+            className={`${baseClass}__item-action-button`}
             onClick={onClick}
+            disabled={localStatus === "pending"}
           >
             <span data-testid={`${baseClass}__item-action-button--test`}>
               {installButtonText}
