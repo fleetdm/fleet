@@ -70,6 +70,8 @@ When starting a new draft:
 
 Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer is responsible for moving the user story to the "Ready to spec" column, assigning the appropriate Engineering Manager (EM), and changing the status on the cover page of the relevant Figma file to "Approved".
 
+The EM is responsible for moving the user story to the "Specified" and "Estimated" columns.
+
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
 Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
