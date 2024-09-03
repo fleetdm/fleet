@@ -23,16 +23,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
 
-### Release relavent Figma files
-
-- Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
-- After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
-
->**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
->
->For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
-
-
 ### Create a new Figma file
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
@@ -62,7 +52,10 @@ When starting a new draft:
 - If the story requires API changes, open a draft PR with the proposed API design.
     - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
 
-      
+>**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
+>
+>For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
+
 ### Prepare for design review
 
 1. Link to your draft in the user story issue.
@@ -74,7 +67,7 @@ When starting a new draft:
 
 ### Ensure story drafting is complete
 
-Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer is responsible for moving the user story to the "Ready to spec" column and assigning the appropriate Engineering Manager (EM).
+Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer is responsible for moving the user story to the "Ready to spec" column, assigning the appropriate Engineering Manager (EM), and changing the status on the cover page of the relevant Figma file to "Approved".
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
@@ -90,10 +83,10 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
-- A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
+- A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
-1. If the user story wasn't "Settled" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. Decision to allow the user story to make it into the sprint is up to the release DRI.
+1. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. Decision to allow the user story to make it into the sprint is up to the release DRI.
 2. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 3. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 4. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
