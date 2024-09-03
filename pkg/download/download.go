@@ -12,13 +12,31 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/ulikunitz/xz"
 )
 
+const backoffMaxElapsedTime = 5 * time.Minute
+
+type downloadOptions struct {
+	dontRetryOn404 bool
+}
+
+// DownloadOption allows configuring a download.
+type DownloadOption func(*downloadOptions)
+
+// DontRetryOn404 will not retry requests that return http.StatusNotFound.
+func DontRetryOn404() DownloadOption {
+	return func(do *downloadOptions) {
+		do.dontRetryOn404 = true
+	}
+}
+
 // Download downloads a file from a URL and writes it to path.
-func Download(client *http.Client, u *url.URL, path string) error {
-	return download(client, u, path, false)
+func Download(client *http.Client, u *url.URL, path string, opts ...DownloadOption) error {
+	return download(client, u, path, false, opts...)
 }
 
 // DownloadAndExtract downloads and extracts a file from a URL and writes it to path.
@@ -29,7 +47,12 @@ func DownloadAndExtract(client *http.Client, u *url.URL, path string) error {
 
 var NotFound = errors.New("resource not found")
 
-func download(client *http.Client, u *url.URL, path string, extract bool) error {
+func download(client *http.Client, u *url.URL, path string, extract bool, opts ...DownloadOption) error {
+	var do downloadOptions
+	for _, fn := range opts {
+		fn(&do)
+	}
+
 	// atomically write to file
 	dir, file := filepath.Split(path)
 	if dir == "" {
@@ -58,52 +81,72 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 		}
 	}()
 
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	switch {
-	case resp.StatusCode == http.StatusOK:
-		// OK
-	case resp.StatusCode == http.StatusNotFound:
-		return NotFound
-	default:
-		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
-	}
-
-	r := io.Reader(resp.Body)
-
-	// extract (optional)
-	if extract {
-		switch {
-		case strings.HasSuffix(u.Path, "gz"):
-			gr, err := gzip.NewReader(resp.Body)
-			if err != nil {
-				return fmt.Errorf("gzip reader: %w", err)
-			}
-			r = gr
-		case strings.HasSuffix(u.Path, "bz2"):
-			r = bzip2.NewReader(resp.Body)
-		case strings.HasSuffix(u.Path, "xz"):
-			xzr, err := xz.NewReader(resp.Body)
-			if err != nil {
-				return fmt.Errorf("xz reader: %w", err)
-			}
-			r = xzr
-		default:
-			return fmt.Errorf("unknown extension: %s", u.Path)
+	operation := func() error {
+		if err := tmpFile.Truncate(0); err != nil {
+			return fmt.Errorf("truncate temporary file: %w", err)
 		}
+
+		if _, err := tmpFile.Seek(0, 0); err != nil {
+			return fmt.Errorf("seek temporary file: %w", err)
+		}
+
+		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("do request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		switch {
+		case resp.StatusCode == http.StatusOK:
+			// OK
+		case resp.StatusCode == http.StatusNotFound && do.dontRetryOn404:
+			return &backoff.PermanentError{Err: NotFound}
+		default:
+			return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+		}
+
+		r := io.Reader(resp.Body)
+
+		// extract (optional)
+		if extract {
+			switch {
+			case strings.HasSuffix(u.Path, "gz"):
+				gr, err := gzip.NewReader(resp.Body)
+				if err != nil {
+					return fmt.Errorf("gzip reader: %w", err)
+				}
+				r = gr
+			case strings.HasSuffix(u.Path, "bz2"):
+				r = bzip2.NewReader(resp.Body)
+			case strings.HasSuffix(u.Path, "xz"):
+				xzr, err := xz.NewReader(resp.Body)
+				if err != nil {
+					return fmt.Errorf("xz reader: %w", err)
+				}
+				r = xzr
+			default:
+				return fmt.Errorf("unknown extension: %s", u.Path)
+			}
+		}
+
+		if _, err := io.Copy(tmpFile, r); err != nil {
+			return fmt.Errorf("copy to temporary file: %w", err)
+		}
+
+		return nil
 	}
 
-	if _, err := io.Copy(tmpFile, r); err != nil {
-		return fmt.Errorf("copy to temporary file: %w", err)
+	expBackOff := backoff.NewExponentialBackOff()
+	expBackOff.MaxElapsedTime = backoffMaxElapsedTime
+	if err := backoff.RetryNotify(operation, expBackOff, func(err error, d time.Duration) {
+		fmt.Printf("Download failed on %s: %v. Retrying in %v\n", u.String(), err, d)
+	}); err != nil {
+		return fmt.Errorf("download and write file: %w", err)
 	}
 
 	// Writes are not synchronous. Handle errors from writes returned by Close.
