@@ -2144,8 +2144,6 @@ software:
 }
 
 func TestVPPGitOps(t *testing.T) {
-	// FIXME
-	t.Skip()
 	global := func(mdm string) string {
 		return fmt.Sprintf(`
 controls:
@@ -2333,10 +2331,10 @@ software:
 			name: "all teams is supported",
 			cfgs: []string{
 				global(`
-                                  volume_purchasing_program:
-                                    - location: Fleet Device Management Inc.
-                                      teams:
-                                        - "All teams"`),
+                        volume_purchasing_program:
+                          - location: Fleet Device Management Inc.
+                            teams:
+                              - "All teams"`),
 				workstations,
 				iosTeam,
 			},
