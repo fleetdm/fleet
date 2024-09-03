@@ -35,14 +35,14 @@ const EnableVppCard = () => {
     <Card borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
+          <b>No Volume Purchasing Program (VPP) token assigned</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first add VPP.
+          To add App Store apps, assign a VPP token to this team.
         </p>
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Add VPP"
+          text="Edit VPP"
           className={`${baseClass}__enable-vpp-link`}
         />
       </div>
@@ -57,9 +57,8 @@ const NoVppAppsCard = () => (
         You don&apos;t have any App Store apps
       </p>
       <p className={`${baseClass}__no-software-description`}>
-        Add apps in{" "}
-        <CustomLink url="https://business.apple.com" text="ABM" newTab /> Apps
-        that are already added to this team are not listed.
+        You must purchase apps in ABM. App Store apps that are already added to
+        this team are not listed.
       </p>
     </div>
   </Card>
