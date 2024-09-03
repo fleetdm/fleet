@@ -4,11 +4,13 @@ import Editor from "components/Editor";
 import CustomLink from "components/CustomLink";
 import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
+import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 
 const baseClass = "add-package-advanced-options";
 
 interface IAddPackageAdvancedOptionsProps {
   errors: { preInstallQuery?: string; postInstallScript?: string };
+  selectedPackage: IAddPackageFormData["software"];
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
@@ -19,6 +21,7 @@ interface IAddPackageAdvancedOptionsProps {
 
 const AddPackageAdvancedOptions = ({
   errors,
+  selectedPackage,
   preInstallQuery,
   installScript,
   postInstallScript,
@@ -27,6 +30,8 @@ const AddPackageAdvancedOptions = ({
   onChangePostInstallScript,
 }: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  const noPackage = selectedPackage === null;
 
   return (
     <div className={baseClass}>
@@ -37,6 +42,10 @@ const AddPackageAdvancedOptions = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+        disabled={noPackage}
+        disabledTooltipContent={
+          noPackage ? "Choose a file to modify advanced options." : undefined
+        }
       />
       {showAdvancedOptions && (
         <div className={`${baseClass}__input-fields`}>

@@ -156,6 +156,7 @@ const AddPackageForm = ({
             </TooltipWrapper>
           </Checkbox>
           <AddPackageAdvancedOptions
+            selectedPackage={formData.software}
             errors={{
               preInstallQuery: formValidation.preInstallQuery?.message,
               postInstallScript: formValidation.postInstallScript?.message,
