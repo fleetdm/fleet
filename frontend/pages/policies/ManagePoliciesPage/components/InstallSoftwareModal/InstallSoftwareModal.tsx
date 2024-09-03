@@ -21,6 +21,23 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
 
+const getPlatformDisplayFromPackageSuffix = (packageName: string) => {
+  const split = packageName.split(".");
+  const suff = split[split.length - 1];
+  switch (suff) {
+    case "pkg":
+      return "macOS";
+    case "deb":
+      return "Linux";
+    case "exe":
+      return "Windows";
+    case "msi":
+      return "Windows";
+    default:
+      return null;
+  }
+};
+
 const AFI_SOFTWARE_BATCH_SIZE = 1000;
 
 const baseClass = "install-software-modal";
@@ -133,11 +150,17 @@ const InstallSoftwareModal = ({
     [formData]
   );
 
-  const availableSoftwareOptions = titlesAFI?.map((title) => ({
-    label: title.name,
-    value: title.id,
-    helpText: title.software_package?.version,
-  }));
+  const availableSoftwareOptions = titlesAFI?.map((title) => {
+    const platformDisplay = getPlatformDisplayFromPackageSuffix(
+      title.software_package?.name ?? ""
+    );
+    const platformString = platformDisplay ? `${platformDisplay} • ` : "";
+    return {
+      label: title.name,
+      value: title.id,
+      helpText: `${platformString}${title.software_package?.version ?? ""}`,
+    };
+  });
 
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
