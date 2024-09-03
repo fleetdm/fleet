@@ -35,9 +35,9 @@ module.exports = {
 
 
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Harrison Ravazzolo','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar','Eric Tan', 'Alvaro Gutierrez', 'Joe Pistone'];
+    let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar','Eric Tan', 'Alvaro Gutierrez', 'Joe Pistone'];
     if(['eo-it', 'mdm'].includes(pagePersonalization)){
-      testimonialOrderForThisPage = [ 'Harrison Ravazzolo', 'Eric Tan','Erik Gomez', 'Tom Larkin', 'Nick Fohs', 'Wes Whetstone', 'Mike Arpaia', 'Kenny Botelho', 'Alvaro Gutierrez'];
+      testimonialOrderForThisPage = [ 'Eric Tan','Erik Gomez', 'Tom Larkin', 'Nick Fohs', 'Wes Whetstone', 'Mike Arpaia', 'Kenny Botelho', 'Alvaro Gutierrez'];
     } else if(['eo-security', 'vm'].includes(pagePersonalization)){
       testimonialOrderForThisPage = ['Nico Waisman','Charles Zaffery','Abubakar Yousafzai','Eric Tan','Mike Arpaia','Chandra Majumdar','Ahmed Elshaer','Brendan Shaklovitz','Austin Anderson','Dan Grzelak','Dhruv Majumdar','Alvaro Gutierrez', 'Joe Pistone'];
     }
