@@ -2489,6 +2489,7 @@ the `software` table.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -3099,10 +3100,11 @@ Returns the information of the specified host.
       "timezone": "America/New_York"
     },
     "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": null,
-      "name": "",
-      "server_url": null,
+      "encryption_key_available": true,
+      "enrollment_status": "On (manual)",
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
       "macos_settings": {
@@ -3518,10 +3520,11 @@ This is the API route used by the **My device** page in Fleet desktop to display
       }
     ],
     "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": null,
-      "name": "",
-      "server_url": null,
+      "encryption_key_available": true,
+      "enrollment_status": "On (manual)",
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com/mdm/apple/mdm",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -5424,7 +5427,6 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
         {
           "name": "Label name 2",
           "broken": true,
-          "id": 2
         },
         {
           "name": "Label name 3",
@@ -8990,6 +8992,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Add package
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (Ubuntu) hosts.
@@ -9136,6 +9140,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 ### Download package
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
@@ -9190,6 +9196,8 @@ Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or
 `Status: 202`
 
 ### Get package install result
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
