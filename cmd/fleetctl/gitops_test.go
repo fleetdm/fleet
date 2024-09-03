@@ -1281,7 +1281,7 @@ func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages\" must be a bool, found string"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -1353,7 +1353,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_incorrect_type.yml", "\"app_store_apps\" must be a string", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_incorrect_type.yml", "\"app_store_apps\" must be a string, found number", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour)},
 	}
 
