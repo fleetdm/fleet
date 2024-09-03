@@ -8,6 +8,8 @@ import PATHS from "router/paths";
 
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
@@ -20,6 +22,7 @@ import { IOSVersionsResponse } from "services/entities/operating_systems";
 import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
+import { SelectedPlatform } from "interfaces/platform";
 
 const baseClass = "software-os-table";
 
@@ -40,7 +43,26 @@ interface ISoftwareOSTableProps {
   teamId?: number;
   isLoading: boolean;
   resetPageIndex: boolean;
+  platform?: SelectedPlatform;
 }
+
+const PLATFORM_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "All platforms",
+    value: "all",
+  },
+  {
+    disabled: false,
+    label: "macOS",
+    value: "darwin",
+  },
+  {
+    disabled: false,
+    label: "Windows",
+    value: "windows",
+  },
+];
 
 const SoftwareOSTable = ({
   router,
@@ -53,6 +75,7 @@ const SoftwareOSTable = ({
   teamId,
   isLoading,
   resetPageIndex,
+  platform,
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -64,13 +87,15 @@ const SoftwareOSTable = ({
             return val !== orderKey;
           case "pageIndex":
             return val !== currentPage;
+          case "platform":
+            return val !== platform;
           default:
             return false;
         }
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey]
+    [platform, currentPage, orderDirection, orderKey]
   );
 
   const generateNewQueryParams = useCallback(
@@ -92,7 +117,7 @@ const SoftwareOSTable = ({
       const changedParam = determineQueryParamChange(newTableQuery);
 
       // if nothing has changed, don't update the route. this can happen when
-      // this handler is called on the inital render.
+      // this handler is called on the initial render.
       if (changedParam === "") return;
 
       const newRoute = getNextLocationPath({
@@ -163,6 +188,34 @@ const SoftwareOSTable = ({
     );
   };
 
+  const handlePlatformFilterDropdownChange = (platformSelected: string) => {
+    router?.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_OS,
+        queryParams: {
+          team_id: teamId,
+          order_direction: orderDirection,
+          order_key: orderKey,
+          page: 0,
+          platform: platformSelected,
+        },
+      })
+    );
+  };
+
+  const renderPlatformDropdown = () => {
+    return (
+      <Dropdown
+        value={platform || "all"}
+        className={`${baseClass}__platform-dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        searchable={false}
+        onChange={handlePlatformFilterDropdownChange}
+        tableFilterDropdown
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -184,6 +237,7 @@ const SoftwareOSTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        customControl={renderPlatformDropdown}
         disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}

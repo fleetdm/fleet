@@ -14,6 +14,7 @@ import {
   IZendeskJiraIntegrations,
 } from "interfaces/integration";
 import { ITeamConfig } from "interfaces/team";
+import { SelectedPlatform } from "interfaces/platform";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -113,6 +114,7 @@ interface ISoftwarePageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      platform?: SelectedPlatform;
     };
     hash?: string;
   };
@@ -147,6 +149,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
+  const platform =
+    queryParams && queryParams.platform ? queryParams.platform : "all";
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
@@ -429,6 +433,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           currentPage: page,
           teamId: teamIdForApi,
           // TODO: move down into the Software Titles component
+          platform,
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
