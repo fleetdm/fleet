@@ -567,13 +567,14 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		var apnsErr *apple_mdm.APNSDeliveryError
 		var mysqlErr *mysql.MySQLError
 		if errors.As(err, &apnsErr) {
-			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+			failedUUIDs := apnsErr.FailedUUIDs()
+			if len(failedUUIDs) < len(deviceIDs) {
 				// some hosts properly received the command, so return success, with the list
 				// of failed uuids.
 				return &fleet.CommandEnqueueResult{
 					CommandUUID: cmd.CommandUUID,
 					RequestType: cmd.Command.RequestType,
-					FailedUUIDs: apnsErr.FailedUUIDs,
+					FailedUUIDs: failedUUIDs,
 				}, nil
 			}
 			// push failed for all hosts

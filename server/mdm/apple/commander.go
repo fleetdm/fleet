@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -383,14 +384,15 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 
 	// Even if we didn't get an error, some of the APNs
 	// responses might have failed, signal that to the caller.
-	var failed []string
+	failed := map[string]error{}
 	for uuid, response := range apnsResponses {
 		if response.Err != nil {
-			failed = append(failed, uuid)
+			failed[uuid] = response.Err
 		}
 	}
+
 	if len(failed) > 0 {
-		return &APNSDeliveryError{FailedUUIDs: failed, Err: err}
+		return &APNSDeliveryError{errorsByUUID: failed}
 	}
 
 	return nil
@@ -399,14 +401,27 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
 type APNSDeliveryError struct {
-	FailedUUIDs []string
-	Err         error
+	errorsByUUID map[string]error
 }
 
 func (e *APNSDeliveryError) Error() string {
-	return fmt.Sprintf("APNS delivery failed with: %s, for UUIDs: %v", e.Err, e.FailedUUIDs)
+	var errStrings []string
+	for uuid, err := range e.errorsByUUID {
+		errStrings = append(errStrings, fmt.Sprintf("UUID: %s, Error: %v", uuid, err))
+	}
+
+	return fmt.Sprintf(
+		"APNS delivery failed with the following errors:\n%s",
+		strings.Join(errStrings, "\n"),
+	)
 }
 
-func (e *APNSDeliveryError) Unwrap() error { return e.Err }
+func (e *APNSDeliveryError) FailedUUIDs() []string {
+	var uuids []string
+	for uuid := range e.errorsByUUID {
+		uuids = append(uuids, uuid)
+	}
+	return uuids
+}
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
