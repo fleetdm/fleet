@@ -100,7 +100,6 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 	require.Equal(t, "test-org", vppTok.OrgName)
 	require.Equal(t, "test-loc", vppTok.Location)
 	require.Equal(t, expDate, vppTok.RenewDate)
-	t.Log(string(tok))
 	require.Contains(t, string(tok), `"token":"`+vppTok.Token+`"`) // the DB-stored token is the "token" JSON field in the raw tok
 	require.NotNil(t, vppTok.Teams)
 	require.Len(t, vppTok.Teams, 0)
