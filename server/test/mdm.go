@@ -36,6 +36,14 @@ func CreateVPPTokenEncoded(expiration time.Time, orgName, location string) ([]by
 	if err != nil {
 		return nil, err
 	}
+	return []byte(dataToken.Token), nil
+}
+
+func CreateVPPTokenEncodedAfterMigration(expiration time.Time, orgName, location string) ([]byte, error) {
+	dataToken, err := CreateVPPTokenData(expiration, orgName, location)
+	if err != nil {
+		return nil, err
+	}
 
 	dataTokenJson, err := json.Marshal(dataToken)
 	if err != nil {

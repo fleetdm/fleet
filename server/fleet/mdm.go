@@ -3,7 +3,6 @@ package fleet
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -789,48 +788,6 @@ type VPPTokenDB struct {
 type TeamTuple struct {
 	ID   uint   `json:"team_id"`
 	Name string `json:"name"`
-}
-
-// ExtractToken extracts the metadata from the token as stored in the database,
-// and returns the raw token that can be used directly with Apple's VPP API. If
-// while extracting the token it notices that the metadata has changed, it will
-// update t and return true as second return value, indicating that it changed
-// and should be saved.
-func (t *VPPTokenDB) ExtractToken() (rawAppleToken string, didUpdateMetadata bool, err error) {
-	var vppTokenData VPPTokenData
-	if err := json.Unmarshal([]byte(t.Token), &vppTokenData); err != nil {
-		return "", false, fmt.Errorf("unmarshaling VPP token data: %w", err)
-	}
-
-	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
-	if err != nil {
-		return "", false, fmt.Errorf("decoding raw vpp token data: %w", err)
-	}
-
-	var vppTokenRaw VPPTokenRaw
-	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
-		return "", false, fmt.Errorf("unmarshaling raw vpp token data: %w", err)
-	}
-
-	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
-	if err != nil {
-		return "", false, fmt.Errorf("parsing vpp token expiration date: %w", err)
-	}
-
-	if vppTokenData.Location != t.Location {
-		t.Location = vppTokenData.Location
-		didUpdateMetadata = true
-	}
-	if vppTokenRaw.OrgName != t.OrgName {
-		t.OrgName = vppTokenRaw.OrgName
-		didUpdateMetadata = true
-	}
-	if !exp.Equal(t.RenewDate) {
-		t.RenewDate = exp.UTC()
-		didUpdateMetadata = true
-	}
-
-	return vppTokenRaw.Token, didUpdateMetadata, nil
 }
 
 type NullTeamType string
