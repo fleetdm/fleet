@@ -1624,6 +1624,19 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
 			},
 		},
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "ubuntu" && s.Source == "python_packages"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				// We need to differentiate Ubuntu Python packages from other Python packages
+				// because they are scanned for vulnerabilities in OVAL feeds.  Using NVD feeds
+				// produces false positives.  Prefixing the name with "python3" to match the
+				// naming convention used in the OVAL feed.
+				s.Source = "python_packages_ubuntu"
+				s.Name = fmt.Sprintf("%s-%s", "python3", strings.ToLower(s.Name))
+			},
+		},
 	}
 
 	for _, softwareSanitizer := range softwareSanitizers {

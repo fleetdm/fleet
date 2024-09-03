@@ -12,11 +12,13 @@ import (
 type Platform string
 
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
-const OvalFilePrefix = "fleet_oval"
-const GovalDictionaryFilePrefix = "fleet_goval_dictionary"
+const (
+	OvalFilePrefix            = "fleet_oval"
+	GovalDictionaryFilePrefix = "fleet_goval_dictionary"
+)
 
 // SupportedSoftwareSources are the software sources for which we are using OVAL or goval-dictionary for vulnerability detection.
-var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages"}
+var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages", "python_packages_ubuntu"}
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
 // ex: 'Ubuntu 20.4.0' => '(20, 04)'
