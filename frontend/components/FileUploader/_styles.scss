@@ -16,22 +16,40 @@
     padding: $pad-medium $pad-large;
   }
 
-  &__selected-file {
+  &__file {
     display: flex;
-    gap: $pad-medium;
-    align-items: center;
+    justify-content: space-between;
     width: 100%;
-    text-align: left;
 
-    &--details {
-      &--name {
-        font-size: $x-small;
-        font-weight: $bold;
-      }
+    &-info {
+      display: flex;
+      gap: $pad-medium;
+      align-items: center;
+      width: 100%;
+      text-align: left;
+    }
 
-      &--platform {
-        font-size: $xx-small;
-        color: $ui-fleet-black-75;
+    &-name {
+      font-size: $x-small;
+      font-weight: $bold;
+    }
+
+    &-platform {
+      font-size: $xx-small;
+      color: $ui-fleet-black-75;
+    }
+
+    &-edit {
+      display: flex;
+      align-items: center; // Center the button vertically
+      margin-right: -$pad-medium; // Adjust for button padding
+    }
+
+    label {
+      display: flex;
+
+      &:hover {
+        cursor: pointer;
       }
     }
   }
@@ -58,17 +76,17 @@
   &__upload-button {
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
-  }
 
-  label {
-    padding: $pad-small $pad-medium;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: $pad-small;
+    label {
+      padding: $pad-small $pad-medium;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: $pad-small;
 
-    &:hover {
-      cursor: pointer;
+      &:hover {
+        cursor: pointer;
+      }
     }
   }
 }

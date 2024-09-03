@@ -34,6 +34,7 @@ import {
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
+import { noop } from "lodash";
 
 const baseClass = "software-package-card";
 
@@ -383,6 +384,9 @@ const SoftwarePackageCard = ({
           installScript={softwarePackage?.install_script ?? ""}
           preInstallQuery={softwarePackage?.pre_install_query}
           postInstallScript={softwarePackage?.post_install_script}
+          selfService={isSelfService}
+          isUpdatingSoftware={false} // TODO
+          onEditSoftware={noop} // TODO
           onExit={() => setShowEditSoftwareModal(false)}
         />
       )}
