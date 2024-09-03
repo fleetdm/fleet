@@ -50,10 +50,12 @@ func ExtractPEMetadata(r io.Reader) (*InstallerMetadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error parsing PE version resources: %w", err)
 	}
+	name := strings.TrimSpace(v["ProductName"])
 	return applySpecialCases(&InstallerMetadata{
-		Name:    strings.TrimSpace(v["ProductName"]),
-		Version: strings.TrimSpace(v["ProductVersion"]),
-		SHASum:  h.Sum(nil),
+		Name:       name,
+		Version:    strings.TrimSpace(v["ProductVersion"]),
+		PackageIDs: []string{name},
+		SHASum:     h.Sum(nil),
 	}, v), nil
 }
 
