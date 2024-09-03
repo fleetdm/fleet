@@ -142,6 +142,7 @@ const PackageStatusCount = ({
   })}`;
   return (
     <DataSet
+      className={`${baseClass}__status`}
       title={
         <TooltipWrapper
           position="top"
@@ -161,7 +162,6 @@ const PackageStatusCount = ({
           {count} hosts
         </a>
       }
-      className={`${baseClass}__status`}
     />
   );
 };
