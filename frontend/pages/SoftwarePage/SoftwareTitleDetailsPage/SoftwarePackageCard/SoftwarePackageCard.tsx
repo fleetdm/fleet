@@ -4,6 +4,7 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -14,6 +15,7 @@ import softwareAPI from "services/entities/software";
 import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
+import { noop } from "lodash";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -34,7 +36,6 @@ import {
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
-import { noop } from "lodash";
 
 const baseClass = "software-package-card";
 
@@ -237,6 +238,7 @@ interface ISoftwarePackageCardProps {
   // NOTE: we will only have this if we are working with a software package.
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
+  router: InjectedRouter;
 }
 
 // NOTE: This component is depeent on having either a software package
@@ -252,6 +254,7 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
   onDelete,
+  router,
 }: ISoftwarePackageCardProps) => {
   const {
     isGlobalAdmin,
@@ -380,14 +383,16 @@ const SoftwarePackageCard = ({
       </div>
       {showEditSoftwareModal && (
         <EditSoftwareModal
+          softwareId={softwareId}
+          teamId={teamId}
           software={softwarePackage}
           installScript={softwarePackage?.install_script ?? ""}
           preInstallQuery={softwarePackage?.pre_install_query}
           postInstallScript={softwarePackage?.post_install_script}
           selfService={isSelfService}
-          isUpdatingSoftware={false} // TODO
-          onEditSoftware={noop} // TODO
           onExit={() => setShowEditSoftwareModal(false)}
+          router={router}
+          setAddedSoftwareToken={noop}
         />
       )}
       {showDeleteModal && (

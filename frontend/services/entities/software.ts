@@ -236,7 +236,37 @@ export default {
       true
     );
   },
+  editSoftwarePackage: (
+    softwareId: number,
+    data: IAddPackageFormData, // TODO: Update name in renaming
+    teamId?: number,
+    timeout?: number
+  ) => {
+    const { SOFTWARE_TITLE } = endpoints;
 
+    if (!data.software) {
+      throw new Error("Software package is required");
+    }
+
+    const formData = new FormData();
+    formData.append("software", data.software);
+    formData.append("self_service", data.selfService.toString());
+    data.installScript && formData.append("install_script", data.installScript);
+    data.preInstallQuery &&
+      formData.append("pre_install_query", data.preInstallQuery);
+    data.postInstallScript &&
+      formData.append("post_install_script", data.postInstallScript);
+    teamId && formData.append("team_id", teamId.toString());
+
+    return sendRequest(
+      "POST",
+      SOFTWARE_TITLE(softwareId),
+      formData,
+      undefined,
+      timeout,
+      true
+    );
+  },
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
