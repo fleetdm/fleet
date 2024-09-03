@@ -27,6 +27,8 @@ interface IMdmSettingsProps {
 const MdmSettings = ({ router }: IMdmSettingsProps) => {
   const { isPremiumTier, config } = useContext(AppContext);
 
+  const isMdmEnabled = !!config?.mdm.enabled_and_configured;
+
   // Currently the status of this API call is what determines various UI states on
   // this page. Because of this we will not render any of this components UI until this API
   // call has completed.
@@ -48,7 +50,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
       // we're fetching and setting the config, but for now we'll just assume that any 400 response
       // means that MDM is not enabled and we'll show the "Turn on MDM" button.
       staleTime: 5000,
-      enabled: !!config?.mdm.enabled_and_configured,
+      enabled: isMdmEnabled,
     }
   );
 
@@ -63,7 +65,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      enabled: isPremiumTier && !!config?.mdm.enabled_and_configured,
+      enabled: isPremiumTier && isMdmEnabled,
     }
   );
 
@@ -80,7 +82,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      enabled: isPremiumTier && !!config?.mdm.enabled_and_configured,
+      enabled: isPremiumTier && isMdmEnabled,
     }
   );
 
@@ -104,7 +106,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   // we use this to determine if we have all the data we need to render the UI.
   // Notice that we do not need VPP or EULA data to render this page.
-  const hasAllData = !!APNSInfo;
+  const hasAllData = !isMdmEnabled || !!APNSInfo;
 
   return (
     <div className={baseClass}>
