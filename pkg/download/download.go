@@ -20,39 +20,26 @@ import (
 
 const backoffMaxElapsedTime = 5 * time.Minute
 
-type downloadOptions struct {
-	dontRetryOn404 bool
-}
-
-// DownloadOption allows configuring a download.
-type DownloadOption func(*downloadOptions)
-
-// DontRetryOn404 will not retry requests that return http.StatusNotFound.
-func DontRetryOn404() DownloadOption {
-	return func(do *downloadOptions) {
-		do.dontRetryOn404 = true
-	}
-}
-
 // Download downloads a file from a URL and writes it to path.
-func Download(client *http.Client, u *url.URL, path string, opts ...DownloadOption) error {
-	return download(client, u, path, false, opts...)
+//
+// It will retry requests until it succeeds. If the server returns a 404
+// then it will not retry and return a NotFound error.
+func Download(client *http.Client, u *url.URL, path string) error {
+	return download(client, u, path, false)
 }
 
 // DownloadAndExtract downloads and extracts a file from a URL and writes it to path.
 // The compression method is determined using extension from the url path. Only .gz, .bz2, or .xz extensions are supported.
+//
+// It will retry requests until it succeeds. If the server returns a 404
+// then it will not retry and return a NotFound error.
 func DownloadAndExtract(client *http.Client, u *url.URL, path string) error {
 	return download(client, u, path, true)
 }
 
 var NotFound = errors.New("resource not found")
 
-func download(client *http.Client, u *url.URL, path string, extract bool, opts ...DownloadOption) error {
-	var do downloadOptions
-	for _, fn := range opts {
-		fn(&do)
-	}
-
+func download(client *http.Client, u *url.URL, path string, extract bool) error {
 	// atomically write to file
 	dir, file := filepath.Split(path)
 	if dir == "" {
@@ -104,7 +91,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool, opts .
 		switch {
 		case resp.StatusCode == http.StatusOK:
 			// OK
-		case resp.StatusCode == http.StatusNotFound && do.dontRetryOn404:
+		case resp.StatusCode == http.StatusNotFound:
 			return &backoff.PermanentError{Err: NotFound}
 		default:
 			return fmt.Errorf("unexpected status code %d", resp.StatusCode)
