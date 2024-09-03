@@ -385,6 +385,24 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 		// if we found an installer, use that
 		if installer != nil {
+			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
+			}
+			if lastInstallRequest != nil && lastInstallRequest.Status != nil && *lastInstallRequest.Status == fleet.SoftwareInstallerPending {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install software. Host has a pending install request.",
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "host already has a pending install for this installer",
+						map[string]any{
+							"host_id":               host.ID,
+							"software_installer_id": installer.InstallerID,
+							"team_id":               host.TeamID,
+							"title_id":              softwareTitleID,
+						},
+					),
+				}
+			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
 	}
