@@ -14,6 +14,8 @@ import {
   ISoftwareVersionsResponse,
   ISoftwareVersionResponse,
 } from "services/entities/software";
+import { IOSVersionsResponse } from "../services/entities/operating_systems";
+import { IOperatingSystemVersion } from "../interfaces/operating_system";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -93,10 +95,46 @@ const DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK: ISoftwareVersionsResponse = {
   },
 };
 
-export const createMockSoftwareVersionsReponse = (
+export const createMockSoftwareVersionsResponse = (
   overrides?: Partial<ISoftwareVersionsResponse>
 ): ISoftwareVersionsResponse => {
   return { ...DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_OS_VERSION_MOCK = {
+  os_version_id: 1,
+  name: "macOS 14.6.1",
+  name_only: "macOS",
+  version: "14.6.1",
+  platform: "darwin",
+  hosts_count: 42,
+  generated_cpes: [],
+  vulnerabilities: [],
+};
+
+export const createMockOSVersion = (
+  overrides?: Partial<IOperatingSystemVersion>
+): IOperatingSystemVersion => {
+  return {
+    ...DEFAULT_OS_VERSION_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_OS_VERSIONS_RESPONSE_MOCK: IOSVersionsResponse = {
+  counts_updated_at: "2020-01-01T00:00:00.000Z",
+  count: 1,
+  os_versions: [createMockOSVersion()],
+  meta: {
+    has_next_results: false,
+    has_previous_results: false,
+  },
+};
+
+export const createMockOSVersionsResponse = (
+  overrides?: Partial<IOSVersionsResponse>
+): IOSVersionsResponse => {
+  return { ...DEFAULT_OS_VERSIONS_RESPONSE_MOCK, ...overrides };
 };
 
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
@@ -208,7 +246,7 @@ const DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK: ISoftwareTitlesResponse = {
   },
 };
 
-export const createMockSoftwareTitlesReponse = (
+export const createMockSoftwareTitlesResponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };

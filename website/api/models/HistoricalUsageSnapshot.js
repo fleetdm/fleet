@@ -43,6 +43,10 @@ module.exports = {
     numHostSoftwareInstalledPaths: {required: true, type: 'number'},
     numSoftwareCPEs: {required: true, type: 'number'},
     numSoftwareCVEs: {required: true, type: 'number'},
+    aiFeaturesDisabled: {required: true, type: 'boolean'},
+    maintenanceWindowsEnabled: {required: true, type: 'boolean'},
+    maintenanceWindowsConfigured: {required: true, type: 'boolean'},
+    numHostsFleetDesktopEnabled: {required: true, type: 'number'},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

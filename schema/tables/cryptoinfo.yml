@@ -1,5 +1,5 @@
 name: cryptoinfo
-description: Get info about the a certificate on the host.
+description: Get info about a certificate on the host.
 evented: false
 notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
 platforms:
