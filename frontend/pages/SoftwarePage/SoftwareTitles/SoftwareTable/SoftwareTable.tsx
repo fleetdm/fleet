@@ -269,7 +269,7 @@ const SoftwareTable = ({
   };
 
   const renderSoftwareCount = () => {
-    if (!tableData || !data?.count) return null;
+    if (!tableData || !data) return null;
 
     return (
       <>

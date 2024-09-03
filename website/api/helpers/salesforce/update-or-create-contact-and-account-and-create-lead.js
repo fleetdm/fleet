@@ -30,6 +30,10 @@ module.exports = {
         '6 - Has team buy-in'
       ]
     },
+    psychologicalStageChangeReason: {
+      type: 'string',
+      example: 'Website - Organic start flow'
+    },
     // For new leads.
     leadDescription: {
       type: 'string',
@@ -58,7 +62,7 @@ module.exports = {
 
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, contactSource, leadDescription, numberOfHosts}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, leadDescription, numberOfHosts}) {
     if(sails.config.environment !== 'production') {
       sails.log('Skipping Salesforce integration...');
       return;
@@ -72,6 +76,7 @@ module.exports = {
       linkedinUrl,
       primaryBuyingSituation,
       psychologicalStage,
+      psychologicalStageChangeReason,
       contactSource,
       description: leadDescription,
     });
