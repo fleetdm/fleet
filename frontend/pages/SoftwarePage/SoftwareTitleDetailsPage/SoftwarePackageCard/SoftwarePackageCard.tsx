@@ -401,6 +401,11 @@ const SoftwarePackageCard = ({
           preInstallQuery={softwarePackage?.pre_install_query}
           postInstallScript={softwarePackage?.post_install_script}
           selfService={isSelfService}
+<<<<<<< HEAD
+=======
+          isUpdatingSoftware={false} // TODO
+          onEditSoftware={noop} // TODO
+>>>>>>> 777170f01b (Updates to FileUploader to include FileDetails if fileDetails is provided)
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
           setAddedSoftwareToken={noop}

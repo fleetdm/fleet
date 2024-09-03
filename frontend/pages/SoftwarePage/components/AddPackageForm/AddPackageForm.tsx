@@ -97,17 +97,17 @@ const AddPackageForm = ({
     if (files && files.length > 0) {
       const file = files[0];
 
-      let defaultInstallScript: string;
+      let newDefaultInstallScript: string;
       try {
-        defaultInstallScript = getDefaultInstallScript(file.name);
+        newDefaultInstallScript = getDefaultInstallScript(file.name);
       } catch (e) {
         renderFlash("error", `${e}`);
         return;
       }
 
-      let defaultUninstallScript: string;
+      let newDefaultUninstallScript: string;
       try {
-        defaultUninstallScript = getDefaultUninstallScript(file.name);
+        newDefaultUninstallScript = getDefaultUninstallScript(file.name);
       } catch (e) {
         renderFlash("error", `${e}`);
         return;
