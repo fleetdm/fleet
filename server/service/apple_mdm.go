@@ -3149,7 +3149,7 @@ func SendPushesToPendingDevices(
 	if err := commander.SendNotifications(ctx, uuids); err != nil {
 		var apnsErr *apple_mdm.APNSDeliveryError
 		if errors.As(err, &apnsErr) {
-			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "host_uuids", apnsErr.FailedUUIDs)
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
 			return nil
 		}
 
