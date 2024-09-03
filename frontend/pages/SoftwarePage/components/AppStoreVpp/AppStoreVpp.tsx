@@ -38,11 +38,11 @@ const EnableVppCard = () => {
           <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first enable VPP.
+          To add App Store apps, first add VPP.
         </p>
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Enable VPP"
+          text="Add VPP"
           className={`${baseClass}__enable-vpp-link`}
         />
       </div>
