@@ -279,6 +279,9 @@ type UploadSoftwareInstallerPayload struct {
 	BundleIdentifier  string
 	SelfService       bool
 	UserID            uint
+	PackageIDs        []string
+	UninstallScript   string
+	Extension         string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

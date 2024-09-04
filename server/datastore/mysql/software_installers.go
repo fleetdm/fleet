@@ -86,6 +86,11 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
 	}
 
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+
 	var postInstallScriptID *uint
 	if payload.PostInstallScript != "" {
 		sid, err := ds.getOrGenerateScriptContentsID(ctx, payload.PostInstallScript)
@@ -113,15 +118,17 @@ INSERT INTO software_installers (
 	storage_id,
 	filename,
 	version,
+	package_ids,
 	install_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
+    uninstall_script_content_id,
 	platform,
     self_service,
 	user_id,
 	user_name,
 	user_email
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
 
 	args := []interface{}{
 		tid,
@@ -130,9 +137,11 @@ INSERT INTO software_installers (
 		payload.StorageID,
 		payload.Filename,
 		payload.Version,
+		strings.Join(payload.PackageIDs, ","),
 		installScriptID,
 		payload.PreInstallQuery,
 		postInstallScriptID,
+		uninstallScriptID,
 		payload.Platform,
 		payload.SelfService,
 		payload.UserID,
