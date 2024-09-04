@@ -545,7 +545,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if appConfig.MDM.AppleBussinessManager.Set || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+	if appConfig.MDM.AppleBusinessManager.Set || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
 		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
@@ -970,7 +970,7 @@ func (svc *Service) validateABMAssignments(
 	invalid *fleet.InvalidArgumentError,
 	license *fleet.LicenseInfo,
 ) ([]*fleet.ABMToken, error) {
-	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
+	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
 		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
 		return nil, nil
 	}
@@ -1008,7 +1008,7 @@ func (svc *Service) validateABMAssignments(
 		return []*fleet.ABMToken{tok}, nil
 	}
 
-	if mdm.AppleBussinessManager.Set && mdm.AppleBussinessManager.Valid {
+	if mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
 			return nil, nil
@@ -1040,7 +1040,7 @@ func (svc *Service) validateABMAssignments(
 		}
 
 		var tokensToSave []*fleet.ABMToken
-		for _, bm := range mdm.AppleBussinessManager.Value {
+		for _, bm := range mdm.AppleBusinessManager.Value {
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
@@ -1101,10 +1101,10 @@ func (svc *Service) validateVPPAssignments(
 			token.Teams = nil
 		}
 
-		var tokensToSave map[uint][]uint
+		tokensToSave := make(map[uint][]uint, len(mdm.VolumePurchasingProgram.Value))
 		for _, vpp := range mdm.VolumePurchasingProgram.Value {
 			for _, tmName := range vpp.Teams {
-				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 					invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
 					return nil, nil
 				}

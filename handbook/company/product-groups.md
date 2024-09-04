@@ -584,6 +584,10 @@ Use the 🧩 ["Design System (current)"](https://www.figma.com/file/8oXlYXpgCV1S
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
+**Images**
+
+Simple icons (aka any images used in the icon [design system component](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system-(current)?node-id=12-2&t=iO2vXbQ9Sc1kFVEJ-1)) are exported as SVGs. All other images are exported as PNGs, following the [Fleet website image](https://github.com/fleetdm/fleet/tree/main/website/assets/images) naming conventions.
+
 **Form behavior**
 
 Pressing the return or enter key with an open form will cause the form to be submitted.

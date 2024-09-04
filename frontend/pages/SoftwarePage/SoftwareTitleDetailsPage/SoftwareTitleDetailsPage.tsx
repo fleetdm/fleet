@@ -208,6 +208,7 @@ const SoftwareTitleDetailsPage = ({
                 softwareTitle.source
               )}
               isAvailableForInstall={isAvailableForInstall}
+              countsUpdatedAt={softwareTitle.versions_updated_at}
             />
           </Card>
         </>
