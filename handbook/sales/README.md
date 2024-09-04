@@ -59,9 +59,20 @@ Provide remittance information to customers by exporting ["💸 Paying Fleet"](h
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
 
 To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep activity on a regular basis following these steps:
-1. In Salesforce, visit the activity report on your dashboard.  (TODO: taylor will replace this and/or link it)
+1. In Salesforce, visit the activity report on your dashboard.
 2. For each rep, review recent activity from the last 30 days across all of that rep's accounts.
 3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
+
+Every week, AEs will review the status of all qualified opportunities with leadership in an opportunity pipeline review meeting. For this meeting, reps will:
+1. Update the following information in Salesforce for every opp:
+  - Contacts (and Roles)
+  - Amount
+  - Close date
+  - Stage
+  - Next steps
+2. Make sure all contacts have been sent a connection request from Mike McNeil.
+3. Identify and discuss where gaps are in [MEDDPICC](https://handbook.gitlab.com/handbook/sales/meddppicc/).
+4. Relay how many meetings they had with attendees from both IT and security this week.
 
 
 ### Validate Salesforce data (RevOps) 
