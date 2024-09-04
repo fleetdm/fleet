@@ -90,7 +90,6 @@ After an intent signal is discovered:
   - "LinkedIn"
   - "Psychological stage" 
   - "intent signals" 
-5. Research the company, if necessary, viewing its LinkedIn company page to verify the relevant headcount.
 
 After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
 
