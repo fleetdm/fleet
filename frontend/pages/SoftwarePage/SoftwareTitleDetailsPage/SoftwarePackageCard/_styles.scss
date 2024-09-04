@@ -1,13 +1,15 @@
 .software-package-card {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   align-items: center;
   gap: $pad-medium;
 
-  &__main-content {
+  &__row-1 {
     display: flex;
-    align-items: flex-start;
-    gap: $pad-xxlarge;
+    justify-content: space-between;
+    width: 100%;
+    gap: $pad-medium;
   }
 
   &__main-info {
@@ -19,13 +21,14 @@
     display: flex;
     flex-direction: column;
     gap: $pad-xsmall;
+    justify-content: center;
   }
 
   &__title {
     font-size: $x-small;
     font-weight: $bold;
     @include ellipse-text;
-    max-width: 290px;
+    max-width: 48vw;
   }
 
   &__details {
@@ -34,13 +37,36 @@
 
   &__package-statuses {
     display: flex;
-    gap: $pad-xxlarge;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 6px;
+    border: 1px solid $ui-fleet-black-10;
+    font-size: $x-small;
   }
 
-  &__status-title {
+  &__status {
     display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+    justify-content: center;
     align-items: center;
-    gap: $pad-xsmall;
+    flex: 1 0 0;
+    border-right: 1px solid var(--UI-Fleet-Black-10, #e2e4ea);
+
+    &:last-child {
+      border-right: none;
+    }
+
+    .react-tooltip {
+      text-align: center;
+    }
+  }
+
+  &__status-title{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
   }
 
   &__status-count {
@@ -66,6 +92,7 @@
     color: $ui-fleet-black-75;
     font-size: $xx-small;
     font-weight: $bold;
+    white-space: nowrap;
   }
 
   &__actions {
