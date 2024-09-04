@@ -70,7 +70,7 @@ Every week, AEs will review the status of all qualified opportunities with leade
   - Close date
   - Stage
   - Next steps
-2. Make sure all Contacts have been sent a connection request from Mike McNeil
+2. Make sure all contacts have been sent a connection request from Mike McNeil.
 3. Identify and discuss where gaps are in [MEDDPICC](https://handbook.gitlab.com/handbook/sales/meddppicc/)
 4. Relay how many meetings they had with attendence from both IT and Security this week
 
