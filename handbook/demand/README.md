@@ -60,7 +60,10 @@ To propose an ad, or a change to an ad:
 
 ### Measure intent signals
 
-Things to go look at to see if (a) a contact [/account] needs to be created/edited (b) if an account is worth going after or warming up (c) an account is sales-ready to assign a lead/rep
+Intent signals help measure an individual's current level of engagement with the Fleet brand. Use the following steps to decide if:  
+(a) A contact and/or account needs to be created/updated. 
+(b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/demand#research-an-account).
+(c) An account/contact would benefit from a sales conversation.
 (in order of how worthwhile it is to spend time looking at the intent signal)
 
 1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs)
