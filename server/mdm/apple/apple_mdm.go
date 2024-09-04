@@ -153,7 +153,7 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 //
 // On success, it returns the profile uuid and timestamp for the specific token
 // of interest to the caller (identified by its organization name).
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokeOrgName string) (string, time.Time, error) {
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching app config")
@@ -249,7 +249,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}
 		}
-		if orgName == abmTokeOrgName {
+		if orgName == abmTokenOrgName {
 			requestedTokenProfileUUID = res.ProfileUUID
 		}
 	}

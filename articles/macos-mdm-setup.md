@@ -4,7 +4,7 @@ To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this 
 
 To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business Manager (ABM).
 
-To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup). 
+To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
 
 ## Apple Push Notification service (APNs)
 
@@ -52,6 +52,10 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
+
+### Simple Certificate Enrollment Protocol (SCEP)
+
+Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet renews each host's SCEP certificates automatically every 180 days.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

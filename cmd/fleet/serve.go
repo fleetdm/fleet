@@ -633,6 +633,12 @@ the way that the Fleet server works.
 					appCfg.MDM.AppleBMEnabledAndConfigured = count > 0
 				}
 			}
+			if appCfg.MDM.EnabledAndConfigured {
+				level.Info(logger).Log("msg", "Apple MDM enabled")
+			}
+			if appCfg.MDM.AppleBMEnabledAndConfigured {
+				level.Info(logger).Log("msg", "Apple Business Manager enabled")
+			}
 
 			// register the Microsoft MDM services
 			var (

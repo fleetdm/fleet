@@ -9,7 +9,7 @@
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly"
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # « Enable automation of GitHub issues
@@ -21,6 +21,13 @@
   frequency: "Quarterly (first Tuesday)"
   description: "https://fleetdm.com/handbook/demand#settle-event-strategy"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
+  dri: "Drew-P-drawers"
+-
+  task: "🫧 Pipeline sync"
+  startedOn: "2024-08-29"
+  frequency: "Weekly"
+  description: "Allign with CRO and AEs on pipeline processes and incoming leads"
+  moreInfoUrl: ""
   dri: "Drew-P-drawers"
 -
   task: "Optimize ads"

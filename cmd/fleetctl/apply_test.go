@@ -2231,8 +2231,6 @@ spec:
 	})
 
 	t.Run("setup assistant get and apply roundtrip", func(t *testing.T) {
-		// FIXME
-		t.Skip()
 		ds := setupServer(t, true)
 
 		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigEmpty.yml"))
