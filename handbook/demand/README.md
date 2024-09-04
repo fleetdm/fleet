@@ -70,20 +70,19 @@ Intent signals help measure an individual's current level of engagement with the
 
 (in order of how worthwhile it is to spend time looking at the intent signal)
 
-1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs)
-2. Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point)
-3. Accounts that fleeties have suggested to go after in ABM maneuver sheet
-4. [MacAdmins Slack traffic](https://macadmins.slack.com/archives/C0214NELAE7/p1722561481530559) in the #fleet AND #osquery channels (channel joins, posts, reactions, thread replies, thread reactions)
-5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/)
-6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties
+1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs).
+2. Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point).
+3. Accounts that fleeties have suggested to go after in ABM maneuver sheet.
+4. [MacAdmins Slack traffic](https://macadmins.slack.com/archives/C0214NELAE7/p1722561481530559) in the #fleet AND #osquery channels (channel joins, posts, reactions, thread replies, thread reactions).
+5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/).
+6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties.
 
 
 ### Research an account
 
 Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/demand#measure-intent-signals).
 
-
-1. Create the account in SalesForce if it doesn't already exist
+1. Create the account in SalesForce if it doesn't already exist.
 2. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
   - "Title"
   - "Role"
@@ -95,11 +94,12 @@ Follow these steps to research an account and move it toward sales-readiness **a
 After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
 
 1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
-2. For "lead source" for any new contacts, use lead source "Manual research"
-3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect"
+2. For "Contact source" for any new contacts, use "Manual research".
+3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect".
 4. Research and discover mutual connections between fleeties and Mac admin community members within those contacts to help determine fit.
 5. Check Snitcher activity for the account and the psystages of its contacts in Salesforce.
-6. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running"
+6. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running".
+
 
 ### Promote a post on LinkedIn
 
