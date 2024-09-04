@@ -948,8 +948,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	ctx := context.Background()
 	t := s.T()
-	// FIXME
-	t.Skip()
+
+	// before we switch to a gitops token, ensure ABM is setup
+	s.enableABM(defaultOrgName)
 
 	// Use a gitops user for all Puppet actions
 	u := &fleet.User{

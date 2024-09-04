@@ -226,8 +226,6 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 			})
 
 			t.Run("automatic enrollment", func(t *testing.T) {
-				// FIXME
-				t.Skip()
 				device := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, "")
 				s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
@@ -423,8 +421,6 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 			})
 
 			t.Run("automatic enrollment", func(t *testing.T) {
-				// FIXME
-				t.Skip()
 				if strings.Contains(tt.Name, "wipe") {
 					t.Skip("wipe tests are not supported for windows automatic enrollment until we fix #TODO")
 				}
@@ -593,14 +589,9 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 // Host is renewing SCEP certificates
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 	// ensure there's a token for automatic enrollments
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-	}))
+	s.enableABM(defaultOrgName)
 	s.runDEPSchedule()
 
 	// add a device that's manually enrolled

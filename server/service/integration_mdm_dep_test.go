@@ -38,8 +38,6 @@ type profileAssignmentReq struct {
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	t := s.T()
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 
 	globalDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
@@ -96,6 +94,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	// enable FileVault
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
 
+	s.enableABM(defaultOrgName)
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1")
@@ -105,8 +104,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	t := s.T()
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 
 	teamDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
@@ -139,11 +136,18 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
+	s.enableABM(defaultOrgName)
+
 	// setup IdP so that AccountConfiguration profile is sent after DEP enrollment
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_bm_default_team": %q,
+			       "apple_business_manager": [{
+			         "organization_name": %q,
+			         "macos_team": %q,
+			         "ios_team": %q,
+			         "ipados_team": %q
+			       }],
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
 					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
@@ -154,7 +158,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 					"enable_end_user_authentication": true
 				}
 			}
-		}`, tm.Name)), http.StatusOK, &acResp)
+		}`, defaultOrgName, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 
 	// TODO(mna): how/where to pass an enroll_reference so that
@@ -382,8 +386,6 @@ func (s *integrationMDMTestSuite) expectAndScheduleReleaseDeviceJob(t *testing.T
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
-	// FIXME
-	t.Skip()
 
 	ctx := context.Background()
 	devices := []godep.Device{
@@ -543,6 +545,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
 	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
+
+	s.enableABM(defaultOrgName)
 	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -925,6 +929,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		addHostsToTeamRequest{TeamID: &dummyTeam.ID, HostIDs: []uint{eHost.ID}}, http.StatusOK)
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 
+	s.runWorker()
 	// expect no assign profile request during cooldown
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
@@ -991,7 +996,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkPendingMacOSSetupAssistantJob("hosts_cooldown", nil, []string{eHost.HardwareSerial}, jobID)
 	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", true)
 
-	// run the inregration schedule and expect success
+	// run the integration schedule and expect success
 	expectAssignProfileResponseFailed = ""
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
@@ -1130,8 +1135,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
 	t := s.T()
-	// FIXME
-	t.Skip()
 
 	s.enableABM()
 
