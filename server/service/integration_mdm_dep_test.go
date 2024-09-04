@@ -94,7 +94,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	// enable FileVault
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
 
-	s.enableABM(defaultOrgName)
+	s.enableABM("fleet_ade_test")
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1")
@@ -136,10 +136,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
-	s.enableABM(defaultOrgName)
-
 	// setup IdP so that AccountConfiguration profile is sent after DEP enrollment
 	var acResp appConfigResponse
+	s.enableABM("fleet_ade_test")
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
 			       "apple_business_manager": [{
@@ -158,7 +157,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 					"enable_end_user_authentication": true
 				}
 			}
-		}`, defaultOrgName, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
+		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 
 	// TODO(mna): how/where to pass an enroll_reference so that
@@ -199,7 +198,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		return map[string]*push.Response{}, nil
 	}
 
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse("fleet_ade_test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
 		case "/session":
@@ -546,8 +545,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
 	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
 
-	s.enableABM(defaultOrgName)
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
@@ -1136,7 +1135,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
 	t := s.T()
 
-	s.enableABM()
+	s.enableABM(t.Name())
 
 	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        t.Name(),
@@ -1145,6 +1144,16 @@ func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
 	require.NoError(s.T(), err)
 
 	var acResp appConfigResponse
+
+	defer func() {
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		    "mdm": {
+			    "apple_bm_default_team": ""
+		    }
+		}`), http.StatusOK, &acResp)
+		require.Empty(t, acResp.MDM.DeprecatedAppleBMDefaultTeam)
+	}()
 
 	// try to set an invalid team name
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{

@@ -555,7 +555,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	// enable MDM flows
 	s.appleCoreCertsSetup()
-	// s.enableABM(defaultOrgName)
 
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
@@ -648,6 +647,14 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	})
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm;")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM abm_tokens;")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
 }
@@ -781,8 +788,6 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	})
 }
 
-const defaultOrgName = "fleet"
-
 func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	t := s.T()
 
@@ -795,6 +800,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.NotZero(t, mdmResp.RenewDate)
 
 	// set up multiple ABM tokens with different org names
+	defaultOrgName := "fleet_test"
 	s.enableABM(defaultOrgName)
 	tmOrgName := t.Name()
 	s.enableABM(tmOrgName)
@@ -802,7 +808,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	var tokensResp listABMTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
 
-	// for defaultOrgName
+	// for t.Name()
 	tok := s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -878,10 +884,10 @@ func (s *integrationMDMTestSuite) getABMTokenByName(orgName string, tokens []*fl
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	t := s.T()
 
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 
 	var returnType string
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch returnType {
 		case "not_signed":
 			w.WriteHeader(http.StatusForbidden)
@@ -909,7 +915,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.ErrorContains(t, err, "T_C_NOT_SIGNED")
 	var tokensResp listABMTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
-	tok := s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
+	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.True(t, tok.TermsExpired)
 	config = s.getConfig()
@@ -921,7 +927,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.NoError(t, err)
 	tokensResp = listABMTokensResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
-	tok = s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
+	tok = s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
 
@@ -934,7 +940,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.ErrorContains(t, err, "DEP auth error")
 	tokensResp = listABMTokensResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
-	tok = s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
+	tok = s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
 
@@ -2667,7 +2673,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, false)
 
 	// upload an ABM token
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 
 	// set the default bm assignment to that team
 	acResp := appConfigResponse{}
@@ -2680,7 +2686,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 			  "ipados_team": %q
 			}]
 		}
-	}`, defaultOrgName, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
+	}`, t.Name(), tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
@@ -3550,10 +3556,10 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 
 	// simulate that the device is assigned to Fleet in ABM
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		switch r.URL.Path {
 		case "/session":
@@ -3691,9 +3697,9 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 	// simulate that the device is assigned to Fleet in ABM
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		switch r.URL.Path {
 		case "/session":
@@ -3742,7 +3748,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	t := s.T()
 
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
@@ -4812,9 +4818,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.scepChallenge,
 	}, "MacBookPro16,1")
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 	var lastSubmittedProfile *godep.Profile
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		switch r.URL.Path {
 		case "/session":
@@ -5352,7 +5358,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "https://example.com" } }
 	}`), http.StatusOK, &acResp)
 
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 
 	checkMigrationResponses := func(host *fleet.Host, token string) {
 		getDesktopResp := fleetDesktopResponse{}
@@ -5376,7 +5382,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 
 		// simulate that the device is assigned to Fleet in ABM
 		profileAssignmentStatusResponse := fleet.DEPAssignProfileResponseSuccess
-		s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			switch r.URL.Path {
 			case "/session":
@@ -8698,9 +8704,9 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 	var lastSubmittedProfile *godep.Profile
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
 
@@ -9233,7 +9239,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	t := s.T()
 	ctx := context.Background()
 
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 
 	// Validate error when server private key not set
 	testSetEmptyPrivateKey = true
@@ -9251,11 +9257,11 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 
 	var tokensResp listABMTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
-	tok := s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
+	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 
 	// disable ABM
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d", tok.ID), nil, http.StatusNoContent)
-	tok, err := s.ds.GetABMTokenByOrgName(ctx, defaultOrgName)
+	tok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, tok)
@@ -9280,7 +9286,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
 
 	// simulate a renew flow
-	s.enableABM(defaultOrgName)
+	s.enableABM(t.Name())
 }
 
 func (s *integrationMDMTestSuite) enableABM(orgName string) {
@@ -9479,8 +9485,8 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 
 	// simulate that the device is assigned to Fleet in ABM
-	s.enableABM(defaultOrgName)
-	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		switch r.URL.Path {
 		case "/session":
