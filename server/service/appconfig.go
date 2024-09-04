@@ -1101,10 +1101,10 @@ func (svc *Service) validateVPPAssignments(
 			token.Teams = nil
 		}
 
-		var tokensToSave map[uint][]uint
+		tokensToSave := make(map[uint][]uint, len(mdm.VolumePurchasingProgram.Value))
 		for _, vpp := range mdm.VolumePurchasingProgram.Value {
 			for _, tmName := range vpp.Teams {
-				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 					invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
 					return nil, nil
 				}
