@@ -83,7 +83,13 @@ After an intent signal is discovered:
 1. Create the account in SalesForce if it doesn't already exist
 2. Fix and merge any duplicate accounts and contacts.
 3. Update the "Marketing stage" to "Research-ready".
-4. Fix and complete any incorrect, mistagged, or half-filled contacts already on the account. Then research all of the existing contacts and make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
+3. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
+  - "Title"
+  - "Role"
+  - "Primary buying situation" 
+  - "LinkedIn"
+  - "Psychological stage" 
+  - "intent signals" 
 5. Research the company, if necessary, viewing its LinkedIn company page to verify the relevant headcount.
 
 After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
