@@ -32,8 +32,11 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
-	TeamID        *uint  `db:"-" json:"-"`
-	TitleID       uint   `db:"title_id" json:"-"`
+	// TeamID is used for authorization, it must be json serialized to be available
+	// to the rego script. We don't set it outside authorization anyway, so it
+	// won't render otherwise.
+	TeamID  *uint `db:"-" json:"team_id,omitempty"`
+	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
 	UpdatedAt time.Time `db:"updated_at" json:"-"`
