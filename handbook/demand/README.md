@@ -76,7 +76,7 @@ Intent signals help measure an individual's current level of engagement with the
 
 ### Research an account
 
-Things to do to warm up an account and move it towards sales-readiness after discovering relevant intent signals.
+Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/demand#measure-intent-signals).
 
 After an intent signal is discovered:
 
