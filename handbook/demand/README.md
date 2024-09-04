@@ -81,8 +81,6 @@ Things to do to warm up an account and move it towards sales-readiness after dis
 After an intent signal is discovered:
 
 1. Create the account in SalesForce if it doesn't already exist
-2. Fix and merge any duplicate accounts and contacts.
-3. Update the "Marketing stage" to "Research-ready".
 3. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
   - "Title"
   - "Role"
