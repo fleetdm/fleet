@@ -238,6 +238,7 @@ const SoftwareOSTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         customControl={renderPlatformDropdown}
+        customFiltersButton={() => <></>}
         disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}
