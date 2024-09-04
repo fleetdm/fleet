@@ -86,14 +86,28 @@
     }
   }
 
-  &__copy-wrapper {
+  &__copy-wrapper-outside {
     position: relative;
   }
 
+  &__copy-wrapper-inside {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 12px;
+  }
+
+
   &__input-container.copy-enabled {
-    display: flex;
-    align-items: center;
-    gap: $pad-medium;
+    &.copy-outside {
+      display: flex;
+      align-items: center;
+      gap: $pad-medium;
+    }
+
+    &.copy-inside {
+      position: relative;
+    }
   }
 
   &__copied-confirmation {
