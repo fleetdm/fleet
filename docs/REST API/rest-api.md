@@ -9307,7 +9307,7 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
 
 #### Example
 
-`GET /api/v1/fleet/software/b15ce221-e22e-4c6a-afe7-5b3400a017da/install/results`
+`GET /api/v1/fleet/software/install/b15ce221-e22e-4c6a-afe7-5b3400a017da/results`
 
 ##### Default response
 
