@@ -149,8 +149,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
-  const platform =
-    queryParams && queryParams.platform ? queryParams.platform : "all";
+  const platform = queryParams?.platform || "all";
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
