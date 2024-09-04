@@ -64,7 +64,7 @@ To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep ac
 3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
 
 Every week, AEs will review the status of all qualified opportunities with leadership in an opportunity pipeline review meeting. For this meeting, reps will:
-1. Update the following information in Salesforce for every opp
+1. Update the following information in Salesforce for every opp:
   - Contacts (and Roles)
   - Amount
   - Close date
