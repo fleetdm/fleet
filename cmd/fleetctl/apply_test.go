@@ -2293,11 +2293,7 @@ spec:
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, setup assistant is now set
-		got := runAppForTest(t, []string{"get", "config", "--yaml"})
-		t.Log(got)
-		t.Log("-=====- and expected is:")
-		t.Log(expectedAppCfgSetReleaseEnabled)
-		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, got)
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// clear with dry-run, appconfig
