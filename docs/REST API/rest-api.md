@@ -8485,6 +8485,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add package](#add-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Add Fleet library app](#add-fleet-library-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
