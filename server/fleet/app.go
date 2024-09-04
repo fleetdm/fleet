@@ -142,9 +142,9 @@ type MDM struct {
 	// Deprecated: use AppleBussinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
-	// AppleBussinessManager defines the associations between ABM tokens
+	// AppleBusinessManager defines the associations between ABM tokens
 	// and the teams used to assign hosts when they're ingested from ABM.
-	AppleBussinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -635,12 +635,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
-	if c.MDM.AppleBussinessManager.Set {
-		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBussinessManager.Value))
-		for i, s := range c.MDM.AppleBussinessManager.Value {
+	if c.MDM.AppleBusinessManager.Set {
+		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
+		for i, s := range c.MDM.AppleBusinessManager.Value {
 			abm[i] = s
 		}
-		clone.MDM.AppleBussinessManager = optjson.SetSlice(abm)
+		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
 
 	}
 
@@ -878,7 +878,7 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-	if c.MDM.AppleBussinessManager.Set {
+	if c.MDM.AppleBusinessManager.Set {
 		c.MDM.DeprecatedAppleBMDefaultTeam = ""
 	}
 	type aliasConfig AppConfig
