@@ -17,7 +17,6 @@ interface IosIpadosPanelProps {
 
 const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
   const { config } = useContext(AppContext);
-  console.log(config);
 
   const helpText =
     "When the end user navigates to this URL, the enrollment profile " +
