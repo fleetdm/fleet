@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -56,6 +58,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
 	// TODO: any validation of pre-install query?
 
+	// Update $PACKAGE_ID in uninstall script
+	preProcessUninstallScript(payload)
+
 	installerID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "matching or creating software installer")
@@ -85,6 +90,27 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	return nil
+}
+
+var packageIDRegex = regexp.MustCompile(`((\$PACKAGE_ID)|(\${PACKAGE_ID}))(\W|$)`)
+
+func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
+	// We assume that we already validated that payload.PackageIDs is not empty.
+	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
+	var packageID string
+	switch payload.Extension {
+	case "pkg":
+		var sb strings.Builder
+		_, _ = sb.WriteString("(\n")
+		for _, pkgID := range payload.PackageIDs {
+			_, _ = sb.WriteString(fmt.Sprintf("  \"%s\"\n", pkgID))
+		}
+		_, _ = sb.WriteString(")") // no ending newline
+		packageID = sb.String()
+	default:
+		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
+	}
+	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s$4", packageID))
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
@@ -656,6 +682,13 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 	}
 
+	if len(meta.PackageIDs) == 0 {
+		return "", &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the package IDs, product code, or name from %s.", payload.Filename),
+			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
+		}
+	}
+
 	payload.Title = meta.Name
 	if payload.Title == "" {
 		// use the filename if no title from metadata
@@ -664,6 +697,8 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Version = meta.Version
 	payload.StorageID = hex.EncodeToString(meta.SHASum)
 	payload.BundleIdentifier = meta.BundleIdentifier
+	payload.PackageIDs = meta.PackageIDs
+	payload.Extension = meta.Extension
 
 	// reset the reader (it was consumed to extract metadata)
 	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
@@ -672,6 +707,10 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if payload.InstallScript == "" {
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
+	}
+
+	if payload.UninstallScript == "" {
+		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
 	}
 
 	source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
