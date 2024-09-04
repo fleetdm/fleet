@@ -21,8 +21,6 @@ import (
 )
 
 func TestDEPService(t *testing.T) {
-	// FIXME
-	t.Skip()
 	t.Run("EnsureDefaultSetupAssistant", func(t *testing.T) {
 		ds := new(mock.Store)
 		ctx := context.Background()
@@ -70,6 +68,9 @@ func TestDEPService(t *testing.T) {
 				Token:      p.Token,
 				Type:       p.Type,
 				DEPProfile: p.DEPProfile,
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+				},
 			}
 			savedProfile = res
 			return res, nil
@@ -122,7 +123,7 @@ func TestDEPService(t *testing.T) {
 			return 0, nil
 		}
 
-		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil, "")
+		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil, "org1")
 		require.NoError(t, err)
 		require.Equal(t, "abcd", profUUID)
 		require.NotZero(t, modTime)
