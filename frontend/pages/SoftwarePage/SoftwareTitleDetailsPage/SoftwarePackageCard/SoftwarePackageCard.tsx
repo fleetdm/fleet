@@ -108,6 +108,11 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "pending-outline",
     tooltip: "Fleet is installing or will install when the host comes online.",
   },
+  pending_install: {
+    displayName: "Pending",
+    iconName: "pending-outline",
+    tooltip: "Fleet will install software when these hosts come online.",
+  },
   failed: {
     displayName: "Failed",
     iconName: "error",
@@ -118,6 +123,11 @@ const STATUS_DISPLAY_OPTIONS: Record<
         error(s).
       </>
     ),
+  },
+  failed_install: {
+    displayName: "Failed",
+    iconName: "error",
+    tooltip: "Fleet failed to install software on these hosts.",
   },
 };
 

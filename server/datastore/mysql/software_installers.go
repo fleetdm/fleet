@@ -388,9 +388,9 @@ WHERE
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
 		"execution_id":              resultsUUID,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query for get software install results")
@@ -437,9 +437,9 @@ WHERE
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":              installerID,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -478,9 +478,9 @@ WHERE
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
@@ -510,9 +510,9 @@ WHERE
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
 		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
 	})
 }
 
@@ -533,9 +533,9 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 	stmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":                   hostID,
 		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query to get host last install data")
