@@ -61,9 +61,13 @@ To propose an ad, or a change to an ad:
 ### Measure intent signals
 
 Intent signals help measure an individual's current level of engagement with the Fleet brand. Use the following steps to decide if:  
+
 (a) A contact and/or account needs to be created/updated. 
+
 (b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/demand#research-an-account).
+
 (c) An account/contact would benefit from a sales conversation.
+
 (in order of how worthwhile it is to spend time looking at the intent signal)
 
 1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs)
