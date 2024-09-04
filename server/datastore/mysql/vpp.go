@@ -100,9 +100,9 @@ WHERE
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: named query")
@@ -518,8 +518,8 @@ WHERE
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
 		"command_uuid":              commandResults.CommandUUID,
-		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
-		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
+		"software_status_failed":    string(fleet.SoftwareInstallFailed),
+		"software_status_installed": string(fleet.SoftwareInstalled),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
@@ -546,14 +546,14 @@ WHERE
 	var status string
 	switch commandResults.Status {
 	case fleet.MDMAppleStatusAcknowledged:
-		status = string(fleet.SoftwareInstallerInstalled)
+		status = string(fleet.SoftwareInstalled)
 	case fleet.MDMAppleStatusCommandFormatError:
 	case fleet.MDMAppleStatusError:
-		status = string(fleet.SoftwareInstallerFailed)
+		status = string(fleet.SoftwareInstallFailed)
 	default:
 		// This case shouldn't happen (we should only be doing this check if the command is in a
 		// "terminal" state, but adding it so we have a default
-		status = string(fleet.SoftwareInstallerPending)
+		status = string(fleet.SoftwareInstallPending)
 	}
 
 	act := &fleet.ActivityInstalledAppStoreApp{

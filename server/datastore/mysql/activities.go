@@ -404,9 +404,9 @@ WHERE
 		"installed_software_type":      fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
 		"installed_app_store_app_type": fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		"max_wait_time":                seconds,
-		"software_status_failed":       string(fleet.SoftwareInstallerFailed),
-		"software_status_installed":    string(fleet.SoftwareInstallerInstalled),
-		"software_status_pending":      string(fleet.SoftwareInstallerPending),
+		"software_status_failed":       string(fleet.SoftwareInstallFailed),
+		"software_status_installed":    string(fleet.SoftwareInstalled),
+		"software_status_pending":      string(fleet.SoftwareInstallPending),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")

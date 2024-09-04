@@ -2218,9 +2218,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR `
+	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 	if opts.OnlyAvailableForInstall {
 		// Get software that has a package/VPP installer but was not installed with Fleet
-		softwareIsInstalledOnHostClause = ` status IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND ` + softwareIsInstalledOnHostClause
+		softwareIsInstalledOnHostClause = fmt.Sprintf(` %s IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s`, status,
+			softwareIsInstalledOnHostClause)
 	}
 
 	// this statement lists only the software that is reported as installed on
@@ -2240,7 +2242,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
 			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
 			-- get either the softare installer status or the vpp app status
-			COALESCE(%s, %s) as status
+			%s as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
@@ -2276,8 +2278,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
-		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2369,9 +2370,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	namedArgs := map[string]any{
 		"host_id":                   host.ID,
 		"host_platform":             host.FleetPlatform(),
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_installed": fleet.SoftwareInstalled,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,

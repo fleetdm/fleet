@@ -3541,7 +3541,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerPending),
+		Status:          expectStatus(fleet.SoftwareInstallPending),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
@@ -3550,7 +3550,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	i0 := fleet.HostSoftwareWithInstaller{
 		Name:            "i0",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:          expectStatus(fleet.SoftwareInstalled),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid2"}},
 	}
 	expected[i0.Name+i0.Source] = i0
@@ -3558,7 +3558,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	i1 := fleet.HostSoftwareWithInstaller{
 		Name:            "i1",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerFailed),
+		Status:          expectStatus(fleet.SoftwareInstallFailed),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid3"}},
 	}
 	expected[i1.Name+i1.Source] = i1
@@ -3642,7 +3642,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerFailed),
+		Status:          expectStatus(fleet.SoftwareInstallFailed),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
@@ -3651,7 +3651,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[i1.Name+i1.Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "i1",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerPending),
+		Status:          expectStatus(fleet.SoftwareInstallPending),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid4"}},
 	}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
@@ -3775,13 +3775,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:      expectStatus(fleet.SoftwareInstalled),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallerPending),
+		Status:      expectStatus(fleet.SoftwareInstallPending),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
@@ -3826,7 +3826,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		"vpp1apps": {
 			Name:        "vpp1",
 			Source:      "apps",
-			Status:      expectStatus(fleet.SoftwareInstallerPending),
+			Status:      expectStatus(fleet.SoftwareInstallPending),
 			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
 		},
 	}, sw, true)
@@ -3847,13 +3847,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		"i1apps": {
 			Name:            "i1",
 			Source:          "apps",
-			Status:          expectStatus(fleet.SoftwareInstallerPending),
+			Status:          expectStatus(fleet.SoftwareInstallPending),
 			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI1UUID}},
 		},
 		"i2apps": {
 			Name:            "i2",
 			Source:          "apps",
-			Status:          expectStatus(fleet.SoftwareInstallerPending),
+			Status:          expectStatus(fleet.SoftwareInstallPending),
 			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI2UUID}},
 		},
 	}
@@ -4204,13 +4204,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:      expectStatus(fleet.SoftwareInstalled),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallerPending),
+		Status:      expectStatus(fleet.SoftwareInstallPending),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 

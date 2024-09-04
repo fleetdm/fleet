@@ -992,7 +992,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
-	if status := result.Status(); status != fleet.SoftwareInstallerPending {
+	if status := result.Status(); status != fleet.SoftwareInstallPending {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")

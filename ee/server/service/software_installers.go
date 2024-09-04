@@ -415,7 +415,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
 			}
-			if lastInstallRequest != nil && lastInstallRequest.Status != nil && *lastInstallRequest.Status == fleet.SoftwareInstallerPending {
+			if lastInstallRequest != nil && lastInstallRequest.Status != nil && *lastInstallRequest.Status == fleet.SoftwareInstallPending {
 				return &fleet.BadRequestError{
 					Message: "Couldn't install software. Host has a pending install request.",
 					InternalErr: ctxerr.WrapWithData(

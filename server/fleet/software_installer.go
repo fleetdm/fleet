@@ -125,17 +125,21 @@ type SoftwareInstallerStatusSummary struct {
 type SoftwareInstallerStatus string
 
 const (
-	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
-	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
-	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
+	SoftwareInstallPending   SoftwareInstallerStatus = "pending_install"
+	SoftwareInstallFailed    SoftwareInstallerStatus = "failed_install"
+	SoftwareInstalled        SoftwareInstallerStatus = "installed"
+	SoftwareUninstallPending SoftwareInstallerStatus = "pending_uninstall"
+	SoftwareUninstallFailed  SoftwareInstallerStatus = "failed_uninstall"
 )
 
 func (s SoftwareInstallerStatus) IsValid() bool {
 	switch s {
 	case
-		SoftwareInstallerFailed,
-		SoftwareInstallerInstalled,
-		SoftwareInstallerPending:
+		SoftwareUninstallPending,
+		SoftwareUninstallFailed,
+		SoftwareInstallFailed,
+		SoftwareInstalled,
+		SoftwareInstallPending:
 		return true
 	default:
 		return false
@@ -220,7 +224,7 @@ Rolled back successfully
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
 // output fields so they're easier to consume by users.
 func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
-	if h.Status == SoftwareInstallerPending {
+	if h.Status == SoftwareInstallPending {
 		return
 	}
 
@@ -416,17 +420,17 @@ type HostSoftwareInstallResultPayload struct {
 func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	switch {
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstalled
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstalled
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	default:
-		return SoftwareInstallerPending
+		return SoftwareInstallPending
 	}
 }
 
