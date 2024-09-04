@@ -25,25 +25,20 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
-      </>
-    ),
+    tooltip: ({ lastInstalledAt }) =>
+      `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
   pending: {
     iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
+    displayText: "Pending",
+    tooltip: () => "Fleet is installing software.",
   },
   failed: {
     iconName: "error",
     displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
-        Software failed to install
+        Software failed to install{" "}
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>
@@ -144,7 +139,6 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
     case "installed":
       return "Reinstall";
     default:
-      // we don't show a button for pending installs
       return "";
   }
 };
@@ -165,10 +159,7 @@ const InstallerStatusAction = ({
     SoftwareInstallStatus | undefined
   >(undefined);
 
-  // displayStatus allows us to display the localStatus (if any) or the status from the list
-  // software reponse
-  const displayStatus = localStatus || status;
-  const installButtonText = getInstallButtonText(displayStatus);
+  const installButtonText = getInstallButtonText(status);
 
   // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
@@ -200,21 +191,16 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-status`}>
-        <InstallerStatus
-          id={id}
-          status={displayStatus}
-          last_install={lastInstall}
-        />
+        <InstallerStatus id={id} status={status} last_install={lastInstall} />
       </div>
       <div className={`${baseClass}__item-action`}>
         {!!installButtonText && (
           <Button
             variant="text-icon"
             type="button"
-            className={`${baseClass}__item-action-button${
-              localStatus === "pending" ? "--installing" : ""
-            }`}
+            className={`${baseClass}__item-action-button`}
             onClick={onClick}
+            disabled={localStatus === "pending"}
           >
             <span data-testid={`${baseClass}__item-action-button--test`}>
               {installButtonText}

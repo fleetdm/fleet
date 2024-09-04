@@ -220,7 +220,7 @@
     }
   }
 
-  // Used in both CalendarEventsModal and OtherWorkflowsModal
+  // Used in CalendarEventsModal, InstallSoftwareModal, and OtherWorkflowsModal
   .automated-policies-section {
     display: flex;
     flex-direction: column;
@@ -228,8 +228,10 @@
     align-self: stretch;
     border-radius: 4px;
     border: 1px solid $ui-fleet-black-10;
+    // negate ul padding
+    padding-left: 0;
 
-    .checkbox-row {
+    .policy-row {
       display: flex;
       max-width: 100%;
       padding: 8px 12px;
@@ -270,7 +272,7 @@
           cursor: pointer;
         }
 
-        .checkbox-row__preview-button {
+        .policy-row__preview-button {
           visibility: visible;
         }
       }
