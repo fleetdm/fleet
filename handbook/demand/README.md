@@ -73,6 +73,7 @@ Intent signals help measure an individual's current level of engagement with the
 5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/)
 6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties
 
+
 ### Warm-up actions
 
 Things to do to warm up an account and move it towards sales-readiness after discovering relevant intent signals.
