@@ -125,6 +125,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_LICENSE_KEY"
             valueFrom = data.aws_secretsmanager_secret.license.arn
+          },
+          {
+            name      = "FLEET_SERVER_PRIVATE_KEY"
+            valueFrom = aws_secretsmanager_secret.fleet_server_private_key.arn
           }
         ]
         environment = concat([
@@ -321,3 +325,22 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
     target_value = 90
   }
 }
+
+resource "random_password" "fleet_server_private_key" {
+  length  = 32
+  special = true
+} 
+    
+resource "aws_secretsmanager_secret" "fleet_server_private_key" { 
+  name = "${terraform.workspace}-fleet-server-private-key"
+
+  recovery_window_in_days = "0"
+  lifecycle {
+    create_before_destroy = true
+  }
+} 
+  
+resource "aws_secretsmanager_secret_version" "fleet_server_private_key" {
+  secret_id     = aws_secretsmanager_secret.fleet_server_private_key.id
+  secret_string = random_password.fleet_server_private_key.result
+} 

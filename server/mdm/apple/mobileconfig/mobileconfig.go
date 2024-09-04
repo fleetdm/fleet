@@ -2,17 +2,16 @@ package mobileconfig
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 
 	// we are using this package as we were having issues with pasrsing signed apple
 	// mobileconfig profiles with the pcks7 package we were using before.
 	cms "github.com/github/smimesign/ietf-cms"
-	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 	"howett.net/plist"
 )
 
@@ -267,22 +266,16 @@ var (
 	ErrEncryptedPayloadContent = errors.New("encrypted PayloadContent")
 )
 
-// Sign signs an enrollment profile using the SCEP certificate from the
-// provided MDM config.
-func Sign(profile []byte, cfg config.MDMConfig) ([]byte, error) {
-	if !cfg.IsAppleSCEPSet() {
-		return nil, errors.New("SCEP configuration is required")
+// XMLEscapeString returns the escaped XML equivalent of the plain text data s.
+func XMLEscapeString(s string) (string, error) {
+	// avoid allocation if we can.
+	if !strings.ContainsAny(s, "'\"&<>\t\n\r") {
+		return s, nil
+	}
+	var b strings.Builder
+	if err := xml.EscapeText(&b, []byte(s)); err != nil {
+		return "", err
 	}
 
-	cert, _, _, err := cfg.AppleSCEP()
-	if err != nil {
-		return nil, fmt.Errorf("retrieving SCEP certificate from config: %w", err)
-	}
-
-	signed, err := profileutil.Sign(cert.PrivateKey, cert.Leaf, profile)
-	if err != nil {
-		return nil, fmt.Errorf("signing profile with the specified key: %w", err)
-	}
-
-	return signed, nil
+	return b.String(), nil
 }

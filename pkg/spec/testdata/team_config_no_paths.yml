@@ -7,7 +7,7 @@ team_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
       destination_url: https://example.tines.com/webhook
-      policy_ids: [1, 2, 3, 4, 5, 6 ,7, 8, 9]
+      policy_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9]
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -44,6 +44,12 @@ controls:
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
+    deadline: null
+    minimum_version: null
+  ios_updates:
+    deadline: null
+    minimum_version: null
+  ipados_updates:
     deadline: null
     minimum_version: null
   windows_updates:

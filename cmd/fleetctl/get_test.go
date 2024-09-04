@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
@@ -162,9 +166,17 @@ func TestGetTeams(t *testing.T) {
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
-								MacOSUpdates: fleet.MacOSUpdates{
+								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
+								},
+								IOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("17.5"),
+									Deadline:       optjson.SetString("2022-11-15"),
+								},
+								IPadOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("18.0"),
+									Deadline:       optjson.SetString("2023-01-01"),
 								},
 								WindowsUpdates: fleet.WindowsUpdates{
 									DeadlineDays:    optjson.SetInt(7),
@@ -325,6 +337,9 @@ func TestGetHosts(t *testing.T) {
 		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
@@ -513,6 +528,9 @@ func TestGetHostsMDM(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
 	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
@@ -674,7 +692,8 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- hosts_count: 2
+- app_store_app: null
+  hosts_count: 2
   id: 0
   name: foo
   software_package: null
@@ -694,7 +713,8 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- hosts_count: 0
+- app_store_app: null
+  hosts_count: 0
   id: 0
   name: bar
   software_package: null
@@ -741,7 +761,8 @@ spec:
           ]
         }
       ],
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     },
     {
       "id": 0,
@@ -753,10 +774,11 @@ spec:
         {
           "id": 0,
           "version": "0.0.3",
-		  "vulnerabilities": null
+      "vulnerabilities": null
         }
       ],
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     }
   ]
 }
@@ -777,8 +799,8 @@ func TestGetSoftwareVersions(t *testing.T) {
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
-			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
-			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
@@ -822,8 +844,10 @@ spec:
   vulnerabilities:
   - cve: cve-321-432-543
     details_link: https://nvd.nist.gov/vuln/detail/cve-321-432-543
+    created_at: "2021-01-01T00:00:00Z"
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
+    created_at: "2021-01-01T00:00:00Z"
 - generated_cpe: ""
   id: 0
   name: foo
@@ -864,11 +888,13 @@ spec:
       "vulnerabilities": [
         {
           "cve": "cve-321-432-543",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543",
+		  "created_at": "2021-01-01T00:00:00Z"
         },
         {
           "cve": "cve-333-444-555",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555",
+		  "created_at": "2021-01-01T00:00:00Z"
         }
       ]
     },
@@ -1996,13 +2022,35 @@ func TestGetAppleMDM(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 
-	// can only test when no MDM cert is provided, otherwise they would have to
-	// be valid Apple APNs and SCEP certs.
-	expected := `Error: No Apple Push Notification service (APNs) certificate found.`
-	assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple"}), expected)
+	out := runAppForTest(t, []string{"get", "mdm_apple"})
+	assert.Contains(t, out, "Common name (CN):")
+	assert.Contains(t, out, "Serial number:")
+	assert.Contains(t, out, "Issuer:")
 }
 
 func TestGetAppleBM(t *testing.T) {
+	depStorage := new(nanodep_mock.Storage)
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/account":
+			_, _ = w.Write([]byte(`{"admin_id": "abc", "org_name": "test_org"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
+
+	depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+		return nil
+	}
+
 	t.Run("free license", func(t *testing.T) {
 		runServerWithMockedDS(t)
 
@@ -2012,11 +2060,43 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, err.Error(), expected)
 	})
 
-	t.Run("premium license", func(t *testing.T) {
-		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	t.Run("premium license, single token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+			}, nil
+		}
 
-		expected := `No Apple Business Manager server token found`
-		assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple_bm"}), expected)
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "Apple ID:")
+		assert.Contains(t, out, "Organization name:")
+		assert.Contains(t, out, "MDM server URL:")
+		assert.Contains(t, out, "Renew date:")
+		assert.Contains(t, out, "Default team:")
+	})
+
+	t.Run("premium license, no token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return nil, nil
+		}
+
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "No Apple Business Manager server token found.")
+	})
+
+	t.Run("premium license, multiple tokens", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+				{ID: 2},
+			}, nil
+		}
+
+		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint")
 	})
 }
 
@@ -2181,7 +2261,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				AdditionalQueries: &additionalQueries,
 			},
 			MDM: fleet.TeamMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
 				},
@@ -2217,11 +2297,14 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
 		return nil
@@ -2647,10 +2730,26 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
+	var noHostErr error
+	var expectIdentifier bool
+	var expectRequestType bool
 	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
+
+		if noHostErr != nil {
+			return nil, errors.New(fleet.HostIdentiferNotFound)
+		}
+
+		if expectIdentifier {
+			require.NotEmpty(t, listOpts.Filters.HostIdentifier)
+		}
+
+		if expectRequestType {
+			require.NotEmpty(t, listOpts.Filters.RequestType)
+		}
+
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -2694,16 +2793,56 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+---------------------------------------+--------------+----------+
-| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u3 | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
-+----+----------------------+---------------------------------------+--------------+----------+
+
+The list of 3 most recent commands:
+
++------+----------------------+---------------------------------------+--------------+----------+
+| UUID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++------+----------------------+---------------------------------------+--------------+----------+
+| u1   | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++------+----------------------+---------------------------------------+--------------+----------+
+| u2   | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++------+----------------------+---------------------------------------+--------------+----------+
+| u3   | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
++------+----------------------+---------------------------------------+--------------+----------+
 `))
+
+	// Test with invalid option
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
+	require.Error(t, err)
+
+	// Test with host identifier filter
+	listErr = nil
+	empty = false
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = false
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type and host identifier filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
+	require.NoError(t, err)
+
+	// No Host Identifier found
+	listErr = nil
+	empty = false
+	expectRequestType = false
+	expectIdentifier = true
+	noHostErr = errors.New(fleet.HostIdentiferNotFound)
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
 }
 
 func TestUserIsObserver(t *testing.T) {

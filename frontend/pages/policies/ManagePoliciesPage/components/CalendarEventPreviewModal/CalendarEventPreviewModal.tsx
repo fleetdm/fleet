@@ -51,7 +51,7 @@ const CalendarEventPreviewModal = ({
                 💻 🚫 Scheduled maintenance
               </div>
               <div className={`${baseClass}__preview-header__time`}>
-                <span>Friday, April 5</span>
+                <span>Tuesday, June 18</span>
                 <span>⋅</span>
                 <span>5-5:30pm</span>
               </div>
@@ -63,7 +63,7 @@ const CalendarEventPreviewModal = ({
             </div>
             <div className={`${baseClass}__preview-info__text`}>
               {orgName} reserved this time to make some changes to your work
-              computer.
+              computer (Anna&apos;s MacBook Pro).
               <br />
               <br />
               Please leave your device on and connected to power.

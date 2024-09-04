@@ -1,4 +1,4 @@
-import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
+import { isEmpty, reduce, omitBy, Dictionary, snakeCase } from "lodash";
 
 import {
   DiskEncryptionStatus,
@@ -11,7 +11,7 @@ import {
 } from "services/entities/hosts";
 import { isValidSoftwareInstallStatus } from "interfaces/software";
 
-type QueryValues = string | number | boolean | undefined | null;
+export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
@@ -44,6 +44,30 @@ interface IMutuallyExclusiveHostParams {
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
+
+export const parseQueryValueToNumberOrUndefined = (
+  value: QueryValues,
+  min?: number,
+  max?: number
+): number | undefined => {
+  const isWithinRange = (num: number) => {
+    if (min !== undefined && max !== undefined) {
+      return num >= min && num <= max;
+    }
+    return true; // No range check if min or max is undefined
+  };
+
+  if (typeof value === "number") {
+    return isWithinRange(value) ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const parsedValue = parseFloat(value);
+    return !isNaN(parsedValue) && isWithinRange(parsedValue)
+      ? parsedValue
+      : undefined;
+  }
+  return undefined;
+};
 
 const reduceQueryParams = (
   params: string[],
@@ -249,4 +273,23 @@ export const getLabelParam = (selectedLabels?: string[]) => {
   if (label === undefined) return undefined;
 
   return label.slice(7);
+};
+
+type QueryParamish<T> = keyof T extends string
+  ? {
+      [K in keyof T]: QueryValues;
+    }
+  : never;
+
+export const convertParamsToSnakeCase = <T extends QueryParamish<T>>(
+  params: T
+) => {
+  return reduce<typeof params, QueryParams>(
+    params,
+    (result, val, key) => {
+      result[snakeCase(key)] = val;
+      return result;
+    },
+    {}
+  );
 };

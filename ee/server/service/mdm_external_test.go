@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -24,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -63,7 +64,6 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		depStorage,
 		nil,
 		nil,
-		"",
 		nil,
 		nil,
 	)
@@ -79,7 +79,8 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		clock.C,
 		depStorage,
 		nil,
-		"",
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -139,6 +140,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.LabelIDsByNameFuncInvoked = false
 		ds.SetOrUpdateMDMAppleDeclarationFuncInvoked = false
 		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
+		ds.GetAllMDMConfigAssetsByNameFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
 		resetInvoked()
@@ -198,8 +200,24 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
-		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-			return nil
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+		require.NoError(t, err)
+		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+		require.NoError(t, err)
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+				fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+				fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+				fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+				fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+				fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+			}, nil
 		}
 	}
 
@@ -302,11 +320,10 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		setupAsstByTeam := make(map[uint]*fleet.MDMAppleSetupAssistant)
 		globalSetupAsst := &fleet.MDMAppleSetupAssistant{
-			ID:          15,
-			TeamID:      nil,
-			Name:        "test asst",
-			Profile:     json.RawMessage(`{"foo": "bar"}`),
-			ProfileUUID: "abc-def",
+			ID:      15,
+			TeamID:  nil,
+			Name:    "test asst",
+			Profile: json.RawMessage(`{"foo": "bar"}`),
 		}
 		setupAsstByTeam[0] = globalSetupAsst
 		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -516,7 +533,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: "new team spec",
 			MDM: fleet.TeamSpecMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.0"),
 					Deadline:       optjson.SetString("2024-01-01"),
 				},

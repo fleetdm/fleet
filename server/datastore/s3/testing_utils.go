@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,6 +23,12 @@ const (
 
 func SetupTestSoftwareInstallerStore(tb testing.TB, bucket, prefix string) *SoftwareInstallerStore {
 	store := setupTestStore(tb, bucket, prefix, NewSoftwareInstallerStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
+func SetupTestBootstrapPackageStore(tb testing.TB, bucket, prefix string) *BootstrapPackageStore {
+	store := setupTestStore(tb, bucket, prefix, NewBootstrapPackageStore)
 	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
 	return store
 }
@@ -42,14 +49,23 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 	checkEnv(tb)
 
 	store, err := newFn(config.S3Config{
-		Bucket:           bucket,
-		Prefix:           prefix,
-		Region:           "minio",
-		EndpointURL:      testEndpoint,
-		AccessKeyID:      accessKeyID,
-		SecretAccessKey:  secretAccessKey,
-		ForceS3PathStyle: true,
-		DisableSSL:       true,
+		SoftwareInstallersBucket:           bucket,
+		SoftwareInstallersPrefix:           prefix,
+		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersEndpointURL:      testEndpoint,
+		SoftwareInstallersAccessKeyID:      accessKeyID,
+		SoftwareInstallersSecretAccessKey:  secretAccessKey,
+		SoftwareInstallersForceS3PathStyle: true,
+		SoftwareInstallersDisableSSL:       true,
+
+		CarvesBucket:           bucket,
+		CarvesPrefix:           prefix,
+		CarvesRegion:           "minio",
+		CarvesEndpointURL:      testEndpoint,
+		CarvesAccessKeyID:      accessKeyID,
+		CarvesSecretAccessKey:  secretAccessKey,
+		CarvesForceS3PathStyle: true,
+		CarvesDisableSSL:       true,
 	})
 	require.Nil(tb, err)
 
@@ -96,6 +112,12 @@ func cleanupStore(tb testing.TB, store *s3store) {
 	resp, err := store.s3client.ListObjects(&s3.ListObjectsInput{
 		Bucket: &store.bucket,
 	})
+	if aerr, ok := err.(awserr.Error); ok {
+		if aerr.Code() == s3.ErrCodeNoSuchBucket {
+			// fine, nothing to clean-up if the bucket no longer exists, no error
+			return
+		}
+	}
 	require.NoError(tb, err)
 
 	var objs []*s3.ObjectIdentifier

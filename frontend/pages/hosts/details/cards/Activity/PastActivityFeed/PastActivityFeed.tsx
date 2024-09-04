@@ -1,7 +1,7 @@
 import React from "react";
 
-import { IHostActivity } from "interfaces/activity";
-import { IHostActivitiesResponse } from "services/entities/activities";
+import { IHostPastActivity } from "interfaces/activity";
+import { IHostPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -16,7 +16,7 @@ import { pastActivityComponentMap } from "../ActivityConfig";
 const baseClass = "past-activity-feed";
 
 interface IPastActivityFeedProps {
-  activities?: IHostActivitiesResponse;
+  activities?: IHostPastActivitiesResponse;
   isError?: boolean;
   onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
@@ -44,7 +44,7 @@ const PastActivityFeed = ({
     return (
       <EmptyFeed
         title="No activity"
-        message="When a script runs on a host, it shows up here."
+        message="Completed actions will appear here (scripts, software, lock, and wipe)."
         className={`${baseClass}__empty-feed`}
       />
     );
@@ -53,11 +53,12 @@ const PastActivityFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {activitiesList.map((activity: IHostActivity) => {
+        {activitiesList.map((activity: IHostPastActivity) => {
           const ActivityItemComponent = pastActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
               key={activity.id}
+              tab="past"
               activity={activity}
               onShowDetails={onDetailsClick}
             />

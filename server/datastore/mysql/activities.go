@@ -31,7 +31,12 @@ func (ds *Datastore) NewActivity(
 	var userName *string
 	var userEmail *string
 	if user != nil {
-		userID = &user.ID
+		// To support creating activities with users that were deleted. This can happen
+		// for automatically installed software which uses the author of the upload as the author of
+		// the installation.
+		if user.ID != 0 {
+			userID = &user.ID
+		}
 		userName = &user.Name
 		userEmail = &user.Email
 	}
@@ -231,14 +236,38 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 // software to install, etc.) and provides a unified view of those upcoming
 // tasks.
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// NOTE: Be sure to update both the count (here) and list statements (below)
+	// if the query condition is modified.
 	countStmts := []string{
-		`SELECT COUNT(*) c FROM host_script_results WHERE host_id = :host_id AND exit_code IS NULL`,
-		`SELECT COUNT(*) c FROM host_software_installs WHERE host_id = :host_id AND pre_install_query_output IS NULL AND install_script_exit_code IS NULL`,
+		`SELECT
+			COUNT(*) c
+			FROM host_script_results hsr
+			WHERE hsr.host_id = :host_id AND
+						exit_code IS NULL AND
+						(sync_request = 0 OR created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
+		`SELECT
+			COUNT(*) c
+			FROM host_software_installs hsi
+			WHERE hsi.host_id = :host_id AND
+						pre_install_query_output IS NULL AND
+						install_script_exit_code IS NULL`,
+		`
+		SELECT
+			COUNT(*) c
+			FROM nano_view_queue nvq
+			JOIN host_vpp_software_installs hvsi ON nvq.command_uuid = hvsi.command_uuid
+			WHERE hvsi.host_id = :host_id AND nvq.status IS NULL
+		`,
 	}
 
 	var count uint
 	countStmt := `SELECT SUM(c) FROM ( ` + strings.Join(countStmts, " UNION ALL ") + ` ) AS counts`
-	countStmt, args, err := sqlx.Named(countStmt, map[string]any{"host_id": hostID})
+
+	seconds := int(scripts.MaxServerWaitTime.Seconds())
+	countStmt, args, err := sqlx.Named(countStmt, map[string]any{
+		"host_id":       hostID,
+		"max_wait_time": seconds,
+	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build count query from named args")
 	}
@@ -249,7 +278,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
 	}
 
-	// NOTE: Be sure to update both the count and list statements if the list query is modified
+	// NOTE: Be sure to update both the count (above) and list statements (below)
+	// if the query condition is modified.
 	listStmts := []string{
 		// list pending scripts
 		`SELECT
@@ -286,18 +316,22 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending software installs
 		fmt.Sprintf(`SELECT
 			hsi.execution_id as uuid,
-			u.name as name,
-			u.id as user_id,
-			u.gravatar_url as gravatar_url,
-			u.email as user_email,
+			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
+			-- thus the user_id for the upcoming activity needs to be the user that uploaded the software installer.
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.name, u.name) AS name,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.id, u.id) as user_id,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.gravatar_url, u.gravatar_url) as gravatar_url,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.email, u.email) AS user_email,
 			:installed_software_type as activity_type,
 			hsi.created_at as created_at,
 			JSON_OBJECT(
 				'host_id', hsi.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
+				'software_package', si.filename,
 				'install_uuid', hsi.execution_id,
-				'status', %s
+				'status', CAST(%s AS CHAR),
+				'self_service', si.self_service IS TRUE
 			) as details
 		FROM
 			host_software_installs hsi
@@ -308,15 +342,51 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		LEFT OUTER JOIN
 			users u ON u.id = hsi.user_id
 		LEFT OUTER JOIN
+			users u2 ON u2.id = si.user_id
+		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE
 			hsi.host_id = :host_id AND
 			hsi.pre_install_query_output IS NULL AND
 			hsi.install_script_exit_code IS NULL
 		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
+		`
+SELECT
+	hvsi.command_uuid AS uuid,
+	u.name AS name,
+	u.id AS user_id,
+	u.gravatar_url as gravatar_url,
+	u.email as user_email,
+	:installed_app_store_app_type AS activity_type,
+	hvsi.created_at AS created_at,
+	JSON_OBJECT(
+		'host_id', hvsi.host_id,
+		'host_display_name', hdn.display_name,
+		'software_title', st.name,
+		'app_store_id', hvsi.adam_id,
+		'command_uuid', hvsi.command_uuid,
+		'self_service', hvsi.self_service IS TRUE,
+		-- status is always pending because only pending MDM commands are upcoming.
+		'status', :software_status_pending
+	) AS details
+FROM
+	host_vpp_software_installs hvsi
+INNER JOIN 
+	nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
+LEFT OUTER JOIN 
+	users u ON hvsi.user_id = u.id
+LEFT OUTER JOIN 
+	host_display_names hdn ON hdn.host_id = hvsi.host_id
+LEFT OUTER JOIN 
+	vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
+LEFT OUTER JOIN 
+	software_titles st ON st.id = vpa.title_id
+WHERE
+	nvq.status IS NULL
+	AND hvsi.host_id = :host_id
+`,
 	}
 
-	seconds := int(scripts.MaxServerWaitTime.Seconds())
 	listStmt := `
 		SELECT
 			uuid,
@@ -329,13 +399,14 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			details
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming `
 	listStmt, args, err = sqlx.Named(listStmt, map[string]any{
-		"host_id":                   hostID,
-		"ran_script_type":           fleet.ActivityTypeRanScript{}.ActivityName(),
-		"installed_software_type":   fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
-		"max_wait_time":             seconds,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"host_id":                      hostID,
+		"ran_script_type":              fleet.ActivityTypeRanScript{}.ActivityName(),
+		"installed_software_type":      fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
+		"installed_app_store_app_type": fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		"max_wait_time":                seconds,
+		"software_status_failed":       string(fleet.SoftwareInstallerFailed),
+		"software_status_installed":    string(fleet.SoftwareInstallerInstalled),
+		"software_status_pending":      string(fleet.SoftwareInstallerPending),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")

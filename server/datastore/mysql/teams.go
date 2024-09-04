@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -17,7 +18,7 @@ import (
 
 var teamSearchColumns = []string{"name"}
 
-const teamColumns = `id, created_at, name, description, config`
+const teamColumns = `id, created_at, name, filename, description, config`
 
 func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -26,14 +27,16 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		query := `
     INSERT INTO teams (
       name,
+	  filename,
       description,
       config
-    ) VALUES (?, ?, ?)
+    ) VALUES (?, ?, ?, ?)
     `
 		result, err := tx.ExecContext(
 			ctx,
 			query,
 			team.Name,
+			team.Filename,
 			team.Description,
 			team.Config,
 		)
@@ -53,10 +56,14 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 }
 
 func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader(ctx), tid)
+	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
+func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+	return teamDB(ctx, ds.reader(ctx), tid, false)
+}
+
+func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
 	stmt := `
 		SELECT ` + teamColumns + ` FROM teams
 			WHERE id = ?
@@ -70,18 +77,20 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, 
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 
-	if err := loadSecretsForTeamsDB(ctx, q, []*fleet.Team{team}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
-	}
+	if withExtras {
+		if err := loadSecretsForTeamsDB(ctx, q, []*fleet.Team{team}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
+		}
 
-	if err := loadUsersForTeamDB(ctx, q, team); err != nil {
-		return nil, err
-	}
-	if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
-		return nil, err
-	}
-	if err := loadFeaturesForTeamDB(ctx, q, team); err != nil {
-		return nil, err
+		if err := loadUsersForTeamDB(ctx, q, team); err != nil {
+			return nil, err
+		}
+		if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
+			return nil, err
+		}
+		if err := loadFeaturesForTeamDB(ctx, q, team); err != nil {
+			return nil, err
+		}
 	}
 
 	return team, nil
@@ -97,7 +106,14 @@ func saveTeamSecretsDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team)
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
+		// Delete team policies first, because policies can have associated installers which may be deleted on cascade
+		// before deleting the policies (which are also deleted on cascade).
+		_, err := tx.ExecContext(ctx, `DELETE FROM policies WHERE team_id = ?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
 		}
@@ -142,6 +158,10 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 
+	return ds.loadExtrasForTeam(ctx, team)
+}
+
+func (ds *Datastore) loadExtrasForTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	if err := loadSecretsForTeamsDB(ctx, ds.reader(ctx), []*fleet.Team{team}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
 	}
@@ -155,8 +175,24 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	if err := loadFeaturesForTeamDB(ctx, ds.reader(ctx), team); err != nil {
 		return nil, err
 	}
-
 	return team, nil
+}
+
+func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
+	stmt := `
+		SELECT ` + teamColumns + ` FROM teams
+			WHERE filename = ?
+	`
+	team := &fleet.Team{}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, filename); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithMessage("filename not found"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select team")
+	}
+
+	return ds.loadExtrasForTeam(ctx, team)
 }
 
 func loadUsersForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.Team) error {
@@ -234,12 +270,13 @@ func (ds *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Tea
 UPDATE teams
 SET
     name = ?,
+	filename = ?,
     description = ?,
     config = ?
 WHERE
     id = ?
 `
-		_, err := tx.ExecContext(ctx, query, team.Name, team.Description, team.Config, team.ID)
+		_, err := tx.ExecContext(ctx, query, team.Name, team.Filename, team.Description, team.Config, team.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving team")
 		}

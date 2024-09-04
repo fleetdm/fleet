@@ -1,0 +1,2 @@
+- Adds a migration to migrate older team configurations to the new version that includes both
+  installers and App Store apps.

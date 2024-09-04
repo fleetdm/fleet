@@ -1,0 +1,58 @@
+- name: CIS - Ensure 'Enforce password history' is set to '24' or more passwords
+  critical: false
+  platform: windows
+  description: |
+    This policy check determines the number of renewed, unique passwords that have to be associated with a user account before you can reuse an old password.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 24 or more passwords:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Enforce password history'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
+- name: CIS - Ensure 'Maximum password age' is set to '365 or fewer days, but not 0'
+  critical: false
+  platform: windows
+  description: |
+    This policy setting defines how long a user can use their password before it expires.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 365 or fewer days, but not 0:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Maximum password age'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE (maximum_password_age <= 365 AND maximum_password_age != 0);
+- name: CIS - Ensure 'Minimum password age' is set to '1 or more days'
+  critical: false
+  platform: windows
+  description: |
+    This policy setting determines the number of days that you must use a password before you can
+    change it. The range of values for this policy setting is between 1 and 999 days.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 1 or more days:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password age'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE minimum_password_age >= 1;
+- name: CIS - Ensure 'Minimum password length' is set to '14 or more characters'
+  critical: false
+  platform: windows
+  description: |
+    This policy setting determines the least number of characters that make up a password for a user account.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 14 or more characters
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password length'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
+- name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled'
+  critical: false
+  platform: windows
+  description: |
+    This policy setting checks all new passwords to ensure that they meet basic requirements for
+    strong passwords. Passwords that contain only alphanumeric characters are extremely easy to
+    discover with several publicly available tools.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Password must meet complexity requirements'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE password_complexity = 1;

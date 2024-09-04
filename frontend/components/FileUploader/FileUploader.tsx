@@ -4,8 +4,8 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import { GraphicNames } from "components/graphics";
-import Graphic from "components/Graphic";
 import Icon from "components/Icon";
+import Graphic from "components/Graphic";
 
 const baseClass = "file-uploader";
 
@@ -20,7 +20,31 @@ type ISupportedGraphicNames = Extract<
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-vpp"
 >;
+
+export const FileDetails = ({
+  details: { name, platform },
+  graphicName = "file-pkg",
+}: {
+  details: {
+    name: string;
+    platform?: string;
+  };
+  graphicName?: ISupportedGraphicNames;
+}) => (
+  <div className={`${baseClass}__selected-file`}>
+    <Graphic name={graphicName} />
+    <div className={`${baseClass}__selected-file--details`}>
+      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
+      {platform && (
+        <div className={`${baseClass}__selected-file--details--platform`}>
+          {platform}
+        </div>
+      )}
+    </div>
+  </div>
+);
 
 interface IFileUploaderProps {
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
@@ -28,6 +52,8 @@ interface IFileUploaderProps {
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
+  /** Disables the upload button */
+  diabled?: boolean;
   /** A comma seperated string of one or more file types accepted to upload.
    * This is the same as the html accept attribute.
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept
@@ -46,18 +72,19 @@ interface IFileUploaderProps {
   /** If provided FileUploader will display this component when the file is
    * selected. This is used for previewing the file before uploading.
    */
-  filePreview?: ReactNode;
+  filePreview?: ReactNode; // TODO: refactor this to be a function that returns a ReactNode?
   onFileUpload: (files: FileList | null) => void;
 }
 
 /**
  * A component that encapsulates the UI for uploading a file.
  */
-const FileUploader = ({
+export const FileUploader = ({
   graphicName: graphicNames,
   message,
   additionalInfo,
   isLoading = false,
+  diabled = false,
   accept,
   filePreview,
   className,
@@ -107,6 +134,7 @@ const FileUploader = ({
             className={`${baseClass}__upload-button`}
             variant={buttonVariant}
             isLoading={isLoading}
+            disabled={diabled}
           >
             <label htmlFor="upload-file">
               {buttonType === "link" && <Icon name="upload" />}

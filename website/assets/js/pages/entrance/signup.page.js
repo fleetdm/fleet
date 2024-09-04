@@ -26,7 +26,8 @@ parasails.registerPage('signup', {
     showFullForm: false,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     loginSlug: '/login',
-    pageToRedirectToAfterRegistration: '/start',
+    pageToRedirectToAfterRegistration: '/start#signup',
+    primaryBuyingSituation: undefined
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -36,7 +37,7 @@ parasails.registerPage('signup', {
     // If we're redirecting this user to the license dispenser after they sign up, modify the link to the login page and the pageToRedirectToAfterRegistration
     if(window.location.hash && window.location.hash === '#purchaseLicense'){
       this.loginSlug = '/login#purchaseLicense';
-      this.pageToRedirectToAfterRegistration = '/new-license';
+      this.pageToRedirectToAfterRegistration = '/new-license#signup';
       window.location.hash = '';
     }
   },
@@ -67,6 +68,15 @@ parasails.registerPage('signup', {
       // redirect to the /start page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
+      //
+      // Naming convention:  (like sails config)
+      // "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
+      if(typeof gtag !== 'undefined'){
+        gtag('event','fleet_website__sign_up');
+      }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase
+      }
       this.syncing = true;
       this.goto(this.pageToRedirectToAfterRegistration);// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }

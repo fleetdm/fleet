@@ -23,14 +23,19 @@ spec:
       macos_updates:
         deadline: null
         minimum_version: null
+      ios_updates:
+        deadline: null
+        minimum_version: null
+      ipados_updates:
+        deadline: null
+        minimum_version: null
       windows_updates:
         deadline_days: null
         grace_period_days: null
       windows_settings:
         custom_settings: null
     scripts: null
-    software: null
+    secrets: null
     webhook_settings:
       host_status_webhook: null
     name: tm1
-

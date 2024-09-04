@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	kitlog "github.com/go-kit/log"
@@ -22,10 +23,12 @@ type GoogleCalendarLoadAPI struct {
 	userToImpersonate string
 	ctx               context.Context
 	client            *http.Client
+	serverURL         string
 }
 
 // Configure creates a new Google Calendar service using the provided credentials.
-func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ string, privateKey string, userToImpersonate string) error {
+func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ string, privateKey string, userToImpersonate string,
+	serverURL string) error {
 	if lowLevelAPI.Logger == nil {
 		lowLevelAPI.Logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarLoadAPI", "user", userToImpersonate)
 	}
@@ -35,6 +38,7 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ strin
 	if lowLevelAPI.client == nil {
 		lowLevelAPI.client = fleethttp.NewClient()
 	}
+	lowLevelAPI.serverURL = serverURL
 	return nil
 }
 
@@ -118,6 +122,10 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) CreateEvent(event *calendar.Event) (*c
 		return nil, err
 	}
 	return &rspEvent, nil
+}
+
+func (lowLevelAPI *GoogleCalendarLoadAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	return nil, errors.New("GoogleCalendarLoadAPI.UpdateEvent is not implemented")
 }
 
 func (lowLevelAPI *GoogleCalendarLoadAPI) GetEvent(id, _ string) (*calendar.Event, error) {
@@ -230,5 +238,13 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) DeleteEvent(id string) error {
 		}
 		return fmt.Errorf("unexpected status code: %d with body: %s", rsp.StatusCode, string(data))
 	}
+	return nil
+}
+
+func (lowLevelAPI *GoogleCalendarLoadAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
+	return "resourceID", nil
+}
+
+func (lowLevelAPI *GoogleCalendarLoadAPI) Stop(channelID string, resourceID string) error {
 	return nil
 }

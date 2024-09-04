@@ -4,5 +4,5 @@ examples: |-
   benefit from more RAM.
 
   ```
-  SELECT * FROM virtual_memory_info WHERE swap_ins|-'0';
+  SELECT * FROM virtual_memory_info WHERE swap_ins>'0';
   ```

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -72,7 +74,7 @@ func (d dockerCompose) Command(arg ...string) *exec.Cmd {
 
 func newDockerCompose() (dockerCompose, error) {
 	// first, check if `docker compose` is available
-	if err := exec.Command("docker compose").Run(); err == nil {
+	if err := exec.Command("docker", "compose").Run(); err == nil {
 		return dockerCompose{dockerComposeV2}, nil
 	}
 
@@ -206,6 +208,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			for _, item := range []string{
 				filepath.Join(previewDir, "logs"),
 				filepath.Join(previewDir, "vulndb"),
+				filepath.Join(previewDir, "config"),
 			} {
 				if err := os.MkdirAll(item, 0o777); err != nil {
 					return fmt.Errorf("create directory %q: %w", item, err)
@@ -213,6 +216,48 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				if err := os.Chmod(item, 0o777); err != nil {
 					return fmt.Errorf("make %s writable: %w", item, err)
 				}
+			}
+
+			generatePrivateKey := func(n int) (string, error) {
+				bytes := make([]byte, n/2)
+				if _, err := rand.Read(bytes); err != nil {
+					return "", err
+				}
+				return hex.EncodeToString(bytes)[:n], nil
+			}
+
+			// Create a random private key for MDM asset encryption and save it to the filesystem
+			// for use in subsequent runs. If one already exists, use that one.
+			getPrivateKey := func() (string, error) {
+				pkFilename := filepath.Join(previewDir, "config", ".private_key")
+				filePK, err := os.ReadFile(pkFilename)
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						genPK, err := generatePrivateKey(32) // use AES-256
+						if err != nil {
+							return "", fmt.Errorf("generating private key: %w", err)
+						}
+
+						if err := os.WriteFile(pkFilename, []byte(genPK), 0o777); err != nil {
+							return "", fmt.Errorf("writing private key file: %w", err)
+						}
+
+						return genPK, nil
+					}
+
+					return "", fmt.Errorf("reading private key file: %w", err)
+				}
+
+				return string(filePK), nil
+			}
+
+			pk, err := getPrivateKey()
+			if err != nil {
+				return fmt.Errorf("getting private key: %w", err)
+			}
+
+			if err := os.Setenv("FLEET_SERVER_PRIVATE_KEY", pk); err != nil {
+				return fmt.Errorf("failed to set private key: %w", err)
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -342,7 +387,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			_, err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplyClientSpecOptions{})
+			_, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{})
 			if err != nil {
 				return err
 			}
@@ -362,8 +407,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error retrieving enroll secret: %w", err)
 			}
 
-			if len(secrets.Secrets) != 1 {
-				return errors.New("Expected 1 active enroll secret")
+			if len(secrets.Secrets) == 0 {
+				return errors.New("Expected at least one enroll secret")
 			}
 
 			// disable analytics collection for preview

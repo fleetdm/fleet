@@ -18,6 +18,22 @@ alias ssh_cmd="sshpass -p admin ssh -o \"StrictHostKeyChecking no\" admin@\$(tar
 alias ssh_interactive_cmd="sshpass -p admin ssh -o \"StrictHostKeyChecking no\" -t admin@\$(tart ip $vm_name)"
 alias scp_cmd="sshpass -p admin scp -o \"StrictHostKeyChecking no\""
 
+check_ip() {
+    counter=0
+    while [ $counter -lt 5 ]; do
+        if tart ip "$vm_name" > /dev/null; then
+            break
+        fi
+        sleep 2
+        counter=$((counter+1))
+    done
+
+    if [ $counter -eq 5 ]; then
+        echo "Failed to get IP address"
+        exit 1
+    fi
+}
+
 # Make sure we're in the script directory
 cd "$(dirname "$0")"
 
@@ -62,8 +78,8 @@ tart clone $image_name $vm_name
 echo "Starting VM $vm_name and detatching"
 tart run $vm_name &
 
-# Wait a second for the VM to start
-sleep 2
+echo "Waiting for VM to boot"
+check_ip
 
 echo "Running uname"
 ssh_cmd "uname -a"

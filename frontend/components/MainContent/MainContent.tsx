@@ -11,6 +11,7 @@ import { AppContext } from "context/app";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
+import VppRenewalMessage from "./banners/VppRenewalMessage";
 
 interface IMainContentProps {
   children: ReactNode;
@@ -36,8 +37,13 @@ const MainContent = ({
     config,
     isPremiumTier,
     noSandboxHosts,
-    apnsExpiry,
-    abmExpiry,
+    isApplePnsExpired,
+    isAppleBmExpired,
+    isVppExpired,
+    needsAbmTermsRenewal,
+    willAppleBmExpire,
+    willApplePnsExpire,
+    willVppExpire,
   } = useContext(AppContext);
 
   const sandboxExpiryTime =
@@ -46,40 +52,31 @@ const MainContent = ({
       : formatDistanceToNow(new Date(sandboxExpiry));
 
   const renderAppWideBanner = () => {
-    const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
-    const isApplePnsExpired = hasLicenseExpired(apnsExpiry || "");
-    const willApplePnsExpireIn30Days = willExpireWithinXDays(
-      apnsExpiry || "",
-      30
-    );
-    const isAppleBmExpired = hasLicenseExpired(abmExpiry || "");
-    const willAppleBmExpireIn30Days = willExpireWithinXDays(
-      abmExpiry || "",
-      30
-    );
     const isFleetLicenseExpired = hasLicenseExpired(
       config?.license.expiration || ""
     );
 
+    let banner: JSX.Element | null = null;
+
     if (isPremiumTier) {
-      if (isApplePnsExpired || willApplePnsExpireIn30Days) {
-        return <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
-      }
-
-      if (isAppleBmExpired || willAppleBmExpireIn30Days) {
-        return <AppleBMRenewalMessage expired={isAppleBmExpired} />;
-      }
-
-      if (isAppleBmTermsExpired) {
-        return <AppleBMTermsMessage />;
-      }
-
-      if (isFleetLicenseExpired) {
-        return <LicenseExpirationBanner />;
+      if (isApplePnsExpired || willApplePnsExpire) {
+        banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+      } else if (isAppleBmExpired || willAppleBmExpire) {
+        banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
+      } else if (needsAbmTermsRenewal) {
+        banner = <AppleBMTermsMessage />;
+      } else if (isVppExpired || willVppExpire) {
+        banner = <VppRenewalMessage expired={isVppExpired} />;
+      } else if (isFleetLicenseExpired) {
+        banner = <LicenseExpirationBanner />;
       }
     }
 
-    return <></>;
+    if (banner) {
+      return <div className={`${baseClass}__warning-banner`}>{banner}</div>;
+    }
+
+    return null;
   };
   return (
     <div className={classes}>

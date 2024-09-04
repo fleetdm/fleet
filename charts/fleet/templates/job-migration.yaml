@@ -18,6 +18,7 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded
     {{- end }}
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     metadata:
 {{- with .Values.podAnnotations }}
@@ -35,7 +36,7 @@ spec:
       - name: fleet-migration
         command: [/usr/bin/fleet]
         args: ["prepare","db","--no-prompt"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
         resources:
           limits:
             cpu: {{ .Values.resources.limits.cpu }}

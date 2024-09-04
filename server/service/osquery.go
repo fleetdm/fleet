@@ -81,7 +81,7 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key: " + nodeKey)
+		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
@@ -1008,6 +1008,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1038,6 +1042,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
+
 		// NOTE(mna): currently, failing policies webhook wouldn't see the new
 		// flipped policies on the next run if async processing is enabled and the
 		// collection has not been done yet (not persisted in mysql). Should
@@ -1606,6 +1611,141 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 	return nil
 }
 
+func (svc *Service) processSoftwareForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// We do not want to queue software installations on vanilla osquery hosts.
+		return nil
+	}
+	if hostTeamID == nil {
+		// TODO(lucas): Support hosts in "No team".
+		return nil
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated installers for the team.
+	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, *hostTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithInstaller) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to installers.
+	policiesWithInstallersMap := make(map[uint]fleet.PolicySoftwareInstallerData)
+	for _, policyWithInstaller := range policiesWithInstaller {
+		policiesWithInstallersMap[policyWithInstaller.ID] = policyWithInstaller
+	}
+	policyResultsOfPoliciesWithInstallers := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithInstallersMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithInstallers[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithInstallers) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with installers that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithInstallers, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithInstallers,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithInstallers) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithInstallersSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithInstallers {
+		policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with installers that are not newly failing.
+	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
+	for _, policyWithInstaller := range policiesWithInstaller {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyWithInstaller.ID]; ok {
+			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
+		}
+	}
+
+	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", failingPolicyWithInstaller.ID,
+			"software_installer_id", failingPolicyWithInstaller.InstallerID,
+			"software_title_id", installerMetadata.TitleID,
+			"software_installer_platform", installerMetadata.Platform,
+		)
+		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
+			level.Debug(logger).Log("msg", "installer platform does not match host platform")
+			continue
+		}
+		hostLastInstall, err := svc.ds.GetHostLastInstallData(ctx, hostID, installerMetadata.InstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host last install data")
+		}
+		// hostLastInstall.Status == nil can happen when a software is installed by Fleet and later removed.
+		if hostLastInstall != nil && hostLastInstall.Status != nil &&
+			*hostLastInstall.Status == fleet.SoftwareInstallerPending {
+			// There's a pending install for this host and installer,
+			// thus we do not queue another install request.
+			level.Debug(svc.logger).Log(
+				"msg", "found pending install request for this host and installer",
+				"pending_execution_id", hostLastInstall.ExecutionID,
+			)
+			continue
+		}
+		// NOTE(lucas): The user_id set in this software install will be NULL
+		// so this means that when generating the activity for this action
+		// (in SaveHostSoftwareInstallResult)
+		// the author will be set to the user that uploaded the software (we want this
+		// by design).
+		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
+			ctx, hostID,
+			installerMetadata.InstallerID,
+			false, // Set Self-service as false because this is triggered by Fleet.
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert software install request: host_id=%d, software_installer_id=%d",
+				hostID, installerMetadata.InstallerID,
+			)
+		}
+		level.Debug(logger).Log(
+			"msg", "install request sent",
+			"install_uuid", installUUID,
+		)
+	}
+	return nil
+}
+
 func (svc *Service) maybeDebugHost(
 	ctx context.Context,
 	host *fleet.Host,
@@ -1799,7 +1939,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
 	if !queryReportsDisabled {
-		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
 	var filteredLogs []json.RawMessage
@@ -1861,7 +2002,12 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) saveResultLogsToQueryReports(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+	maxQueryReportRows int,
+) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1903,11 +2049,11 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
 			continue
 		}
-		if count >= fleet.MaxQueryReportRows {
+		if count >= maxQueryReportRows {
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
+		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
@@ -1919,7 +2065,7 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -1945,7 +2091,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
+	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
 		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
 	return nil

@@ -1,7 +1,5 @@
 import React from "react";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FleetAce from "components/FleetAce";
@@ -24,7 +22,7 @@ const AdvancedOptionsModal = ({
   onExit,
 }: IAdvancedOptionsModalProps) => {
   return (
-    <Modal className={baseClass} title="Advanced Options" onExit={onExit}>
+    <Modal className={baseClass} title="Advanced options" onExit={onExit}>
       <>
         <p>
           Advanced options are read-only. To change options, delete software and
@@ -40,6 +38,7 @@ const AdvancedOptionsModal = ({
             helpText="Fleet will run this command on hosts to install software."
             label="Install script"
             labelTooltip="For security agents, add the script provided by the vendor."
+            isFormField
           />
           {preInstallQuery && (
             <div className={`${baseClass}__input-field`}>
@@ -74,6 +73,7 @@ const AdvancedOptionsModal = ({
                 maxLines={10}
                 value={postInstallScript}
                 helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+                isFormField
               />
             </div>
           )}

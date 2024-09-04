@@ -502,6 +502,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 		got        map[string]string
 		wantParams []any
 		wantErr    string
+		enrollRef  string
 	}{
 		{
 			"empty server URL",
@@ -511,6 +512,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				"server_url":         "",
 			},
 			[]any{false, false, "", false, fleet.UnknownMDMName},
+			"",
 			"",
 		},
 		{
@@ -523,6 +525,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{false, true, "https://test.example.com", true, fleet.WellKnownMDMFleet},
 			"",
+			"",
 		},
 		{
 			"with a query string on the server URL",
@@ -532,6 +535,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
 			},
 			[]any{false, true, "https://jamf.com/1/some/path", true, fleet.WellKnownMDMJamf},
+			"",
 			"",
 		},
 		{
@@ -543,6 +547,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{},
 			"parsing installed_from_dep",
+			"",
 		},
 		{
 			"with invalid enrolled",
@@ -553,6 +558,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{},
 			"parsing enrolled",
+			"",
 		},
 		{
 			"with invalid server_url",
@@ -563,6 +569,19 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{},
 			"parsing server_url",
+			"",
+		},
+		{
+			"with invalid enrollment reference",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         "https://test.example.com?enroll_reference=foobar",
+				"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+			},
+			[]any{false, true, "https://test.example.com", true, fleet.WellKnownMDMFleet},
+			"",
+			"foobar",
 		},
 	}
 
@@ -574,11 +593,17 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
-				require.Empty(t, fleetEnrollmentRef)
+				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
 				return nil
 			}
 			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
+			}
+
+			if c.name == "with invalid enrollment reference" {
+				ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+					return &nfe{}
+				}
 			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
@@ -590,7 +615,9 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
 				ds.SetOrUpdateMDMDataFuncInvoked = false
-				require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+				if c.name != "with invalid enrollment reference" {
+					require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+				}
 			}
 		})
 	}
@@ -1803,6 +1830,30 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.6.00.34263",
 			},
 		},
+		{
+			name: "minio",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "20200310000000",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2020-03-10T00-00-00Z",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
@@ -1935,12 +1986,33 @@ func TestIngestNetworkInterface(t *testing.T) {
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
+	// Combine two queries
 	query1 := "SELECT 1 WHERE foo = bar"
 	query2 := "SELECT 1 WHERE baz = qux"
-
 	sql := generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
 
+	// Default
 	sql = generateSQLForAllExists()
 	require.Equal(t, "SELECT 0 LIMIT 0", sql)
+
+	// sanitize semicolons from subqueries
+	query1 = "SELECT 1 WHERE foo = bar;"
+	query2 = "SELECT 1 WHERE baz = qux;"
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	// sanitize only trailing semicolons
+	query1 = "SELECT 1 WHERE foo = 'ba;r';"
+	query2 = "SELECT 1 WHERE baz = 'qu;x';;; "
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
+
+type nfe struct{}
+
+func (e nfe) Error() string {
+	return "foobar"
+}
+
+func (e nfe) IsNotFound() bool { return true }

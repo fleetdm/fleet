@@ -1,6 +1,6 @@
 module bitlocker
 
-go 1.22.3
+go 1.22.6
 
 require github.com/go-ole/go-ole v1.3.0
 

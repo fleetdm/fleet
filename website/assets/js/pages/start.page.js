@@ -18,12 +18,16 @@ parasails.registerPage('start', {
       'what-does-your-team-manage-eo-it': {},
       'what-does-your-team-manage-vm': {},
       'what-do-you-manage-mdm': {},
+      'cross-platform-mdm': {stepCompleted: true},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
       'deploy-fleet-in-your-environment': {stepCompleted: true},
+      'thanks-for-checking-out-fleet': {stepCompleted: true},
       'how-was-your-deployment': {},
       'whats-left-to-get-you-set-up': {},
     },
+
+    psychologicalStage: '2 - Aware',
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
@@ -72,6 +76,7 @@ parasails.registerPage('start', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+    primaryBuyingSituation: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -84,7 +89,37 @@ parasails.registerPage('start', {
     }
     // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
-      this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      if(this.primaryBuyingSituation !== 'vm') {
+        this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      }
+    }
+    if(this.me.psychologicalStage){
+      this.psychologicalStage = this.me.psychologicalStage;
+    }
+    if(window.location.hash) {
+      if(typeof analytics !== 'undefined') {
+        if(window.location.hash === '#signup') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+          analytics.track('fleet_website__sign_up');
+        } else if(window.location.hash === '#login') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+        }
+      }
+      window.location.hash = '';
     }
   },
   mounted: async function() {
@@ -98,11 +133,24 @@ parasails.registerPage('start', {
     handleSubmittingForm: async function(argins) {
       let formDataForThisStep = _.clone(argins);
       let nextStep = this.getNextStep();
-      let getStartedProgress = await Cloud.saveQuestionnaireProgress.with({
+      let questionanireProgress = await Cloud.saveQuestionnaireProgress.with({
         currentStep: this.currentStep,
         formData: formDataForThisStep,
       });
-      this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
+
+      this.previouslyAnsweredQuestions[this.currentStep] = questionanireProgress.getStartedProgress[this.currentStep];
+      this.psychologicalStage = questionanireProgress.psychologicalStage;
+      this.primaryBuyingSituation = questionanireProgress.primaryBuyingSituation;
+      if(typeof analytics !== 'undefined') {
+        analytics.identify(this.me.id, {
+          email: this.me.emailAddress,
+          firstName: this.me.firstName,
+          lastName: this.me.lastName,
+          company: this.me.organization,
+          primaryBuyingSituation: this.primaryBuyingSituation,
+          psychologicalStage: this.psychologicalStage,
+        });
+      }
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {
@@ -112,6 +160,9 @@ parasails.registerPage('start', {
     },
     clickGoToPreviousStep: async function() {
       switch(this.currentStep) {
+        case 'what-are-you-using-fleet-for':
+          this.currentStep = 'start';
+          break;
         case 'have-you-ever-used-fleet':
           this.currentStep = 'what-are-you-using-fleet-for';
           break;
@@ -147,8 +198,11 @@ parasails.registerPage('start', {
           } else if(primaryBuyingSituation === 'vm') {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(primaryBuyingSituation === 'mdm') {
-            this.currentStep = 'what-do-you-manage-mdm';
+            this.currentStep = 'cross-platform-mdm';
           }
+          break;
+        case 'cross-platform-mdm':
+          this.currentStep = 'what-do-you-manage-mdm';
           break;
         case 'lets-talk-to-your-team':
           this.currentStep = 'how-many-hosts';
@@ -176,6 +230,13 @@ parasails.registerPage('start', {
           break;
         case 'whats-left-to-get-you-set-up':
           this.currentStep = 'how-was-your-deployment';
+          break;
+        case 'thanks-for-checking-out-fleet':
+          if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
+            this.currentStep = 'what-did-you-think';
+          } else {
+            this.currentStep = 'how-was-your-deployment';
+          }
           break;
       }
     },
@@ -239,6 +300,9 @@ parasails.registerPage('start', {
           nextStepInForm = 'is-it-any-good';
           break;
         case 'what-do-you-manage-mdm':
+          nextStepInForm = 'cross-platform-mdm';
+          break;
+        case 'cross-platform-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':
@@ -246,7 +310,7 @@ parasails.registerPage('start', {
           break;
         case 'what-did-you-think':
           if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
-            nextStepInForm = '/announcements';
+            nextStepInForm = 'thanks-for-checking-out-fleet';
           } else if(this.formData['what-did-you-think'].whatDidYouThink === 'host-fleet-for-me') {
             nextStepInForm = 'how-many-hosts';
           } else {
@@ -256,17 +320,20 @@ parasails.registerPage('start', {
         case 'deploy-fleet-in-your-environment':
           nextStepInForm = 'how-was-your-deployment';
           break;
+        case 'thanks-for-checking-out-fleet':
+          nextStepInForm = '/announcements';
+          break;
         case 'how-was-your-deployment':
           if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'up-and-running') {
             nextStepInForm = 'whats-left-to-get-you-set-up';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'kinda-stuck'){
             nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'havent-gotten-to-it') {
-            nextStepInForm = 'deploy-fleet-in-your-environment';
+            nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
             nextStepInForm = 'how-many-hosts';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){
-            nextStepInForm = '/';
+            nextStepInForm = 'thanks-for-checking-out-fleet';
           }
           break;
         case 'whats-left-to-get-you-set-up':
@@ -298,8 +365,14 @@ parasails.registerPage('start', {
           this.formData[step] = this.previouslyAnsweredQuestions[step];
         }
         this.currentStep = this.getNextStep();
+        // If the last step was a redirect, take the user to the step they submitted previously.
         if(_.startsWith(this.currentStep, '/')){
           this.currentStep = this.me.lastSubmittedGetStartedQuestionnaireStep;
+          // If this user is coming back to the form after submitting the 'thanks-for-checking-out-fleet' step,
+          // take them back to the step they submitted before they reached that step. (Either what-did-you-think or how-was-your-deployment)
+          if(this.currentStep === 'thanks-for-checking-out-fleet'){
+            this.clickGoToPreviousStep();
+          }
         }
       }
     },

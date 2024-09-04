@@ -21,6 +21,7 @@ import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
@@ -78,7 +79,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   };
 
   const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   const onChangeMode = (mode: string) => {
@@ -159,14 +160,9 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   }
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="End user migration workflow" />
+    <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
-        <p>
-          Control the end user migration workflow for macOS hosts that
-          automatically enrolled to your old MDM solution.
-        </p>
-
+        <p>Control the end user migration workflow for macOS hosts.</p>
         <img
           src={MdmMigrationPreview}
           alt="end user migration preview"
@@ -212,7 +208,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             page.
           </p>
           <InputField
-            disabled={!formData.isEnabled}
+            readOnly={!formData.isEnabled}
             name="webhook_url"
             label="Webhook URL"
             value={formData.webhookUrl}
@@ -240,7 +236,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       {showExamplePayload && (
         <ExampleWebhookUrlPayloadModal onCancel={toggleExamplePayloadModal} />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 

@@ -147,6 +147,17 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
+            // Check for query parameters set by ad clicks.
+            // This is used to track the reason behind a psychological stage change.
+            // If the user performs any action that causes a stage change
+            // within 30 minutes of visiting the website from an ad, their psychological
+            // stage change will be attributed to the ad campaign that brought them here.
+            if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
+              req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
+              // Example adAttributionString: Linkedin - 1245983829 - 41u3985237
+              req.session.visitedSiteFromAdAt = Date.now();
+            }
+
             // Check for website personalization parameter, and if valid, absorb it in the session.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
@@ -154,7 +165,12 @@ will be disabled and/or hidden in the UI.
             //   https://fleetdm.com/device-management?utm_content=mdm
             if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
               req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
-              return res.redirect(req.path);// « auto-redirect without querystring to make it prettier in the URL bar.
+              // FUTURE: reimplement the following (auto-redirect without querystring to make it prettier in the URL bar), but do it in the client-side JS
+              // using whatever that poppushstateblah thing is that makes it so you can change the URL bar from the browser-side code without screwing up
+              // the history stack (i.e. back button)
+              // ```
+              // return res.redirect(req.path);
+              // ```
             }//ﬁ
 
             if (req.method === 'GET' || req.method === 'HEAD') {
@@ -279,6 +295,21 @@ will be disabled and/or hidden in the UI.
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+              // FUTURE: Only show this CTA to users who are below psyStage 6.
+              // > The code below is so we don't bother users who have completed the questionnaire
+
+              // Show this logged-in user a CTA to bring them to the /start questionnaire if they do not have billing information saved.
+              res.locals.showStartCta = !req.me.hasBillingCard;
+              //  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+              // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
+                res.locals.collapseStartCta = true;
+              } else {
+                res.locals.collapseStartCta = false;
+              }
             }//ﬁ
 
             return next();

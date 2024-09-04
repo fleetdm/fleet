@@ -108,6 +108,7 @@
 
         .manage-hosts__filter-dropdowns {
           display: flex;
+          flex-direction: row;
           margin-left: $pad-medium;
 
           // Dropdown height matches search bar height
@@ -166,10 +167,12 @@
         }
 
         .controls {
-          order: 1;
-          margin-bottom: $pad-medium;
+          order: -2;
+          margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
+            display: flex;
+            flex-direction: row;
             flex: 1;
 
             .form-field--dropdown,
@@ -214,7 +217,8 @@
               .device_mapping__cell,
               .mdm_enrollment_status__cell,
               .mdm_server_url__cell,
-              .public_ip__cell {
+              .public_ip__cell,
+              .issues__cell {
                 .text-cell {
                   display: inline;
                 }
@@ -273,14 +277,6 @@
   }
 
   &__export-btn {
-    margin-left: $pad-medium;
-
-    img {
-      width: 13px;
-      height: 13px;
-      margin-left: 8px;
-      position: relative;
-      top: -2px;
-    }
+    margin-left: $pad-xsmall;
   }
 }

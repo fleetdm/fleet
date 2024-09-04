@@ -2,8 +2,8 @@ import React, { useCallback, useState, useEffect } from "react";
 
 import { IPolicyStats } from "interfaces/policy";
 
+import { syntaxHighlight } from "utilities/helpers";
 import validURL from "components/forms/validators/valid_url";
-
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
@@ -12,7 +12,7 @@ import Slider from "components/forms/fields/Slider";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
-import { syntaxHighlight } from "utilities/helpers";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Icon from "components/Icon";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
@@ -185,11 +185,11 @@ const CalendarEventsModal = ({
     return (
       <div className="form-field">
         <div className="form-field__label">Policies:</div>
-        <div className="automated-policies-section">
+        <ul className="automated-policies-section">
           {formData.policies.map((policy) => {
             const { isChecked, name, id } = policy;
             return (
-              <div className="checkbox-row" id={`checkbox-row--${id}`} key={id}>
+              <li className="policy-row" id={`policy-row--${id}`} key={id}>
                 <Checkbox
                   value={isChecked}
                   name={name}
@@ -197,28 +197,25 @@ const CalendarEventsModal = ({
                   onChange={() => {
                     onPolicyEnabledChange({ name, value: !isChecked });
                   }}
-                  smallTick
                 >
-                  {name}
+                  <TooltipTruncatedText value={name} />
                 </Checkbox>
-                <div>
-                  <Button
-                    variant="text-icon"
-                    onClick={() => {
-                      setSelectedPolicyToPreview(
-                        policies.find((p) => p.id === id)
-                      );
-                      togglePreviewCalendarEvent();
-                    }}
-                    className="checkbox-row__preview-button"
-                  >
-                    <Icon name="eye" /> Preview
-                  </Button>
-                </div>
-              </div>
+                <Button
+                  variant="text-icon"
+                  onClick={() => {
+                    setSelectedPolicyToPreview(
+                      policies.find((p) => p.id === id)
+                    );
+                    togglePreviewCalendarEvent();
+                  }}
+                  className="policy-row__preview-button"
+                >
+                  <Icon name="eye" /> Preview
+                </Button>
+              </li>
             );
           })}
-        </div>
+        </ul>
         <span className="form-field__help-text">
           A calendar event will be created for end users if one of their hosts
           fail any of these policies.{" "}
@@ -243,8 +240,8 @@ const CalendarEventsModal = ({
           you must first connect Fleet to your Google Workspace service account.
         </div>
         <div>
-          This can be configured in{" "}
-          <b>Settings &gt; Integrations &gt; Calendars.</b>
+          This can be configured in <b>Settings</b> &gt; <b>Integrations</b>{" "}
+          &gt; <b>Calendars.</b>
         </div>
         <CustomLink
           url="https://www.fleetdm.com/learn-more-about/calendar-events"

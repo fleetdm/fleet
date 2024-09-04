@@ -172,7 +172,6 @@ func newBaseClient(
 		// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
 		tlsConfig.InsecureSkipVerify = true //nolint:gosec
 	default:
-		// Use only the system certs (doesn't work on Windows)
 		rootCAPool, err = x509.SystemCertPool()
 		if err != nil {
 			return nil, fmt.Errorf("loading system cert pool: %w", err)
@@ -198,6 +197,7 @@ type bodyHandler interface {
 
 type FileResponse struct {
 	DestPath     string
+	DestFile     string
 	destFilePath string
 }
 

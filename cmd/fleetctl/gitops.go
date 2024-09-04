@@ -15,6 +15,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+const filenameMaxLength = 255
+
 func gitopsCommand() *cli.Command {
 	var (
 		flFilenames        cli.StringSlice
@@ -58,6 +60,9 @@ func gitopsCommand() *cli.Command {
 				if strings.TrimSpace(flFilename) == "" {
 					return errors.New("file name cannot be empty")
 				}
+				if len(filepath.Base(flFilename)) > filenameMaxLength {
+					return fmt.Errorf("file name must be less than %d characters: %s", filenameMaxLength, filepath.Base(flFilename))
+				}
 			}
 
 			// Check license
@@ -73,17 +78,21 @@ func gitopsCommand() *cli.Command {
 				return errors.New("no license struct found in app config")
 			}
 
-			var appleBMDefaultTeam string
-			var appleBMDefaultTeamFound bool
+			var originalABMConfig []any
+			var originalVPPConfig []any
 			var teamNames []string
 			var firstFileMustBeGlobal *bool
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
+			var abmTeams, vppTeams []string
+			var hasMissingABMTeam, hasMissingVPPTeam, usesLegacyABMConfig bool
 			if totalFilenames > 1 {
 				firstFileMustBeGlobal = ptr.Bool(true)
 			}
+			// We keep track of the secrets to check if duplicates exist during dry run
+			secrets := make(map[string]struct{})
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromFile(flFilename, baseDir)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig)
 				if err != nil {
 					return err
 				}
@@ -99,17 +108,71 @@ func gitopsCommand() *cli.Command {
 					}
 					firstFileMustBeGlobal = ptr.Bool(false)
 				}
+
+				// Special handling for tokens is required because they link to teams (by
+				// name.) Because teams can be created/deleted during the same gitops run, we
+				// grab some information to help us determine allowed/restricted actions and
+				// when to perform the associations.
 				if isGlobalConfig && totalFilenames > 1 {
-					// Check if Apple BM default team already exists
-					appleBMDefaultTeam, appleBMDefaultTeamFound, err = checkAppleBMDefaultTeam(config, fleetClient)
+					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
+					}
+
+					vppTeams, hasMissingVPPTeam, err = checkVPPTeamAssignments(config, fleetClient)
+					if err != nil {
+						return err
+					}
+
+					// if one of the teams assigned to an ABM token doesn't exist yet, we need to
+					// submit the configs without the ABM default team set. We'll set those
+					// separately later when the teams are already created.
+					if hasMissingABMTeam {
+						if mdm, ok := config.OrgSettings["mdm"]; ok {
+							if mdmMap, ok := mdm.(map[string]any); ok {
+								if appleBM, ok := mdmMap["apple_business_manager"]; ok {
+									if bmSettings, ok := appleBM.([]any); ok {
+										originalABMConfig = bmSettings
+									}
+								}
+
+								// If team is not found, we need to remove the AppleBMDefaultTeam from
+								// the global config, and then apply it after teams are processed
+								mdmMap["apple_business_manager"] = nil
+								mdmMap["apple_bm_default_team"] = ""
+							}
+						}
+					}
+
+					if hasMissingVPPTeam {
+						if mdm, ok := config.OrgSettings["mdm"]; ok {
+							if mdmMap, ok := mdm.(map[string]any); ok {
+								if vpp, ok := mdmMap["volume_purchasing_program"]; ok {
+									if vppSettings, ok := vpp.([]any); ok {
+										originalVPPConfig = vppSettings
+									}
+								}
+
+								// If team is not found, we need to remove the VPP config from
+								// the global config, and then apply it after teams are processed
+								mdmMap["volume_purchasing_program"] = nil
+							}
+						}
 					}
 				}
 				logf := func(format string, a ...interface{}) {
 					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 				}
-				assumptions, err := fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, teamDryRunAssumptions, appConfig)
+				if flDryRun {
+					incomingSecrets := fleetClient.GetGitOpsSecrets(config)
+					for _, secret := range incomingSecrets {
+						if _, ok := secrets[secret]; ok {
+							return fmt.Errorf("duplicate enroll secret found in %s", flFilename)
+						}
+						secrets[secret] = struct{}{}
+					}
+				}
+				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig)
 				if err != nil {
 					return err
 				}
@@ -119,10 +182,15 @@ func gitopsCommand() *cli.Command {
 					teamDryRunAssumptions = assumptions
 				}
 			}
-			if appleBMDefaultTeam != "" && !appleBMDefaultTeamFound {
-				// If the Apple BM default team did not exist earlier, check again and apply it if needed
-				err = applyAppleBMDefaultTeamIfNeeded(c, teamNames, appleBMDefaultTeam, flDryRun, fleetClient)
-				if err != nil {
+
+			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
+			if len(abmTeams) > 0 && hasMissingABMTeam {
+				if err = applyABMTokenAssignmentIfNeeded(c, teamNames, abmTeams, originalABMConfig, usesLegacyABMConfig, flDryRun, fleetClient); err != nil {
+					return err
+				}
+			}
+			if len(vppTeams) > 0 && hasMissingVPPTeam {
+				if err = applyVPPTokenAssignmentIfNeeded(c, teamNames, vppTeams, originalVPPConfig, flDryRun, fleetClient); err != nil {
 					return err
 				}
 			}
@@ -133,8 +201,14 @@ func gitopsCommand() *cli.Command {
 				}
 				for _, team := range teams {
 					if !slices.Contains(teamNames, team.Name) {
-						if appleBMDefaultTeam == team.Name {
-							return fmt.Errorf("apple_bm_default_team %s cannot be deleted", appleBMDefaultTeam)
+						if slices.Contains(abmTeams, team.Name) {
+							if usesLegacyABMConfig {
+								return fmt.Errorf("apple_bm_default_team %s cannot be deleted", team.Name)
+							}
+							return fmt.Errorf("apple_business_manager team %s cannot be deleted", team.Name)
+						}
+						if slices.Contains(vppTeams, team.Name) {
+							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
@@ -158,54 +232,194 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
-func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
-	appleBMDefaultTeam string, appleBMDefaultTeamFound bool, err error,
+// checkABMTeamAssignments validates the spec, and finds if:
+//
+// 1. The user is using the legacy apple_bm_default_team config.
+// 2. All teams assigned to ABM tokens already exist.
+// 3. Performs validations according to the spec for both the new and the
+// deprecated key used for this setting.
+func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
+	abmTeams []string, missingTeam bool, usesLegacyConfig bool, err error,
 ) {
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
-		if mdmMap, ok := mdm.(map[string]interface{}); ok {
-			if appleBMDT, ok := mdmMap["apple_bm_default_team"]; ok {
-				if appleBMDefaultTeam, ok = appleBMDT.(string); ok {
-					teams, err := fleetClient.ListTeams("")
-					if err != nil {
-						return "", false, err
-					}
-					// Normalize AppleBMDefaultTeam for Unicode support
+		if mdmMap, ok := mdm.(map[string]any); ok {
+			appleBMDT, hasLegacyConfig := mdmMap["apple_bm_default_team"]
+			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
+
+			if hasLegacyConfig && hasNewConfig {
+				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
+			}
+
+			if !hasLegacyConfig && !hasNewConfig {
+				return nil, false, false, nil
+			}
+
+			teams, err := fleetClient.ListTeams("")
+			if err != nil {
+				return nil, false, false, err
+			}
+			teamNames := map[string]struct{}{}
+			for _, tm := range teams {
+				teamNames[tm.Name] = struct{}{}
+			}
+
+			if hasLegacyConfig {
+				if appleBMDefaultTeam, ok := appleBMDT.(string); ok {
+					// normalize for Unicode support
 					appleBMDefaultTeam = norm.NFC.String(appleBMDefaultTeam)
-					for _, team := range teams {
-						if team.Name == appleBMDefaultTeam {
-							appleBMDefaultTeamFound = true
-							break
-						}
+					abmTeams = append(abmTeams, appleBMDefaultTeam)
+					usesLegacyConfig = true
+					if _, ok = teamNames[appleBMDefaultTeam]; !ok {
+						missingTeam = true
 					}
-					if !appleBMDefaultTeamFound {
-						// If team is not found, we need to remove the AppleBMDefaultTeam from the global config, and then apply it after teams are processed
-						mdmMap["apple_bm_default_team"] = ""
+				}
+			}
+
+			if hasNewConfig {
+				if settingMap, ok := appleBM.([]any); ok {
+					for _, item := range settingMap {
+						if cfg, ok := item.(map[string]any); ok {
+							for _, teamConfigKey := range []string{"macos_team", "ios_team", "ipados_team"} {
+								if team, ok := cfg[teamConfigKey].(string); ok && team != "" {
+									// normalize for Unicode support
+									team = norm.NFC.String(team)
+									abmTeams = append(abmTeams, team)
+									if _, ok := teamNames[team]; !ok {
+										missingTeam = true
+									}
+								}
+							}
+						}
 					}
 				}
 			}
 		}
 	}
-	return appleBMDefaultTeam, appleBMDefaultTeamFound, nil
+
+	return abmTeams, missingTeam, usesLegacyConfig, nil
 }
 
-func applyAppleBMDefaultTeamIfNeeded(
-	ctx *cli.Context, teamNames []string, appleBMDefaultTeam string, flDryRun bool, fleetClient *service.Client,
+func applyABMTokenAssignmentIfNeeded(
+	ctx *cli.Context,
+	teamNames []string,
+	abmTeamNames []string,
+	originalMDMConfig []any,
+	usesLegacyConfig bool,
+	flDryRun bool,
+	fleetClient *service.Client,
 ) error {
-	if !slices.Contains(teamNames, appleBMDefaultTeam) {
-		return fmt.Errorf("apple_bm_default_team %s not found in team configs", appleBMDefaultTeam)
+	if usesLegacyConfig && len(abmTeamNames) > 1 {
+		return errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 	}
-	appConfigUpdate := map[string]map[string]interface{}{
+
+	if usesLegacyConfig && len(abmTeamNames) == 0 {
+		return errors.New("using legacy config without any ABM teams defined")
+	}
+
+	var appConfigUpdate map[string]map[string]any
+	if usesLegacyConfig {
+		appleBMDefaultTeam := abmTeamNames[0]
+		if !slices.Contains(teamNames, appleBMDefaultTeam) {
+			return fmt.Errorf("apple_bm_default_team %s not found in team configs", appleBMDefaultTeam)
+		}
+		appConfigUpdate = map[string]map[string]any{
+			"mdm": {
+				"apple_bm_default_team": appleBMDefaultTeam,
+			},
+		}
+	} else {
+		for _, abmTeam := range abmTeamNames {
+			if !slices.Contains(teamNames, abmTeam) {
+				return fmt.Errorf("apple_business_manager team %s not found in team configs", abmTeam)
+			}
+		}
+
+		appConfigUpdate = map[string]map[string]any{
+			"mdm": {
+				"apple_business_manager": originalMDMConfig,
+			},
+		}
+	}
+
+	if flDryRun {
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply ABM teams\n")
+		return nil
+	}
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying ABM teams\n")
+	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
+		return fmt.Errorf("applying fleet config: %w", err)
+	}
+	return nil
+}
+
+func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
+	vppTeams []string, missingTeam bool, err error,
+) {
+	if mdm, ok := config.OrgSettings["mdm"]; ok {
+		if mdmMap, ok := mdm.(map[string]any); ok {
+			teams, err := fleetClient.ListTeams("")
+			if err != nil {
+				return nil, false, err
+			}
+			teamNames := map[string]struct{}{}
+			for _, tm := range teams {
+				teamNames[tm.Name] = struct{}{}
+			}
+
+			if vpp, ok := mdmMap["volume_purchasing_program"]; ok {
+				if vppInterfaces, ok := vpp.([]any); ok {
+					for _, item := range vppInterfaces {
+						if itemMap, ok := item.(map[string]any); ok {
+							if teams, ok := itemMap["teams"].([]any); ok {
+								for _, team := range teams {
+									if teamStr, ok := team.(string); ok {
+										// normalize for Unicode support
+										normalizedTeam := norm.NFC.String(teamStr)
+										vppTeams = append(vppTeams, normalizedTeam)
+										if _, ok := teamNames[normalizedTeam]; !ok {
+											missingTeam = true
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return vppTeams, missingTeam, nil
+}
+
+func applyVPPTokenAssignmentIfNeeded(
+	ctx *cli.Context,
+	teamNames []string,
+	vppTeamNames []string,
+	originalVPPConfig []any,
+	flDryRun bool,
+	fleetClient *service.Client,
+) error {
+	var appConfigUpdate map[string]map[string]any
+	for _, vppTeam := range vppTeamNames {
+		if !fleet.IsReservedTeamName(vppTeam) && !slices.Contains(teamNames, vppTeam) {
+			return fmt.Errorf("volume_purchasing_program team %s not found in team configs", vppTeam)
+		}
+	}
+
+	appConfigUpdate = map[string]map[string]any{
 		"mdm": {
-			"apple_bm_default_team": appleBMDefaultTeam,
+			"volume_purchasing_program": originalVPPConfig,
 		},
 	}
+
 	if flDryRun {
-		_, _ = fmt.Fprintf(ctx.App.Writer, "[!] would apply apple_bm_default_team %s\n", appleBMDefaultTeam)
-	} else {
-		_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying apple_bm_default_team %s\n", appleBMDefaultTeam)
-		if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
-			return fmt.Errorf("applying fleet config: %w", err)
-		}
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply volume_purchasing_program teams\n")
+		return nil
+	}
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying volume_purchasing_program teams\n")
+	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
+		return fmt.Errorf("applying fleet config for volume_purchasing_program teams: %w", err)
 	}
 	return nil
 }

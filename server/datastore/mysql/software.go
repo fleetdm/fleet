@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -15,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -35,9 +34,9 @@ var countHostSoftwareBatchSize = uint64(100000)
 // This is a variable, so it can be adjusted during unit testing.
 var softwareInsertBatchSize = 1000
 
-func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
-	result := make(map[string]fleet.Software)
-	for _, s := range softwares {
+func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
+	result := make(map[string]fleet.Software, len(softwareItems))
+	for _, s := range softwareItems {
 		result[s.ToUniqueStr()] = s
 	}
 	return result
@@ -239,19 +238,31 @@ func insertHostSoftwareInstalledPaths(
 	return nil
 }
 
-func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {
-	if len(current) != len(incoming) {
-		return false
+func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) (
+	map[string]fleet.Software, map[string]fleet.Software, bool,
+) {
+	// Process incoming software to ensure there are no duplicates, since the same software can be installed at multiple paths.
+	incomingMap := make(map[string]fleet.Software, len(current)) // setting len(current) as the length since that should be the common case
+	for _, s := range incoming {
+		uniqueStr := s.ToUniqueStr()
+		if duplicate, ok := incomingMap[uniqueStr]; ok {
+			// Check the last opened at timestamp and keep the latest.
+			if s.LastOpenedAt == nil ||
+				(duplicate.LastOpenedAt != nil && !s.LastOpenedAt.After(*duplicate.LastOpenedAt)) {
+				continue // keep the duplicate
+			}
+		}
+		incomingMap[uniqueStr] = s
+	}
+	currentMap := softwareSliceToMap(current)
+	if len(currentMap) != len(incomingMap) {
+		return currentMap, incomingMap, false
 	}
 
-	currentMap := make(map[string]fleet.Software)
-	for _, s := range current {
-		currentMap[s.ToUniqueStr()] = s
-	}
-	for _, s := range incoming {
+	for _, s := range incomingMap {
 		cur, ok := currentMap[s.ToUniqueStr()]
 		if !ok {
-			return false
+			return currentMap, incomingMap, false
 		}
 
 		// if the incoming software has a last opened at timestamp and it differs
@@ -259,18 +270,18 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 		// timestamp), then consider that something changed.
 		if s.LastOpenedAt != nil {
 			if cur.LastOpenedAt == nil {
-				return false
+				return currentMap, incomingMap, false
 			}
 
 			oldLast := *cur.LastOpenedAt
 			newLast := *s.LastOpenedAt
 			if newLast.Sub(oldLast) >= minLastOpenedAtDiff {
-				return false
+				return currentMap, incomingMap, false
 			}
 		}
 	}
 
-	return true
+	return currentMap, incomingMap, true
 }
 
 func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
@@ -330,12 +341,15 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	}
 	r.WasCurrInstalled = currentSoftware
 
-	if nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff) {
+	current, incoming, notChanged := nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff)
+	if notChanged {
 		return r, nil
 	}
 
-	current := softwareSliceToMap(currentSoftware)
-	incoming := softwareSliceToMap(software)
+	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, err := ds.getExistingSoftware(ctx, current, incoming)
+	if err != nil {
+		return r, err
+	}
 
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
@@ -345,11 +359,17 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
-			inserted, err := ds.insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			inserted, err := ds.insertNewInstalledHostSoftwareDB(
+				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
+			)
 			if err != nil {
 				return err
 			}
 			r.Inserted = inserted
+
+			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
+				return err
+			}
 
 			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff); err != nil {
 				return err
@@ -365,6 +385,164 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, err
 	}
 	return r, err
+}
+
+func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
+	hostID uint) error {
+	// Between deleted and inserted software, check which software titles were deleted.
+	// If software titles were deleted, get the software titles of the installed software.
+	// See if deleted titles match installed software titles.
+	// If so, mark the installed software as removed.
+	var deletedTitles map[string]struct{}
+	if len(deleted) > 0 {
+		deletedTitles = make(map[string]struct{}, len(deleted))
+		for _, d := range deleted {
+			// We don't support installing browser plugins as of 2024/08/22
+			if d.Browser == "" {
+				deletedTitles[UniqueSoftwareTitleStr(d.Name, d.Source, d.BundleIdentifier)] = struct{}{}
+			}
+		}
+		for _, i := range inserted {
+			// We don't support installing browser plugins as of 2024/08/22
+			if i.Browser == "" {
+				key := UniqueSoftwareTitleStr(i.Name, i.Source, i.BundleIdentifier)
+				if _, ok := deletedTitles[key]; ok {
+					delete(deletedTitles, key)
+				}
+			}
+		}
+	}
+	if len(deletedTitles) > 0 {
+		installedTitles, err := getInstalledByFleetSoftwareTitles(ctx, tx, hostID)
+		if err != nil {
+			return err
+		}
+		type deletedValue struct {
+			vpp bool
+		}
+		deletedTitleIDs := make(map[uint]deletedValue, 0)
+		for _, title := range installedTitles {
+			bundleIdentifier := ""
+			if title.BundleIdentifier != nil {
+				bundleIdentifier = *title.BundleIdentifier
+			}
+			key := UniqueSoftwareTitleStr(title.Name, title.Source, bundleIdentifier)
+			if _, ok := deletedTitles[key]; ok {
+				deletedTitleIDs[title.ID] = deletedValue{vpp: title.VPPAppsCount > 0}
+			}
+		}
+		if len(deletedTitleIDs) > 0 {
+			IDs := make([]uint, 0, len(deletedTitleIDs))
+			vppIDs := make([]uint, 0, len(deletedTitleIDs))
+			for id, value := range deletedTitleIDs {
+				if value.vpp {
+					vppIDs = append(vppIDs, id)
+				} else {
+					IDs = append(IDs, id)
+				}
+			}
+			if len(IDs) > 0 {
+				if err = markHostSoftwareInstallsRemoved(ctx, tx, hostID, IDs); err != nil {
+					return err
+				}
+			}
+			if len(vppIDs) > 0 {
+				if err = markHostVPPSoftwareInstallsRemoved(ctx, tx, hostID, vppIDs); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) getExistingSoftware(
+	ctx context.Context, current map[string]fleet.Software, incoming map[string]fleet.Software,
+) (
+	currentSoftware []softwareIDChecksum, incomingChecksumToSoftware map[string]fleet.Software,
+	incomingChecksumToTitle map[string]fleet.SoftwareTitle, err error,
+) {
+	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
+	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
+	newSoftware := make(map[string]struct{})
+	for uniqueName, s := range incoming {
+		if _, ok := current[uniqueName]; !ok {
+			checksum, err := computeRawChecksum(s)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			incomingChecksumToSoftware[string(checksum)] = s
+			newSoftware[string(checksum)] = struct{}{}
+		}
+	}
+
+	if len(incomingChecksumToSoftware) > 0 {
+		keys := make([]string, 0, len(incomingChecksumToSoftware))
+		for checksum := range incomingChecksumToSoftware {
+			keys = append(keys, checksum)
+		}
+		// We use the replica DB for retrieval to minimize the traffic to the master DB.
+		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
+		currentSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		for _, s := range currentSoftware {
+			_, ok := incomingChecksumToSoftware[s.Checksum]
+			if !ok {
+				// This should never happen. If it does, we have a bug.
+				return nil, nil, nil, ctxerr.New(
+					ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+				)
+			}
+			delete(newSoftware, s.Checksum)
+		}
+	}
+
+	// Get software titles for new software, if any
+	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
+	if len(newSoftware) > 0 {
+		totalToProcess := len(newSoftware)
+		const numberOfArgsPerSoftwareTitle = 4 // number of ? in each WHERE clause
+		whereClause := strings.TrimSuffix(
+			strings.Repeat(`
+			  (
+			    (bundle_identifier = ?) OR
+			    (name = ? AND source = ? AND browser = ? AND bundle_identifier IS NULL)
+			  ) OR`, totalToProcess), " OR",
+		)
+		stmt := fmt.Sprintf(
+			"SELECT id, name, source, browser, COALESCE(bundle_identifier, '') as bundle_identifier FROM software_titles WHERE %s",
+			whereClause,
+		)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
+		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
+		for checksum := range newSoftware {
+			sw := incomingChecksumToSoftware[checksum]
+			args = append(args, sw.BundleIdentifier, sw.Name, sw.Source, sw.Browser)
+			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
+			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		}
+		var existingSoftwareTitlesForNewSoftware []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftware, stmt, args...); err != nil {
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "get existing titles")
+		}
+
+		// Map software titles to software checksums.
+		for _, title := range existingSoftwareTitlesForNewSoftware {
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			if ok {
+				incomingChecksumToTitle[checksum] = title
+			}
+		}
+	}
+
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+}
+
+// UniqueSoftwareTitleStr creates a unique string representation of the software title
+func UniqueSoftwareTitleStr(values ...string) string {
+	return strings.Join(values, fleet.SoftwareFieldSeparator)
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -413,59 +591,22 @@ func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// insert host_software that is in incoming map, but not in current map.
+// Insert host_software that is in softwareChecksums map, but not in existingSoftware.
+// Also insert any new software titles that are needed.
 // returns the inserted software on the host
-//
-//nolint:gocritic // This function uses a read from DB replica inside a transaction. This is an intentional optimization to reduce master DB load.
 func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	currentMap map[string]fleet.Software,
-	incomingMap map[string]fleet.Software,
+	existingSoftware []softwareIDChecksum,
+	softwareChecksums map[string]fleet.Software,
+	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 ) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
 
-	type softwareWithUniqueName struct {
-		uniqueName string
-		software   fleet.Software
-	}
-	incomingOrdered := make([]softwareWithUniqueName, 0, len(incomingMap))
-	for uniqueName, software := range incomingMap {
-		incomingOrdered = append(incomingOrdered, softwareWithUniqueName{
-			uniqueName: uniqueName,
-			software:   software,
-		})
-	}
-	sort.Slice(incomingOrdered, func(i, j int) bool {
-		return incomingOrdered[i].uniqueName < incomingOrdered[j].uniqueName
-	})
-
-	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
-	softwareChecksums := make(map[string]*fleet.Software, 0)
-	for i, s := range incomingOrdered {
-		if _, ok := currentMap[s.uniqueName]; !ok {
-			checksum, err := computeRawChecksum(s.software)
-			if err != nil {
-				return nil, err
-			}
-			softwareChecksums[string(checksum)] = &incomingOrdered[i].software // we can't use `s` here because it is a pointer to a loop variable
-		}
-	}
-
-	// First, we check if host's new software already exists in the software table.
+	// First, we remove incoming software that already exists in the software table.
 	if len(softwareChecksums) > 0 {
-		keys := make([]string, 0, len(softwareChecksums))
-		for checksum := range softwareChecksums {
-			keys = append(keys, checksum)
-		}
-		// We use the replica DB for retrieval to minimize the traffic to the master DB.
-		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
-		if err != nil {
-			return nil, err
-		}
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
@@ -473,7 +614,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, *software)
+			insertedSoftware = append(insertedSoftware, software)
 			delete(softwareChecksums, s.Checksum)
 		}
 	}
@@ -491,42 +632,115 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				end = len(keys)
 			}
 			totalToProcess := end - start
-			const numberOfArgsPerSoftware = 10 // number of ? in each VALUES clause
+
+			// Insert into software
+			const numberOfArgsPerSoftware = 11 // number of ? in each VALUES clause
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
 			)
 			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
-				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
+				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, title_id, checksum) VALUES %s",
 				values,
 			)
 			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for j := start; j < end; j++ {
 				checksum := keys[j]
 				sw := softwareChecksums[checksum]
+				var titleID *uint
+				title, ok := existingTitlesForNewSoftware[checksum]
+				if ok {
+					titleID = &title.ID
+				} else if _, ok := newTitlesNeeded[checksum]; !ok {
+					st := fleet.SoftwareTitle{
+						Name:    sw.Name,
+						Source:  sw.Source,
+						Browser: sw.Browser,
+					}
+
+					if sw.BundleIdentifier != "" {
+						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+					}
+
+					newTitlesNeeded[checksum] = st
+				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
-					checksum,
+					titleID, checksum,
 				)
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "insert software")
 			}
+
+			// Insert into software_titles
+			totalTitlesToProcess := len(newTitlesNeeded)
+			if totalTitlesToProcess > 0 {
+				const numberOfArgsPerSoftwareTitles = 4 // number of ? in each VALUES clause
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
+				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
+				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
+				titleChecksums := make([]string, totalTitlesToProcess)
+				for checksum, title := range newTitlesNeeded {
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
+					titleChecksums = append(titleChecksums, checksum)
+				}
+				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
+				}
+
+				updateSoftwareWithoutIdentifierStmt := `
+				    UPDATE software s
+				    JOIN software_titles st
+				    ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+				    SET s.title_id = st.id
+				    WHERE (s.title_id IS NULL OR s.title_id != st.id)
+				    AND COALESCE(s.bundle_identifier, '') = ''
+				    AND s.checksum IN (?)
+				    `
+				updateSoftwareWithoutIdentifierStmt, updateArgs, err := sqlx.In(updateSoftwareWithoutIdentifierStmt, titleChecksums)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id without identifier")
+				}
+				if _, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt, updateArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id without identifier")
+				}
+
+				// update new title ids for new software table entries
+				updateSoftwareStmt := `
+				      UPDATE software s
+				      JOIN software_titles st
+				      ON s.bundle_identifier = st.bundle_identifier AND
+				          IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
+				      SET s.title_id = st.id
+				      WHERE s.title_id IS NULL
+				      OR s.title_id != st.id
+				      AND s.checksum IN (?)`
+				updateSoftwareStmt, updateArgs, err = sqlx.In(updateSoftwareStmt, titleChecksums)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
+				}
+				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id with identifier")
+				}
+			}
 		}
 
 		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
+		updatedExistingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
 		if err != nil {
 			return nil, err
 		}
-		for _, s := range existingSoftware {
+		for _, s := range updatedExistingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
 				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, *software)
+			insertedSoftware = append(insertedSoftware, software)
 			delete(softwareChecksums, s.Checksum)
 		}
 	}
@@ -597,7 +811,7 @@ func updateModifiedHostSoftwareDB(
 			continue
 		}
 
-		if curSw.LastOpenedAt == nil || (*newSw.LastOpenedAt).Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
+		if curSw.LastOpenedAt == nil || newSw.LastOpenedAt.Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
 			keysToUpdate = append(keysToUpdate, key)
 		}
 	}
@@ -686,6 +900,7 @@ func listSoftwareDB(
 			cve := fleet.CVE{
 				CVE:         cveID,
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+				CreatedAt:   *result.CreatedAt,
 			}
 			if opts.IncludeCVEScores {
 				cve.CVSSScore = &result.CVSSScore
@@ -730,6 +945,9 @@ type softwareCVE struct {
 	// ResolvedInVersion is the version of software where the CVE is no longer applicable.
 	// This is pulled from the versionEndExcluding field in the NVD json
 	ResolvedInVersion *string `db:"resolved_in_version"`
+
+	// CreatedAt is the time the software vulnerability was created
+	CreatedAt *time.Time `db:"created_at"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
@@ -791,12 +1009,31 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			GroupByAppend(
 				"shc.hosts_count",
 				"shc.updated_at",
+				"shc.global_stats",
+				"shc.team_id",
 			)
 
-		if opts.TeamID != nil {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
+		if opts.TeamID == nil {
+			ds = ds.Where(
+				goqu.And(
+					goqu.I("shc.team_id").Eq(0),
+					goqu.I("shc.global_stats").Eq(1),
+				),
+			)
+		} else if *opts.TeamID == 0 {
+			ds = ds.Where(
+				goqu.And(
+					goqu.I("shc.team_id").Eq(0),
+					goqu.I("shc.global_stats").Eq(0),
+				),
+			)
 		} else {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
+			ds = ds.Where(
+				goqu.And(
+					goqu.I("shc.team_id").Eq(*opts.TeamID),
+					goqu.I("shc.global_stats").Eq(0),
+				),
+			)
 		}
 	}
 
@@ -815,19 +1052,46 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	}
 
 	if opts.IncludeCVEScores {
-		ds = ds.
-			LeftJoin(
+
+		baseJoinConditions := goqu.Ex{
+			"c.cve": goqu.I("scv.cve"),
+		}
+
+		if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+
+			if opts.KnownExploit {
+				baseJoinConditions["c.cisa_known_exploit"] = true
+			}
+
+			if opts.MinimumCVSS > 0 {
+				baseJoinConditions["c.cvss_score"] = goqu.Op{"gte": opts.MinimumCVSS}
+			}
+
+			if opts.MaximumCVSS > 0 {
+				baseJoinConditions["c.cvss_score"] = goqu.Op{"lte": opts.MaximumCVSS}
+			}
+
+			ds = ds.InnerJoin(
 				goqu.I("cve_meta").As("c"),
-				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-			).
-			SelectAppend(
-				goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
-				goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
-				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
-				goqu.MAX("c.published").As("cve_published"),                   // for ordering
-				goqu.MAX("c.description").As("description"),                   // for ordering
-				goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+				goqu.On(baseJoinConditions),
 			)
+
+		} else {
+			ds = ds.
+				LeftJoin(
+					goqu.I("cve_meta").As("c"),
+					goqu.On(baseJoinConditions),
+				)
+		}
+
+		ds = ds.SelectAppend(
+			goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
+			goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
+			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
+			goqu.MAX("c.published").As("cve_published"),                   // for ordering
+			goqu.MAX("c.description").As("description"),                   // for ordering
+			goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+		)
 	}
 
 	if match := opts.ListOptions.MatchQuery; match != "" {
@@ -882,6 +1146,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
+			"scv.created_at",
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),
@@ -1025,33 +1290,39 @@ func (ds *Datastore) AllSoftwareIterator(
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
 	var conditionals []string
-	arg := map[string]interface{}{}
 
 	if len(query.ExcludedSources) != 0 {
-		conditionals = append(conditionals, "s.source NOT IN (:excluded_sources)")
-		arg["excluded_sources"] = query.ExcludedSources
+		conditionals = append(conditionals, "s.source NOT IN (?)")
+		args = append(args, query.ExcludedSources)
 	}
 
 	if len(query.IncludedSources) != 0 {
-		conditionals = append(conditionals, "s.source IN (:included_sources)")
-		arg["included_sources"] = query.IncludedSources
+		conditionals = append(conditionals, "s.source IN (?)")
+		args = append(args, query.IncludedSources)
+	}
+
+	if query.NameMatch != "" {
+		conditionals = append(conditionals, "s.name REGEXP ?")
+		args = append(args, query.NameMatch)
+	}
+
+	if query.NameExclude != "" {
+		conditionals = append(conditionals, "s.name NOT REGEXP ?")
+		args = append(args, query.NameExclude)
 	}
 
 	if len(conditionals) != 0 {
-		cond := strings.Join(conditionals, " AND ")
-		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "error binding named arguments on software iterator")
-		}
-		stmt, args, err = sqlx.In(stmt, args...)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "error building 'In' query part on software iterator")
-		}
+		stmt += " WHERE " + strings.Join(conditionals, " AND ")
+	}
+
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error building 'In' query part on software iterator: %w", err)
 	}
 
 	rows, err := ds.reader(ctx).QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+		return nil, fmt.Errorf("executing all software iterator %w", err)
 	}
 	return &softwareIterator{rows: rows}, nil
 }
@@ -1123,6 +1394,12 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+	if !opt.VulnerableOnly && (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true",
+		)
+	}
+
 	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
 	if err != nil {
 		return nil, nil, err
@@ -1195,6 +1472,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.arch",
 			"s.extension_id",
 			"scv.cve",
+			"scv.created_at",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
 		LeftJoin(
@@ -1208,6 +1486,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
 
+	// join only on software_id as we'll need counts for all teams
+	// to filter down to the team's the user has access to
 	if tmFilter != nil {
 		q = q.LeftJoin(
 			goqu.I("software_host_counts").As("shc"),
@@ -1240,7 +1520,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
-				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0 AND global_stats = 0)", id, *teamID,
 			),
 		)
 	}
@@ -1278,6 +1558,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			cve := fleet.CVE{
 				CVE:         cveID,
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+				CreatedAt:   *result.CreatedAt,
 			}
 			if includeCVEScores {
 				cve.CVSSScore = &result.CVSSScore
@@ -1308,29 +1589,37 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		// team_id is added to the select list to have the same structure as
 		// the teamCountsStmt, making it easier to use a common implementation
 		globalCountsStmt = `
-      SELECT count(*), 0 as team_id, software_id
+      SELECT count(*), 0 as team_id, software_id, 1 as global_stats
       FROM host_software
       WHERE software_id > ? AND software_id <= ?
       GROUP BY software_id`
 
 		teamCountsStmt = `
-      SELECT count(*), h.team_id, hs.software_id
+      SELECT count(*), h.team_id, hs.software_id, 0 as global_stats
       FROM host_software hs
       INNER JOIN hosts h
       ON hs.host_id = h.id
       WHERE h.team_id IS NOT NULL AND hs.software_id > ? AND hs.software_id <= ?
       GROUP BY hs.software_id, h.team_id`
 
+		noTeamCountsStmt = `
+      SELECT count(*), 0 as team_id, software_id, 0 as global_stats
+      FROM host_software hs
+      INNER JOIN hosts h
+      ON hs.host_id = h.id
+      WHERE h.team_id IS NULL AND hs.software_id > ? AND hs.software_id <= ?
+      GROUP BY hs.software_id`
+
 		insertStmt = `
       INSERT INTO software_host_counts
-        (software_id, hosts_count, team_id, updated_at)
+        (software_id, hosts_count, team_id, global_stats, updated_at)
       VALUES
         %s
       ON DUPLICATE KEY UPDATE
         hosts_count = VALUES(hosts_count),
         updated_at = VALUES(updated_at)`
 
-		valuesPart = `(?, ?, ?, ?),`
+		valuesPart = `(?, ?, ?, ?, ?),`
 
 		// We must ensure that software is not in host_software table before deleting it.
 		// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
@@ -1388,8 +1677,8 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
 
 		// next get a cursor for the global and team counts for each software
-		stmtLabel := []string{"global", "team"}
-		for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
+		stmtLabel := []string{"global", "team", "noteam"}
+		for i, countStmt := range []string{globalCountsStmt, teamCountsStmt, noTeamCountsStmt} {
 			rows, err := db.QueryContext(ctx, countStmt, minSoftwareID, maxSoftwareID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
@@ -1404,16 +1693,17 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 			args := make([]interface{}, 0, batchSize*4)
 			for rows.Next() {
 				var (
-					count  int
-					teamID uint
-					sid    uint
+					count        int
+					teamID       uint
+					sid          uint
+					global_stats bool
 				)
 
-				if err := rows.Scan(&count, &teamID, &sid); err != nil {
+				if err := rows.Scan(&count, &teamID, &sid, &global_stats); err != nil {
 					return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 				}
 
-				args = append(args, sid, count, teamID, updatedAt)
+				args = append(args, sid, count, teamID, global_stats, updatedAt)
 				batchCount++
 
 				if batchCount == batchSize {
@@ -1460,61 +1750,108 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
 	// TODO: consider if we should batch writes to software or software_titles table
 
-	// ensure all software titles are in the software_titles table
-	upsertTitlesStmt := `
-INSERT INTO software_titles (name, source, browser)
-SELECT DISTINCT
-	name,
-	source,
-	browser
-FROM
-	software s
-WHERE
-	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
-ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
-	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
-	// or performing a select first to see if the title exists and only inserting
-	// new titles
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// ensure all software titles are in the software_titles table
+		upsertTitlesStmt := `
+INSERT INTO software_titles (name, source, browser, bundle_identifier)
+SELECT
+    name,
+    source,
+    browser,
+    bundle_identifier
+FROM (
+    SELECT DISTINCT
+        name,
+        source,
+        browser,
+        bundle_identifier
+    FROM
+        software s
+    WHERE
+        NOT EXISTS (
+            SELECT 1 FROM software_titles st
+            WHERE s.bundle_identifier = st.bundle_identifier AND
+				IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
+        )
+        AND COALESCE(bundle_identifier, '') != ''
 
-	res, err := ds.writer(ctx).ExecContext(ctx, upsertTitlesStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert software titles")
-	}
-	n, _ := res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
+    UNION ALL
 
-	// update title ids for software table entries
-	updateSoftwareStmt := `
-UPDATE
-	software s,
-	software_titles st
-SET
-	s.title_id = st.id
-WHERE
-	(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-	AND (s.title_id IS NULL OR s.title_id != st.id)`
+    SELECT DISTINCT
+        name,
+        source,
+        browser,
+        NULL as bundle_identifier
+    FROM
+        software s
+    WHERE
+        NOT EXISTS (
+            SELECT 1 FROM software_titles st
+            WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+        )
+        AND COALESCE(s.bundle_identifier, '') = ''
+) as combined_results
+ON DUPLICATE KEY UPDATE
+    software_titles.id = software_titles.id
+`
+		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert software titles")
+		}
+		n, _ := res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
 
-	res, err = ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update software title_id")
-	}
-	n, _ = res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "update software title_id", "rows_affected", n)
+		// update title ids for software table entries
+		updateSoftwareWithoutIdentifierStmt := `
+UPDATE software s
+JOIN software_titles st
+ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+SET s.title_id = st.id
+WHERE (s.title_id IS NULL OR s.title_id != st.id)
+AND COALESCE(s.bundle_identifier, '') = '';
+`
 
-	// clean up orphaned software titles
-	cleanupStmt := `
+		res, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update software title_id without bundle identifier")
+		}
+		n, _ = res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "update software title_id without bundle identifier", "rows_affected", n)
+
+		updateSoftwareWithIdentifierStmt := `
+UPDATE software s
+JOIN software_titles st
+ON s.bundle_identifier = st.bundle_identifier AND
+    IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
+SET s.title_id = st.id
+WHERE s.title_id IS NULL
+OR s.title_id != st.id;
+`
+
+		res, err = tx.ExecContext(ctx, updateSoftwareWithIdentifierStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update software title_id with bundle identifier")
+		}
+		n, _ = res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "update software title_id with bundle identifier", "rows_affected", n)
+
+		// clean up orphaned software titles
+		cleanupStmt := `
 DELETE st FROM software_titles st
 	LEFT JOIN software s ON s.title_id = st.id
-	WHERE s.title_id IS NULL AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)`
+	WHERE s.title_id IS NULL AND
+		NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id) AND
+		NOT EXISTS (SELECT 1 FROM vpp_apps vap WHERE vap.title_id = st.id)`
 
-	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
-	}
-	n, _ = res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
+		res, err = tx.ExecContext(ctx, cleanupStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
+		}
+		n, _ = res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
 
-	return nil
+		return nil
+	})
 }
 
 func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
@@ -1683,7 +2020,7 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
 
-	return insertOnDuplicateDidInsert(res), nil
+	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
@@ -1736,40 +2073,54 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 
 func (ds *Datastore) ListSoftwareForVulnDetection(
 	ctx context.Context,
-	hostID uint,
+	filters fleet.VulnSoftwareFilter,
 ) ([]fleet.Software, error) {
 	var result []fleet.Software
+	var sqlstmt string
+	var args []interface{}
 
-	stmt := dialect.
-		From(goqu.T("software").As("s")).
-		LeftJoin(
-			goqu.T("software_cpe").As("cpe"),
-			goqu.On(goqu.Ex{
-				"s.id": goqu.I("cpe.software_id"),
-			}),
-		).
-		Join(
-			goqu.T("host_software").As("hs"),
-			goqu.On(goqu.Ex{
-				"s.id": goqu.I("hs.software_id"),
-			}),
-		).
-		Select(
-			goqu.I("s.id"),
-			goqu.I("s.name"),
-			goqu.I("s.version"),
-			goqu.I("s.release"),
-			goqu.I("s.arch"),
-			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
-		).
-		Where(goqu.C("host_id").Eq(hostID))
+	baseSQL := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.release,
+			s.arch,
+			COALESCE(cpe.cpe, '') AS generated_cpe
+		FROM
+			software s
+		LEFT JOIN
+			software_cpe cpe ON s.id = cpe.software_id
+	`
 
-	sql, args, err := stmt.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	if filters.HostID != nil {
+		baseSQL += "JOIN host_software hs ON s.id = hs.software_id "
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
+	conditions := []string{}
+
+	if filters.HostID != nil {
+		conditions = append(conditions, "hs.host_id = ?")
+		args = append(args, *filters.HostID)
+	}
+
+	if filters.Name != "" {
+		conditions = append(conditions, "s.name LIKE ?")
+		args = append(args, "%"+filters.Name+"%")
+	}
+
+	if filters.Source != "" {
+		conditions = append(conditions, "s.source = ?")
+		args = append(args, filters.Source)
+	}
+
+	if len(conditions) > 0 {
+		sqlstmt = baseSQL + "WHERE " + strings.Join(conditions, " AND ")
+	} else {
+		sqlstmt = baseSQL
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sqlstmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -1804,7 +2155,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// tblAlias is the table alias to use as prefix for the host_script_installs
+// tblAlias is the table alias to use as prefix for the host_software_installs
 // column names, no prefix used if empty.
 // colAlias is the name to be assigned to the computed status column, pass
 // empty to have the value only, no column alias set.
@@ -1815,8 +2166,13 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
+	// the computed column assumes that all results (pre, install and post) are
+	// stored at once, so that if there is an exit code for the install script
+	// and none for the post-install, it is because there is no post-install.
 	return fmt.Sprintf(`
 			CASE
+				WHEN %[1]sremoved = 1 THEN NULL
+
 				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
 					%[1]spost_install_script_exit_code = 0 THEN :software_status_installed
 
@@ -1838,37 +2194,21 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 			END %[2]s `, tblAlias, colAlias)
 }
 
-func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// `status` computed column assumes that all results (pre, install and post)
-	// are stored at once, so that if there is an exit code for the install
-	// script and none for the post-install, it is because there is no
-	// post-install.
-	stmtInstalled := fmt.Sprintf(`
-		SELECT
-			st.id,
-			st.name,
-			st.source,
-			si.filename as package_available_for_install,
-			hsi.created_at as last_install_installed_at,
-			hsi.execution_id as last_install_install_uuid,
-			%s,
-			si.id AS installer_id -- NULL if no Fleet installer
-		FROM
-			software_titles st
-		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id
-		LEFT OUTER JOIN
-			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
-		WHERE
-			-- use the latest install only
-			( hsi.id IS NULL OR hsi.id = (
-				SELECT hsi2.id
-				FROM host_software_installs hsi2
-				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id
-				ORDER BY hsi2.created_at DESC
-				LIMIT 1 ) ) AND
-			-- software is installed on host
-			( EXISTS (
+func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	var onlySelfServiceClause string
+	if opts.SelfServiceOnly {
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
+	}
+
+	var onlyVulnerableClause string
+	if opts.VulnerableOnly {
+		onlyVulnerableClause = `
+AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id = s.id WHERE s.title_id = st.id)
+		`
+	}
+
+	softwareIsInstalledOnHostClause := `
+			EXISTS (
 				SELECT 1
 				FROM
 					host_software hs
@@ -1877,28 +2217,98 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 				WHERE
 					hs.host_id = :host_id AND
 					s.title_id = st.id
-			) OR
-			-- or software install has been attempted on host
-			hsi.host_id IS NOT NULL )
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			) OR `
+	if opts.OnlyAvailableForInstall {
+		// Get software that has a package/VPP installer but was not installed with Fleet
+		softwareIsInstalledOnHostClause = ` status IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND ` + softwareIsInstalledOnHostClause
+	}
 
-	const stmtAvailable = `
+	// this statement lists only the software that is reported as installed on
+	// the host or has been attempted to be installed on the host.
+	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
 			st.source,
-			si.filename as package_available_for_install,
-			NULL as last_install_installed_at,
-			NULL as last_install_install_uuid,
-			NULL as status,
-			si.id as installer_id
+			si.self_service as package_self_service,
+			si.filename as package_name,
+			si.version as package_version,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
+			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
+			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
+			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
+			-- get either the softare installer status or the vpp app status
+			COALESCE(%s, %s) as status
 		FROM
 			software_titles st
-		INNER JOIN
-			-- filter out software that is not available for install on the host's platform
-			software_installers si ON st.id = si.title_id AND si.platform IN(%s)
+		LEFT OUTER JOIN
+			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id AND hsi.removed = 0
+		LEFT OUTER JOIN
+			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
+		LEFT OUTER JOIN
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
+		LEFT OUTER JOIN
+			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
-			-- software is not installed on host, but is available in host's team
+			-- use the latest install attempt only
+			( hsi.id IS NULL OR hsi.id = (
+				SELECT hsi2.id
+				FROM host_software_installs hsi2
+				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id AND hsi2.removed = 0
+				ORDER BY hsi2.created_at DESC
+				LIMIT 1 ) ) AND
+			( hvsi.id IS NULL OR hvsi.id = (
+				SELECT hvsi2.id
+				FROM host_vpp_software_installs hvsi2
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform AND hvsi2.removed = 0
+				ORDER BY hvsi2.created_at DESC
+				LIMIT 1 ) ) AND
+
+			-- software is installed on host or software install has been attempted
+			-- on host (via installer or VPP app). If only available for install is
+			-- requested, then the software installed on host clause is empty.
+			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+			%s
+			%s
+`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
+		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
+
+	// this statement lists only the software that has never been installed nor
+	// attempted to be installed on the host, but that is available to be
+	// installed on the host's platform.
+	stmtAvailable := fmt.Sprintf(`
+		SELECT
+			st.id,
+			st.name,
+			st.source,
+			si.self_service as package_self_service,
+			si.filename as package_name,
+			si.version as package_version,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
+			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
+			NULL as last_install_installed_at,
+			NULL as last_install_install_uuid,
+			NULL as status
+		FROM
+			software_titles st
+		LEFT OUTER JOIN
+			-- filter out software that is not available for install on the host's platform
+			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			-- include VPP apps only if the host is on a supported platform
+			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
+		LEFT OUTER JOIN
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		WHERE
+			-- software is not installed on host (but is available in host's team)
 			NOT EXISTS (
 				SELECT 1
 				FROM
@@ -1906,7 +2316,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 				INNER JOIN
 					software s ON hs.software_id = s.id
 				WHERE
-					hs.host_id = ? AND
+					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) AND
 			-- sofware install has not been attempted on host
@@ -1915,59 +2325,91 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 				FROM
 					host_software_installs hsi
 				WHERE
-					hsi.host_id = ? AND
-					hsi.software_installer_id = si.id
+					hsi.host_id = :host_id AND
+					hsi.software_installer_id = si.id AND
+					hsi.removed = 0
 			) AND
-			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
-`
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_vpp_software_installs hvsi
+				WHERE
+					hvsi.host_id = :host_id AND
+					hvsi.adam_id = vat.adam_id AND
+					hvsi.removed = 0
+			) AND
+			-- either the software installer or the vpp app exists for the host's team
+			( si.id IS NOT NULL OR vat.platform = :host_platform )
+			%s
+`, onlySelfServiceClause)
 
+	// this is the top-level SELECT of fields from the UNION of the sub-selects
+	// (stmtAvailable and stmtInstalled).
 	const selectColNames = `
 	SELECT
 		id,
 		name,
 		source,
-		package_available_for_install,
+		package_self_service,
+		package_name,
+		package_version,
+		vpp_app_self_service,
+		vpp_app_adam_id,
+		vpp_app_version,
+		vpp_app_icon_url,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
 `
 
-	// must resolve the named bindings here, before adding the stmtAvailable and searchLike which
-	// uses standard placeholders.
-	stmt, args, err := sqlx.Named(stmtInstalled, map[string]any{
+	var globalOrTeamID uint
+	if host.TeamID != nil {
+		globalOrTeamID = *host.TeamID
+	}
+	namedArgs := map[string]any{
 		"host_id":                   host.ID,
+		"host_platform":             host.FleetPlatform(),
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
-	})
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"global_or_team_id":         globalOrTeamID,
+	}
+
+	stmt := stmtInstalled
+	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
+		if fleet.IsLinux(host.Platform) {
+			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
+		} else {
+			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
+		}
+		stmt += ` UNION ` + stmtAvailable
+	}
+
+	// must resolve the named bindings here, before adding the searchLike which
+	// uses standard placeholders.
+	stmt, args, err := sqlx.Named(stmt, namedArgs)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
-
-	if includeAvailableForInstall {
-		platformArgs := []string{host.Platform}
-		if fleet.IsLinux(host.Platform) {
-			platformArgs = fleet.HostLinuxOSs
-		}
-		placeholders := ""
-		for _, p := range platformArgs {
-			placeholders += "?,"
-			args = append(args, p)
-		}
-		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","))
-		args = append(args, host.ID, host.ID, host.ID)
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
 	}
 
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
 
-	if opts.MatchQuery != "" {
+	if opts.ListOptions.MatchQuery != "" {
 		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
-		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
+		stmt, args = searchLike(stmt, args, opts.ListOptions.MatchQuery, "name")
 	}
 
 	// build the count statement before adding pagination constraints
 	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
-	stmt, _ = appendListOptionsToSQL(stmt, &opts)
+	stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
 	// perform a second query to grab the titleCount
 	var titleCount uint
@@ -1977,9 +2419,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
-		StatusSort             sql.NullInt32 `db:"status_sort"`
+		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
+		PackageSelfService     *bool      `db:"package_self_service"`
+		PackageName            *string    `db:"package_name"`
+		PackageVersion         *string    `db:"package_version"`
+		VPPAppSelfService      *bool      `db:"vpp_app_self_service"`
+		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion          *string    `db:"vpp_app_version"`
+		VPPAppIconURL          *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -1991,15 +2439,54 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 	titleIDs := make([]uint, 0, len(hostSoftwareList))
 	byTitleID := make(map[uint]*hostSoftware, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
-		// promote the last install info to the proper destination fields
-		if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
-			hs.LastInstall = &fleet.HostSoftwareInstall{
-				InstallUUID: *hs.LastInstallInstallUUID,
+
+		// promote the package name and version to the proper destination fields
+		if hs.PackageName != nil {
+			var version string
+			if hs.PackageVersion != nil {
+				version = *hs.PackageVersion
 			}
-			if hs.LastInstallInstalledAt != nil {
-				hs.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+				Name:        *hs.PackageName,
+				Version:     version,
+				SelfService: hs.PackageSelfService,
+			}
+
+			// promote the last install info to the proper destination fields
+			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
+				hs.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+					InstallUUID: *hs.LastInstallInstallUUID,
+				}
+				if hs.LastInstallInstalledAt != nil {
+					hs.SoftwarePackage.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+				}
 			}
 		}
+
+		// promote the VPP app id and version to the proper destination fields
+		if hs.VPPAppAdamID != nil {
+			var version string
+			if hs.VPPAppVersion != nil {
+				version = *hs.VPPAppVersion
+			}
+			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
+				AppStoreID:  *hs.VPPAppAdamID,
+				Version:     version,
+				SelfService: hs.VPPAppSelfService,
+				IconURL:     hs.VPPAppIconURL,
+			}
+
+			// promote the last install info to the proper destination fields
+			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
+				hs.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+					CommandUUID: *hs.LastInstallInstallUUID,
+				}
+				if hs.LastInstallInstalledAt != nil {
+					hs.AppStoreApp.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+				}
+			}
+		}
+
 		titleIDs = append(titleIDs, hs.ID)
 		byTitleID[hs.ID] = hs
 	}
@@ -2105,14 +2592,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		}
 	}
 
-	perPage := opts.PerPage
+	perPage := opts.ListOptions.PerPage
 	var metaData *fleet.PaginationMetadata
-	if opts.IncludeMetadata {
+	if opts.ListOptions.IncludeMetadata {
 		if perPage <= 0 {
 			perPage = defaultSelectLimit
 		}
 		metaData = &fleet.PaginationMetadata{
-			HasPreviousResults: opts.Page > 0,
+			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
 		if len(hostSoftwareList) > int(perPage) {
@@ -2165,6 +2652,82 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
+	}
+	return nil
+}
+
+func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
+	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
+	const stmt = `
+SELECT
+	st.id,
+	st.name,
+	st.source,
+	st.browser,
+	st.bundle_identifier,
+	0 as vpp_apps_count
+FROM software_titles st
+INNER JOIN software_installers si ON si.title_id = st.id
+INNER JOIN host_software_installs hsi ON hsi.host_id = ? AND hsi.software_installer_id = si.id
+WHERE hsi.removed = 0 AND 
+	-- :software_status_installed
+	((hsi.post_install_script_exit_code IS NOT NULL AND hsi.post_install_script_exit_code = 0) OR
+	(hsi.install_script_exit_code IS NOT NULL AND hsi.install_script_exit_code = 0))
+
+UNION
+
+SELECT
+	st.id,
+	st.name,
+	st.source,
+	st.browser,
+	st.bundle_identifier,
+	1 as vpp_apps_count
+FROM software_titles st
+INNER JOIN vpp_apps vap ON vap.title_id = st.id
+INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = ? AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE hvsi.removed = 0 AND ncr.status = ?
+`
+	var titles []fleet.SoftwareTitle
+	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID, fleet.MDMAppleStatusAcknowledged); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get installed software titles")
+	}
+	return titles, nil
+}
+
+func markHostSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	const stmt = `
+UPDATE host_software_installs hsi
+INNER JOIN software_installers si ON hsi.software_installer_id = si.id
+INNER JOIN software_titles st ON si.title_id = st.id
+SET hsi.removed = 1
+WHERE hsi.host_id = ? AND st.id IN (?)
+`
+	stmtExpanded, args, err := sqlx.In(stmt, hostID, titleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query args to mark host software install removed")
+	}
+	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host software install removed")
+	}
+	return nil
+}
+
+func markHostVPPSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	const stmt = `
+UPDATE host_vpp_software_installs hvsi
+INNER JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+INNER JOIN software_titles st ON vap.title_id = st.id
+SET hvsi.removed = 1
+WHERE hvsi.host_id = ? AND st.id IN (?)
+`
+	stmtExpanded, args, err := sqlx.In(stmt, hostID, titleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query args to mark host vpp software install removed")
+	}
+	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host vpp software install removed")
 	}
 	return nil
 }

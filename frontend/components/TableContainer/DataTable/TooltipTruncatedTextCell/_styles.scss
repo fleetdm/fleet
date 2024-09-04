@@ -10,9 +10,20 @@
       text-overflow: ellipsis;
       max-width: 101%;
     }
+
+    .truncated {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
   }
 
   .truncated-tooltip {
+    text-wrap: wrap;
+    overflow-wrap: break-word;
+
     .safari-hack {
       height: 0px;
     }

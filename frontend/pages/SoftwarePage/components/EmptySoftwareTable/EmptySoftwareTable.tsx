@@ -1,70 +1,101 @@
-// This component is used on DashboardPage.tsx > Software.tsx,
-// Host Details / Device User > Software.tsx, and SoftwarePage.tsx
-
 import React from "react";
-
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import {
+  getVulnFilterRenderDetails,
+  ISoftwareDropdownFilterVal,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
+  vulnFilters?: ISoftwareVulnFiltersParams;
+  tableName?: string;
   isSoftwareDisabled?: boolean;
-  isCollectingSoftware?: boolean;
-  isSearching?: boolean;
+  noSearchQuery?: boolean;
+  installableSoftwareExists?: boolean;
 }
 
-const generateTypeText = (softwareFilter?: ISoftwareDropdownFilterVal) => {
+const generateTypeText = (
+  tableName: string,
+  softwareFilter?: ISoftwareDropdownFilterVal,
+  vulnFilters?: ISoftwareVulnFiltersParams
+) => {
   if (softwareFilter === "installableSoftware") {
-    return "installable";
+    return "installable software";
   }
-  return softwareFilter === "vulnerableSoftware" ? "vulnerable" : "";
+  if (vulnFilters?.vulnerable) {
+    return "vulnerable software";
+  }
+  return tableName;
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter,
+  softwareFilter = "allSoftware",
+  vulnFilters,
+  tableName = "software",
   isSoftwareDisabled,
-  isCollectingSoftware,
-  isSearching,
+  noSearchQuery,
+  installableSoftwareExists,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(softwareFilter);
+  const softwareTypeText = generateTypeText(
+    tableName,
+    softwareFilter,
+    vulnFilters
+  );
 
-  const emptySoftware: IEmptyTableProps = {
-    header: `No ${softwareTypeText} software match the current search criteria`,
-    info:
-      "This report is updated every hour to protect the performance of your devices.",
+  const { filterCount: vulnFiltersCount } = getVulnFilterRenderDetails(
+    vulnFilters
+  );
+
+  const isFiltered =
+    vulnFiltersCount > 0 || !noSearchQuery || softwareFilter !== "allSoftware";
+
+  const getEmptySoftwareInfo = (): IEmptyTableProps => {
+    if (isSoftwareDisabled) {
+      return {
+        header: "Software inventory disabled",
+        info: (
+          <>
+            Users with the admin role can{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+              text="turn on software inventory"
+              newTab
+            />
+            .
+          </>
+        ),
+      };
+    }
+
+    if (!isFiltered) {
+      if (softwareFilter === "allSoftware") {
+        if (installableSoftwareExists) {
+          return {
+            header: `No ${tableName} detected`,
+            info: "Install software on your hosts to see versions.",
+          };
+        }
+        return {
+          header: `No ${tableName} detected`,
+          info: `Expecting to see ${softwareTypeText}? Check back later.`,
+        };
+      }
+    }
+
+    return {
+      header: "No items match the current search criteria",
+      info: `Expecting to see ${softwareTypeText}? Check back later.`,
+    };
   };
 
-  if (isCollectingSoftware) {
-    emptySoftware.header = "No software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
-  }
-
-  if (isSoftwareDisabled) {
-    emptySoftware.header = "Software inventory disabled";
-    emptySoftware.info = (
-      <>
-        Users with the admin role can{" "}
-        <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-          text="turn on software inventory"
-          newTab
-        />
-        .
-      </>
-    );
-  }
-  if (softwareFilter === "vulnerableSoftware" && !isSearching) {
-    emptySoftware.header = "No vulnerable software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
-  }
+  const emptySoftware = getEmptySoftwareInfo();
 
   return (
     <EmptyTable
-      graphicName="empty-software"
+      graphicName="empty-search-question"
       header={emptySoftware.header}
       info={emptySoftware.info}
     />

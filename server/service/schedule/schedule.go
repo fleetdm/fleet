@@ -12,8 +12,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // ReloadInterval reloads and returns a new interval.
@@ -167,7 +167,13 @@ func (s *Schedule) Start() {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
 		ctxerr.Handle(s.ctx, err)
 	}
-	s.setIntervalStartedAt(prevScheduledRun.CreatedAt)
+
+	// if there is no previous run, set the start time to the current time.
+	startedAt := prevScheduledRun.CreatedAt
+	if startedAt.IsZero() {
+		startedAt = time.Now()
+	}
+	s.setIntervalStartedAt(startedAt)
 
 	initialWait := 10 * time.Second
 	if schedInterval := s.getSchedInterval(); schedInterval < initialWait {

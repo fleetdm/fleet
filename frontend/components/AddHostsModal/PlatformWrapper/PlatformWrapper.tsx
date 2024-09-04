@@ -35,16 +35,16 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "msi",
   },
   {
-    name: "Linux (RPM)",
-    type: "rpm",
-  },
-  {
-    name: "Linux (deb)",
+    name: "Linux",
     type: "deb",
   },
   {
     name: "ChromeOS",
     type: "chromeos",
+  },
+  {
+    name: "iOS & iPadOS",
+    type: "ios-ipados",
   },
   {
     name: "Advanced",
@@ -360,7 +360,7 @@ const PlatformWrapper = ({
             </InfoBanner>
           </div>
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
             label={renderChromeOSLabel(
@@ -370,7 +370,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.extensionId}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
             label={renderChromeOSLabel(
@@ -380,7 +380,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.installationUrl}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
             label={renderChromeOSLabel(
@@ -393,13 +393,30 @@ const PlatformWrapper = ({
         </>
       );
     }
+
+    if (packageType === "ios-ipados") {
+      return (
+        <div className={`${baseClass}__ios-ipados--info`}>
+          <p>
+            Enroll iPhones and iPads by adding them to Fleet in Apple Business
+            Manager (ABM).{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/setup-abm"
+              text="Learn more"
+              newTab
+            />
+          </p>
+        </div>
+      );
+    }
+
     if (packageType === "advanced") {
       return (
         <>
           {renderFleetCertificateBlock("tooltip")}
           <div className={`${baseClass}__advanced--installer`}>
             <InputField
-              disabled
+              readOnly
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
               label={renderLabel(
@@ -495,7 +512,7 @@ const PlatformWrapper = ({
                   require sudo or Run as Administrator privileges):
                 </p>
                 <InputField
-                  disabled
+                  readOnly
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
                   label={renderLabel(
@@ -533,13 +550,17 @@ const PlatformWrapper = ({
           </Checkbox>
         )}
         <InputField
-          disabled
+          readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText="Distribute your package to add hosts to Fleet."
+          helpText={`Distribute your package to add hosts to Fleet.${
+            packageType === "deb"
+              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
+              : ""
+          }`}
         />
       </>
     );

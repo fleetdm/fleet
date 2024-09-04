@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: $border-radius;
+  border-radius: $border-radius-medium;
   background-color: $ui-fleet-blue-10;
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xlarge $pad-large;
@@ -16,6 +16,26 @@
     padding: $pad-medium $pad-large;
   }
 
+  &__selected-file {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+
+    &--details {
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $xx-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
+
   &__graphics {
     display: flex;
     align-items: center;
@@ -23,6 +43,7 @@
   }
   &__message {
     margin: 0;
+    color: $ui-fleet-black-75;
   }
 
   &__additional-info {
@@ -35,7 +56,6 @@
   }
 
   &__upload-button {
-    margin-top: 8px;
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
   }

@@ -18,7 +18,8 @@ spec:
     jira: null
     zendesk: null
   mdm:
-    apple_bm_default_team: ""
+    apple_business_manager:
+    volume_purchasing_program:
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
     enabled_and_configured: true
@@ -40,6 +41,12 @@ spec:
     macos_updates:
       deadline: null
       minimum_version: null
+    ios_updates:
+      deadline: null
+      minimum_version: null
+    ipados_updates:
+      deadline: null
+      minimum_version: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
@@ -59,6 +66,7 @@ spec:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_report_cap: 0
     query_reports_disabled: false
     server_url: https://example.org
     scripts_disabled: false

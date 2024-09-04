@@ -4,15 +4,20 @@ import ReactTooltip from "react-tooltip";
 
 import { uniqueId } from "lodash";
 
-import Icon from "components/Icon";
+import { ISoftwarePackage } from "interfaces/software";
 
+import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import LinkCell from "../LinkCell";
 
 const baseClass = "software-name-cell";
 
-const InstallIconWithTooltip = () => {
+const InstallIconWithTooltip = ({
+  isSelfService,
+}: {
+  isSelfService: ISoftwarePackage["self_service"];
+}) => {
   const tooltipId = uniqueId();
   return (
     <div className={`${baseClass}__install-icon-with-tooltip`}>
@@ -21,7 +26,10 @@ const InstallIconWithTooltip = () => {
         data-tip
         data-for={tooltipId}
       >
-        <Icon name="install" className={`${baseClass}__install-icon`} />
+        <Icon
+          name={isSelfService ? "install-self-service" : "install"}
+          className={`${baseClass}__install-icon`}
+        />
       </div>
       <ReactTooltip
         className={`${baseClass}__install-tooltip`}
@@ -32,7 +40,14 @@ const InstallIconWithTooltip = () => {
         data-html
       >
         <span className={`${baseClass}__install-tooltip-text`}>
-          Software can be installed on Host details page.
+          {isSelfService ? (
+            <>
+              End users can install from <b>Fleet Desktop {">"} Self-service</b>
+              .
+            </>
+          ) : (
+            "Software can be installed on Host details page."
+          )}
         </span>
       </ReactTooltip>
     </div>
@@ -45,6 +60,8 @@ interface ISoftwareNameCellProps {
   path?: string;
   router?: InjectedRouter;
   hasPackage?: boolean;
+  isSelfService?: boolean;
+  iconUrl?: string;
 }
 
 const SoftwareNameCell = ({
@@ -53,6 +70,8 @@ const SoftwareNameCell = ({
   path,
   router,
   hasPackage = false,
+  isSelfService = false,
+  iconUrl,
 }: ISoftwareNameCellProps) => {
   // NO path or router means it's not clickable. return
   // a non-clickable cell early
@@ -78,9 +97,11 @@ const SoftwareNameCell = ({
       customOnClick={onClickSoftware}
       value={
         <>
-          <SoftwareIcon name={name} source={source} />
+          <SoftwareIcon name={name} source={source} url={iconUrl} />
           <span className="software-name">{name}</span>
-          {hasPackage && <InstallIconWithTooltip />}
+          {hasPackage && (
+            <InstallIconWithTooltip isSelfService={isSelfService} />
+          )}
         </>
       }
     />

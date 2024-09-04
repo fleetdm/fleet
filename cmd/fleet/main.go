@@ -2,13 +2,16 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/config"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/shellquote"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )
@@ -28,6 +31,35 @@ func main() {
 	rootCmd.AddCommand(createServeCmd(configManager))
 	rootCmd.AddCommand(createConfigDumpCmd(configManager))
 	rootCmd.AddCommand(createVersionCmd(configManager))
+
+	// See if the program is being piped data on stdin.
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		initFatal(err, "getting stdin stats")
+	}
+	if fi.Mode()&os.ModeNamedPipe != 0 {
+		_, _ = fmt.Fprintln(os.Stderr, "Reading additional arguments from stdin...")
+		// See charsets at https://godoc.org/github.com/briandowns/spinner#pkg-variables
+		s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
+		s.Writer = os.Stderr
+		s.Start()
+
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			initFatal(err, "reading from stdin")
+		}
+
+		// Split the string into arguments like a shell would.
+		extraArgs, err := shellquote.Split(string(data))
+		if err != nil {
+			initFatal(err, "splitting arguments from stdin")
+		}
+
+		// Add the new args to the existing args
+		os.Args = append(os.Args, extraArgs...)
+
+		s.Stop()
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		initFatal(err, "running root command")
@@ -73,14 +105,23 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	}
 
 	cfg.S3 = config.S3Config{
-		Bucket:           "carves-dev",
-		Region:           "minio",
-		Prefix:           "dev-prefix",
-		EndpointURL:      "localhost:9000",
-		AccessKeyID:      "minio",
-		SecretAccessKey:  "minio123!",
-		DisableSSL:       true,
-		ForceS3PathStyle: true,
+		CarvesBucket:           "carves-dev",
+		CarvesRegion:           "minio",
+		CarvesPrefix:           "dev-prefix",
+		CarvesEndpointURL:      "localhost:9000",
+		CarvesAccessKeyID:      "minio",
+		CarvesSecretAccessKey:  "minio123!",
+		CarvesDisableSSL:       true,
+		CarvesForceS3PathStyle: true,
+
+		SoftwareInstallersBucket:           "software-installers-dev",
+		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersPrefix:           "dev-prefix",
+		SoftwareInstallersEndpointURL:      "localhost:9000",
+		SoftwareInstallersAccessKeyID:      "minio",
+		SoftwareInstallersSecretAccessKey:  "minio123!",
+		SoftwareInstallersDisableSSL:       true,
+		SoftwareInstallersForceS3PathStyle: true,
 	}
 
 	cfg.Packaging.S3 = config.S3Config{

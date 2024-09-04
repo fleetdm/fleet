@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -16,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -182,36 +184,40 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
+	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	}
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
-	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
-		// TODO(mna): all those notifications implied a macos hosts, but none of
-		// the checks enforce that (only indirectly in some cases, like
-		// IsDEPAssignedToFleet), should we add such a platform check?
+	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && host.IsDEPAssignedToFleet()
 
-		if host.NeedsDEPEnrollment() {
+		if needsDEPEnrollment {
 			notifs.RenewEnrollmentProfile = true
 		}
 
+		manualMigrationEligible, err := fleet.IsEligibleForManualMigration(host, mdmInfo, isConnectedToFleetMDM)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking manual migration eligibility")
+		}
+
 		if appConfig.MDM.MacOSMigration.Enable &&
-			host.IsEligibleForDEPMigration() {
+			(fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) || manualMigrationEligible) {
 			notifs.NeedsMDMMigration = true
 		}
 
-		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
-			notifs.RotateDiskEncryptionKey = true
-
-			// Since this is an user initiated action, we disable
-			// the flag when we deliver the notification to Orbit
-			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-		}
 	}
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMEnrollment() {
+		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
@@ -221,7 +227,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMUnenrollment() {
+		if host.IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM) {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
 	}
@@ -276,7 +282,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.EnabledForHost(host) {
+			host.IsOsqueryEnrolled() &&
+			isConnectedToFleetMDM &&
+			mdmConfig.MacOSUpdates.Configured() {
+
 			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 			if errors.Is(err, sql.ErrNoRows) {
 				// host os has not been collected yet (no details query)
@@ -297,9 +306,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
-		if mdmConfig.EnableDiskEncryption &&
-			host.IsEligibleForBitLockerEncryption() {
-			notifs.EnforceBitLockerEncryption = true
+		err = svc.setDiskEncryptionNotifications(
+			ctx,
+			&notifs,
+			host,
+			appConfig,
+			mdmConfig.EnableDiskEncryption,
+			isConnectedToFleetMDM,
+			mdmInfo,
+		)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting team disk encryption notifications")
 		}
 
 		var updateChannels *fleet.OrbitUpdateChannels
@@ -312,11 +329,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			Flags:          opts.CommandLineStartUpFlags,
-			Extensions:     extensionsFiltered,
-			Notifications:  notifs,
-			NudgeConfig:    nudgeConfig,
-			UpdateChannels: updateChannels,
+			ScriptExeTimeout: opts.ScriptExecutionTimeout,
+			Flags:            opts.CommandLineStartUpFlags,
+			Extensions:       extensionsFiltered,
+			Notifications:    notifs,
+			NudgeConfig:      nudgeConfig,
+			UpdateChannels:   updateChannels,
 		}, nil
 	}
 
@@ -335,7 +353,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
-		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
+		isConnectedToFleetMDM &&
+		host.IsOsqueryEnrolled() &&
+		appConfig.MDM.MacOSUpdates.Configured() {
 		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 		if errors.Is(err, sql.ErrNoRows) {
 			// host os has not been collected yet (no details query)
@@ -356,10 +376,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	if appConfig.MDM.WindowsEnabledAndConfigured &&
-		appConfig.MDM.EnableDiskEncryption.Value &&
-		host.IsEligibleForBitLockerEncryption() {
-		notifs.EnforceBitLockerEncryption = true
+	err = svc.setDiskEncryptionNotifications(
+		ctx,
+		&notifs,
+		host,
+		appConfig,
+		appConfig.MDM.EnableDiskEncryption.Value,
+		isConnectedToFleetMDM,
+		mdmInfo,
+	)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
 	}
 
 	var updateChannels *fleet.OrbitUpdateChannels
@@ -372,12 +399,64 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		Flags:          opts.CommandLineStartUpFlags,
-		Extensions:     extensionsFiltered,
-		Notifications:  notifs,
-		NudgeConfig:    nudgeConfig,
-		UpdateChannels: updateChannels,
+		ScriptExeTimeout: opts.ScriptExecutionTimeout,
+		Flags:            opts.CommandLineStartUpFlags,
+		Extensions:       extensionsFiltered,
+		Notifications:    notifs,
+		NudgeConfig:      nudgeConfig,
+		UpdateChannels:   updateChannels,
 	}, nil
+}
+
+func (svc *Service) setDiskEncryptionNotifications(
+	ctx context.Context,
+	notifs *fleet.OrbitConfigNotifications,
+	host *fleet.Host,
+	appConfig *fleet.AppConfig,
+	diskEncryptionConfigured bool,
+	isConnectedToFleetMDM bool,
+	mdmInfo *fleet.HostMDM,
+) error {
+	anyMDMConfigured := appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured
+	if !anyMDMConfigured ||
+		!isConnectedToFleetMDM ||
+		!host.IsOsqueryEnrolled() ||
+		!diskEncryptionConfigured {
+		return nil
+	}
+
+	encryptionKey, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "fetching host disk encryption key")
+		}
+	}
+
+	switch host.FleetPlatform() {
+	case "darwin":
+		mp, ok := capabilities.FromContext(ctx)
+		if !ok {
+			level.Debug(svc.logger).Log("msg", "no capabilities in context, skipping disk encryption notification")
+			return nil
+		}
+
+		if !mp.Has(fleet.CapabilityEscrowBuddy) {
+			level.Debug(svc.logger).Log("msg", "host doesn't support Escrow Buddy, skipping disk encryption notification", "host_uuid", host.UUID)
+			return nil
+		}
+
+		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
+	case "windows":
+		isServer := mdmInfo != nil && mdmInfo.IsServer
+		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled
+		keyWasDecrypted := encryptionKey != nil && encryptionKey.Decryptable != nil && *encryptionKey.Decryptable
+		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && !keyWasDecrypted
+		notifs.EnforceBitLockerEncryption = !isServer &&
+			mdmInfo != nil &&
+			(needsEncryption || encryptedWithoutKey)
+	}
+
+	return nil
 }
 
 // filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.
@@ -482,6 +561,10 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	if len(deviceAuthToken) == 0 {
 		return badRequest("device auth token cannot be empty")
+	}
+
+	if url.QueryEscape(deviceAuthToken) != deviceAuthToken {
+		return badRequest("device auth token contains invalid characters")
 	}
 
 	host, ok := hostctx.FromContext(ctx)
@@ -723,7 +806,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
-	if !host.MDMInfo.IsFleetEnrolled() {
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	if !connected {
 		return badRequest("host is not enrolled with fleet")
 	}
 
@@ -909,11 +998,31 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")
 		}
 
+		// Self-Service packages will have a nil author for the activity.
 		var user *fleet.User
-		if hsi.UserID != nil {
-			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get host software installation user")
+		if !hsi.SelfService {
+			if hsi.UserID != nil {
+				user, err = svc.ds.UserByID(ctx, *hsi.UserID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host software installation user")
+				}
+			} else {
+				// hsi.UserID can be nil if the user was deleted and/or if the installation was
+				// triggered by Fleet (policy automation). Thus we set the author of the installation
+				// to be the user that uploaded the package (by design).
+				var userID uint
+				if hsi.SoftwareInstallerUserID != nil {
+					userID = *hsi.SoftwareInstallerUserID
+				}
+				// If there's no name or email then this may be a package uploaded
+				// before we added authorship to uploaded packages.
+				if hsi.SoftwareInstallerUserName != "" && hsi.SoftwareInstallerUserEmail != "" {
+					user = &fleet.User{
+						ID:    userID,
+						Name:  hsi.SoftwareInstallerUserName,
+						Email: hsi.SoftwareInstallerUserEmail,
+					}
+				}
 			}
 		}
 
@@ -924,8 +1033,10 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostID:          host.ID,
 				HostDisplayName: host.DisplayName(),
 				SoftwareTitle:   hsi.SoftwareTitle,
+				SoftwarePackage: hsi.SoftwarePackage,
 				InstallUUID:     result.InstallUUID,
 				Status:          string(status),
+				SelfService:     hsi.SelfService,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")

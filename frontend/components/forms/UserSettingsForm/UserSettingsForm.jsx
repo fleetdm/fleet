@@ -55,7 +55,7 @@ class UserSettingsForm extends Component {
             autofocus
             label="Email (required)"
             helpText={renderEmailHelpText()}
-            disabled={!smtpConfigured}
+            readOnly={!smtpConfigured}
             tooltip={
               <>
                 Editing your email address requires that SMTP or SES is

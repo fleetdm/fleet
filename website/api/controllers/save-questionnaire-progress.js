@@ -21,6 +21,7 @@ module.exports = {
         'what-does-your-team-manage-eo-it',
         'what-does-your-team-manage-vm',
         'what-do-you-manage-mdm',
+        'cross-platform-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',
@@ -28,6 +29,7 @@ module.exports = {
         'self-hosted-deploy',
         'whats-left-to-get-you-set-up',
         'how-was-your-deployment',
+        'thanks-for-checking-out-fleet',
       ]
     },
     formData: {
@@ -85,28 +87,25 @@ module.exports = {
     // 'how-many-hosts': Stage 4/5/6
     // 'will-you-be-self-hosting': Stage 5/6
     // 'what-are-you-working-on-eo-security'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-eo-it'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-vm'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-do-you-manage-mdm'
-    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
+    //  - no-use-case-yet: » Stage 3
     //  - All other options » Stage 4
-    // 'is-it-any-good': Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
+    // 'is-it-any-good': Stage 3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
-    //  - host-fleet-for-me » Stage 4
-    //  - deploy-fleet-in-environment » Stage 4
+    //  - host-fleet-for-me » Stage 5
+    //  - deploy-fleet-in-environment » Stage 5
     //  - let-me-think-about-it »  Stage 2
     // FUTURE: Should the step about deploying fleet in your env be here?  (For same reason is-it-any-good is here: when navigating back then forwards?)
     // 'how-was-your-deployment'
     //  - up-and-running »  Stage 5
-    //  - kinda-stuck »  Stage 4 (...at best!  Still got the use case.)
-    //  - havent-gotten-to-it » Stage 4 (same as above)
-    //  - changed-mind-want-managed-deployment » Stage 4 (same as above)
+    //  - kinda-stuck »  Stage 5
+    //  - havent-gotten-to-it » Stage 5
+    //  - changed-mind-want-managed-deployment » Stage 5
     //  - decided-to-not-use-fleet » Stage 2
     // 'whats-left-to-get-you-set-up'
     //  - need-premium-license-key » No change (Stage ??)
@@ -114,9 +113,8 @@ module.exports = {
     //  - procurement-wants-some-stuff » No change (Stage ??)
     //  - nothing » No change (Stage ??)
 
-    // Set a variable to track whether we should create a Lead record in Salesforce.
-    let createLeadRecord = false;
     let psychologicalStage = userRecord.psychologicalStage;
+    let psychologicalStageLastChangedAt = userRecord.psychologicalStageLastChangedAt;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
     if(currentStep === 'start') {
@@ -124,19 +122,13 @@ module.exports = {
     } else if(currentStep === 'what-are-you-using-fleet-for') {
       psychologicalStage = '2 - Aware';
     } else if(currentStep === 'have-you-ever-used-fleet') {
-      if(['yes-deployed'].includes(valueFromFormData)) {
+      if(valueFromFormData === 'yes-deployed') {
         // If the user has Fleet deployed, set their stage to 6.
-        createLeadRecord = true;
         psychologicalStage = '6 - Has team buy-in';
-      } else if(valueFromFormData === 'yes-recently-deployed'){
-        createLeadRecord = true;
+      } else if(valueFromFormData === 'yes-recently-deployed') {
         psychologicalStage = '5 - Personally confident';
-      } else if(valueFromFormData === 'yes-deployed-local'){
-        // If they've tried Fleet locally, set their stage to 3.
-        psychologicalStage = '3 - Intrigued';
       } else {
-        // Otherwise, we'll just assume liu're only aware.  Maybe liu don't fully grasp what Fleet can do.
-        psychologicalStage = '2 - Aware';
+        psychologicalStage = '3 - Intrigued';
       }
     } else {
       // If the user submitted any other step, we'll set variables using the answers to the previous questions.
@@ -146,15 +138,8 @@ module.exports = {
       let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
       if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
         if(valueFromFormData === 'no-use-case-yet') {
-          // Check the user's answer to the previous question
-          if(hasUsedFleetAnswer === 'yes-deployed-local'){
-            // If they've tried Fleet locally, set their stage to 3.
-            psychologicalStage = '3 - Intrigued';
-          } else {
-            psychologicalStage = '2 - Aware';
-          }
+          psychologicalStage = '3 - Intrigued';
         } else {// Otherwise, they have a use case and will be set to stage 4.
-          createLeadRecord = true;
           psychologicalStage = '4 - Has use case';
         }
       } else if(currentStep === 'is-it-any-good') {
@@ -163,18 +148,11 @@ module.exports = {
           // be selected,  we'll check the user's previous answers before changing their psyStage
           if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
-            if(hasUsedFleetAnswer === 'yes-deployed-local') {
-              // If they've tried Fleet locally, set their stage to 3.
-              psychologicalStage = '3 - Intrigued';
-            } else {
-              psychologicalStage = '2 - Aware';
-            }
+            psychologicalStage = '3 - Intrigued';
           } else {
-            createLeadRecord = true;
             psychologicalStage = '4 - Has use case';
           }
         } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
-          createLeadRecord = true;
           psychologicalStage = '4 - Has use case';
           // FUTURE: check previous answers for other selected buying situations.
         }
@@ -182,28 +160,22 @@ module.exports = {
         // If the user selects "Let me think about it", set their psyStage to 2.
         if(valueFromFormData === 'let-me-think-about-it') {
           psychologicalStage = '2 - Aware';
-        } else if (['deploy-fleet-in-environment','host-fleet-for-me'].includes(valueFromFormData)) {
-          createLeadRecord = true;
-          psychologicalStage = '4 - Has use case';
+        } else if (['host-fleet-for-me', 'deploy-fleet-in-environment'].includes(valueFromFormData)) {
+          psychologicalStage = '5 - Personally confident';
         } else { require('assert')(false,'This should never happen.'); }
       } else if(currentStep === 'how-was-your-deployment') {
         if(valueFromFormData === 'decided-to-not-use-fleet') {
           psychologicalStage = '2 - Aware';
-        } else if(valueFromFormData === 'up-and-running'){
+        } else if(['up-and-running', 'changed-mind-want-managed-deployment', 'kinda-stuck', 'havent-gotten-to-it'].includes(valueFromFormData)){
           psychologicalStage = '5 - Personally confident';
-        } else if(['kinda-stuck', 'havent-gotten-to-it', 'changed-mind-want-managed-deployment'].includes(valueFromFormData)){
-          psychologicalStage = '4 - Has use case';
         } else { require('assert')(false,'This should never happen.'); }
       } else if (currentStep === 'whats-left-to-get-you-set-up') {
         // FUTURE: do more stuff (for now this always acts like 'no change')
       } else if(currentStep === 'how-many-hosts') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
           psychologicalStage = '6 - Has team buy-in';
-        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
-          psychologicalStage = '5 - Personally confident';
         } else {
-          // IWMIH then we want Fleet to host for us (either because we wanted that from the get-go, or we backtracked because deploying looked too time-consuming)
-          psychologicalStage = '4 - Has use case';
+          psychologicalStage = '5 - Personally confident';
         }
       } else if(currentStep === 'will-you-be-self-hosting') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
@@ -211,58 +183,63 @@ module.exports = {
         } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
           psychologicalStage = '5 - Personally confident';
         } else { require('assert')(false, 'This should never happen.'); }
+      } else if(currentStep === 'thanks-for-checking-out-fleet') {
+        psychologicalStage = '2 - Aware';
       }//ﬁ
     }//ﬁ
-
-    // Only update CRM records if the user's psychological stage changes.
-    if(psychologicalStage !== userRecord.psychologicalStage) {
-      // If the createLeadRecord flag was set to true, create a lead record.
-      if(createLeadRecord){
-      // Use setImmediate to queue CRM updates.
-      // [?]: https://nodejs.org/api/timers.html#setimmediatecallback-args
-        require('timers').setImmediate(async ()=>{
-          await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
-            emailAddress: this.req.me.emailAddress,
-            firstName: this.req.me.firstName,
-            lastName: this.req.me.lastName,
-            primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-            organization: this.req.me.organization,
-            psychologicalStage,
-            leadSource: 'Website - Sign up',
-          }).tolerate((err)=>{
-            sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-          });
-        });//_∏_  (Meanwhile...)
-      } else {
-        // Otherwise, update or create a contact and account record.
-        require('timers').setImmediate(async ()=>{
-          await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-            emailAddress: this.req.me.emailAddress,
-            firstName: this.req.me.firstName,
-            lastName: this.req.me.lastName,
-            primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-            organization: this.req.me.organization,
-            psychologicalStage,
-          }).tolerate((err)=>{
-            sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-          });
-        });//_∏_  (Meanwhile...)
-      }
-    }//ﬁ
-    // TODO: send all other answers to Salesforce (when there are fields for them)
     // Set the user's answer to the current step.
     questionnaireProgress[currentStep] = formData;
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
     let getStartedProgress = _.clone(questionnaireProgress);
+    let questionnaireProgressAsAFormattedString = undefined;// Default to undefined.
+    // Using a try catch block to handle errors from JSON.stringify.
+    try {
+      questionnaireProgressAsAFormattedString = JSON.stringify(getStartedProgress)
+      .replace(/[\{|\}|"]/g, '')// Remove the curly braces and quotation marks wrapping JSON objects
+      .replace(/,/g, '\n')// Replace commas with newlines.
+      .replace(/:\w+:/g, ':\t');// Replace the key from the formData with a color and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+    } catch(err){
+      sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
+    }
+    // Only update CRM records if the user's psychological stage changes.
+    if(psychologicalStage !== userRecord.psychologicalStage) {
+      let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
+      if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
+        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+          psychologicalStageChangeReason = this.req.session.adAttributionString;
+        }
+      }
+      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
+      psychologicalStageLastChangedAt = Date.now();
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: this.req.me.emailAddress,
+        firstName: this.req.me.firstName,
+        lastName: this.req.me.lastName,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        organization: this.req.me.organization,
+        psychologicalStage,
+        psychologicalStageChangeReason,
+        getStartedResponses: questionnaireProgressAsAFormattedString,
+        contactSource: 'Website - Sign up',
+      }).exec((err)=>{
+        if(err){
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
+        }
+        return;
+      });
+    }//ﬁ
     // Update the user's database model.
     await User.updateOne({id: userRecord.id})
     .set({
       getStartedQuestionnaireAnswers: questionnaireProgress,
       lastSubmittedGetStartedQuestionnaireStep: currentStep,
-      psychologicalStage
+      psychologicalStage,
+      psychologicalStageLastChangedAt,
     });
     // Return the JSON dictionary of form data submitted by this user.
-    return getStartedProgress;
+    return {getStartedProgress, psychologicalStage, primaryBuyingSituation};
   }
 
 

@@ -101,6 +101,7 @@ org_settings:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_report_cap: 2000
     query_reports_disabled: false
     scripts_disabled: false
     server_url: $FLEET_SERVER_URL
@@ -145,7 +146,6 @@ org_settings:
                         "private_key": "google_calendar_private_key",
       }
   mdm:
-    apple_bm_default_team: $APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
       entity_id: ""
       idp_name: ""
@@ -186,3 +186,4 @@ org_settings:
   secrets: # These secrets are used to enroll hosts to the "All teams" team
     - secret: SampleSecret123
     - secret: ABC
+software:

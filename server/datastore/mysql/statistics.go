@@ -10,8 +10,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -24,47 +25,47 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	lic, _ := license.FromContext(ctx)
 
 	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
-		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer(ctx))
+		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
 		}
-		amountUsers, err := tableRowsCount(ctx, ds.writer(ctx), "users")
+		amountUsers, err := tableRowsCount(ctx, ds.reader(ctx), "users")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount users")
 		}
-		amountSoftwaresVersions, err := tableRowsCount(ctx, ds.writer(ctx), "software")
+		amountSoftwaresVersions, err := tableRowsCount(ctx, ds.reader(ctx), "software")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software")
 		}
-		amountHostSoftwares, err := tableRowsCount(ctx, ds.writer(ctx), "host_software")
+		amountHostSoftwares, err := tableRowsCount(ctx, ds.reader(ctx), "host_software")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount host_software")
 		}
-		amountSoftwareTitles, err := tableRowsCount(ctx, ds.writer(ctx), "software_titles")
+		amountSoftwareTitles, err := tableRowsCount(ctx, ds.reader(ctx), "software_titles")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software_titles")
 		}
-		amountHostSoftwareInstalledPaths, err := tableRowsCount(ctx, ds.writer(ctx), "host_software_installed_paths")
+		amountHostSoftwareInstalledPaths, err := tableRowsCount(ctx, ds.reader(ctx), "host_software_installed_paths")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount host_software_installed_paths")
 		}
-		amountSoftwareCpes, err := tableRowsCount(ctx, ds.writer(ctx), "software_cpe")
+		amountSoftwareCpes, err := tableRowsCount(ctx, ds.reader(ctx), "software_cpe")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software_cpe")
 		}
-		amountSoftwareCves, err := tableRowsCount(ctx, ds.writer(ctx), "software_cve")
+		amountSoftwareCves, err := tableRowsCount(ctx, ds.reader(ctx), "software_cve")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software_cve")
 		}
-		amountTeams, err := amountTeamsDB(ctx, ds.writer(ctx))
+		amountTeams, err := amountTeamsDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount teams")
 		}
-		amountPolicies, err := amountPoliciesDB(ctx, ds.writer(ctx))
+		amountPolicies, err := amountPoliciesDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policies")
 		}
-		amountLabels, err := amountLabelsDB(ctx, ds.writer(ctx))
+		amountLabels, err := amountLabelsDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount labels")
 		}
@@ -72,11 +73,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics app config")
 		}
-		amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.writer(ctx), since)
+		amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.reader(ctx), since)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
-		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.writer(ctx))
+		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 		if err == sql.ErrNoRows {
 			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err) //nolint:errcheck
 		} else if err != nil {
@@ -86,17 +87,21 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics error store")
 		}
-		amountHostsNotResponding, err := countHostsNotRespondingDB(ctx, ds.writer(ctx), ds.logger, config)
+		amountHostsNotResponding, err := countHostsNotRespondingDB(ctx, ds.reader(ctx), ds.logger, config)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts not responding")
 		}
-		amountHostsByOrbitVersion, err := amountHostsByOrbitVersionDB(ctx, ds.writer(ctx))
+		amountHostsByOrbitVersion, err := amountHostsByOrbitVersionDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts by orbit version")
 		}
-		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.writer(ctx))
+		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+		}
+		numHostsFleetDesktopEnabled, err := numHostsFleetDesktopEnabledDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of hosts with Fleet desktop installed")
 		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
@@ -130,11 +135,28 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if lic != nil && lic.IsPremium() {
 			stats.Organization = lic.Organization
 		}
+		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
+		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && len(appConfig.Integrations.GoogleCalendar[0].ApiKey) > 0
+
+		stats.MaintenanceWindowsEnabled = false
+		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}}, fleet.ListOptions{})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list teams")
+		}
+		for _, team := range teams {
+			if team.Config.Integrations.GoogleCalendar != nil && team.Config.Integrations.GoogleCalendar.Enable {
+				stats.MaintenanceWindowsEnabled = true
+				break
+			}
+		}
+		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
 		return nil
 	}
 
 	dest := statistics{}
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)

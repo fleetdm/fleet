@@ -21,7 +21,8 @@ spec:
     apple_bm_terms_expired: false
     apple_bm_enabled_and_configured: false
     enabled_and_configured: false
-    apple_bm_default_team: ""
+    apple_business_manager: null
+    volume_purchasing_program: null
     windows_enabled_and_configured: false
     enable_disk_encryption: false
     macos_migration:
@@ -29,6 +30,12 @@ spec:
       mode: ""
       webhook_url: ""
     macos_updates:
+      minimum_version: null
+      deadline: null
+    ios_updates:
+      minimum_version: null
+      deadline: null
+    ipados_updates:
       minimum_version: null
       deadline: null
     windows_updates:
@@ -59,6 +66,7 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    query_report_cap: 0
     query_reports_disabled: false
     server_url: ""
     scripts_disabled: false

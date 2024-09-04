@@ -3,8 +3,7 @@ import React, { ReactNode } from "react";
 import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
-import { SoftwareInstallStatus } from "interfaces/software";
-import { dateAgo } from "utilities/date_format";
+import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -12,74 +11,107 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 const baseClass = "install-status-cell";
 
 type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
+interface TootipArgs {
+  softwareName?: string | null;
+  // this field is used in My device > Self-service
+  lastInstalledAt?: string;
+  isAppStoreApp?: boolean;
+}
 
-type IStatusDisplayConfig = {
-  iconName: "success" | "pending-outline" | "error" | "install";
+export type IStatusDisplayConfig = {
+  iconName:
+    | "success"
+    | "pending-outline"
+    | "error"
+    | "install"
+    | "install-self-service";
   displayText: string;
-  tooltip: (softwareName?: string | null, lastInstall?: string) => ReactNode;
+  tooltip: (args: TootipArgs) => ReactNode;
 };
 
-const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
+export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
+  IStatusValue | "selfService",
+  IStatusDisplayConfig
+> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: (_, lastInstall) => (
-      <>
-        Fleet installed software on these hosts. (
-        {dateAgo(lastInstall as string)})
-      </>
-    ),
+    tooltip: () =>
+      "Software is installed (install script finished with exit code 0).",
   },
   pending: {
     iconName: "pending-outline",
     displayText: "Pending",
-    tooltip: () => "Fleet will install software when the host comes online.",
+    tooltip: () =>
+      "Fleet is installing or will install when the host comes online.",
   },
   failed: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: (_, lastInstall) => (
+    tooltip: () => (
       <>
-        Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
-        Select <b>Actions &gt; Software details</b> to see more.
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
       </>
     ),
   },
   avaiableForInstall: {
     iconName: "install",
     displayText: "Available for install",
-    tooltip: (softwareName) => (
+    tooltip: ({ softwareName, isAppStoreApp }) =>
+      isAppStoreApp ? (
+        <>
+          App Store app can be installed on the host. Select{" "}
+          <b>Actions {">"} Install</b> to install.
+        </>
+      ) : (
+        <>
+          {softwareName ? <b>{softwareName}</b> : "Software"} can be installed
+          on the host. Select <b>Actions {">"} Install</b> to install.
+        </>
+      ),
+  },
+  selfService: {
+    iconName: "install-self-service",
+    displayText: "Self-service",
+    tooltip: ({ softwareName }) => (
       <>
-        <b>{softwareName}</b> can be installed on the host. Select{" "}
-        <b>Actions &gt; Install</b> to install.
+        {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
+        the host. End users can install from{" "}
+        <b>Fleet Desktop {">"} Self-service</b>.
       </>
     ),
   },
 };
 
-interface IInstallStatusCellProps {
-  status: SoftwareInstallStatus | null;
-  packageToInstall?: string | null;
-  installedAt?: string;
-}
+type IInstallStatusCellProps = IHostSoftware;
 
 const InstallStatusCell = ({
   status,
-  packageToInstall,
-  installedAt,
+  software_package,
+  app_store_app,
 }: IInstallStatusCellProps) => {
-  let displayStatus: IStatusValue;
+  // FIXME: Improve the way we handle polymophism of software_package and app_store_app
+  const hasPackage = !!software_package;
+  const hasAppStoreApp = !!app_store_app;
+
+  let displayStatus: keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS;
 
   if (status !== null) {
     displayStatus = status;
-  } else if (packageToInstall) {
+  } else if (software_package?.self_service) {
+    // currently only software packages can be self-service
+    displayStatus = "selfService";
+  } else if (hasPackage || hasAppStoreApp) {
     displayStatus = "avaiableForInstall";
   } else {
-    return <TextCell value="---" greyed />;
+    return <TextCell value="---" grey italic />;
   }
 
-  const displayConfig = CELL_DISPLAY_OPTIONS[displayStatus];
+  const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
   const tooltipId = uniqueId();
+  const softwareName = software_package?.name;
 
   return (
     <div className={`${baseClass}__status-content`}>
@@ -88,7 +120,8 @@ const InstallStatusCell = ({
         data-tip
         data-for={tooltipId}
       >
-        <Icon name={displayConfig.iconName} />
+        <Icon name={displayConfig.iconName} />{" "}
+        <span>{displayConfig.displayText}</span>
       </div>
       <ReactTooltip
         className={`${baseClass}__status-tooltip`}
@@ -98,10 +131,12 @@ const InstallStatusCell = ({
         data-html
       >
         <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip(packageToInstall, installedAt)}
+          {displayConfig.tooltip({
+            softwareName,
+            isAppStoreApp: hasAppStoreApp,
+          })}
         </span>
       </ReactTooltip>
-      <span>{displayConfig.displayText}</span>
     </div>
   );
 };

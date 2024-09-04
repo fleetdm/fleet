@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
@@ -19,17 +20,12 @@ import {
 } from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
-import {
-  IMacadminAggregate,
-  IMunkiIssuesAggregate,
-  IMunkiVersionsAggregate,
-} from "interfaces/macadmins";
+import { IMacadminAggregate } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
@@ -50,8 +46,7 @@ import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
+  PlatformValueOptions,
 } from "utilities/constants";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -64,6 +59,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 
+import {
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "./helpers";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -124,9 +123,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<SelectedPlatform>(
-    "all"
-  );
+  const [
+    selectedPlatform,
+    setSelectedPlatform,
+  ] = useState<PlatformValueOptions>("all");
   const [
     selectedPlatformLabelId,
     setSelectedPlatformLabelId,
@@ -136,6 +136,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
   const [chromeCount, setChromeCount] = useState(0);
+  const [iosCount, setIosCount] = useState(0);
+  const [ipadosCount, setIpadosCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -145,7 +147,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
-  const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMdmCard, setShowMdmCard] = useState(true);
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
@@ -167,16 +168,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const selectedMdmSolutionName = useRef<string>("");
 
-  const [munkiIssuesData, setMunkiIssuesData] = useState<
-    IMunkiIssuesAggregate[]
-  >([]);
-  const [munkiVersionsData, setMunkiVersionsData] = useState<
-    IMunkiVersionsAggregate[]
-  >([]);
   const [mdmTitleDetail, setMdmTitleDetail] = useState<
-    JSX.Element | string | null
-  >();
-  const [munkiTitleDetail, setMunkiTitleDetail] = useState<
     JSX.Element | string | null
   >();
 
@@ -243,10 +235,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
+        const iphones = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ios"
+        ) || { platform: "ios", hosts_count: 0 };
+
+        const ipads = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
+        ) || { platform: "ipados", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setChromeCount(chromebooks.hosts_count);
+        setIosCount(iphones.hosts_count);
+        setIpadosCount(ipads.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -408,26 +410,24 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
   );
 
-  const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
-    IMacadminAggregate,
-    Error
-  >(["macAdmins", teamIdForApi], () => macadminsAPI.loadAll(teamIdForApi), {
-    keepPreviousData: true,
-    enabled: isRouteOk && selectedPlatform === "darwin",
-    onSuccess: ({
-      macadmins: { munki_issues, munki_versions, counts_updated_at },
-    }) => {
-      setMunkiVersionsData(munki_versions);
-      setMunkiIssuesData(munki_issues);
-      setShowMunkiCard(!!munki_versions);
-      setMunkiTitleDetail(
-        <LastUpdatedText
-          lastUpdatedAt={counts_updated_at}
-          whatToRetrieve="Munki"
-        />
-      );
-    },
-  });
+  const {
+    data: macAdminsData,
+    isFetching: isMacAdminsFetching,
+    error: errorMacAdmins,
+  } = useQuery<IMacadminAggregate, Error, IMacadminAggregate["macadmins"]>(
+    ["macAdmins", teamIdForApi],
+    () => macadminsAPI.loadAll(teamIdForApi),
+    {
+      select: (data) => data.macadmins,
+      keepPreviousData: true,
+      enabled: isRouteOk && selectedPlatform === "darwin",
+    }
+  );
+  const {
+    munki_issues: munkiIssues,
+    munki_versions: munkiVersions,
+    counts_updated_at: munkiCountsUpdatedAt,
+  } = macAdminsData || {};
 
   useEffect(() => {
     softwareCount && softwareCount > 0
@@ -521,13 +521,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       renderFlash,
     ]
   );
-  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
-  // collecting inventory
-  const isCollectingInventory =
-    !isAnyTeamSelected &&
-    !softwarePageIndex &&
-    !software?.software &&
-    software?.counts_updated_at === null;
 
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
@@ -551,6 +544,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         windowsCount={windowsCount}
         linuxCount={linuxCount}
         chromeCount={chromeCount}
+        iosCount={iosCount}
+        ipadosCount={ipadosCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         builtInLabels={labels}
         showHostsUI={showHostsUI}
@@ -638,12 +633,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     children: (
       <Software
         errorSoftware={errorSoftware}
-        isCollectingInventory={isCollectingInventory}
         isSoftwareFetching={isSoftwareFetching}
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
         teamId={currentTeamId}
-        pageIndex={softwarePageIndex}
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
@@ -651,6 +644,16 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       />
     ),
   });
+
+  const munkiTitleDetail = useMemo(
+    () => (
+      <LastUpdatedText
+        lastUpdatedAt={munkiCountsUpdatedAt}
+        whatToRetrieve="Munki"
+      />
+    ),
+    [munkiCountsUpdatedAt]
+  );
 
   const MunkiCard = useInfoCard({
     title: "Munki",
@@ -670,8 +673,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <Munki
         errorMacAdmins={errorMacAdmins}
         isMacAdminsFetching={isMacAdminsFetching}
-        munkiIssuesData={munkiIssuesData}
-        munkiVersionsData={munkiVersionsData}
+        munkiIssuesData={munkiIssues || []}
+        munkiVersionsData={munkiVersions || []}
         selectedTeamId={currentTeamId}
       />
     ),
@@ -736,7 +739,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
-      {showMunkiCard && (
+      {!!munkiVersions && (
         <div className={`${baseClass}__section`}>{MunkiCard}</div>
       )}
     </>
@@ -756,6 +759,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const iosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
+  const ipadosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -766,6 +783,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return linuxLayout();
       case "chrome":
         return chromeLayout();
+      case "ios":
+        return iosLayout();
+      case "ipados":
+        return ipadosLayout();
       default:
         return allLayout();
     }
@@ -850,7 +871,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: SelectedPlatform) => {
+            onChange={(value: PlatformValueOptions) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === value
               );
@@ -870,12 +891,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier && (
-              <div className={`${baseClass}__section`}>
-                {MissingHostsCard}
-                {LowDiskSpaceHostsCard}
-              </div>
-            )}
+            {isPremiumTier &&
+              selectedPlatform !== "ios" &&
+              selectedPlatform !== "ipados" && (
+                <div className={`${baseClass}__section`}>
+                  {MissingHostsCard}
+                  {LowDiskSpaceHostsCard}
+                </div>
+              )}
           </>
         </div>
         {renderCards()}

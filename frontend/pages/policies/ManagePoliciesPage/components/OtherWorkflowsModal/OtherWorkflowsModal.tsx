@@ -26,6 +26,7 @@ import Radio from "components/forms/fields/Radio";
 import validUrl from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import ExampleTicket from "../ExampleTicket";
 import ExamplePayload from "../ExamplePayload";
 
@@ -366,6 +367,7 @@ const OtherWorkflowsModal = ({
       title="Other workflows"
       className={baseClass}
       width="large"
+      isContentDisabled={isUpdating}
     >
       <div className={`${baseClass} form`}>
         <Slider
@@ -414,8 +416,8 @@ const OtherWorkflowsModal = ({
                       const { isChecked, name, id } = policyItem;
                       return (
                         <div
-                          className="checkbox-row"
-                          id={`checkbox-row--${id}`}
+                          className="policy-row"
+                          id={`policy-row--${id}`}
                           key={id}
                         >
                           <Checkbox
@@ -426,9 +428,8 @@ const OtherWorkflowsModal = ({
                               !isChecked &&
                                 setErrors((errs) => omit(errs, "policyItems"));
                             }}
-                            smallTick
                           >
-                            {name}
+                            <TooltipTruncatedText value={name} />
                           </Checkbox>
                         </div>
                       );

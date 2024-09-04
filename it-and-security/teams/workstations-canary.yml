@@ -86,16 +86,20 @@ controls:
       - path: ../lib/configuration-profiles/macos-password.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
       - path: ../lib/configuration-profiles/passcode-settings-ddm.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-05-31"
-    minimum_version: "14.5"
+    deadline: "2024-08-23"
+    minimum_version: "14.6.1"
   windows_settings:
-    custom_settings: null
+    custom_settings:
+      - path: ../lib/configuration-profiles/windows-firewall.xml
+      - path: ../lib/configuration-profiles/windows-password.xml
+      - path: ../lib/configuration-profiles/windows-screen-lock.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -103,6 +107,8 @@ controls:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
+    - path: ../lib/macos-mdm-migration.sh
+    - path: ../lib/macos-system-maintenance.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
     - path: ../lib/windows-install-bitdefender.ps1
@@ -111,6 +117,27 @@ policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
+  - name: macOS - Check if latest version
+    query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
+    critical: false
+    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
+    resolution: We will update your macOS to the latest version.
+    platform: darwin
+    calendar_events_enabled: false  
+  - name: macOS - MDM migration complete
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria2', 'Drew’s MacBook Pro2','fleetwoodmike2');
+    critical: false
+    description: Determines if the device has completed MDM migration to Fleet.
+    resolution: We will migrate your macOS MDM to Fleet.
+    platform: darwin
+    calendar_events_enabled: false
+  - name: macOS - System maintenance complete
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
+    critical: false
+    description: Determines if the device has completed system maintenance.
+    resolution: We will perform system maintenance on your device.
+    platform: darwin
+    calendar_events_enabled: true
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-fleetd-information.yml
@@ -118,3 +145,5 @@ queries:
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - path: ../lib/collect-software-permissions-system.queries.yml
   - path: ../lib/collect-software-permissions-user.queries.yml
+  - path: ../lib/collect-crowdstrike-info.queries.yml
+software:

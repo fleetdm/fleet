@@ -5,11 +5,13 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { omit } from "lodash";
 
 import PATHS from "router/paths";
 import softwareAPI, {
-  ISoftwareApiParams,
+  ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
+  ISoftwareVersionsQueryKey,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 
@@ -17,7 +19,11 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 
 import SoftwareTable from "./SoftwareTable";
-import { ISoftwareDropdownFilterVal } from "./SoftwareTable/helpers";
+import {
+  ISoftwareDropdownFilterVal,
+  ISoftwareVulnFilters,
+  buildSoftwareFilterQueryParams,
+} from "./SoftwareTable/helpers";
 
 const baseClass = "software-titles";
 
@@ -27,14 +33,6 @@ const QUERY_OPTIONS = {
   staleTime: DATA_STALE_TIME,
 };
 
-interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  scope: "software-titles";
-}
-
-interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
-  scope: "software-versions";
-}
-
 interface ISoftwareTitlesProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
@@ -43,8 +41,12 @@ interface ISoftwareTitlesProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
+  resetPageIndex: boolean;
+  addedSoftwareToken: string | null;
+  onAddFiltersClick: () => void;
 }
 
 const SoftwareTitles = ({
@@ -55,31 +57,16 @@ const SoftwareTitles = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
+  resetPageIndex,
+  addedSoftwareToken,
+  onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
-  const generateSoftwareTitlesQueryKey = (): ISoftwareTitlesQueryKey => {
-    const queryKey: ISoftwareTitlesQueryKey = {
-      scope: "software-titles",
-      page: currentPage,
-      perPage,
-      query,
-      orderDirection,
-      orderKey,
-      teamId,
-    };
-    if (softwareFilter === "installableSoftware") {
-      queryKey.availableForInstall = true;
-    } else {
-      queryKey.vulnerable = softwareFilter === "vulnerableSoftware";
-    }
-
-    return queryKey;
-  };
-
-  // request to get software data
+  // for Titles view, request to get software data
   const {
     data: titlesData,
     isFetching: isTitlesFetching,
@@ -89,17 +76,33 @@ const SoftwareTitles = ({
     ISoftwareTitlesResponse,
     Error,
     ISoftwareTitlesResponse,
-    ISoftwareTitlesQueryKey[]
+    [ISoftwareTitlesQueryKey]
   >(
-    [generateSoftwareTitlesQueryKey()],
-    ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
+    [
+      {
+        scope: "software-titles",
+        page: currentPage,
+        perPage,
+        query,
+        orderDirection,
+        orderKey,
+        teamId,
+        addedSoftwareToken,
+        ...vulnFilters,
+        ...buildSoftwareFilterQueryParams(softwareFilter),
+      },
+    ],
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
       enabled: location.pathname === PATHS.SOFTWARE_TITLES,
     }
   );
 
-  // request to get software versions data
+  // For Versions view, request software versions data. If empty, request titles available for
+  // install to determine empty state copy
+
   const {
     data: versionsData,
     isFetching: isVersionsFetching,
@@ -109,7 +112,7 @@ const SoftwareTitles = ({
     ISoftwareVersionsResponse,
     Error,
     ISoftwareVersionsResponse,
-    ISoftwareVersionsQueryKey[]
+    [ISoftwareVersionsQueryKey]
   >(
     [
       {
@@ -120,21 +123,58 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        vulnerable: softwareFilter === "vulnerableSoftware",
+        addedSoftwareToken,
+        ...vulnFilters,
       },
     ],
-    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareVersions(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
       enabled: location.pathname === PATHS.SOFTWARE_VERSIONS,
     }
   );
 
-  if (isTitlesLoading || isVersionsLoading) {
+  const {
+    data: titlesAvailableForInstallResponse,
+    isFetching: isTitlesAFIFetching,
+    isLoading: isTitlesAFILoading,
+    isError: isTitlesAFIError,
+  } = useQuery<
+    ISoftwareTitlesResponse,
+    Error,
+    ISoftwareTitlesResponse,
+    [ISoftwareTitlesQueryKey]
+  >(
+    [
+      {
+        scope: "software-titles",
+        page: 0,
+        perPage,
+        query: "",
+        orderDirection,
+        orderKey,
+        teamId,
+        availableForInstall: true,
+        ...vulnFilters,
+      },
+    ],
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
+    {
+      ...QUERY_OPTIONS,
+      enabled:
+        location.pathname === PATHS.SOFTWARE_VERSIONS &&
+        versionsData &&
+        versionsData.count === 0,
+    }
+  );
+
+  if (isTitlesLoading || isVersionsLoading || isTitlesAFILoading) {
     return <Spinner />;
   }
 
-  if (isTitlesError || isVersionsError) {
+  if (isTitlesError || isVersionsError || isTitlesAFIError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
@@ -144,6 +184,7 @@ const SoftwareTitles = ({
         router={router}
         data={showVersions ? versionsData : titlesData}
         showVersions={showVersions}
+        installableSoftwareExists={!!titlesAvailableForInstallResponse?.count}
         isSoftwareEnabled={isSoftwareEnabled}
         query={query}
         perPage={perPage}
@@ -152,7 +193,12 @@ const SoftwareTitles = ({
         softwareFilter={softwareFilter}
         currentPage={currentPage}
         teamId={teamId}
-        isLoading={isTitlesFetching || isVersionsFetching}
+        isLoading={
+          isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
+        }
+        resetPageIndex={resetPageIndex}
+        onAddFiltersClick={onAddFiltersClick}
+        vulnFilters={vulnFilters}
       />
     </div>
   );

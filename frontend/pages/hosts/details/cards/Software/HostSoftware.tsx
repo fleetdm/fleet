@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import { trimEnd, upperFirst } from "lodash";
 
 import hostAPI, {
   IGetHostSoftwareResponse,
@@ -12,21 +11,20 @@ import deviceAPI, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
-import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
 
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -37,12 +35,13 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  isFleetdHost: boolean;
+  platform?: HostPlatform;
+  softwareUpdatedAt?: string;
+  hostCanInstallSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
-  hostPlatform: string;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
@@ -59,6 +58,8 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   query?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
+  vulnerable?: string;
+  available_for_install?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -67,6 +68,8 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
+  const vulnerable = queryParams.vulnerable === "true";
+  const availableForInstall = queryParams.available_for_install === "true";
 
   return {
     page,
@@ -74,22 +77,27 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
+    vulnerable,
+    available_for_install: availableForInstall,
   };
 };
 
 const HostSoftware = ({
   id,
-  isFleetdHost,
+  platform,
+  softwareUpdatedAt,
+  hostCanInstallSoftware,
   router,
   queryParams,
   pathname,
   hostTeamId = 0,
-  hostPlatform,
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const vulnFilterAndNotSupported =
+    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -100,8 +108,6 @@ const HostSoftware = ({
   const [installingSoftwareId, setInstallingSoftwareId] = useState<
     number | null
   >(null);
-
-  const isIosOrIpadOs = hostPlatform === "ipados" || hostPlatform === "ios";
 
   const {
     data: hostSoftwareRes,
@@ -119,6 +125,7 @@ const HostSoftware = ({
       {
         scope: "host_software",
         id: id as number,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
@@ -127,7 +134,8 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && !isMyDevicePage && !isIosOrIpadOs, // if disabled, we'll always show a generic "No software detected" message
+      enabled:
+        isSoftwareEnabled && !isMyDevicePage && !vulnFilterAndNotSupported,
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -149,13 +157,14 @@ const HostSoftware = ({
       {
         scope: "device_software",
         id: id as string,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage,
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -166,7 +175,7 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const canInstallSoftware = Boolean(
+  const userHasSWInstallPermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
@@ -180,17 +189,7 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        const reason = upperFirst(trimEnd(getErrorReason(e), "."));
-        if (reason.includes("fleetd installed")) {
-          renderFlash("error", `Couldn't install. ${reason}.`);
-        } else if (reason.includes("can be installed only on")) {
-          renderFlash(
-            "error",
-            `Couldn't install. ${reason.replace("darwin", "macOS")}.`
-          );
-        } else {
-          renderFlash("error", "Couldn't install. Please try again.");
-        }
+        renderFlash("error", getErrorMessage(e));
       }
       setInstallingSoftwareId(null);
       refetchSoftware();
@@ -220,19 +219,19 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           installingSoftwareId,
-          canInstall: canInstallSoftware,
+          userHasSWInstallPermission,
           onSelectAction,
           teamId: hostTeamId,
-          isFleetdHost,
+          hostCanInstallSoftware,
         });
   }, [
     isMyDevicePage,
     router,
     installingSoftwareId,
-    canInstallSoftware,
+    userHasSWInstallPermission,
     onSelectAction,
     hostTeamId,
-    isFleetdHost,
+    hostCanInstallSoftware,
   ]);
 
   const isLoading = isMyDevicePage
@@ -243,26 +242,25 @@ const HostSoftware = ({
 
   const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
+  const getHostSoftwareFilterFromQueryParams = () => {
+    const { vulnerable, available_for_install } = queryParams;
+    if (available_for_install) {
+      return "installableSoftware";
+    }
+    if (vulnerable) {
+      return "vulnerableSoftware";
+    }
+    return "allSoftware";
+  };
+
   const renderHostSoftware = () => {
     if (isLoading) {
       return <Spinner />;
     }
-
-    if (isIosOrIpadOs) {
-      return (
-        <EmptyTable
-          header="Software is not supported for this host"
-          info={
-            <>
-              Interested in viewing software for{" "}
-              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
-              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-            </>
-          }
-        />
-      );
+    // will never be the case - to handle `platform` typing discrepancy with DeviceUserPage
+    if (!platform) {
+      return null;
     }
-
     return (
       <>
         {isError && <DataError />}
@@ -271,7 +269,20 @@ const HostSoftware = ({
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
-            data={data}
+            // this could be cleaner, however, we are going to revert this commit anyway once vulns are
+            // supported for iPad/iPhone, by the end of next sprint
+            data={
+              vulnFilterAndNotSupported
+                ? ({
+                    count: 0,
+                    meta: {
+                      has_next_results: false,
+                      has_previous_results: false,
+                    },
+                  } as IGetHostSoftwareResponse)
+                : data
+            } // eshould be mpty for iPad/iPhone since API call is disabled, but to be sure to trigger empty state
+            platform={platform}
             router={router}
             tableConfig={tableConfig}
             sortHeader={queryParams.order_key}
@@ -279,6 +290,8 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
+            hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
+            pathPrefix={pathname}
           />
         )}
       </>
@@ -287,9 +300,9 @@ const HostSoftware = ({
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
+      paddingSize="xxlarge"
       includeShadow
-      largePadding
       className={baseClass}
     >
       <p className="card__header">Software</p>

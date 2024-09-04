@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beevik/etree"
@@ -371,7 +372,7 @@ func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
-		Usage:   "List information about one or more queries",
+		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
@@ -651,7 +652,7 @@ func getLabelsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "labels",
 		Aliases: []string{"label", "l"},
-		Usage:   "List information about one or more labels",
+		Usage:   "List information about labels",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -793,7 +794,7 @@ func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
 		Aliases: []string{"host", "h"},
-		Usage:   "List information about one or more hosts",
+		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     "team",
@@ -843,9 +844,7 @@ func getHostsCommand() *cli.Command {
 					}
 
 					if c.Bool("mdm") {
-						// hosts enrolled (automatic or manual) in Fleet's MDM server
-						query.Set("mdm_name", fleet.WellKnownMDMFleet)
-						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+						query.Set("connected_to_fleet", "true")
 					}
 					if c.Bool("mdm-pending") {
 						// hosts pending enrollment in Fleet's MDM server
@@ -1547,6 +1546,8 @@ func getMDMCommandsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			byHostIdentifier(),
+			byMDMCommandRequestType(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1559,11 +1560,21 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
-			results, err := client.MDMListCommands()
+			opts := fleet.MDMCommandListOptions{
+				Filters: fleet.MDMCommandFilters{
+					HostIdentifier: c.String("host"),
+					RequestType:    c.String("type"),
+				},
+			}
+
+			results, err := client.MDMListCommands(opts)
 			if err != nil {
+				if strings.Contains(err.Error(), fleet.HostIdentiferNotFound) {
+					return errors.New(fleet.HostIdentiferNotFound)
+				}
 				return err
 			}
-			if len(results) == 0 {
+			if len(results) == 0 && opts.Filters.HostIdentifier == "" && opts.Filters.RequestType == "" {
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}
@@ -1583,7 +1594,8 @@ func getMDMCommandsCommand() *cli.Command {
 					r.Hostname,
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			columns := []string{"UUID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			fmt.Fprintf(c.App.Writer, "\nThe list of %d most recent commands:\n\n", len(results))
 			printTable(c, columns, data)
 
 			return nil

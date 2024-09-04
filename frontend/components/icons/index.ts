@@ -34,6 +34,8 @@ import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
+import iPadOS from "./iPadOS";
+import iOS from "./iOS";
 
 // Status Icons
 import Success from "./Success";
@@ -57,6 +59,7 @@ import Download from "./Download";
 import Upload from "./Upload";
 import Refresh from "./Refresh";
 import Install from "./Install";
+import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
 
 // a mapping of the usable names of icons to the icon source.
@@ -113,12 +116,17 @@ export const ICON_MAP = {
   ubuntu: Ubuntu,
   chrome: Chrome,
   ChromeOS: Chrome,
+  ipados: iPadOS,
+  iPadOS,
+  ios: iOS,
+  iOS,
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,
   upload: Upload,
   refresh: Refresh,
   install: Install,
+  "install-self-service": InstallSelfService,
   settings: Settings,
 };
 

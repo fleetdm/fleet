@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -19,9 +20,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
 )
@@ -241,6 +242,9 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 		}
 
 		if result.ID != 0 {
+			if translation.Part != "" {
+				result.Part = translation.Part
+			}
 			return result.FmtStr(software), nil
 		}
 	} else {
@@ -377,25 +381,120 @@ func consumeCPEBuffer(
 	return nil
 }
 
+// mysql 5.7 compatible regexp for ubuntu kernel package names
+const LinuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+
+// knownUbuntuKernelVariants is a list of known kernel variants that are used in the Ubuntu kernel
+// OVAL feeds.  These are used to determine if a kernel package is a custom variant and should be
+// matched against the NVD feed rather than the OVAL feed.
+var knownUbuntuKernelVariants = []string{
+	"allwinner",
+	"aws",
+	"aws-hwe",
+	"azure",
+	"azure-fde",
+	"bluefield",
+	"dell300x",
+	"euclid",
+	"gcp",
+	"generic",
+	"generic-64k",
+	"generic-lpae",
+	"gke",
+	"gkeop",
+	"intel",
+	"intel-iotg",
+	"ibm",
+	"iot",
+	"kvm",
+	"laptop",
+	"lowlatency",
+	"lowlatency-64k",
+	"nvidia",
+	"nvidia-64k",
+	"nvidia-lowlatency",
+	"oem",
+	"oem-osp1",
+	"oracle",
+	"oracle-64k",
+	"powerpc-e500",
+	"powerpc-e500mc",
+	"powerpc-smp",
+	"powerpc64-emb",
+	"powerpc64-smp",
+	"raspi",
+	"raspi-nolpae",
+	"raspi2",
+	"snapdragon",
+	"starfive",
+	"xilinx-zynqmp",
+}
+
+func BuildLinuxExclusionRegex() string {
+	return fmt.Sprintf("-(%s)$", strings.Join(knownUbuntuKernelVariants, "|"))
+}
+
 func TranslateSoftwareToCPE(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
 ) error {
-	dbPath := filepath.Join(vulnPath, cpeDBFilename)
-
-	// Skip software from sources for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareIterator(
+	// Skip software from sources for which we will be using OVAL or goval-dictionary for vulnerability detection.
+	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
-			ExcludedSources: oval.SupportedSoftwareSources,
+			// Also exclude iOS and iPadOS apps until we enable vulnerabilities support for them.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps"),
 		},
 	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "software iterator")
+		return ctxerr.Wrap(ctx, err, "non-oval software iterator")
 	}
-	defer iterator.Close()
+	defer nonOvalIterator.Close()
+
+	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, nonOvalIterator)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "translate non-oval software to CPE")
+	}
+
+	if err := nonOvalIterator.Close(); err != nil {
+		return ctxerr.Wrap(ctx, err, "closing non-oval software iterator")
+	}
+
+	ubuntuKernelIterator, err := ds.AllSoftwareIterator(
+		ctx,
+		fleet.SoftwareIterQueryOptions{
+			IncludedSources: []string{"deb_packages"},
+			NameMatch:       LinuxImageRegex,
+			NameExclude:     BuildLinuxExclusionRegex(),
+		},
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "ubuntu kernel iterator")
+	}
+	defer ubuntuKernelIterator.Close()
+
+	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, ubuntuKernelIterator)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "translate ubuntu kernel to CPE")
+	}
+
+	if err := ubuntuKernelIterator.Close(); err != nil {
+		return ctxerr.Wrap(ctx, err, "closing ubuntu kernel iterator")
+	}
+
+	return nil
+}
+
+func translateSoftwareToCPEWithIterator(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	iterator fleet.SoftwareIterator,
+) error {
+	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	db, err := sqliteDB(dbPath)
 	if err != nil {
@@ -469,9 +568,14 @@ func TranslateSoftwareToCPE(
 	return nil
 }
 
+var allowedNonASCII = []int32{
+	'–', // en dash
+	'—', // em dash
+}
+
 func containsNonASCII(s string) bool {
 	for _, char := range s {
-		if char > unicode.MaxASCII {
+		if char > unicode.MaxASCII && !slices.Contains(allowedNonASCII, char) {
 			return true
 		}
 	}

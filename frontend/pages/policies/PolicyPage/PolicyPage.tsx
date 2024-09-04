@@ -52,6 +52,7 @@ const PolicyPage = ({
   const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null; // TODO(sarah): What should happen if this doesn't parse (e.g. the string is "foo")?
   const handlePageError = useErrorHandler();
   const {
+    isOnGlobalTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
@@ -186,6 +187,24 @@ const PolicyPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to policies/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the policies/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredPolicyLoading &&
+    storedPolicy?.team_id &&
+    !(storedPolicy?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      `${location.pathname}?team_id=${storedPolicy?.team_id?.toString()}`
+    );
+  }
+
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
       return formData.team_id
@@ -286,6 +305,7 @@ const PolicyPage = ({
       setTargetedLabels,
       setTargetedTeams,
       setTargetsTotalCount,
+      isLivePolicy: true,
     };
 
     const step3Opts = {

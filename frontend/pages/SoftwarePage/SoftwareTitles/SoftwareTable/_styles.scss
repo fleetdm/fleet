@@ -1,10 +1,4 @@
 .software-table {
-  &__count {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
   &__vuln_dropdown {
     .Select-menu-outer {
       width: 250px;
@@ -31,15 +25,20 @@
     gap: $pad-medium;
   }
 
-  // Fix dropdown form bug
-  &__version-slider {
-    width: 210px;
+  &__filters {
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
+
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
 
   .table-container {
     &__header {
       flex-direction: column-reverse; // Search bar on top
-      margin-bottom: $pad-medium;
 
       @media (min-width: $table-controls-break) {
         flex-direction: row;
@@ -52,6 +51,9 @@
       .controls {
         .form-field--dropdown {
           margin: 0;
+        }
+        .form-field {
+          width: initial; // Negate form-field styling on slider
         }
       }
     }
@@ -68,7 +70,7 @@
         width: auto;
 
         .input-icon-field__input {
-          width: 375px;
+          width: 310px; // Any wider would run up against time ago header
         }
       }
     }
@@ -158,6 +160,12 @@
   .data-table {
     &__wrapper {
       overflow-x: auto;
+    }
+  }
+  .view-all-hosts {
+    &__cell {
+      display: flex;
+      justify-content: flex-end;
     }
   }
 }

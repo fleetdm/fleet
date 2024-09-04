@@ -1,16 +1,4 @@
-import PropTypes from "prop-types";
 import { AxiosError, isAxiosError } from "axios";
-
-export default PropTypes.shape({
-  http_status: PropTypes.number,
-  base: PropTypes.string,
-});
-
-// Response created by utilities/format_error_response
-export interface IOldApiError {
-  http_status: number;
-  base: string;
-}
 
 /**
  * IFleetApiError is the shape of a Fleet API error. It represents an element of the `errors`
@@ -147,6 +135,7 @@ const getReasonFromErrors = (errors: unknown[], filter?: IFilterFleetError) => {
   } else {
     fleetError = isFleetApiError(errors[0]) ? errors[0] : undefined;
   }
+
   return fleetError?.reason || "";
 };
 

@@ -1,5 +1,8 @@
 import { startCase } from "lodash";
 import PropTypes from "prop-types";
+
+import { IconNames } from "components/icons";
+
 import vulnerabilityInterface from "./vulnerability";
 
 export default PropTypes.shape({
@@ -31,12 +34,14 @@ export interface ISoftware {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
-  source: string; // e.g., "apps"
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | ?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
+  browser?: string;
+  vendor?: string;
 }
 
 export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
@@ -57,6 +62,26 @@ export interface ISoftwarePackage {
   install_script: string;
   pre_install_query?: string;
   post_install_script?: string;
+  self_service: boolean;
+  icon_url: string | null;
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+}
+
+export const isSoftwarePackage = (
+  data: ISoftwarePackage | IAppStoreApp
+): data is ISoftwarePackage =>
+  (data as ISoftwarePackage).install_script !== undefined;
+
+export interface IAppStoreApp {
+  name: string;
+  app_store_id: number;
+  latest_version: string;
+  icon_url: string;
+  self_service: boolean;
   status: {
     installed: number;
     pending: number;
@@ -67,12 +92,27 @@ export interface ISoftwarePackage {
 export interface ISoftwareTitle {
   id: number;
   name: string;
-  software_package: ISoftwarePackage | null;
   versions_count: number;
-  source: string;
+  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  browser: string;
+  software_package: ISoftwarePackage | null;
+  app_store_app: IAppStoreApp | null;
+  browser?: string;
+}
+
+export interface ISoftwareTitleDetails {
+  id: number;
+  name: string;
+  software_package: ISoftwarePackage | null;
+  app_store_app: IAppStoreApp | null;
+  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
+  hosts_count: number;
+  versions: ISoftwareTitleVersion[] | null;
+  versions_updated_at?: string;
+  bundle_identifier?: string;
+  browser?: string;
+  versions_count?: number;
 }
 
 export interface ISoftwareVulnerability {
@@ -92,7 +132,7 @@ export interface ISoftwareVersion {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
-  source: string; // e.g., "apps"
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | ?
   browser: string; // e.g., "chrome"
   release: string; // TODO: on software/verions/:id?
   vendor: string;
@@ -112,6 +152,8 @@ export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
+  ios_apps: "Application (iOS)",
+  ipados_apps: "Application (iPadOS)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `browser` field computed by Fleet server and fallback to this value if it is not present.
   firefox_addons: "Browser plugin (Firefox)",
   safari_extensions: "Browser plugin (Safari)",
@@ -199,6 +241,11 @@ export interface ISoftwareLastInstall {
   installed_at: string;
 }
 
+export interface IAppLastInstall {
+  command_uuid: string;
+  installed_at: string;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
   last_opened_at: string | null;
@@ -206,13 +253,80 @@ export interface ISoftwareInstallVersion {
   installed_paths: string[];
 }
 
+export interface IHostSoftwarePackage {
+  name: string;
+  self_service: boolean;
+  icon_url: string;
+  version: string;
+  last_install: ISoftwareLastInstall | null;
+}
+
+export interface IHostAppStoreApp {
+  app_store_id: string;
+  self_service: boolean;
+  icon_url: string;
+  version: string;
+  last_install: IAppLastInstall | null;
+}
+
 export interface IHostSoftware {
   id: number;
   name: string;
-  package_available_for_install?: string | null;
+  software_package: IHostSoftwarePackage | null;
+  app_store_app: IHostAppStoreApp | null;
   source: string;
   bundle_identifier?: string;
   status: SoftwareInstallStatus | null;
-  last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
+
+export type IDeviceSoftware = IHostSoftware;
+
+const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
+  failed: "failed to install",
+  installed: "installed",
+  pending: "told Fleet to install",
+} as const;
+
+export const getInstallStatusPredicate = (status: string | undefined) => {
+  if (!status) {
+    return INSTALL_STATUS_PREDICATES.pending;
+  }
+  return (
+    INSTALL_STATUS_PREDICATES[status.toLowerCase() as SoftwareInstallStatus] ||
+    INSTALL_STATUS_PREDICATES.pending
+  );
+};
+
+export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+  pending: "pending-outline",
+  installed: "success-outline",
+  failed: "error-outline",
+} as const;
+
+type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
+  last_install: ISoftwareLastInstall;
+};
+
+export const hasHostSoftwarePackageLastInstall = (
+  software: IHostSoftware
+): software is IHostSoftware & {
+  software_package: IHostSoftwarePackageWithLastInstall;
+} => {
+  return !!software.software_package?.last_install;
+};
+
+type IHostAppWithLastInstall = IHostAppStoreApp & {
+  last_install: IAppLastInstall;
+};
+
+export const hasHostSoftwareAppLastInstall = (
+  software: IHostSoftware
+): software is IHostSoftware & {
+  app_store_app: IHostAppWithLastInstall;
+} => {
+  return !!software.app_store_app?.last_install;
+};
+
+export const isIpadOrIphoneSoftwareSource = (source: string) =>
+  ["ios_apps", "ipados_apps"].includes(source);

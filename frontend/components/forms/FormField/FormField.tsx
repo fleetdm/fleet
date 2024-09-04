@@ -18,6 +18,7 @@ export interface IFormFieldProps {
   className?: string;
   tooltip?: React.ReactNode;
   labelTooltipPosition?: PlacesType;
+  disabled?: boolean;
 }
 
 const FormField = ({
@@ -30,10 +31,12 @@ const FormField = ({
   type,
   tooltip,
   labelTooltipPosition,
+  disabled,
 }: IFormFieldProps): JSX.Element => {
   const renderLabel = () => {
     const labelWrapperClasses = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !isEmpty(error),
+      [`${baseClass}__label--disabled`]: disabled,
     });
 
     if (!label) {
@@ -51,6 +54,7 @@ const FormField = ({
             <TooltipWrapper
               tipContent={tooltip}
               position={labelTooltipPosition}
+              clickable={false} // Not block form behind tooltip
             >
               {label as string}
             </TooltipWrapper>

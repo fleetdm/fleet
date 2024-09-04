@@ -1,7 +1,7 @@
 import React from "react";
 
-import { IHostActivity } from "interfaces/activity";
-import { IUpcomingActivitiesResponse } from "services/entities/activities";
+import { IHostUpcomingActivity } from "interfaces/activity";
+import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -9,13 +9,13 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import UpcomingActivity from "../UpcomingActivity/UpcomingActivity";
 import { ShowActivityDetailsHandler } from "../Activity";
+import { upcomingActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "upcoming-activity-feed";
 
 interface IUpcomingActivityFeedProps {
-  activities?: IUpcomingActivitiesResponse;
+  activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
   onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
@@ -43,7 +43,7 @@ const UpcomingActivityFeed = ({
     return (
       <EmptyFeed
         title="No pending activity "
-        message="When you run a script on an offline host, it will appear here."
+        message="Pending actions will appear here (scripts, software, lock, and wipe)."
         className={`${baseClass}__empty-feed`}
       />
     );
@@ -52,13 +52,18 @@ const UpcomingActivityFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {activitiesList.map((activity: IHostActivity) => (
-          <UpcomingActivity
-            key={activity.id}
-            activity={activity}
-            onDetailsClick={onDetailsClick}
-          />
-        ))}
+        {activitiesList.map((activity: IHostUpcomingActivity) => {
+          const ActivityItemComponent =
+            upcomingActivityComponentMap[activity.type];
+          return (
+            <ActivityItemComponent
+              key={activity.id}
+              tab="upcoming"
+              activity={activity}
+              onShowDetails={onDetailsClick}
+            />
+          );
+        })}
       </div>
       <div className={`${baseClass}__pagination`}>
         <Button

@@ -34,6 +34,7 @@ import teamPoliciesAPI, {
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -48,6 +49,8 @@ import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
+import InstallSoftwareModal from "./components/InstallSoftwareModal";
+import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -84,7 +87,6 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
-    isSandboxMode,
     setConfig,
     setFilteredPoliciesPath,
     filteredPoliciesPath,
@@ -127,18 +129,26 @@ const ManagePolicyPage = ({
   const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
     false
   );
+  const [
+    isUpdatingPolicySoftwareInstall,
+    setIsUpdatingPolicySoftwareInstall,
+  ] = useState(false);
   const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
     false
   );
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
+  const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
+    false
+  );
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
   const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -148,12 +158,11 @@ const ManagePolicyPage = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPage = (() =>
-    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const page =
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [page, setPage] = useState(initialPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
@@ -168,7 +177,6 @@ const ManagePolicyPage = ({
     if (!isRouteOk) {
       return;
     }
-    setPage(initialPage);
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
@@ -357,10 +365,29 @@ const ManagePolicyPage = ({
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [page]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
+      handleResetPageIndex();
     },
     [handleTeamChange]
   );
@@ -409,7 +436,7 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [isRouteOk, teamIdForApi, searchQuery, sortDirection] // Other dependencies can cause infinite re-renders as URL is source of truth
+    [isRouteOk, teamIdForApi, searchQuery, sortDirection, page, sortHeader] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
   const toggleOtherWorkflowsModal = () =>
@@ -420,6 +447,10 @@ const ManagePolicyPage = ({
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
+  const toggleInstallSoftwareModal = () => {
+    setShowInstallSoftwareModal(!showInstallSoftwareModal);
+  };
+
   const toggleCalendarEventsModal = () => {
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
@@ -428,6 +459,9 @@ const ManagePolicyPage = ({
     switch (option) {
       case "calendar_events":
         toggleCalendarEventsModal();
+        break;
+      case "install_software":
+        toggleInstallSoftwareModal();
         break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
@@ -455,6 +489,63 @@ const ManagePolicyPage = ({
       toggleOtherWorkflowsModal();
       setIsUpdatingOtherWorkflows(false);
       isAnyTeamSelected ? refetchTeamConfig() : refetchConfig();
+    }
+  };
+
+  const onUpdatePolicySoftwareInstall = async (
+    formData: IInstallSoftwareFormData
+  ) => {
+    try {
+      setIsUpdatingPolicySoftwareInstall(true);
+      const changedPolicies = formData.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+
+        const turnedOff =
+          prevPolicyState?.install_software !== undefined &&
+          formPolicy.installSoftwareEnabled === false;
+
+        const turnedOn =
+          prevPolicyState?.install_software === undefined &&
+          formPolicy.installSoftwareEnabled === true;
+
+        const updatedSwId =
+          prevPolicyState?.install_software?.software_title_id !== undefined &&
+          formPolicy.swIdToInstall !==
+            prevPolicyState?.install_software?.software_title_id;
+
+        return turnedOff || turnedOn || updatedSwId;
+      });
+      if (!changedPolicies.length) {
+        renderFlash("success", "No changes detected.");
+        return;
+      }
+      const responses: Promise<
+        ReturnType<typeof teamPoliciesAPI.update>
+      >[] = [];
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            // "software_title_id:" 0 will unset software install for the policy
+            // "software_title_id": X will set the value to the given integer (except 0).
+            software_title_id: changedPolicy.swIdToInstall || 0,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+      await Promise.all(responses);
+      await wait(100); // prevent race
+      refetchTeamPolicies();
+      renderFlash("success", "Successfully updated policy automations.");
+    } catch {
+      renderFlash(
+        "error",
+        "Could not update policy automations. Please try again."
+      );
+    } finally {
+      toggleInstallSoftwareModal();
+      setIsUpdatingPolicySoftwareInstall(false);
     }
   };
 
@@ -606,19 +697,21 @@ const ManagePolicyPage = ({
   }
 
   const renderPoliciesCount = (count?: number) => {
-    // Show count if there is no errors AND there are policy results or a search filter
-    const showCount =
-      count !== undefined &&
-      !policiesErrors &&
-      (policyResults || searchQuery !== "");
+    // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
+    const isFetchingCount = isAnyTeamSelected
+      ? isFetchingTeamCountMergeInherited
+      : isFetchingGlobalCount;
 
-    return (
-      <div className={`${baseClass}__count`}>
-        {showCount && (
-          <span>{`${count} polic${count === 1 ? "y" : "ies"}`}</span>
-        )}
-      </div>
-    );
+    const hideCount =
+      isFetchingCount ||
+      policiesErrors ||
+      (!policyResults && searchQuery === "");
+
+    if (hideCount) {
+      return null;
+    }
+
+    return <TableCount name="policies" count={count} />;
   };
 
   const renderMainTable = () => {
@@ -640,9 +733,7 @@ const ManagePolicyPage = ({
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             renderPoliciesCount={() =>
-              (!isFetchingTeamCountMergeInherited &&
-                renderPoliciesCount(teamPoliciesCountMergeInherited)) ||
-              null
+              renderPoliciesCount(teamPoliciesCountMergeInherited)
             }
             isPremiumTier={isPremiumTier}
             searchQuery={searchQuery}
@@ -650,6 +741,7 @@ const ManagePolicyPage = ({
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
         {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -664,16 +756,13 @@ const ManagePolicyPage = ({
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             isPremiumTier={isPremiumTier}
-            renderPoliciesCount={() =>
-              (!isFetchingGlobalCount &&
-                renderPoliciesCount(globalPoliciesCount)) ||
-              null
-            }
+            renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
             searchQuery={searchQuery}
             sortHeader={sortHeader}
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
       </div>
@@ -682,11 +771,20 @@ const ManagePolicyPage = ({
 
   const getAutomationsDropdownOptions = () => {
     const isAllTeams = teamIdForApi === undefined || teamIdForApi === -1;
-    let disabledTooltipContent: React.ReactNode;
+    let disabledInstallTooltipContent: React.ReactNode;
+    let disabledCalendarTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
-      disabledTooltipContent = "Available in Fleet Premium.";
+      disabledInstallTooltipContent = "Available in Fleet Premium.";
+      disabledCalendarTooltipContent = "Available in Fleet Premium.";
     } else if (isAllTeams) {
-      disabledTooltipContent = (
+      disabledInstallTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          install software automation.
+        </>
+      );
+      disabledCalendarTooltipContent = (
         <>
           Select a team to manage
           <br />
@@ -699,9 +797,16 @@ const ManagePolicyPage = ({
       {
         label: "Calendar events",
         value: "calendar_events",
-        disabled: !isPremiumTier || isAllTeams,
+        disabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
-        tooltipContent: disabledTooltipContent,
+        tooltipContent: disabledCalendarTooltipContent,
+      },
+      {
+        label: "Install software",
+        value: "install_software",
+        disabled: !!disabledInstallTooltipContent,
+        helpText: "Install software to resolve failing policies.",
+        tooltipContent: disabledInstallTooltipContent,
       },
       {
         label: "Other workflows",
@@ -731,7 +836,6 @@ const ManagePolicyPage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
-                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&
@@ -799,6 +903,16 @@ const ManagePolicyPage = ({
             isUpdatingPolicies={isUpdatingPolicies}
             onCancel={toggleDeletePolicyModal}
             onSubmit={onDeletePolicySubmit}
+          />
+        )}
+        {showInstallSoftwareModal && (
+          <InstallSoftwareModal
+            onExit={toggleInstallSoftwareModal}
+            onSubmit={onUpdatePolicySoftwareInstall}
+            isUpdating={isUpdatingPolicySoftwareInstall}
+            policies={policiesAvailableToAutomate}
+            // currentTeamId will at this point be present
+            teamId={currentTeamId ?? 0}
           />
         )}
         {showCalendarEventsModal && (
