@@ -57,6 +57,7 @@ To propose an ad, or a change to an ad:
 5. Make revisions and re-attend the meeting as needed until the planned change is executed.
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
+
 ### Measure intent signals
 
 Things to go look at to see if (a) a contact [/account] needs to be created/edited (b) if an account is worth going after or warming up (c) an account is sales-ready to assign a lead/rep
