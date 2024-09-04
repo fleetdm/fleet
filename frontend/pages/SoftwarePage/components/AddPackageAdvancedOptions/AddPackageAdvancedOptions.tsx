@@ -48,13 +48,13 @@ const PKG_TYPE_TO_ID_TEXT = {
   exe: "software name",
 } as const;
 
-const getUninstallHelpText = (packageType: "pkg" | "deb" | "exe" | "msi") => {
+const getUninstallHelpText = (type: PackageType) => {
   return (
     <>
-      $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[packageType]}{" "}
-      from the .{packageType}
-      file after the software is added.{" "}
-      {isWindowsPackageType(packageType) && "Power"}Shell scripts are supported.
+      $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[type]} from
+      the .{type} file after the software is added.{" "}
+      {isWindowsPackageType(type) && "Power"}
+      Shell scripts are supported.{" "}
       <CustomLink
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
         text="Learn more about uninstall scripts"
@@ -126,9 +126,11 @@ interface IAddPackageAdvancedOptionsProps {
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
+  uninstallScript?: string;
   onChangePreInstallQuery: (value?: string) => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
+  onChangeUninstallScript: (value?: string) => void;
 }
 
 const AddPackageAdvancedOptions = ({
@@ -137,9 +139,11 @@ const AddPackageAdvancedOptions = ({
   preInstallQuery,
   installScript,
   postInstallScript,
+  uninstallScript,
   onChangePreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
+  onChangeUninstallScript,
 }: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -194,6 +198,17 @@ const AddPackageAdvancedOptions = ({
           onChange={onChangePostInstallScript}
           value={postInstallScript}
           helpText={PACKAGE_TYPES_TO_FORM_CONTENT[ext].postInstall.helpText}
+          isFormField
+        />
+        <Editor
+          label="Uninstall script"
+          focus
+          wrapEnabled
+          name="uninstall-script-editor"
+          maxLines={20}
+          onChange={onChangeUninstallScript}
+          value={uninstallScript}
+          helpText={PACKAGE_TYPES_TO_FORM_CONTENT[ext].uninstall.helpText}
           isFormField
         />
       </div>

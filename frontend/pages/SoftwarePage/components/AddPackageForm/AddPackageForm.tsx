@@ -30,9 +30,10 @@ const UploadingSoftware = () => {
 
 export interface IAddPackageFormData {
   software: File | null;
-  installScript: string;
   preInstallQuery?: string;
+  installScript: string;
   postInstallScript?: string;
+  uninstallScript?: string;
   selfService: boolean;
 }
 
@@ -59,9 +60,10 @@ const AddPackageForm = ({
 
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
-    installScript: "",
     preInstallQuery: undefined,
+    installScript: "",
     postInstallScript: undefined,
+    uninstallScript: undefined,
     selfService: false,
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
@@ -108,6 +110,12 @@ const AddPackageForm = ({
 
   const onChangePostInstallScript = (value?: string) => {
     const newData = { ...formData, postInstallScript: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onChangeUninstallScript = (value?: string) => {
+    const newData = { ...formData, uninstallScript: value };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -162,11 +170,13 @@ const AddPackageForm = ({
               postInstallScript: formValidation.postInstallScript?.message,
             }}
             preInstallQuery={formData.preInstallQuery}
+            installScript={formData.installScript}
             postInstallScript={formData.postInstallScript}
+            uninstallScript={formData.uninstallScript}
             onChangePreInstallQuery={onChangePreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
-            installScript={formData.installScript}
+            onChangeUninstallScript={onChangeUninstallScript}
           />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
