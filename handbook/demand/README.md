@@ -74,7 +74,7 @@ Intent signals help measure an individual's current level of engagement with the
 6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties
 
 
-### Warm-up actions
+### Research an account
 
 Things to do to warm up an account and move it towards sales-readiness after discovering relevant intent signals.
 
