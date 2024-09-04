@@ -3,14 +3,18 @@
 package spec
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
+	"github.com/hashicorp/go-multierror"
 )
 
 var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
@@ -22,11 +26,13 @@ type Group struct {
 	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
+	Software []*fleet.SoftwarePackageSpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
-	AppConfig    interface{}
-	EnrollSecret *fleet.EnrollSecretSpec
-	UsersRoles   *fleet.UsersRoleSpec
+	AppConfig              interface{}
+	EnrollSecret           *fleet.EnrollSecretSpec
+	UsersRoles             *fleet.UsersRoleSpec
+	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 }
 
 // Metadata holds the metadata for a single YAML section/item.
@@ -140,4 +146,60 @@ func SplitYaml(in string) []string {
 		out = append(out, chunk)
 	}
 	return out
+}
+
+func generateRandomString(sizeBytes int) string {
+	b := make([]byte, sizeBytes)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+
+func ExpandEnv(s string) (string, error) {
+	// Generate a random escaping prefix that doesn't exist in s.
+	var preventEscapingPrefix string
+	for {
+		preventEscapingPrefix = "PREVENT_ESCAPING_" + generateRandomString(8)
+		if !strings.Contains(s, preventEscapingPrefix) {
+			break
+		}
+	}
+
+	s = escapeString(s, preventEscapingPrefix)
+	var err *multierror.Error
+	s = os.Expand(s, func(env string) string {
+		if strings.HasPrefix(env, preventEscapingPrefix) {
+			return "$" + strings.TrimPrefix(env, preventEscapingPrefix)
+		}
+		v, ok := os.LookupEnv(env)
+		if !ok {
+			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+			return ""
+		}
+		return v
+	})
+	if err != nil {
+		return "", err
+	}
+	return s, nil
+}
+
+func ExpandEnvBytes(b []byte) ([]byte, error) {
+	s, err := ExpandEnv(string(b))
+	if err != nil {
+		return nil, err
+	}
+	return []byte(s), nil
+}
+
+var escapePattern = regexp.MustCompile(`(\\+\$)`)
+
+func escapeString(s string, preventEscapingPrefix string) string {
+	return escapePattern.ReplaceAllStringFunc(s, func(match string) string {
+		if len(match)%2 != 0 {
+			return match
+		}
+		return strings.Repeat("\\", (len(match)/2)-1) + "$" + preventEscapingPrefix
+	})
 }

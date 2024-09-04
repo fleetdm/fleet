@@ -14,6 +14,9 @@ const baseClass = "input-field";
 class InputField extends Component {
   static propTypes = {
     autofocus: PropTypes.bool,
+    /** readOnly displays a non-editable field */
+    readOnly: PropTypes.bool,
+    /** disabled displays a greyed out non-editable field */
     disabled: PropTypes.bool,
     error: PropTypes.string,
     inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
@@ -56,7 +59,7 @@ class InputField extends Component {
     value: "",
     parseTarget: false,
     tooltip: "",
-    labelTooltipPosition: "",
+    labelTooltipPosition: undefined,
     helpText: "",
     enableCopy: false,
     ignore1password: false,
@@ -96,6 +99,7 @@ class InputField extends Component {
 
   render() {
     const {
+      readOnly,
       disabled,
       error,
       inputClassName,
@@ -115,9 +119,15 @@ class InputField extends Component {
     const shouldShowPasswordClass = type === "password";
     const inputClasses = classnames(baseClass, inputClassName, {
       [`${baseClass}--password`]: shouldShowPasswordClass,
+      [`${baseClass}--read-only`]: readOnly || disabled,
       [`${baseClass}--disabled`]: disabled,
       [`${baseClass}--error`]: error,
       [`${baseClass}__textarea`]: type === "textarea",
+    });
+
+    const inputWrapperClasses = classnames(inputWrapperClass, {
+      [`input-field--read-only`]: readOnly || disabled,
+      [`input-field--disabled`]: disabled,
     });
 
     const formFieldProps = pick(this.props, [
@@ -144,14 +154,14 @@ class InputField extends Component {
         <FormField
           {...formFieldProps}
           type="textarea"
-          className={inputWrapperClass}
+          className={inputWrapperClasses}
         >
           <textarea
             name={name}
             id={name}
             onChange={onInputChange}
             className={inputClasses}
-            disabled={disabled}
+            disabled={readOnly || disabled}
             placeholder={placeholder}
             ref={(r) => {
               this.input = r;
@@ -169,10 +179,14 @@ class InputField extends Component {
     });
 
     return (
-      <FormField {...formFieldProps} type="input" className={inputWrapperClass}>
+      <FormField
+        {...formFieldProps}
+        type="input"
+        className={inputWrapperClasses}
+      >
         <div className={inputContainerClasses}>
           <input
-            disabled={disabled}
+            disabled={readOnly || disabled}
             name={name}
             id={name}
             onChange={onInputChange}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 // Service is the interface for all supported SCEP server operations.

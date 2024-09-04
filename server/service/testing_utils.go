@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -32,9 +34,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,11 +64,14 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
 
-		is          fleet.InstallerStore
-		mdmStorage  fleet.MDMAppleStore
-		mdmPusher   nanomdm_push.Pusher
-		ssoStore    sso.SessionStore
-		profMatcher fleet.ProfileMatcher
+		is                    fleet.InstallerStore
+		mdmStorage            fleet.MDMAppleStore
+		mdmPusher             nanomdm_push.Pusher
+		ssoStore              sso.SessionStore
+		profMatcher           fleet.ProfileMatcher
+		softwareInstallStore  fleet.SoftwareInstallerStore
+		bootstrapPackageStore fleet.MDMBootstrapPackageStore
+		distributedLock       fleet.Lock
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -92,6 +98,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
+			distributedLock = redis_lock.NewLock(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -105,6 +112,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].UseMailService {
 			mailer, err = mail.NewService(config.TestConfig())
 			require.NoError(t, err)
+		}
+		if opts[0].SoftwareInstallStore != nil {
+			softwareInstallStore = opts[0].SoftwareInstallStore
+		}
+		if opts[0].BootstrapPackageStore != nil {
+			bootstrapPackageStore = opts[0].BootstrapPackageStore
 		}
 
 		// allow to explicitly set installer store to nil
@@ -127,11 +140,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
 			require.NoError(t, err)
 		}
-	}
-
-	mdmPushCertTopic := ""
-	if len(opts) > 0 && opts[0].APNSTopic != "" {
-		mdmPushCertTopic = opts[0].APNSTopic
 	}
 
 	var wstepManager microsoft_mdm.CertManager
@@ -165,7 +173,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage,
 		mdmStorage,
 		mdmPusher,
-		mdmPushCertTopic,
 		cronSchedulesService,
 		wstepManager,
 	)
@@ -173,18 +180,29 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		panic(err)
 	}
 	if lic.IsPremium() {
+		if softwareInstallStore == nil {
+			// default to file-based
+			dir := t.TempDir()
+			store, err := filesystem.NewSoftwareInstallerStore(dir)
+			if err != nil {
+				panic(err)
+			}
+			softwareInstallStore = store
+		}
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
-			kitlog.NewNopLogger(),
+			logger,
 			fleetConfig,
 			mailer,
 			c,
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
-			"",
 			ssoStore,
 			profMatcher,
+			softwareInstallStore,
+			bootstrapPackageStore,
+			distributedLock,
 		)
 		if err != nil {
 			panic(err)
@@ -202,14 +220,21 @@ func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryRes
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
+	// Map iteration is random so we sort and iterate using the testUsers keys.
+	var keys []string
+	for key := range testUsers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 	userID := uint(1)
-	for _, u := range testUsers {
+	for _, key := range keys {
+		u := testUsers[key]
 		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
-			ID:         userID,
+			ID:         userID, // We need to set this in case ds is a mocked Datastore.
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -267,29 +292,31 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
-	Logger              kitlog.Logger
-	License             *fleet.LicenseInfo
-	SkipCreateTestUsers bool
-	Rs                  fleet.QueryResultStore
-	Lq                  fleet.LiveQueryStore
-	Pool                fleet.RedisPool
-	FailingPolicySet    fleet.FailingPolicySet
-	Clock               clock.Clock
-	Task                *async.Task
-	EnrollHostLimiter   fleet.EnrollHostLimiter
-	Is                  fleet.InstallerStore
-	FleetConfig         *config.FleetConfig
-	MDMStorage          fleet.MDMAppleStore
-	DEPStorage          nanodep_storage.AllDEPStorage
-	SCEPStorage         scep_depot.Depot
-	MDMPusher           nanomdm_push.Pusher
-	HTTPServerConfig    *http.Server
-	StartCronSchedules  []TestNewScheduleFunc
-	UseMailService      bool
-	APNSTopic           string
-	ProfileMatcher      fleet.ProfileMatcher
-	EnableCachedDS      bool
-	NoCacheDatastore    bool
+	Logger                kitlog.Logger
+	License               *fleet.LicenseInfo
+	SkipCreateTestUsers   bool
+	Rs                    fleet.QueryResultStore
+	Lq                    fleet.LiveQueryStore
+	Pool                  fleet.RedisPool
+	FailingPolicySet      fleet.FailingPolicySet
+	Clock                 clock.Clock
+	Task                  *async.Task
+	EnrollHostLimiter     fleet.EnrollHostLimiter
+	Is                    fleet.InstallerStore
+	FleetConfig           *config.FleetConfig
+	MDMStorage            fleet.MDMAppleStore
+	DEPStorage            nanodep_storage.AllDEPStorage
+	SCEPStorage           scep_depot.Depot
+	MDMPusher             nanomdm_push.Pusher
+	HTTPServerConfig      *http.Server
+	StartCronSchedules    []TestNewScheduleFunc
+	UseMailService        bool
+	APNSTopic             string
+	ProfileMatcher        fleet.ProfileMatcher
+	EnableCachedDS        bool
+	NoCacheDatastore      bool
+	SoftwareInstallStore  fleet.SoftwareInstallerStore
+	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -327,6 +354,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -334,10 +362,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{
-					ds:        ds,
-					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
-					logger:    kitlog.NewNopLogger(),
+				NewMDMAppleCheckinAndCommandService(ds, commander, logger),
+				&MDMAppleDDMService{
+					ds:     ds,
+					logger: logger,
 				},
 			)
 			require.NoError(t, err)
@@ -346,6 +374,8 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	rootMux.Handle("/debug/", debugHandler)
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
@@ -602,7 +632,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},

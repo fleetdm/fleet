@@ -112,7 +112,7 @@ func main() {
 
 	for _, team := range teams {
 		printf("Applying profiles to team %s...\n", team.Name)
-		if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplySpecOptions{}); err != nil {
+		if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplyTeamSpecOptions{}); err != nil {
 			log.Fatalf("apply profiles to team %s: %s", team.Name, err)
 		}
 	}
@@ -217,7 +217,7 @@ func main() {
 		start = time.Now()
 
 		for _, team := range extraTeams {
-			if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplySpecOptions{}); err != nil {
+			if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplyTeamSpecOptions{}); err != nil {
 				log.Fatalf("apply profiles to extra team %s: %s", team.Name, err)
 			}
 		}

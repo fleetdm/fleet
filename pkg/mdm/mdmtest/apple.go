@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,17 +22,17 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"go.mozilla.org/pkcs7"
 )
 
@@ -134,13 +135,13 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 	return &c
 }
 
-// NewTestMDMClientDEP will create a simulated device that will not fetch the enrollment
+// NewTestMDMClientAppleDirect will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
-func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
 	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
-		Model:        "MacBookPro16,1",
+		Model:        model,
 
 		EnrollInfo: enrollInfo,
 	}
@@ -148,6 +149,14 @@ func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppl
 		fn(&c)
 	}
 	return &c
+}
+
+func (c *TestAppleMDMClient) SetDesktopToken(tok string) {
+	c.desktopURLToken = tok
+}
+
+func (c *TestAppleMDMClient) SetDEPToken(tok string) {
+	c.depURLToken = tok
 }
 
 // Enroll runs the MDM enroll protocol on the simulated device.
@@ -213,7 +222,23 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 	if err := response.Body.Close(); err != nil {
 		return fmt.Errorf("close body: %w", err)
 	}
-	enrollInfo, err := ParseEnrollmentProfile(body)
+
+	rawProfile := body
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(body)
+		if err != nil {
+			return fmt.Errorf("enrollment profile is not XML nor PKCS7 parseable: %w", err)
+		}
+
+		err = p7.Verify()
+		if err != nil {
+			return err
+		}
+
+		rawProfile = p7.Content
+	}
+
+	enrollInfo, err := ParseEnrollmentProfile(rawProfile)
 	if err != nil {
 		return fmt.Errorf("parse enrollment profile: %w", err)
 	}
@@ -367,6 +392,9 @@ func (c *TestAppleMDMClient) Authenticate() error {
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"SerialNumber": c.SerialNumber,
 	}
+	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
+		payload["ProductName"] = c.Model
+	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
 }
@@ -384,6 +412,30 @@ func (c *TestAppleMDMClient) TokenUpdate() error {
 	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
+}
+
+// DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
+//
+// The endpoint argument is used as the value for the `Endpoint` key in the request payload.
+//
+// For more details check https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest
+func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
+	payload := map[string]any{
+		"MessageType":  "DeclarativeManagement",
+		"UDID":         c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.UUID,
+		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Endpoint":     endpoint,
+	}
+	if len(data) != 0 {
+		rawData, err := json.Marshal(data[0])
+		if err != nil {
+			return nil, fmt.Errorf("marshaling status report: %w", err)
+		}
+		payload["Data"] = rawData
+	}
+	r, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return r, err
 }
 
 // Checkout sends the CheckOut message to the MDM server.
@@ -404,7 +456,7 @@ func (c *TestAppleMDMClient) Checkout() error {
 // receive commands. The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestAppleMDMClient) Idle() (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Idle",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -420,7 +472,7 @@ func (c *TestAppleMDMClient) Idle() (*micromdm.CommandPayload, error) {
 // The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -428,6 +480,43 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPaylo
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"CommandUUID":  cmdUUID,
 	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"QueryResponses": map[string]interface{}{
+			"AvailableDeviceCapacity": float64(51.53312768),
+			"DeviceCapacity":          float64(64),
+			"DeviceName":              deviceName,
+			"OSVersion":               "17.5.1",
+			"ProductName":             productName,
+			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+		},
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID string, software []fleet.Software) (*mdm.Command, error) {
+	mdmSoftware := make([]map[string]interface{}, 0, len(software))
+	for _, s := range software {
+		mdmSoftware = append(mdmSoftware, map[string]interface{}{
+			"Name":         s.Name,
+			"ShortVersion": s.Version,
+			"Identifier":   s.BundleIdentifier,
+		})
+	}
+
+	payload := map[string]any{
+		"Status":                   "Acknowledged",
+		"UDID":                     udid,
+		"CommandUUID":              cmdUUID,
+		"InstalledApplicationList": mdmSoftware,
+	}
+
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
@@ -473,7 +562,7 @@ func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 // The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Error",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -485,7 +574,7 @@ func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mi
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*mdm.Command, error) {
 	res, err := c.request("", payload)
 	if err != nil {
 		return nil, fmt.Errorf("request error: %w", err)
@@ -510,11 +599,12 @@ func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any
 	if err != nil {
 		return nil, fmt.Errorf("decode command: %w", err)
 	}
-	var p micromdm.CommandPayload
+	var p mdm.Command
 	err = plist.Unmarshal(cmd.Raw, &p)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal command payload: %w", err)
 	}
+	p.Raw = cmd.Raw
 	return &p, nil
 }
 
@@ -598,12 +688,21 @@ const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
 
 // RandSerialNumber returns a fake random serial number.
 func RandSerialNumber() string {
-	b := make([]byte, 12)
+	return randStr(12)
+}
+
+func randStr(n int) string {
+	b := make([]byte, n)
 	for i := range b {
 		//nolint:gosec // not used for crypto, only to generate random serial for testing
 		b[i] = serialLetters[mrand.Intn(len(serialLetters))]
 	}
 	return string(b)
+}
+
+// RandUDID returns a fake random iOS/iPadOS 17+ UDID.
+func RandUDID() string {
+	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
 }
 
 type scepClient interface {

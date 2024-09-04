@@ -63,18 +63,6 @@ the account verification message.)`,
       defaultsTo: 'Buy a license',
     },
 
-    primaryBuyingSituation: {
-      type: 'string',
-      description: 'What the user will be using Fleet for.',
-      required: true,
-      isIn: [
-        'eo-security',
-        'eo-it',
-        'mdm',
-        'vm'
-      ],
-    }
-
   },
 
 
@@ -104,7 +92,7 @@ the account verification message.)`,
 
   },
 
-  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason, primaryBuyingSituation}) {
+  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
     // Note: in Oct. 2023, the Fleet Sandbox related code was removed from this action. For more details, see https://github.com/fleetdm/fleet/pull/14638/files
 
     var newEmailAddress = emailAddress.toLowerCase();
@@ -112,22 +100,9 @@ the account verification message.)`,
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
-    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the bannedEmailDomainsForSignup array.
+    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the sails.config.custom.bannedEmailDomainsForWebsiteSubmissions array.
     let emailDomain = newEmailAddress.split('@')[1];
-    let bannedEmailDomainsForSignup = [
-      'gmail.com',
-      'yahoo.com',
-      'yahoo.co.uk',
-      'hotmail.com',
-      'hotmail.co.uk',
-      'outlook.com',
-      'icloud.com',
-      'proton.me',
-      'live.com',
-      'yandex.ru',
-      'ymail.com',
-    ];
-    if(_.includes(bannedEmailDomainsForSignup, emailDomain)){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain)){
       throw 'invalidEmailDomain';
     }
 
@@ -153,7 +128,6 @@ the account verification message.)`,
       signupReason,
       password: await sails.helpers.passwords.hashPassword(password),
       stripeCustomerId,
-      primaryBuyingSituation,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -164,25 +138,20 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
-    // Send a POST request to Zapier
-    await sails.helpers.http.post.with({
-      url: 'https://hooks.zapier.com/hooks/catch/3627242/30bq2ib/',
-      data: {
-        newEmailAddress,
-        firstName,
-        lastName,
-        organization,
-        signupReason,
-        primaryBuyingSituation,
-        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
+
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: newEmailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      organization: organization,
+      contactSource: 'Website - Sign up'
+    }).exec((err)=>{
+      if(err){
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
       }
-    })
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
       return;
     });
+
 
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;

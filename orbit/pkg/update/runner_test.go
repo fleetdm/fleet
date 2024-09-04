@@ -78,6 +78,10 @@ func TestGetVersion(t *testing.T) {
 			cmd:     "#!/bin/bash\n/bin/echo orbit 4.5.6",
 			version: "4.5.6",
 		},
+		"42.0.0": {
+			cmd:     "#!/bin/bash\n/bin/echo fleet-desktop 42.0.0",
+			version: "42.0.0",
+		},
 		"5.10.2-26-gc396d07b4-dirty": {
 			cmd:     "#!/bin/bash\n/bin/echo osquery version 5.10.2-26-gc396d07b4-dirty",
 			version: "5.10.2-26-gc396d07b4-dirty",

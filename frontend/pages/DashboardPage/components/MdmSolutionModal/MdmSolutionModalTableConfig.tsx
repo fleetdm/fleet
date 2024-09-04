@@ -48,7 +48,6 @@ export const generateSolutionsTableHeaders = (
     Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          position="top-start"
           tipContent={
             <>
               The MDM server URL is used to connect hosts with the MDM service.
@@ -74,7 +73,7 @@ export const generateSolutionsTableHeaders = (
     accessor: "hosts_count",
     Cell: (cellProps: ICellProps) => (
       <div className="host-count-cell">
-        <TextCell value={cellProps.cell.value} classes="" />
+        <TextCell value={cellProps.cell.value} className="" />
         <ViewAllHostsLink
           queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
           className="view-mdm-solution-link"

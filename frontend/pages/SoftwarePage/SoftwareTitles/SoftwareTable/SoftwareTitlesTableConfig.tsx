@@ -3,9 +3,9 @@ import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
 import {
-  ISoftwareTitleVersion,
   ISoftwareTitle,
   formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import PATHS from "router/paths";
 
@@ -14,12 +14,11 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
 import VersionCell from "../../components/VersionCell";
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
-import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -36,7 +35,11 @@ type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 
-const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
+export const getVulnerabilities = <
+  T extends { vulnerabilities: string[] | null }
+>(
+  versions: T[]
+) => {
   if (!versions) {
     return [];
   }
@@ -52,6 +55,43 @@ const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
   return vulnerabilities;
 };
 
+/**
+ * Gets the data needed to render the software name cell.
+ */
+const getSoftwareNameCellData = (
+  softwareTitle: ISoftwareTitle,
+  teamId?: number
+) => {
+  const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+  const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
+    softwareTitle.id.toString()
+  )}?${teamQueryParam}`;
+
+  const { software_package, app_store_app } = softwareTitle;
+  let hasPackage = false;
+  let isSelfService = false;
+  let iconUrl: string | null = null;
+  if (software_package) {
+    hasPackage = true;
+    isSelfService = software_package.self_service;
+  } else if (app_store_app) {
+    hasPackage = true;
+    isSelfService = app_store_app.self_service;
+    iconUrl = app_store_app.icon_url;
+  }
+
+  const isAllTeams = teamId === undefined;
+
+  return {
+    name: softwareTitle.name,
+    source: softwareTitle.source,
+    path: softwareTitleDetailsPath,
+    hasPackage: hasPackage && !isAllTeams,
+    isSelfService,
+    iconUrl,
+  };
+};
+
 const generateTableHeaders = (
   router: InjectedRouter,
   teamId?: number
@@ -64,30 +104,20 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
-
-        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-        const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
-
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareTitleDetailsPath);
-        };
+        const nameCellData = getSoftwareNameCellData(
+          cellProps.row.original,
+          teamId
+        );
 
         return (
-          <LinkCell
-            path={softwareTitleDetailsPath}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
+          <SoftwareNameCell
+            name={nameCellData.name}
+            source={nameCellData.source}
+            path={nameCellData.path}
+            router={router}
+            hasPackage={nameCellData.hasPackage}
+            isSelfService={nameCellData.isSelfService}
+            iconUrl={nameCellData.iconUrl ?? undefined}
           />
         );
       },
@@ -119,6 +149,9 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(
           cellProps.row.original.versions ?? []
         );

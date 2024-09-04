@@ -7,13 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 )
 
 var errInvalidScheme = errors.New("address must start with https:// for remote connections")
@@ -63,17 +66,23 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 
 	bc.setServerCapabilities(response)
 
-	if responseDest != nil && response.StatusCode != http.StatusNoContent {
-		b, err := io.ReadAll(response.Body)
-		if err != nil {
-			return fmt.Errorf("reading response body: %w", err)
-		}
-		if err := json.Unmarshal(b, &responseDest); err != nil {
-			return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
-		}
-		if e, ok := responseDest.(errorer); ok {
-			if e.error() != nil {
-				return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+	if responseDest != nil {
+		if e, ok := responseDest.(bodyHandler); ok {
+			if err := e.Handle(response); err != nil {
+				return fmt.Errorf("%s %s error with custom body handler contents: %w", verb, path, err)
+			}
+		} else if response.StatusCode != http.StatusNoContent {
+			b, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("reading response body: %w", err)
+			}
+			if err := json.Unmarshal(b, &responseDest); err != nil {
+				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
+			}
+			if e, ok := responseDest.(errorer); ok {
+				if e.error() != nil {
+					return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+				}
 			}
 		}
 	}
@@ -163,7 +172,6 @@ func newBaseClient(
 		// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
 		tlsConfig.InsecureSkipVerify = true //nolint:gosec
 	default:
-		// Use only the system certs (doesn't work on Windows)
 		rootCAPool, err = x509.SystemCertPool()
 		if err != nil {
 			return nil, fmt.Errorf("loading system cert pool: %w", err)
@@ -181,4 +189,48 @@ func newBaseClient(
 		serverCapabilities: fleet.CapabilityMap{},
 	}
 	return client, nil
+}
+
+type bodyHandler interface {
+	Handle(*http.Response) error
+}
+
+type FileResponse struct {
+	DestPath     string
+	DestFile     string
+	destFilePath string
+}
+
+func (f *FileResponse) Handle(resp *http.Response) error {
+	_, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+	if err != nil {
+		return fmt.Errorf("parsing media type from response header: %w", err)
+	}
+
+	filename := params["filename"]
+	if filename == "" {
+		filename = uuid.NewString()
+	}
+
+	f.destFilePath = filepath.Join(f.DestPath, filename)
+	destFile, err := os.Create(f.destFilePath)
+	if err != nil {
+		return fmt.Errorf("creating file: %w", err)
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("copying from http stream to file: %w", err)
+	}
+
+	if err := destFile.Close(); err != nil {
+		return fmt.Errorf("closing file after copy: %w", err)
+	}
+
+	return nil
+}
+
+func (f *FileResponse) GetFilePath() string {
+	return f.destFilePath
 }

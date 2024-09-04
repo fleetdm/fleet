@@ -7,6 +7,7 @@ import Select from "react-select";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
+import DropdownOptionTooltipWrapper from "./DropdownOptionTooltipWrapper";
 
 const baseClass = "dropdown";
 
@@ -26,6 +27,19 @@ class Dropdown extends Component {
     onClose: PropTypes.func,
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     placeholder: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    /**
+     value must correspond to the value of a dropdown option to render
+     e.g. with options:
+
+     [
+       {
+       label: "Display name",
+       value: 1,  <– the id of the thing
+       }
+     ]
+
+     set value to 1, not "Display name"
+    */
     value: PropTypes.oneOfType([
       PropTypes.array,
       PropTypes.string,
@@ -74,7 +88,7 @@ class Dropdown extends Component {
     const { multi, onChange, clearable, name, parseTarget } = this.props;
 
     if (parseTarget) {
-      // Returns both name and value
+      // Returns both name of the Dropdown and value of the selected option
       return onChange({ value: selected.value, name });
     }
 
@@ -109,6 +123,20 @@ class Dropdown extends Component {
   };
 
   renderOption = (option) => {
+    if (option.tooltipContent) {
+      return (
+        <DropdownOptionTooltipWrapper tipContent={option.tooltipContent}>
+          <div className={`${baseClass}__option`}>
+            {option.label}
+            {option.helpText && (
+              <span className={`${baseClass}__help-text`}>
+                {option.helpText}
+              </span>
+            )}
+          </div>
+        </DropdownOptionTooltipWrapper>
+      );
+    }
     return (
       <div className={`${baseClass}__option`}>
         {option.label}
@@ -173,9 +201,11 @@ class Dropdown extends Component {
       "error",
       "name",
       "tooltip",
+      "disabled",
     ]);
     const selectClasses = classnames(className, `${baseClass}__select`, {
       [`${baseClass}__select--error`]: error,
+      [`${baseClass}__select--disabled`]: disabled,
     });
 
     return (

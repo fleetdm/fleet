@@ -1,4 +1,82 @@
 .table-container {
+  .form-field {
+    width: initial; // 100% causes weird rendering in dropdown
+  }
+
+  // Container is responsive design used when customFilters is rendered
+  .container {
+    display: grid;
+    grid-template-columns: 1fr auto auto; /* First column takes all remaining space */
+    grid-template-rows: auto auto; /* Two rows */
+    width: 100%;
+    height: max-content;
+    gap: $pad-small $pad-medium;
+  }
+
+  .box {
+    min-width: max-content;
+    align-content: center;
+    display: flex;
+    flex-direction: row;
+    gap: $pad-medium;
+
+    > div {
+      display: flex;
+      flex-direction: row;
+    }
+  }
+
+  .search {
+    grid-column: 1 / -1; /* Span across all columns */
+    grid-row: 1; /* Place in the first row */
+  }
+
+  .box:nth-child(1) {
+    grid-column: 1 / span 2; /* Make Box 1 expand across two columns */
+    grid-row: 2;
+  }
+
+  .box:nth-child(2) {
+    grid-column: 2; /* Place Box 2 in the second row, second column */
+    grid-row: 2;
+  }
+
+  .box:nth-child(4) {
+    grid-column: 3; /* Place Box 4 in the second row, third column */
+    grid-row: 2;
+    max-width: min-content;
+  }
+
+  /* Media query for larger screens */
+  @media (min-width: $table-controls-break) {
+    .container {
+      grid-template-columns: 1fr auto auto auto; /* First column takes all remaining space */
+      grid-template-rows: auto; /* Single row */
+    }
+
+    .search {
+      grid-column: 1 / -1; /* Keep spanning across all columns if needed */
+      grid-row: auto;
+    }
+
+    .box:nth-child(1) {
+      grid-column: 1; /* Ensure Box 1 stays in the first column */
+    }
+
+    .box:nth-child(2) {
+      grid-column: 2; /* Place Box 2 in the second column */
+    }
+
+    .box:nth-child(3) {
+      grid-column: 3; /* Place Box 3 in the third column */
+      grid-row: 2;
+    }
+
+    .box:nth-child(4) {
+      grid-column: 4; /* Place Box 4 in the fourth column */
+    }
+  }
+
   // TODO: Fix hacky solution to clientside search being 0 no longer accessing rows.length
   .client-result-count-0 {
     display: none;
@@ -13,16 +91,28 @@
     margin-top: 3px; // Fits button highlight during tabbing
 
     &.stack-table-controls {
-      flex-direction: column-reverse;
       align-items: start;
 
       @media (min-width: $break-xs) {
         flex-direction: row;
         align-items: end;
         justify-content: space-between;
+
+        .table-container__search {
+          order: -2;
+        }
+
+        .table-container__results-count {
+          order: -1;
+        }
       }
+
       @media (min-width: $break-md) {
         align-items: center;
+
+        .table-container__search {
+          order: initial;
+        }
       }
     }
 
@@ -37,25 +127,21 @@
     display: flex;
     width: 100%;
     justify-content: space-between;
+    flex-direction: row;
     align-items: center;
 
     &.stack-table-controls {
-      flex-direction: column-reverse;
+      flex-direction: column;
       align-items: start;
 
       @media (min-width: $break-md) {
-        flex-direction: row;
         justify-content: space-between;
-        align-items: center;
       }
     }
 
     .Select-multi-value-wrapper {
       height: 38px; // Fixes overlap with .Select outline
     }
-  }
-  .results-count {
-    height: 40px; // Match height of search/filters
   }
 
   &__results-count {
@@ -66,6 +152,7 @@
     color: $core-fleet-black;
     margin: 0;
     height: 40px;
+    gap: 12px;
 
     .count-error {
       color: $ui-error;

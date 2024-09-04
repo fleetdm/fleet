@@ -14,7 +14,7 @@ columns:
   - name: vg_FreeSpace
     type: bigint
     required: false
-    description: |
+    description: |-
       Amount of space, in bytes, in the volume group that have not been allocated by any logical volume
   - name: vg_FusionDrive
     type: integer
@@ -119,7 +119,7 @@ columns:
   - name: DesignatedPhysicalVolumeIdentifier
     type: text
     required: false
-    description: |
+    description: |-
       Identifier of one of the physical volumes that holds this logical volume (e.g disk0s2)
   - name: Identifier
     type: text
@@ -129,7 +129,7 @@ columns:
     type: text
     required: false
     description: Name of the filesystem in the logical volume
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false
 
 

@@ -3,6 +3,7 @@ package live_query
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -112,9 +113,14 @@ func testLiveQueryExpiredQuery(t *testing.T, store fleet.LiveQueryStore) {
 	assert.Len(t, queries, 1)
 	assert.Equal(t, map[string]string{"test": "select 1"}, queries)
 
-	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	require.NoError(t, err)
-	require.Equal(t, []string{"test"}, activeNames)
+	assert.Eventually(t, func() bool {
+		activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+		require.NoError(t, err)
+		if len(activeNames) == 1 && activeNames[0] == "test" {
+			return true
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
@@ -133,9 +139,11 @@ func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
 	require.NoError(t, err)
 	assert.Len(t, queries, 0)
 
-	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	require.NoError(t, err)
-	require.Len(t, activeNames, 0)
+	assert.Eventually(t, func() bool {
+		activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+		require.NoError(t, err)
+		return len(activeNames) == 0
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {

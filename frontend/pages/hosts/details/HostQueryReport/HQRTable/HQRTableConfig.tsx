@@ -1,10 +1,6 @@
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import {
-  IHeaderProps,
-  IStringCellProps,
-  IWebSocketData,
-} from "interfaces/datatable_config";
+import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 import React from "react";
 
 import { CellProps, Column } from "react-table";
@@ -35,7 +31,7 @@ const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] =>
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName,
+      accessor: (data) => data[colName],
       Cell: (cellProps: ITableStringCellProps) => {
         if (typeof cellProps?.cell?.value !== "string") return null;
 
@@ -47,7 +43,7 @@ const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] =>
         const val = cellProps?.cell?.value;
         return !!val?.length && val.length > 300
           ? internallyTruncateText(val)
-          : <>val</> ?? null;
+          : <>{val}</> ?? null;
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",

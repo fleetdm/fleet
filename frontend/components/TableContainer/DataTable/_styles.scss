@@ -37,6 +37,11 @@ $shadow-transition-width: 10px;
       background-attachment: local, local, scroll, scroll;
       // End shadow
     }
+    
+    // applied to same element as data-table__table while loading
+    &__no-rows {
+      min-height: 272px;
+    }
 
     &__table {
       position: relative;
@@ -44,33 +49,6 @@ $shadow-transition-width: 10px;
       border-collapse: collapse;
       color: $core-fleet-black;
       font-size: $x-small;
-    }
-
-    tbody {
-      .component__tooltip-wrapper {
-        margin: 10px 0; // vertical padding multiline text with tooltip
-      }
-
-      .component__tooltip-wrapper__element {
-        white-space: initial; // wraps long text with tooltip
-      }
-
-      tr,
-      .single-row {
-        transition: background-color 150ms ease-out;
-        &:hover {
-          background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
-        }
-      }
-
-      .single-row {
-        &:hover {
-          cursor: pointer;
-        }
-        &:active {
-          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
-        }
-      }
     }
 
     tr {
@@ -205,6 +183,31 @@ $shadow-transition-width: 10px;
     }
 
     tbody {
+      .component__tooltip-wrapper {
+        margin: 10px 0; // vertical padding multiline text with tooltip
+      }
+
+      .component__tooltip-wrapper__element {
+        white-space: initial; // wraps long text with tooltip
+      }
+
+      tr,
+      .single-row {
+        transition: background-color 150ms ease-out;
+        &:hover {
+          background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
+        }
+      }
+
+      .single-row {
+        &:hover {
+          cursor: pointer;
+        }
+        &:active {
+          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+        }
+      }
+
       td {
         height: 40px;
         padding: 0 $pad-large;
@@ -276,12 +279,14 @@ $shadow-transition-width: 10px;
           min-width: 100%;
           text-align: left;
         }
-        .grey-cell {
-          color: $ui-fleet-black-50;
+        .italic-cell {
           font-style: italic;
           .__react_component_tooltip {
             font-style: normal;
           }
+        }
+        .grey-cell {
+          color: $ui-fleet-black-50;
         }
       }
 
@@ -359,7 +364,7 @@ $shadow-transition-width: 10px;
     align-items: center;
   }
 
-  &__footer-text {
+  &__table-help-text {
     font-size: $x-small;
 
     display: flex;

@@ -8,18 +8,28 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode/utf8"
 
+	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
+// Helper function to convert a boolean to an integer
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func runScriptCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "run-script",
 		Aliases:   []string{"run_script"},
-		Usage:     `Run a live script on one host and get results back (5 minute timeout).`,
+		Usage:     `Run a script on one host and get results back.`,
 		UsageText: `fleetctl run-script [options]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -29,7 +39,7 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "host",
-				Usage:    "A host, specified by hostname, serial number, UUID, osquery host ID, or node key.",
+				Usage:    "The host, specified by hostname, UUID, or serial number.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -40,6 +50,16 @@ func runScriptCommand() *cli.Command {
 			&cli.UintFlag{
 				Name:     "team",
 				Usage:    `Available in Fleet Premium. ID of the team that the saved script belongs to. 0 targets hosts assigned to “No team” (default: 0).`,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "async",
+				Usage:    `Queue the script and don't wait for the return.`,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "quiet",
+				Usage:    `Suppress messages that are not the script output / error`,
 				Required: false,
 			},
 			configFlag(),
@@ -61,15 +81,22 @@ func runScriptCommand() *cli.Command {
 				return errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 			}
 
+			async := c.Bool("async")
+			quiet := c.Bool("quiet")
+
+			// Require 1 and only 1 of these 3 options
 			path := c.String("script-path")
 			name := c.String("script-name")
+			args := c.Args().Len()
 
-			if path == "" && name == "" {
-				return errors.New("One of '--script-path' or '--script-name' must be specified.")
+			notEmpty := boolToInt(path != "") + boolToInt(name != "") + boolToInt(args > 0)
+
+			if notEmpty < 1 {
+				return errors.New("One of '--script-path' or '--script-name' or '-- <contents>' must be specified.")
 			}
 
-			if path != "" && name != "" {
-				return errors.New("Only one of '--script-path' or '--script-name' is allowed.")
+			if notEmpty > 1 {
+				return errors.New("Only one of '--script-path' or '--script-name' or '-- <contents>' is allowed.")
 			}
 
 			if path != "" {
@@ -83,7 +110,7 @@ func runScriptCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New(fleet.RunScriptHostNotFoundErrMsg)
+					return errors.New(fleet.HostNotFoundErrMsg)
 				}
 				var sce fleet.ErrWithStatusCode
 				if errors.As(err, &sce) {
@@ -99,10 +126,17 @@ func runScriptCommand() *cli.Command {
 			}
 
 			var b []byte
-			if path != "" {
-				b, err = os.ReadFile(path)
-				if err != nil {
-					return err
+			if path != "" || args > 0 {
+				if path != "" {
+					b, err = os.ReadFile(path)
+					if err != nil {
+						return err
+					}
+				}
+
+				if args > 0 {
+					commandString := strings.Join(c.Args().Slice(), " ")
+					b = []byte(commandString)
 				}
 
 				// validate script contents with isSavedScript flag set to false so that we check
@@ -115,9 +149,27 @@ func runScriptCommand() *cli.Command {
 				}
 			}
 
-			fmt.Println("\nScript is running. Please wait for it to finish...")
+			if async {
+				res, err := client.RunHostScriptAsync(h.ID, b, name, c.Uint("team"))
+				if err != nil {
+					if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
+						return errors.New("Only one of '--script-path' or '--team' is allowed.")
+					}
+					return err
+				}
+				fmt.Fprintf(c.App.Writer, "%s\n", res.ExecutionID)
+				return nil
+			}
+
+			s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
+			if !quiet {
+				fmt.Println()
+				s.Suffix = " Script is running or will run when the host comes online..."
+				s.Start()
+			}
 
 			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
+			s.Stop()
 			if err != nil {
 				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
 					return errors.New("Only one of '--script-path' or '--team' is allowed.")
@@ -125,8 +177,12 @@ func runScriptCommand() *cli.Command {
 				return err
 			}
 
-			if err := renderScriptResult(c, res); err != nil {
-				return err
+			if !quiet {
+				if err := renderScriptResult(c, res); err != nil {
+					return err
+				}
+			} else {
+				fmt.Fprintf(c.App.Writer, "%s", res.Output)
 			}
 
 			return nil

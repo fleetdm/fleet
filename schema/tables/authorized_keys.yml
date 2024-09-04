@@ -1,15 +1,11 @@
 name: authorized_keys
-examples: >-
-  List the SSH keys allowed to connect to this host.
-  
+examples: |-
   ```
-  
-  SELECT key FROM authorized_keys;
-  
+  SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
   ```
 columns:
   - name: pid_with_namespace
     platforms:
       - linux
   - name: uid
-    requires_user_context: true
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

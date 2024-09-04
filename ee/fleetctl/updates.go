@@ -259,7 +259,7 @@ func updatesAddFunc(c *cli.Context) error {
 		case name == "desktop" && platform == "windows":
 			// This is a special case for the desktop target on Windows.
 			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
-		case name == "desktop" && platform == "linux":
+		case name == "desktop" && (platform == "linux" || platform == "linux-arm64"):
 			// This is a special case for the desktop target on Linux.
 			dstPath += ".tar.gz"
 		// The convention for Windows extensions is to use the extension `.ext.exe`
@@ -270,6 +270,8 @@ func updatesAddFunc(c *cli.Context) error {
 			dstPath += ".exe"
 		case strings.HasSuffix(target, ".app.tar.gz"):
 			dstPath += ".app.tar.gz"
+		case strings.HasSuffix(target, ".pkg"):
+			dstPath += ".pkg"
 		// osquery extensions require the .ext suffix
 		case strings.HasSuffix(target, ".ext"):
 			dstPath += ".ext"
@@ -352,7 +354,7 @@ func updatesRotateCommand() *cli.Command {
 		Usage:     "Rotate signing keys",
 		ArgsUsage: "<role>",
 		Description: `Rotate the signing keys used for updates metadata signing. This should be used when keys are compromised or expiring.
-		
+
 role must be one of ['root', 'targets', 'timestamp', 'snapshot']
 		`,
 		Flags:  updatesFlags(),
@@ -764,8 +766,8 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 			continue
 		} else if len(keys) == 0 {
 			return fmt.Errorf("%s key not found", role)
-		} else {
-			return nil
 		}
+
+		return nil
 	}
 }

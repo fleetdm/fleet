@@ -182,6 +182,13 @@ $max-width: 2560px;
   }
 }
 
+@mixin ellipse-text($width: auto) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: $width;
+}
+
 @mixin copy-message {
   font-weight: $regular;
   vertical-align: top;
@@ -333,5 +340,25 @@ $max-width: 2560px;
         transform: rotate(180deg);
       }
     }
+  }
+}
+
+@mixin tooltip5-arrow-styles {
+  // arrow styles directly from react-tooltip-5 css
+  .react-tooltip-arrow {
+    width: 8px;
+    height: 8px;
+  }
+  [class*="react-tooltip__place-top"] > .styles-module_arrow__K0L3T {
+    transform: rotate(45deg);
+  }
+  [class*="react-tooltip__place-right"] > .styles-module_arrow__K0L3T {
+    transform: rotate(135deg);
+  }
+  [class*="react-tooltip__place-bottom"] > .styles-module_arrow__K0L3T {
+    transform: rotate(225deg);
+  }
+  [class*="react-tooltip__place-left"] > .styles-module_arrow__K0L3T {
+    transform: rotate(315deg);
   }
 }

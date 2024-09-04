@@ -43,7 +43,7 @@ interface IDataTableProps {
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
-  resultsTitle: string;
+  resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
   primarySelectAction?: IActionButtonProps;
@@ -58,7 +58,9 @@ interface IDataTableProps {
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
-  renderFooter?: () => JSX.Element | null;
+  /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
+   * rows of data are present. */
+  renderTableHelpText?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
 }
@@ -69,8 +71,9 @@ interface IHeaderGroup extends HeaderGroup {
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
-// This data table uses react-table for implementation. The relevant documentation of the library
-// can be found here https://react-table.tanstack.com/docs/api/useTable
+// This data table uses react-table for implementation. The relevant v7 documentation of the library
+// can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
+
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
@@ -84,7 +87,7 @@ const DataTable = ({
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
-  resultsTitle,
+  resultsTitle = "results",
   defaultPageSize,
   defaultPageIndex,
   primarySelectAction,
@@ -99,7 +102,7 @@ const DataTable = ({
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
-  renderFooter,
+  renderTableHelpText,
   renderPagination,
   setExportRows,
 }: IDataTableProps): JSX.Element => {
@@ -157,7 +160,7 @@ const DataTable = ({
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
-      filterTypes: React.useMemo(
+      filterTypes: useMemo(
         () => ({
           hasLength: (
             // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -178,7 +181,7 @@ const DataTable = ({
       // Expands the enumerated `sortTypes` for react-table
       // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
       // with custom `sortTypes` defined for this `useTable` instance
-      sortTypes: React.useMemo(
+      sortTypes: useMemo(
         () => ({
           boolean: (
             a: { values: Record<string, unknown> },
@@ -442,6 +445,7 @@ const DataTable = ({
 
   const tableStyles = classnames({
     "data-table__table": true,
+    "data-table__no-rows": !rows.length,
     "is-observer": isOnlyObserver,
   });
 
@@ -553,8 +557,10 @@ const DataTable = ({
         </table>
       </div>
       <div className={`${baseClass}__footer`}>
-        {renderFooter && (
-          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        {renderTableHelpText && !!rows?.length && (
+          <div className={`${baseClass}__table-help-text`}>
+            {renderTableHelpText()}
+          </div>
         )}
         {isClientSidePagination ? (
           <div className={`${baseClass}__pagination`}>

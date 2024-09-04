@@ -12,12 +12,10 @@ const validate = (formData) => {
     name,
   } = formData;
 
-  if (!validEmail(email)) {
-    errors.email = "Email must be a valid email";
-  }
-
   if (!email) {
     errors.email = "Email must be present";
+  } else if (!validEmail(email)) {
+    errors.email = "Email must be a valid email";
   }
 
   if (!name) {

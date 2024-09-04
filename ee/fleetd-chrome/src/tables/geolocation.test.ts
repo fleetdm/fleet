@@ -72,10 +72,10 @@ describe("geolocation", () => {
     expect(rows).toEqual({
       data: [
         {
-          ip: "",
+          ip: null,
           city: "Vancouver",
-          country: "",
-          region: "",
+          country: null,
+          region: null,
         },
       ],
       warnings: null,

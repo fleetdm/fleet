@@ -4,8 +4,6 @@ import { IconNames } from "components/icons";
 // @ts-ignore
 import InputFieldWithIcon from "../InputFieldWithIcon";
 
-const baseClass = "search-field";
-
 export interface ISearchFieldProps {
   placeholder: string;
   defaultValue?: string;
@@ -37,7 +35,6 @@ const SearchField = ({
       name={icon}
       placeholder={placeholder}
       value={searchQueryInput}
-      // inputWrapperClass={`${baseClass}__input-wrapper`}
       onChange={onInputChange}
       onClick={onClick}
       iconPosition="start"

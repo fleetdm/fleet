@@ -9,16 +9,20 @@ import ShowDetailsButton from "../../ShowDetailsButton";
 const baseClass = "ran-script-activity-item";
 
 const RanScriptActivityItem = ({
+  tab,
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
+  const ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
+
   return (
     <HostActivityItem className={baseClass} activity={activity}>
       <b>{activity.actor_full_name}</b>
       <>
         {" "}
-        ran {formatScriptNameForActivityItem(activity.details?.script_name)} on
-        this host.{" "}
+        {ranScriptPrefix}{" "}
+        {formatScriptNameForActivityItem(activity.details?.script_name)} on this
+        host.{" "}
         <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
       </>
     </HostActivityItem>

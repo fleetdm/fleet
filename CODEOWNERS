@@ -38,8 +38,10 @@
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
-/server/ @fleetdm/go
 /cmd/ @fleetdm/go
+/server/ @fleetdm/go
+/ee/server/ @fleetdm/go
+/orbit/ @lucasmrod @roperzh @lukeheath @georgekarrv @sharon-fdm
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -54,10 +56,10 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb
-/it-and-security/ @noahtalerman
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/it-and-security/ @noahtalerman @lukeheath @spokanemac @getvictor
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -65,8 +67,8 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                           @rachaelshaw
-/docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################
@@ -74,37 +76,43 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
 
 ##############################################################################################
-# 🦿 Repo automation and change control settings
+# 🌐 Repo automation and change control settings
 ##############################################################################################
 # /CODEOWNERS                 @mikermcneil  # Covered in DRIs
 
 ##############################################################################################
-# 🦿 Handbook
+# 🌐 Handbook
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/README.md            @mikermcneil
-/handbook/company/communications.md    @mikermcneil
-/handbook/company/leadership.md        @mikermcneil
-/handbook/company/why-this-way.md      @mikermcneil
-/handbook/README.md                    @mikermcneil
-/handbook/company/open-positions.yml   @sampfluger88
-/handbook/company/product-groups.md    @mikermcneil @sampfluger88 @lukeheath
-/handbook/business-operations       @sampfluger88
-/handbook/digital-experience        @sampfluger88
-/handbook/customer-success          @sampfluger88
-/handbook/demand                    @sampfluger88
-/handbook/engineering               @sampfluger88 @lukeheath
-/handbook/sales                     @sampfluger88
-/handbook/product-design            @sampfluger88
+/handbook/company/README.md                                      @mikermcneil
+/handbook/company/communications.md                              @mikermcneil
+/handbook/company/leadership.md                                  @mikermcneil
+/handbook/company/why-this-way.md                                @mikermcneil
+/handbook/README.md                                              @mikermcneil
+/handbook/company/open-positions.yml                             @sampfluger88
+/handbook/company/product-groups.md                              @lukeheath
+/handbook/business-operations/README.md                          @sampfluger88
+/handbook/business-operations/business-operations.rituals.yml    @sampfluger88
+/handbook/business-operations/Application-security.md            @lukeheath
+/handbook/business-operations/security-audits.md                 @lukeheath
+/handbook/business-operations/security-policies.md               @lukeheath
+/handbook/business-operations/security.md                        @lukeheath
+/handbook/business-operations/vendor-questionnaires.md           @lukeheath
+/handbook/digital-experience                              @sampfluger88
+/handbook/customer-success                                @sampfluger88
+/handbook/demand                                          @sampfluger88
+/handbook/engineering                                     @sampfluger88 @lukeheath
+/handbook/sales                                           @sampfluger88
+/handbook/product-design                                  @sampfluger88
 
 ##############################################################################################
-# 🦿 GitHub issue templates
+# 🌐 GitHub issue templates
 ##############################################################################################
-/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
+#/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
 # 🌐 GitHub workflows
@@ -119,43 +127,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/README.md @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/goreleaser-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/update-certs.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/codeql-analysis.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/codeql.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/scorecards-analysis.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/integration.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleetctl-preview.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleetctl-preview-latest.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/goreleaser-orbit.yaml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/trivy-scan.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleetd-tuf.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/generate-desktop-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-yml-specs.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/build-binaries.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/fleet-and-orbit.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/build-orbit.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/generate-osqueryd-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-packaging.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/release-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/pr-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/tfvalidate.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/dogfood-deploy.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-db-changes.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-go.yaml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/golangci-lint.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-native-tooling-packaging.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/check-tuf-timestamps.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-puppet.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/generate-nudge-targets.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-js.yml @ghernandez345 @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/dogfood-gitops.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/test-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/release-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
-/.github/workflows/release-fleetd-chrome-beta.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

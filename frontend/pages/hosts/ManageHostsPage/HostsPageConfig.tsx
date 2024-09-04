@@ -10,6 +10,9 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "policy_response",
   "macos_settings",
   "software_id",
+  "software_version_id",
+  "software_title_id",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
   "status",
   "mdm_id",
   "mdm_enrollment_status",
@@ -32,6 +35,7 @@ export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   "software_id",
   "software_version_id",
   "software_title_id",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
   "bootstrap_package",
   "macos_settings",
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
@@ -51,7 +55,7 @@ export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "display_name";
 export const DEFAULT_SORT_DIRECTION = "asc";
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
 
 export const getHostSelectStatuses = (isSandboxMode = false) => {

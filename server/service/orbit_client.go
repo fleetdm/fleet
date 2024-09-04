@@ -2,13 +2,18 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
+	"net/http/httptrace"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -40,8 +45,20 @@ type OrbitClient struct {
 	onGetConfigErrFns           *OnGetConfigErrFuncs
 	lastNetErrOnGetConfigLogged time.Time
 
+	lastIdleConnectionsCleanupMu sync.Mutex
+	lastIdleConnectionsCleanup   time.Time
+
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
+
+	// Interfaces that will receive updated configs
+	ConfigReceivers []fleet.OrbitConfigReceiver
+	// How frequently a new config will be fetched
+	ReceiverUpdateInterval time.Duration
+	// receiverUpdateContext used by ExecuteConfigReceivers to cancel the update loop.
+	receiverUpdateContext context.Context
+	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
+	receiverUpdateCancelFunc context.CancelFunc
 }
 
 // time-to-live for config cache
@@ -64,9 +81,22 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 		}
 	}
 
-	request, err := http.NewRequest(
+	parsedURL, err := url.Parse(path)
+	if err != nil {
+		return fmt.Errorf("parsing URL: %w", err)
+	}
+
+	oc.closeIdleConnections()
+
+	ctx := context.Background()
+	if os.Getenv("FLEETD_TEST_HTTPTRACE") == "1" {
+		ctx = httptrace.WithClientTrace(ctx, testStdoutHTTPTracer)
+	}
+
+	request, err := http.NewRequestWithContext(
+		ctx,
 		verb,
-		oc.url(path, "").String(),
+		oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
@@ -97,8 +127,9 @@ type OnGetConfigErrFuncs struct {
 }
 
 var (
-	netErrInterval            = 5 * time.Minute
-	configRetryOnNetworkError = 30 * time.Second
+	netErrInterval                     = 5 * time.Minute
+	configRetryOnNetworkError          = 30 * time.Second
+	defaultOrbitConfigReceiverInterval = 30 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -117,21 +148,139 @@ func NewOrbitClient(
 	orbitHostInfo fleet.OrbitHostInfo,
 	onGetConfigErrFns *OnGetConfigErrFuncs,
 ) (*OrbitClient, error) {
-	orbitCapabilities := fleet.CapabilityMap{}
+	orbitCapabilities := fleet.GetOrbitClientCapabilities()
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err
 	}
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
 	return &OrbitClient{
-		nodeKeyFilePath:   nodeKeyFilePath,
-		baseClient:        bc,
-		enrollSecret:      enrollSecret,
-		hostInfo:          orbitHostInfo,
-		enrolled:          false,
-		onGetConfigErrFns: onGetConfigErrFns,
+		nodeKeyFilePath:            nodeKeyFilePath,
+		baseClient:                 bc,
+		enrollSecret:               enrollSecret,
+		hostInfo:                   orbitHostInfo,
+		enrolled:                   false,
+		onGetConfigErrFns:          onGetConfigErrFns,
+		lastIdleConnectionsCleanup: time.Now(),
+		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
+		receiverUpdateContext:      ctx,
+		receiverUpdateCancelFunc:   cancelFunc,
 	}, nil
+}
+
+// TriggerOrbitRestart triggers a orbit process restart.
+func (oc *OrbitClient) TriggerOrbitRestart(reason string) {
+	log.Info().Msgf("orbit restart triggered: %s", reason)
+	oc.receiverUpdateCancelFunc()
+}
+
+// RestartTriggered returns true if any of the config receivers triggered an orbit restart.
+func (oc *OrbitClient) RestartTriggered() bool {
+	select {
+	case <-oc.receiverUpdateContext.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// closeIdleConnections attempts to close idle connections from the pool
+// every 55 minutes.
+//
+// Some load balancers (e.g. AWS ELB) have a maximum lifetime for a connection
+// (no matter if the connection is active or not) and will forcefully close the
+// connection causing errors in the client (e.g. https://github.com/fleetdm/fleet/issues/18783).
+// To prevent these errors, we will attempt to cleanup idle connections every 55
+// minutes to not let these connection grow too old. (AWS ELB's default value for maximum
+// lifetime of a connection is 3600 seconds.)
+func (oc *OrbitClient) closeIdleConnections() {
+	oc.lastIdleConnectionsCleanupMu.Lock()
+	defer oc.lastIdleConnectionsCleanupMu.Unlock()
+
+	if time.Since(oc.lastIdleConnectionsCleanup) < 55*time.Minute {
+		return
+	}
+
+	oc.lastIdleConnectionsCleanup = time.Now()
+
+	c, ok := oc.baseClient.http.(*http.Client)
+	if !ok {
+		return
+	}
+	t, ok := c.Transport.(*http.Transport)
+	if !ok {
+		return
+	}
+
+	t.CloseIdleConnections()
+}
+
+func (oc *OrbitClient) RunConfigReceivers() error {
+	config, err := oc.GetConfig()
+	if err != nil {
+		return fmt.Errorf("RunConfigReceivers get config: %w", err)
+	}
+
+	var errs []error
+	var errMu sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(oc.ConfigReceivers))
+
+	for _, receiver := range oc.ConfigReceivers {
+		receiver := receiver
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					errMu.Lock()
+					errs = append(errs, fmt.Errorf("panic occured in receiver: %v", err))
+					errMu.Unlock()
+				}
+				wg.Done()
+			}()
+
+			err := receiver.Run(config)
+			if err != nil {
+				errMu.Lock()
+				errs = append(errs, err)
+				errMu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if len(errs) != 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
+func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
+	oc.ConfigReceivers = append(oc.ConfigReceivers, cr)
+}
+
+func (oc *OrbitClient) ExecuteConfigReceivers() error {
+	ticker := time.NewTicker(oc.ReceiverUpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-oc.receiverUpdateContext.Done():
+			return nil
+		case <-ticker.C:
+			if err := oc.RunConfigReceivers(); err != nil {
+				log.Error().Err(err).Msg("running config receivers")
+			}
+		}
+	}
+}
+
+func (oc *OrbitClient) InterruptConfigReceivers(err error) {
+	oc.receiverUpdateCancelFunc()
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
@@ -228,6 +377,64 @@ func (oc *OrbitClient) SaveHostScriptResult(result *fleet.HostScriptResultPayloa
 		return err
 	}
 	return nil
+}
+
+func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error) {
+	verb, path := "POST", "/api/fleet/orbit/software_install/details"
+	var resp orbitGetSoftwareInstallResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitGetSoftwareInstallRequest{
+		InstallUUID: installId,
+	}, &resp); err != nil {
+		return nil, err
+	}
+	return resp.SoftwareInstallDetails, nil
+}
+
+func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/software_install/result"
+	var resp orbitPostSoftwareInstallResultResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostSoftwareInstallResultRequest{
+		HostSoftwareInstallResultPayload: payload,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string) (string, error) {
+	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
+	resp := FileResponse{DestPath: downloadDirectory}
+	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+		InstallerID: installerID,
+	}, &resp); err != nil {
+		return "", err
+	}
+	return resp.GetFilePath(), nil
+}
+
+type NullFileResponse struct {
+}
+
+func (f *NullFileResponse) Handle(resp *http.Response) error {
+	_, _, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+	if err != nil {
+		return fmt.Errorf("parsing media type from response header: %w", err)
+	}
+	_, err = io.Copy(io.Discard, resp.Body)
+	if err != nil {
+		return fmt.Errorf("copying from http stream to io.Discard: %w", err)
+	}
+	return nil
+}
+
+// DownloadAndDiscardSoftwareInstaller downloads the software installer and discards it.
+// This method is used during load testing by osquery-perf.
+func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) error {
+	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
+	resp := NullFileResponse{}
+	return oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+		InstallerID: installerID,
+	}, &resp)
 }
 
 // Ping sends a ping request to the orbit/ping endpoint.
@@ -430,4 +637,21 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.O
 		return err
 	}
 	return nil
+}
+
+const httpTraceTimeFormat = "2006-01-02T15:04:05Z"
+
+var testStdoutHTTPTracer = &httptrace.ClientTrace{
+	ConnectStart: func(network, addr string) {
+		fmt.Printf(
+			"httptrace: %s: ConnectStart: %s, %s\n",
+			time.Now().UTC().Format(httpTraceTimeFormat), network, addr,
+		)
+	},
+	ConnectDone: func(network, addr string, err error) {
+		fmt.Printf(
+			"httptrace: %s: ConnectDone: %s, %s, err='%s'\n",
+			time.Now().UTC().Format(httpTraceTimeFormat), network, addr, err,
+		)
+	},
 }

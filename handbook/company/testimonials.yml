@@ -7,6 +7,29 @@
 #   quoteImageFilename: 
 #   youtubeVideoUrl: 
 #.  productCategories: [Endpoint operations, Vulnerability management, Device management]
+#
+# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
+-
+  quote: Yes Sir. Great tools for the everyday open-source geeks 💯
+  quoteAuthorName: Alvaro Gutierrez
+  quoteAuthorProfileImageFilename: testimonial-authour-alvaro-gutierrez-100x100@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/aantoniogutierrez/
+  quoteAuthorJobTitle: Technology Evangelist
+  productCategories: [Endpoint operations]
+-
+  quote: Fleet / osquery are some of my favorite open source detection tooling.
+  quoteAuthorName: Joe Pistone
+  quoteAuthorProfileImageFilename: testimonial-author-joe-pistone-100x100@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/josephpistone/
+  quoteAuthorJobTitle: Manager, Security Operations
+  productCategories: [Endpoint operations]
+-
+  quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
+  quoteAuthorName: Charles Zaffery
+  quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
+  quoteAuthorJobTitle: Principle Computer Janitor
+  productCategories: [Vulnerability management]
 -
   quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
   quoteAuthorName: Andre Shields
@@ -56,6 +79,14 @@
   quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Endpoint operations, Vulnerability management]
 -
+  quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
+  quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
+  quoteAuthorName: Nico Waisman
+  quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
+  quoteAuthorJobTitle: CISO of Lyft
+  productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
+-
   quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
   quoteAuthorName: Kenny Botelho
   quoteAuthorProfileImageFilename: testimonial-author-kenny-botelho-48x48@2x.png
@@ -71,7 +102,7 @@
   quoteAuthorJobTitle: Staff CPE at Stripe
   productCategories: [Endpoint operations, Device management]
 -
-  quote: Fleet’s come a long way - to now being the top open-source osquery manager. Just in the past 6 months.
+  quote: Fleet’s come a long way - to now being the top open-source osquery manager.
   quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/bshak/
   quoteAuthorName: Brendan Shaklovitz
@@ -110,15 +141,6 @@
   quoteAuthorProfileImageFilename: testimonial-author-dhruv-majumdar-48x48@2x.png
   quoteAuthorJobTitle: Director Of Cyber Risk & Advisory
   productCategories: [Vulnerability management, Endpoint operations]
--
-  quote: When we look at vendors, we look for ones that are very receptive to feedback, where you’re just part of the family, I guess. Fleet’s really good at that.
-  quoteImageFilename: logo-deputy-118x28@2x.png
-  quoteAuthorName: Harrison Ravazzolo
-  quoteAuthorProfileImageFilename: testimonial-author-harrison-ravazzolo-48x48@2x.png
-  quoteLinkUrl: https://www.linkedin.com/in/harrison-ravazzolo/
-  quoteAuthorJobTitle: Lead platform and identity engineer
-  youtubeVideoUrl: https://www.youtube.com/watch?v=5W0q5yQE3R0
-  productCategories: [Endpoint operations]
 -
   quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
   quoteAuthorName: Charles Zaffery

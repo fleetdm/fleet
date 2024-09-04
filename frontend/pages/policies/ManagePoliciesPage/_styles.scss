@@ -21,28 +21,6 @@
     .Select > .Select-menu-outer {
       left: -186px;
       width: 360px;
-      .dropdown__help-text {
-        color: $ui-fleet-black-50;
-      }
-      .is-disabled * {
-        color: $ui-fleet-black-25;
-        .label-text {
-          font-style: normal;
-          // increase height to allow for broader tooltip activation area
-          position: absolute;
-          height: 34px;
-          width: 100%;
-        }
-        .dropdown__help-text {
-          // compensate for absolute label-text height
-          margin-top: 20px;
-        }
-        .react-tooltip {
-          @include tooltip-text;
-          font-style: normal;
-          text-align: center;
-        }
-      }
     }
     .Select-control {
       margin-top: 0;
@@ -184,8 +162,8 @@
     }
   }
 
-  .critical-tooltip {
-    text-align: left;
+  .critical-tooltip,
+  .inherited-tooltip {
     font-weight: $regular;
   }
 
@@ -203,8 +181,13 @@
               display: flex; // required for inline icon
               gap: $pad-xsmall;
 
-              .tooltip-base {
-                display: inline-flex;
+              // Underlines only the name text
+              &:hover {
+                text-decoration: none;
+
+                .policy-name-text {
+                  text-decoration: underline;
+                }
               }
 
               .policy-name-text {
@@ -213,7 +196,94 @@
               }
             }
           }
+
+          .critical-badge,
+          .policy-has-not-run {
+            .critical-badge-icon {
+              display: inline-flex;
+            }
+
+            @include tooltip5-arrow-styles;
+
+            .react-tooltip {
+              @include tooltip-text;
+              font-style: normal;
+              text-align: center;
+            }
+          }
+
+          .inherited-badge {
+            overflow: initial;
+          }
         }
+      }
+    }
+  }
+
+  // Used in CalendarEventsModal, InstallSoftwareModal, and OtherWorkflowsModal
+  .automated-policies-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 4px;
+    border: 1px solid $ui-fleet-black-10;
+    // negate ul padding
+    padding-left: 0;
+
+    .policy-row {
+      display: flex;
+      max-width: 100%;
+      padding: 8px 12px;
+      justify-content: space-between;
+      align-items: center;
+      align-self: stretch;
+      border-bottom: 1px solid $ui-fleet-black-10;
+      gap: 20px;
+
+      .form-field--checkbox {
+        flex: 1 1 0%; /* This allows growing and shrinking */
+        min-width: 0; /* This is crucial for proper shrinking */
+      }
+
+      .fleet-checkbox__tick {
+        flex: 0 0 auto; /* This prevents growing and shrinking */
+        width: fit-content; /* This ensures button isn't cut off */
+      }
+
+      .fleet-checkbox__label {
+        display: flex;
+        white-space: nowrap;
+        flex: 1 1 0%; /* This allows growing and shrinking */
+        min-width: 0; /* This is crucial for proper shrinking */
+      }
+
+      &__preview-button {
+        flex: 0 0 auto; /* This prevents growing and shrinking */
+        width: fit-content; /* This ensures button isn't cut off */
+        visibility: hidden;
+      }
+
+      &:hover {
+        background: $ui-off-white;
+        cursor: pointer;
+
+        label {
+          cursor: pointer;
+        }
+
+        .policy-row__preview-button {
+          visibility: visible;
+        }
+      }
+
+      &:first-child {
+        border-radius: 4px 4px 0 0;
+      }
+
+      &:last-child {
+        border-radius: 0 0 4px 4px;
+        border-bottom: none;
       }
     }
   }

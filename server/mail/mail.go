@@ -20,7 +20,14 @@ import (
 func NewService(config config.FleetConfig) (fleet.MailService, error) {
 	switch strings.ToLower(config.Email.EmailBackend) {
 	case "ses":
-		return NewSESSender(config.SES.Region, config.SES.EndpointURL, config.SES.AccessKeyID, config.SES.SecretAccessKey, config.SES.StsAssumeRoleArn, config.SES.SourceArn)
+		return NewSESSender(config.SES.Region,
+			config.SES.EndpointURL,
+			config.SES.AccessKeyID,
+			config.SES.SecretAccessKey,
+			config.SES.StsAssumeRoleArn,
+			config.SES.StsExternalID,
+			config.SES.SourceArn,
+		)
 	default:
 		return &mailService{}, nil
 	}

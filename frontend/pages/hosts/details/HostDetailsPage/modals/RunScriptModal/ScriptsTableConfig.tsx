@@ -1,8 +1,4 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { noop } from "lodash";
-
-import { COLORS } from "styles/var/colors";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";
@@ -37,41 +33,12 @@ interface IDropdownCellProps {
   };
 }
 
-const ScriptRunActionDropdownLabel = ({
-  scriptId,
-  disabled,
-}: {
-  scriptId: number;
-  disabled: boolean;
-}) => {
-  const tipId = `run-script-${scriptId}`;
-  return disabled ? (
-    <>
-      <span data-tip data-for={tipId}>
-        Run
-      </span>
-      <ReactTooltip
-        place="bottom"
-        type="dark"
-        effect="solid"
-        id={tipId}
-        backgroundColor={COLORS["tooltip-bg"]}
-        delayHide={100}
-        delayUpdate={500}
-      >
-        Script is already running.
-      </ReactTooltip>
-    </>
-  ) : (
-    <>Run</>
-  );
-};
-
 const generateActionDropdownOptions = (
   currentUser: IUser | null,
   teamId: number | null,
-  { script_id, last_execution }: IHostScript
+  { last_execution }: IHostScript
 ): IDropdownOption[] => {
+  const isPending = last_execution?.status === "pending";
   const hasRunPermission =
     !!currentUser &&
     (isGlobalAdmin(currentUser) ||
@@ -88,18 +55,15 @@ const generateActionDropdownOptions = (
       disabled: last_execution === null,
       value: "showDetails",
     },
-    {
-      label: (
-        <ScriptRunActionDropdownLabel
-          scriptId={script_id}
-          disabled={last_execution?.status === "pending"}
-        />
-      ),
-      disabled: last_execution?.status === "pending",
-      value: "run",
-    },
   ];
-  return hasRunPermission ? options : options.slice(0, 1);
+  hasRunPermission &&
+    options.push({
+      label: "Run",
+      disabled: isPending,
+      value: "run",
+      tooltipContent: isPending ? "Script is already running." : undefined,
+    });
+  return options;
 };
 
 // eslint-disable-next-line import/prefer-default-export
@@ -137,7 +101,6 @@ export const generateTableColumnConfigs = (
           return (
             <span className="run-script-action--disabled">
               <TooltipWrapper
-                position="top"
                 tipContent={
                   <div>
                     Running scripts is disabled in organization settings

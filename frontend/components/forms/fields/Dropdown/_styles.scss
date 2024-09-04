@@ -51,13 +51,14 @@
   &__option {
     display: flex;
     flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
   }
 
   &__help-text {
-    margin-top: $pad-xsmall;
     font-size: $xx-small;
     white-space: normal;
-    color: $core-fleet-blue;
+    color: $ui-fleet-black-50;
     font-style: italic;
   }
 }
@@ -66,11 +67,13 @@
   &.dropdown__select {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
-    &:hover {
+
+    &:hover:not(.is-disabled) {
       box-shadow: none;
-      border: 1px solid $core-vibrant-blue;
+      border-color: $core-vibrant-blue;
     }
   }
+
   .Select-control {
     background-color: $ui-light-grey;
     border: 0;
@@ -205,6 +208,12 @@
         }
       }
     }
+
+    &.is-disabled {
+      > .Select-control .Select-value .Select-value-label {
+        color: $ui-fleet-black-50;
+      }
+    }
   }
 
   .Select-menu-outer {
@@ -308,7 +317,7 @@
 
     .Select-option {
       &.is-disabled {
-        color: $core-fleet-black;
+        color: $ui-fleet-black-50;
         cursor: default;
 
         &.is-focused {
@@ -327,5 +336,13 @@
     position: relative;
     top: 4px;
     margin-left: 3px;
+  }
+}
+
+.form-field {
+  &__label {
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
   }
 }

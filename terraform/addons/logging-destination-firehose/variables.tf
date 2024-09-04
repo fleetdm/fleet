@@ -19,3 +19,7 @@ variable "osquery_status_s3_bucket" {
     expires_days = 1
   }
 }
+
+variable "compression_format" {
+  default = "UNCOMPRESSED"
+}

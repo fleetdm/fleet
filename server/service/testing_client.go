@@ -25,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +40,12 @@ type withDS struct {
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
 	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
-	test.AddAllHostsLabel(t, ts.ds)
+	// remove any migration-created labels
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
+		return err
+	})
+	test.AddBuiltinLabels(t, ts.ds)
 
 	// setup the required fields on AppConfig
 	appConf, err := ts.ds.AppConfig(context.Background())
@@ -95,6 +100,12 @@ func (ts *withServer) TearDownSuite() {
 }
 
 func (ts *withServer) commonTearDownTest(t *testing.T) {
+	// By setting DISABLE_TABLES_CLEANUP a developer can troubleshoot tests
+	// by inspecting mysql tables.
+	if os.Getenv("DISABLE_CLEANUP_TABLES") != "" {
+		return
+	}
+
 	ctx := context.Background()
 
 	u := ts.users["admin1@example.com"]
@@ -106,9 +117,6 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
-
-	// recalculate software counts will remove the software entries
-	require.NoError(t, ts.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -147,6 +155,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		return err
+	})
+
 	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
@@ -165,8 +179,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// SyncHostsSoftware performs a cleanup.
+	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
+	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
 
 	// delete orphaned scripts
@@ -255,6 +273,21 @@ func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, exp
 func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
 	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.NewDecoder(resp.Body).Decode(v)
+	require.NoError(ts.s.T(), err)
+	if e, ok := v.(errorer); ok {
+		require.NoError(ts.s.T(), e.error())
+	}
+}
+
+func (ts *withServer) DoJSONWithoutAuth(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+	t := ts.s.T()
+	rawBytes, err := json.Marshal(params)
+	require.NoError(t, err)
+	resp := ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, map[string]string{}, queryParams...)
+	t.Cleanup(func() {
+		resp.Body.Close()
+	})
+	err = json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
 	if e, ok := v.(errorer); ok {
 		require.NoError(ts.s.T(), e.error())
@@ -461,4 +494,25 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 
 	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
 	return 0
+}
+
+func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
+	t := ts.s.T()
+
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			if details != "" {
+				require.NotNil(t, act.Details)
+				assert.NotEqual(t, details, string(*act.Details))
+			}
+			if id > 0 {
+				assert.NotEqual(t, id, act.ID)
+			}
+		}
+	}
 }

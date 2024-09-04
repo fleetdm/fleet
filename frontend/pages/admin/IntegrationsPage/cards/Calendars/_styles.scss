@@ -12,12 +12,16 @@
     margin-block-start: $pad-small;
   }
 
+  ul {
+    margin: 0;
+  }
+
   li {
     margin: $pad-small 0;
   }
 
-  form {
-    margin-top: $pad-large;
+  .card {
+    margin-top: $pad-small;
   }
 
   &__configuration {
@@ -27,6 +31,7 @@
   }
 
   &__api-key-json {
+    font-family: "SourceCodePro", $monospace;
     min-width: 100%; // resize vertically only
     height: 294px;
     font-size: $x-small;

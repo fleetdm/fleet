@@ -13,9 +13,17 @@ import YamlAce from "components/YamlAce";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 
-import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
+
+interface IAgentOptionsFormData {
+  agentOptions?: string;
+}
+
+interface IAgentOptionsFormErrors {
+  agent_options?: string | null;
+}
 
 const Agents = ({
   appConfig,
@@ -25,10 +33,10 @@ const Agents = ({
 }: IAppConfigFormProps): JSX.Element => {
   const { ADMIN_TEAMS } = paths;
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IAgentOptionsFormData>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAgentOptionsFormErrors>({});
 
   const { agentOptions } = formData;
 
@@ -37,7 +45,7 @@ const Agents = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: IAgentOptionsFormErrors = {};
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
@@ -58,7 +66,7 @@ const Agents = ({
     evt.preventDefault();
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit = agentOptions
+    const formDataToSubmit: any = agentOptions
       ? {
           agent_options: yaml.load(agentOptions),
         }
@@ -73,9 +81,9 @@ const Agents = ({
         <SectionHeader title="Agent options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
-            Agent options configure the osquery agent. When you update agent
-            options, they will be applied the next time a host checks in to
-            Fleet.{" "}
+            Agent options configure Fleet&apos;s agent (fleetd). When you update
+            agent options, they will be applied the next time a host checks in
+            to Fleet.{" "}
             <CustomLink
               url="https://fleetdm.com/docs/configuration/agent-configuration"
               text="Learn more about agent options"

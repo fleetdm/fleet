@@ -45,6 +45,14 @@ export interface IUpdateTeamFormData {
       minimum_version: string;
       deadline: string;
     };
+    ios_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
     windows_updates?: {
       deadline_days: number;
       grace_period_days: number;
@@ -140,6 +148,16 @@ export default {
 
     return sendRequest("PATCH", path, requestBody);
   },
+
+  /**
+   * updates the team config. This can take any partial data that is in the team config.
+   */
+  updateConfig: (data: any, teamId: number): Promise<ITeamConfig> => {
+    const { TEAMS } = endpoints;
+    const path = `${TEAMS}/${teamId}`;
+    return sendRequest("PATCH", path, data);
+  },
+
   addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(

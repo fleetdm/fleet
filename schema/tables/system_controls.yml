@@ -1,15 +1,42 @@
 name: system_controls
-examples: >-
-  See if IP forwarding is enabled (value=1) or not (current_value=0). This table
-  provides access to a large quantity of low-level settings and is ideal to
-  build policies.
-
+description: The `sysctl` binary found in many UNIX-like operating systems reads and modifies system kernel attributes. The `system_controls` osquery table expresses the data made available by the `sysctl` binary on Linux and macOS.
+examples: |-
+  Collect the hardware model and the number of CPU cores from a Mac:
+  
   ```
-
-  SELECT current_value, name FROM system_controls WHERE name='net.inet.ip.forwarding';
-
+  SELECT current_value,name FROM system_controls WHERE name='hw.model' OR name='hw.ncpu';
   ```
+  
+  Collect the reason for the last shutdown event, the duration since and timestamp of the most recent boot, and, the duration since and timestamp of the most recent wake from sleep:
+  
+  ```
+  SELECT current_value,name FROM system_controls WHERE name='kern.shutdownreason' OR name='kern.boottime' OR name='kern.waketime';
+  ```
+  
+  Discover if IP Forwarding is enabled:
+  
+  ```
+  SELECT name,current_value FROM system_controls WHERE name='net.inet.ip.forwarding' AND current_value='1';
+  ```
+notes: |-
+  Because the `system_control` table provides access to a large quantity of low-level, unique settings available via `sysctl` it is ideal for use in Fleet policies.
+
+  E.g., the number of CPU cores can be obtained with the following `sysctl` command:
+  
+  ```
+  % sysctl hw.ncpu
+  hw.ncpu: 12
+  ```
+  
+  [sysctl](https://en.wikipedia.org/wiki/Sysctl)
+  
+  [Apple sysctl documentation](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sysctl.3.html)
+
+  [Disable IP Forwarding](https://linuxconfig.org/how-to-turn-on-off-ip-forwarding-in-linux)
+
+  [Use sysctl to collect boot, sleep and wake timestamps](https://osxdaily.com/2011/07/14/get-exact-boot-sleep-and-wake-times-from-the-command-line/)
 columns:
   - name: field_name
     platforms:
       - darwin
+      - linux

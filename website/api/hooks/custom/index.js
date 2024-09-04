@@ -88,8 +88,10 @@ will be disabled and/or hidden in the UI.
           from: sails.config.custom.fromEmailAddress,
           fromName: sails.config.custom.fromName,
         });
-
-        if(sails.config.environment === 'production'){
+        // Send a request to our Algolia crawler to reindex the website.
+        // FUTURE: If this breaks again, use the Platform model to store when the website was last crawled
+        // (platform.algoliaLastCrawledWebsiteAt), and then only send a request if it was <30m ago, then remove dyno check.
+        if(sails.config.environment === 'production' && process.env.DYNO === 'web.1'){
           sails.helpers.http.post.with({
             url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
             headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
@@ -123,9 +125,9 @@ will be disabled and/or hidden in the UI.
 
             var url = require('url');
 
-            // First, if this is a GET request (and thus potentially a view),
+            // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
-            if (req.method === 'GET') {
+            if (req.method === 'GET' || req.method === 'HEAD') {
 
               // The  `_environment` local lets us do a little workaround to make Vue.js
               // run in "production mode" without unnecessarily involving complexities
@@ -145,20 +147,34 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
-            // Check for UTM parameters for website personalization.
+            // Check for query parameters set by ad clicks.
+            // This is used to track the reason behind a psychological stage change.
+            // If the user performs any action that causes a stage change
+            // within 30 minutes of visiting the website from an ad, their psychological
+            // stage change will be attributed to the ad campaign that brought them here.
+            if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
+              req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
+              // Example adAttributionString: Linkedin - 1245983829 - 41u3985237
+              req.session.visitedSiteFromAdAt = Date.now();
+            }
+
+            // Check for website personalization parameter, and if valid, absorb it in the session.
+            // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
             // e.g.
-            //   https://fleetdm.com/device-management?utm_source=linkedin&utm_campaign=evergreen+leadgen&utm_content=mdm
-            if (['eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
-              // If this is set to something weird, then we silently ignore it.
-              // Modify the active session instance. (This will be persisted when the response is sent.)
-              req.session.primaryBuyingSituation = req.param('utm_content');
-              // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
-              // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
+            //   https://fleetdm.com/device-management?utm_content=mdm
+            if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
+              req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
+              // FUTURE: reimplement the following (auto-redirect without querystring to make it prettier in the URL bar), but do it in the client-side JS
+              // using whatever that poppushstateblah thing is that makes it so you can change the URL bar from the browser-side code without screwing up
+              // the history stack (i.e. back button)
+              // ```
+              // return res.redirect(req.path);
+              // ```
             }//ﬁ
+
             if (req.method === 'GET' || req.method === 'HEAD') {
-              // Include information about the primary buying situation
-              // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
+              // Include information about the primary buying situation for use in the HTML layout, views, and page scripts.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
             }//ﬁ
 
@@ -280,6 +296,20 @@ will be disabled and/or hidden in the UI.
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
 
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+              // FUTURE: Only show this CTA to users who are below psyStage 6.
+              // > The code below is so we don't bother users who have completed the questionnaire
+
+              // Show this logged-in user a CTA to bring them to the /start questionnaire if they do not have billing information saved.
+              res.locals.showStartCta = !req.me.hasBillingCard;
+              //  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+              // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
+                res.locals.collapseStartCta = true;
+              } else {
+                res.locals.collapseStartCta = false;
+              }
             }//ﬁ
 
             return next();

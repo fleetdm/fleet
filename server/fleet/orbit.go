@@ -33,17 +33,31 @@ type OrbitConfigNotifications struct {
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
+
+	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
+	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 }
 
 type OrbitConfig struct {
-	Flags         json.RawMessage          `json:"command_line_startup_flags,omitempty"`
-	Extensions    json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
-	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
+	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
+	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
+	Extensions       json.RawMessage          `json:"extensions,omitempty"`
+	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
+	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
 	// UpdateChannels contains the TUF channels to use on fleetd components.
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+}
+
+type OrbitConfigReceiver interface {
+	Run(*OrbitConfig) error
+}
+
+type OrbitConfigReceiverFunc func(cfg *OrbitConfig) error
+
+func (f OrbitConfigReceiverFunc) Run(cfg *OrbitConfig) error {
+	return f(cfg)
 }
 
 // OrbitUpdateChannels hold the update channels that can be configured in fleetd agents.

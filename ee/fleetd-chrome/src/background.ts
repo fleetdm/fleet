@@ -1,8 +1,14 @@
 import VirtualDatabase from "./db";
+import {E_ALREADY_LOCKED, Mutex, tryAcquire, withTimeout} from 'async-mutex';
 
 // ENV Vars
 declare var FLEET_URL: string;
 declare var FLEET_ENROLL_SECRET: string;
+
+// Memory leaks have been observed in WASM sqlite implementation due to thrown errors by Javascript,
+// which may be caused by improper SQL syntax or insufficient error handling in table implementations.
+// Handling this error at the top level will prevent the extension from becoming non-functional.
+const MEMORY_RUNTIME_ERROR_MESSAGE = "memory access out of bounds";
 
 // TODO: Globals should probably be cleaned up into a class encapsulating state.
 let DATABASE: VirtualDatabase;
@@ -31,6 +37,15 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
     response = await fetch(target, options);
     response_body = await response.json();
   } catch (err) {
+    if (response && !response.ok) {
+      let text = ""
+      try {
+        text = await response.text()
+      } catch (e) {
+        // ignore, since we already know response is not ok
+      }
+      throw new Error(`Failed to fetch ${target}: ${response.status} ${response.statusText} ${text}`);
+    }
     console.warn(`Failed to fetch ${target}: ${err}`);
     throw new Error(`${path} request failed`);
   }
@@ -60,8 +75,7 @@ const authenticatedRequest = async ({
   }
 
   try {
-    const response_body = await request({ path, body: { ...body, node_key } });
-    return response_body;
+    return await request({path, body: {...body, node_key}});
   } catch (err) {
     // Reenroll if it's a node_invalid issue (and we haven't already tried a reenroll), otherwise
     // rethrow the error.
@@ -133,6 +147,10 @@ const live_query = async () => {
           continue;
         }
       } catch (err) {
+        if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
+          // We completely cancel the live query if wa-sqlite hit a memory error to prevent returning bogus data.
+          throw err
+        }
         // Discovery queries failing is typical -- they are often used to "discover" whether the
         // tables exist.
         console.debug(
@@ -156,6 +174,10 @@ const live_query = async () => {
         messages[query_name] = query_result.warnings; // Warnings array is concatenated in Table.ts xfilter
       }
     } catch (err) {
+      if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
+        // We completely cancel the live query if wa-sqlite hit a memory error to prevent returning bogus data.
+        throw err
+      }
       console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
       results[query_name] = null;
       statuses[query_name] = 1;
@@ -200,11 +222,7 @@ const main = async () => {
   }
 
   if (!DATABASE) {
-    const virtual = await VirtualDatabase.init();
-    DATABASE = virtual;
-
-    // Expose it for debugging in console
-    globalThis.DB = DATABASE;
+    await initDB();
   }
 
   const node_key = await getNodeKey();
@@ -215,11 +233,22 @@ const main = async () => {
   //await sqlite3.close(db);
 };
 
+const initDB = async () => {
+  DATABASE = await VirtualDatabase.init();
+  globalThis.DB = DATABASE;
+}
+
 class NodeInvalidError extends Error {
   constructor(message: string) {
     super(`request failed with node_invalid: ${message}`);
     this.name = "NodeInvalidError";
   }
+}
+
+// We use a mutex to ensure that only one instance of main is running at a time.
+const mutexWithTimeout = withTimeout(new Mutex(), 60 * 1000) // 60 second timeout
+async function runExclusive(callback: () => Promise<void>) {
+  await tryAcquire(mutexWithTimeout).runExclusive(callback)
 }
 
 // QUESTION maybe we should use one of the persistence mechanisms described in
@@ -233,12 +262,20 @@ class NodeInvalidError extends Error {
 let mainTimeout: ReturnType<typeof setTimeout>;
 const mainLoop = async () => {
   try {
-    await main();
-    clearTimeout(mainTimeout);
-    mainTimeout = setTimeout(mainLoop, 10 * 1000);
+    await runExclusive(main);
   } catch (err) {
+    if (err === E_ALREADY_LOCKED) {
+      console.info("'main' mutex already locked, skipping run")
+      return
+    }
     console.error(err);
+    if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
+      console.info("Restarting DB after wa-sqlite RuntimeError")
+      await initDB();
+    }
   }
+  clearTimeout(mainTimeout);
+  mainTimeout = setTimeout(mainLoop, 10 * 1000);
 };
 mainLoop();
 

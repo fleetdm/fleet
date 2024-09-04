@@ -18,20 +18,20 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-  IAppConfigFormErrors,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
 
-const baseClass = "app-config-form";
-
-export type IGlobalHostStatusWebhookFormData = {
+interface IGlobalHostStatusWebhookFormData {
   enableHostStatusWebhook: boolean;
-  destination_url: string;
+  destination_url?: string;
   hostStatusWebhookHostPercentage: number;
   hostStatusWebhookWindow: number;
-};
+}
+
+interface IGlobalHostStatusWebhookFormErrors {
+  destination_url?: string;
+}
+
+const baseClass = "app-config-form";
 
 const GlobalHostStatusWebhook = ({
   appConfig,
@@ -61,15 +61,18 @@ const GlobalHostStatusWebhook = ({
     hostStatusWebhookWindow,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [
+    formErrors,
+    setFormErrors,
+  ] = useState<IGlobalHostStatusWebhookFormErrors>({});
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: IGlobalHostStatusWebhookFormErrors = {};
 
     if (enableHostStatusWebhook) {
       if (!destination_url) {
@@ -103,6 +106,10 @@ const GlobalHostStatusWebhook = ({
           host_percentage: hostStatusWebhookHostPercentage,
           days_count: hostStatusWebhookWindow,
         },
+        failing_policies_webhook:
+          appConfig.webhook_settings.failing_policies_webhook,
+        vulnerabilities_webhook:
+          appConfig.webhook_settings.vulnerabilities_webhook,
       },
     };
 
@@ -139,33 +146,31 @@ const GlobalHostStatusWebhook = ({
             Send an alert if a portion of your hosts go offline.
           </p>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="enableHostStatusWebhook"
             value={enableHostStatusWebhook}
             parseTarget
           >
             Enable host status webhook
           </Checkbox>
-          <div>
-            <p className={`${baseClass}__section-description`}>
-              A request will be sent to your configured <b>Destination URL</b>{" "}
-              if the configured <b>Percentage of hosts</b> have not checked into
-              Fleet for the configured <b>Number of days</b>.
-            </p>
-            <Button
-              type="button"
-              variant="inverse"
-              onClick={toggleHostStatusWebhookPreviewModal}
-            >
-              Preview request
-            </Button>
-          </div>
+          <p className={`${baseClass}__section-description`}>
+            A request will be sent to your configured <b>Destination URL</b> if
+            the configured <b>Percentage of hosts</b> have not checked into
+            Fleet for the configured <b>Number of days</b>.
+          </p>
+          <Button
+            type="button"
+            variant="text-link"
+            onClick={toggleHostStatusWebhookPreviewModal}
+          >
+            Preview request
+          </Button>
           {enableHostStatusWebhook && (
             <>
               <InputField
                 placeholder="https://server.com/example"
                 label="Destination URL"
-                onChange={handleInputChange}
+                onChange={onInputChange}
                 name="destination_url"
                 value={destination_url}
                 parseTarget
@@ -181,7 +186,7 @@ const GlobalHostStatusWebhook = ({
               <Dropdown
                 label="Percentage of hosts"
                 options={percentageHostsOptions}
-                onChange={handleInputChange}
+                onChange={onInputChange}
                 name="hostStatusWebhookHostPercentage"
                 value={hostStatusWebhookHostPercentage}
                 parseTarget
@@ -200,7 +205,7 @@ const GlobalHostStatusWebhook = ({
               <Dropdown
                 label="Number of days"
                 options={windowOptions}
-                onChange={handleInputChange}
+                onChange={onInputChange}
                 name="hostStatusWebhookWindow"
                 value={hostStatusWebhookWindow}
                 parseTarget

@@ -29,7 +29,7 @@ type InitialStateType = {
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
   lastEditedQueryDiscardData: boolean;
-  editingExistingQuery: boolean;
+  editingExistingQuery?: boolean;
   selectedQueryTargets: ITarget[]; // Mimicks old selectedQueryTargets still used for policies for SelectTargets.tsx and running a live query
   selectedQueryTargetsByType: ISelectedTargetsByType; // New format by type for cleaner app wide state
   setLastEditedQueryId: (value: number | null) => void;
@@ -63,7 +63,7 @@ const initialState = {
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
   lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
   lastEditedQueryDiscardData: DEFAULT_QUERY.discard_data,
-  editingExistingQuery: DEFAULT_QUERY.editingExistingQuery,
+  editingExistingQuery: DEFAULT_QUERY.editingExistingQuery ?? false,
   selectedQueryTargets: DEFAULT_TARGETS,
   selectedQueryTargetsByType: DEFAULT_TARGETS_BY_TYPE,
   setLastEditedQueryId: () => null,

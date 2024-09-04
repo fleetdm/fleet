@@ -14,6 +14,11 @@ locals {
       container_port   = 8080
     }
   ], var.fleet_config.extra_load_balancers)
+  repository_credentials = var.fleet_config.repository_credentials != "" ? {
+    repositoryCredentials = {
+      credentialsParameter = var.fleet_config.repository_credentials
+    }
+  } : null
 }
 
 data "aws_region" "current" {}
@@ -53,8 +58,9 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   task_role_arn            = var.fleet_config.iam_role_arn == null ? aws_iam_role.main[0].arn : var.fleet_config.iam_role_arn
   execution_role_arn       = aws_iam_role.execution.arn
-  cpu                      = var.fleet_config.cpu
-  memory                   = var.fleet_config.mem
+  cpu                      = var.fleet_config.task_cpu == null ? var.fleet_config.cpu : var.fleet_config.task_cpu
+  memory                   = var.fleet_config.task_mem == null ? var.fleet_config.mem : var.fleet_config.task_mem
+  pid_mode                 = var.fleet_config.pid_mode
   container_definitions = jsonencode(
     concat([
       {
@@ -73,7 +79,8 @@ resource "aws_ecs_task_definition" "backend" {
             protocol      = "tcp"
           }
         ]
-        networkMode = "awsvpc"
+        repositoryCredentials = local.repository_credentials
+        networkMode           = "awsvpc"
         logConfiguration = {
           logDriver = "awslogs"
           options = {
@@ -97,6 +104,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = var.fleet_config.database.password_secret_arn
+          },
+          {
+            name      = "FLEET_SERVER_PRIVATE_KEY"
+            valueFrom = aws_secretsmanager_secret.fleet_server_private_key.arn
           }
         ], local.secrets)
         environment = concat([
@@ -135,6 +146,14 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_SERVER_TLS"
             value = "false"
+          },
+          {
+            name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET"
+            value = var.fleet_config.software_installers.create_bucket == true ? aws_s3_bucket.software_installers[0].bucket : var.fleet_config.software_installers.bucket_name
+          },
+          {
+            name  = "FLEET_S3_SOFTWARE_INSTALLERS_PREFIX"
+            value = var.fleet_config.software_installers.s3_object_prefix
           },
         ], local.environment)
       }
@@ -213,7 +232,7 @@ resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-gr
 }
 
 resource "aws_security_group" "main" {
-  count       = var.fleet_config.security_groups == null ? 1 : 0
+  count       = var.fleet_config.networking.security_groups == null ? 1 : 0
   name        = var.fleet_config.security_group_name
   description = "Fleet ECS Service Security Group"
   vpc_id      = var.vpc_id
@@ -226,10 +245,64 @@ resource "aws_security_group" "main" {
     ipv6_cidr_blocks = ["::/0"]
   }
   ingress {
-    description = "Ingress only on container port"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "TCP"
-    cidr_blocks = ["10.0.0.0/8"]
+    description      = "Ingress only on container port"
+    from_port        = 8080
+    to_port          = 8080
+    protocol         = "TCP"
+    cidr_blocks      = var.fleet_config.networking.ingress_sources.cidr_blocks
+    ipv6_cidr_blocks = var.fleet_config.networking.ingress_sources.ipv6_cidr_blocks
+    security_groups  = var.fleet_config.networking.ingress_sources.security_groups
+    prefix_list_ids  = var.fleet_config.networking.ingress_sources.prefix_list_ids
   }
+}
+
+resource "random_password" "fleet_server_private_key" {
+  length  = 32
+  special = true
+}
+
+resource "aws_secretsmanager_secret" "fleet_server_private_key" {
+  name = var.fleet_config.private_key_secret_name
+
+  recovery_window_in_days = "0"
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "fleet_server_private_key" {
+  secret_id     = aws_secretsmanager_secret.fleet_server_private_key.id
+  secret_string = random_password.fleet_server_private_key.result
+}
+
+// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+// possibility of providing this capability in the future.
+// No versioning on this bucket is by design.
+// Bucket logging is not supported in our Fleet Terraforms at the moment. It can be enabled by the
+// organizations deploying Fleet, and we will evaluate the possibility of providing this capability
+// in the future.
+
+resource "aws_s3_bucket" "software_installers" { #tfsec:ignore:aws-s3-encryption-customer-key:exp:2022-07-01  #tfsec:ignore:aws-s3-enable-versioning #tfsec:ignore:aws-s3-enable-bucket-logging:exp:2022-06-15
+  count         = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
+  bucket        = var.fleet_config.software_installers.bucket_name
+  bucket_prefix = var.fleet_config.software_installers.bucket_prefix
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "software_installers" {
+  count  = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
+  bucket = aws_s3_bucket.software_installers[0].bucket
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "software_installers" {
+  count                   = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
+  bucket                  = aws_s3_bucket.software_installers[0].id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }

@@ -4,13 +4,6 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
-	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/facebookincubator/nvdtools/wfn"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
-	"github.com/pandatix/nvdapi/common"
-	"github.com/pandatix/nvdapi/v2"
 	"io"
 	"log"
 	"log/slog"
@@ -18,6 +11,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
+	"github.com/pandatix/nvdapi/common"
+	"github.com/pandatix/nvdapi/v2"
 )
 
 const (

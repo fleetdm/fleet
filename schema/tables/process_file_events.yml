@@ -38,7 +38,7 @@ columns:
     required: false
     index: false
   - name: partial
-    description: >-
+    description: |-
       True if this is a partial event (i.e.: this process existed before we
       started osquery)
     type: text

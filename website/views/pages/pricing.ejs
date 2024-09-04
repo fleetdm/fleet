@@ -22,9 +22,9 @@
             </div>
           </div>
           <div purpose="button-container" class="d-flex flex-row align-items-center">
-            <a purpose="animated-arrow-button-red" href="/docs">
+            <animated-arrow-button href="/docs">
               Read the docs
-            </a>
+            </animated-arrow-button>
           </div>
         </div>
         </div>
@@ -43,7 +43,7 @@
               </div>
             </div>
             <div>
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/customers/register">Get started</a>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/register">Get started</a>
             </div>
           </div>
         </div>
@@ -66,8 +66,8 @@
       </div>
       <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
-        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
+        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
@@ -80,7 +80,7 @@
             <table purpose="pricing-categories-table" class="table">
              <thead>
                 <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
+                  <td><h5><%- category.categoryName %></h5></td>
                   <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
                     <strong>Free</strong>
@@ -122,7 +122,7 @@
         </div>
         <%// Mobile features tables %>
         <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
-          <h4>{{category.categoryName}}</h4>
+          <h5>{{category.categoryName}}</h5>
             <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
               <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
                 <strong class="d-block">
@@ -152,7 +152,7 @@
             <table purpose="pricing-categories-table" class="table">
              <thead>
                 <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
+                  <td><h5><%- category.categoryName %></h5></td>
                   <%if(pricingTableForIt.indexOf(category) === 0) {%>
                   <td class="text-center">
                     <strong>Free</strong>
@@ -194,7 +194,7 @@
         </div>
         <%// Mobile features tables %>
         <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
-          <h4>{{category.categoryName}}</h4>
+          <h5>{{category.categoryName}}</h5>
             <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
               <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
                 <strong>
@@ -223,7 +223,7 @@
             <table purpose="pricing-categories-table" class="table">
              <thead>
                 <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
+                  <td><h5><%- category.categoryName %></h5></td>
                   <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
                   <td class="text-center">
                     <strong>Free</strong>
@@ -265,7 +265,7 @@
         </div>
         <%// Mobile features tables %>
         <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
-          <h4>{{category.categoryName}}</h4>
+          <h5>{{category.categoryName}}</h5>
             <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
               <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
                 <strong class="d-block">
@@ -294,9 +294,9 @@
         <a purpose="chat-button" style="max-width: 160px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary mx-sm-2" href="/contact">
           Talk to us
         </a>
-        <a class="btn btn-block btn-lg btn-white" purpose="cta-button" href="/docs">
+        <animated-arrow-button class="btn btn-sm" href="/docs">
           Read the docs
-        </a>
+        </animated-arrow-button>
       </div>
     </div>
   </div>

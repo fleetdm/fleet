@@ -4,20 +4,23 @@ import { forEach } from "lodash";
 import {
   SelectedPlatformString,
   SUPPORTED_PLATFORMS,
+  QueryablePlatform,
 } from "interfaces/platform";
 
 import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
-  getSelectedPlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
+  getSelectedPlatforms: () => QueryablePlatform[];
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
+  disabled?: boolean;
 }
 
 const usePlatformSelector = (
   platformContext: SelectedPlatformString | null | undefined,
-  baseClass = ""
+  baseClass = "",
+  disabled = false
 ): IPlatformSelector => {
   const [checkDarwin, setCheckDarwin] = useState(false);
   const [checkWindows, setCheckWindows] = useState(false);
@@ -69,9 +72,10 @@ const usePlatformSelector = (
         setCheckWindows={setCheckWindows}
         setCheckLinux={setCheckLinux}
         setCheckChrome={setCheckChrome}
+        disabled={disabled}
       />
     );
-  }, [checkDarwin, checkWindows, checkLinux, checkChrome]);
+  }, [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]);
 
   return {
     setSelectedPlatforms,

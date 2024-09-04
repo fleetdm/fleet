@@ -68,38 +68,55 @@ module.exports = {
 
   fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts, primaryBuyingSituation}) {
 
-    const bannedEmailDomainsForContactFormMessages = [
-      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
-    ];
 
     let emailDomain = emailAddress.split('@')[1];
-
-    if(_.includes(bannedEmailDomainsForContactFormMessages, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
-    await sails.helpers.http.post.with({
-      url: 'https://hooks.zapier.com/hooks/catch/3627242/3cxwxdo/',
-      data: {
-        emailAddress,
-        firstName,
-        lastName,
-        organization,
-        numberOfHosts,
-        primaryBuyingSituation,
-        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
+    // Set a default psychological stage and change reason.
+    let psyStageAndChangeReason = {
+      psychologicalStage: '4 - Has use case',
+      psychologicalStageChangeReason: 'Website - Contact forms'
+    };
+    if(this.req.me){
+      // If this user is logged in, check their current psychological stage, and if it is higher than 4, we won't set a psystage.
+      // This way, if a user has a psytage >4, we won't regress their psystage because they submitted this form.
+      if(['4 - Has use case', '5 - Personally confident', '6 - Has team buy-in'].includes(this.req.me.psychologicalStage)) {
+        psyStageAndChangeReason = {};
       }
-    })
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}. Raw error: ${err}`);
-      return;
-    });
-
-
+    }
+    if(numberOfHosts >= 700){
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: emailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        organization: organization,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        contactSource: 'Website - Contact forms',
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        ...psyStageAndChangeReason// Only (potentially) set psystage and change reason for >700 hosts.
+      }).exec((err)=>{
+        if(err) {
+          sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
+        }
+      });
+    } else {
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: emailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        organization: organization,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        contactSource: 'Website - Contact forms',
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event.`,
+      }).exec((err)=>{
+        if(err) {
+          sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
+        }
+      });
+    }
 
     return;
-
   }
 
 

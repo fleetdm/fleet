@@ -31,6 +31,9 @@ org_settings:
   host_expiry_settings:
     host_expiry_enabled: false
   integrations:
+    google_calendar:
+    - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+      domain: fleetdm.com
     jira: [ ]
     zendesk: [ ]
   mdm:
@@ -39,7 +42,7 @@ org_settings:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""
     org_logo_url_light_background: ""
-    org_name: Fleet Device Management
+    org_name: Fleet
   secrets:
     - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
   server_settings:
@@ -83,3 +86,4 @@ org_settings:
 policies:
 queries:
   - path: ./lib/collect-fleetd-update-channels.queries.yml
+software:

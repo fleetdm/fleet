@@ -7,5 +7,10 @@ type UbuntuResultXML struct {
 	DpkgInfoTests   []DpkgInfoTestXML
 	DpkgInfoStates  []DpkgInfoStateXML
 	DpkgInfoObjects []PackageInfoTestObjectXML
+	UnameTests      []UnixUnameTestXML
+	UnameStates     []UnixUnameStateXML
+	VariableTests   []VariableTestXML
+	VariableObjects map[int]VariableObjectXML
+	VariableStates  []VariableStateXML
 	Variables       map[string]ConstantVariableXML
 }

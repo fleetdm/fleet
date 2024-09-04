@@ -18,6 +18,9 @@
     "uuid": "",
     "platform": "",
     "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
     "os_version": "",
     "build": "",
     "platform_like": "",
@@ -47,7 +50,8 @@
       "enrollment_status": null,
       "name": "",
       "pending_action": "",
-      "server_url": null
+      "server_url": null,
+      "connected_to_fleet": null
     },
     "team_id": null,
     "pack_stats": null,

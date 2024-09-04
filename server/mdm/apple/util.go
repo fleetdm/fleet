@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -36,18 +36,6 @@ func EncodeCertPEM(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&block)
 }
 
-func DecodeCertPEM(encoded []byte) (*x509.Certificate, error) {
-	block, _ := pem.Decode(encoded)
-	if block == nil {
-		return nil, errors.New("no PEM-encoded data found")
-	}
-	if block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("unexpected block type %s", block.Type)
-	}
-
-	return x509.ParseCertificate(block.Bytes)
-}
-
 func EncodeCertRequestPEM(cert *x509.CertificateRequest) []byte {
 	pemBlock := &pem.Block{
 		Type:    "CERTIFICATE REQUEST",
@@ -65,19 +53,6 @@ func EncodePrivateKeyPEM(key *rsa.PrivateKey) []byte {
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	}
 	return pem.EncodeToMemory(&block)
-}
-
-// DecodePrivateKeyPEM decodes PEM-encoded private key data.
-func DecodePrivateKeyPEM(encoded []byte) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode(encoded)
-	if block == nil {
-		return nil, errors.New("no PEM-encoded data found")
-	}
-	if block.Type != "RSA PRIVATE KEY" {
-		return nil, fmt.Errorf("unexpected block type %s", block.Type)
-	}
-
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 // GenerateRandomPin generates a `lenght`-digit PIN number that takes into
@@ -101,6 +76,7 @@ func GenerateRandomPin(length int) string {
 	return fmt.Sprintf(f, v)
 }
 
+// FmtErrorChain formats Command error message for macOS MDM v1
 func FmtErrorChain(chain []mdm.ErrorChain) string {
 	var sb strings.Builder
 	for _, mdmErr := range chain {
@@ -113,6 +89,15 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 	return sb.String()
 }
 
+// FmtDDMError formats a DDM error message
+func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
+	var errMsg strings.Builder
+	for _, r := range reasons {
+		errMsg.WriteString(fmt.Sprintf("%s: %s %+v\n", r.Code, r.Description, r.Details))
+	}
+	return errMsg.String()
+}
+
 func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
 	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
 	if err != nil {
@@ -123,4 +108,38 @@ func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
 	q.Set("token", token)
 	enrollURL.RawQuery = q.Encode()
 	return enrollURL.String(), nil
+}
+
+// IsLessThanVersion returns true if the current version is less than the target version.
+// If either version is invalid, an error is returned.
+func IsLessThanVersion(current string, target string) (bool, error) {
+	cv, err := semver.NewVersion(current)
+	if err != nil {
+		return false, fmt.Errorf("invalid current version: %w", err)
+	}
+	tv, err := semver.NewVersion(target)
+	if err != nil {
+		return false, fmt.Errorf("invalid target version: %w", err)
+	}
+
+	return cv.LessThan(tv), nil
+}
+
+// CompareVersions returns an integer comparing two versions according to semantic version
+// precedence. The result will be 0 if a == b, -1 if a < b, or +1 if a > b.
+// An invalid semantic version string is considered less than a valid one. All invalid semantic
+// version strings compare equal to each other.
+func CompareVersions(a string, b string) int {
+	verA, errA := semver.NewVersion(a)
+	verB, errB := semver.NewVersion(b)
+	switch {
+	case errA != nil && errB != nil:
+		return 0
+	case errA != nil:
+		return -1
+	case errB != nil:
+		return 1
+	default:
+		return verA.Compare(verB)
+	}
 }

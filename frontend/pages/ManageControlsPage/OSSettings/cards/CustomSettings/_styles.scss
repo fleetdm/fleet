@@ -94,63 +94,15 @@
       padding: 28.5px 0;
     }
 
-    &__modal-content-wrap {
-      margin-top: $pad-large;
-
-      .add-profile__file {
-        padding: $pad-medium $pad-large;
-      }
-    }
-
-    &__upload-button {
-      margin-top: 8px;
-      padding: 0;
-    }
-
-    &__file-chooser {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding-top: $pad-medium;
-
-      input {
-        display: none;
-      }
-
-      &--button-wrap {
-        display: flex;
-        justify-content: center;
-        gap: $pad-small;
-        cursor: pointer;
-        height: 38px;
-        align-items: center;
-      }
-    }
-
-    &__selected-file {
-      display: flex;
-      gap: 16px;
-
-      &--details {
-        display: flex;
-        flex-direction: column;
-
-        &--name {
-          font-size: $x-small;
-          font-weight: $bold;
-        }
-        &--platform {
-          font-size: $xx-small;
-          color: $ui-fleet-black-75;
-        }
-      }
-    }
-
     &__profile-graphic {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: $pad-small;
+
+      &--message {
+        text-align: center;
+      }
     }
 
     &__button-wrap {
@@ -186,7 +138,7 @@
       flex-direction: column;
       border-radius: $border-radius;
       border: 1px solid $ui-fleet-black-10;
-      overflow-y: scroll;
+      overflow-y: auto;
 
       .loading-spinner {
         margin: 69.5px auto;

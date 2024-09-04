@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 type FilesystemConfig struct {
@@ -27,6 +27,7 @@ type FirehoseConfig struct {
 	AccessKeyID      string
 	SecretAccessKey  string
 	StsAssumeRoleArn string
+	StsExternalID    string
 }
 
 type KinesisConfig struct {
@@ -37,6 +38,7 @@ type KinesisConfig struct {
 	AccessKeyID      string
 	SecretAccessKey  string
 	StsAssumeRoleArn string
+	StsExternalID    string
 }
 
 type LambdaConfig struct {
@@ -46,6 +48,7 @@ type LambdaConfig struct {
 	AccessKeyID      string
 	SecretAccessKey  string
 	StsAssumeRoleArn string
+	StsExternalID    string
 }
 
 type PubSubConfig struct {
@@ -104,6 +107,7 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			config.Firehose.AccessKeyID,
 			config.Firehose.SecretAccessKey,
 			config.Firehose.StsAssumeRoleArn,
+			config.Firehose.StsExternalID,
 			config.Firehose.StreamName,
 			logger,
 		)
@@ -118,6 +122,7 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			config.Kinesis.AccessKeyID,
 			config.Kinesis.SecretAccessKey,
 			config.Kinesis.StsAssumeRoleArn,
+			config.Kinesis.StsExternalID,
 			config.Kinesis.StreamName,
 			logger,
 		)
@@ -131,6 +136,7 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			config.Lambda.AccessKeyID,
 			config.Lambda.SecretAccessKey,
 			config.Lambda.StsAssumeRoleArn,
+			config.Lambda.StsExternalID,
 			config.Lambda.Function,
 			logger,
 		)

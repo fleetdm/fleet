@@ -31,7 +31,6 @@ const baseClass = "run-script-modal";
 interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
-  scriptDetailsId: string;
   setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
   onClose: () => void;
 }
@@ -41,7 +40,6 @@ const EmptyComponent = () => <></>;
 const RunScriptModal = ({
   currentUser,
   host,
-  scriptDetailsId,
   setScriptDetailsId,
   onClose,
 }: IScriptsProps) => {
@@ -123,7 +121,6 @@ const RunScriptModal = ({
 
   if (!config) return null;
 
-  const isShowingScriptDetails = !!scriptDetailsId; // used to set css visibility for this modal to hidden when the script details modal is open
   const tableData = hostScriptResponse?.scripts;
 
   return (
@@ -132,7 +129,6 @@ const RunScriptModal = ({
       onExit={onClose}
       onEnter={onClose}
       className={`${baseClass}`}
-      isHidden={isShowingScriptDetails}
       isLoading={runScriptRequested || isFetching || isLoading}
     >
       <>
@@ -141,8 +137,8 @@ const RunScriptModal = ({
           {!isLoading && isError && <DataError />}
           {!isLoading && !isError && (!tableData || tableData.length === 0) && (
             <EmptyTable
-              header="No scripts are available for this host"
-              info="Expecting to see scripts? Try selecting “Refetch” to ask the host to report new vitals."
+              header="No scripts available for this host"
+              info="Expecting to see scripts? Close this modal and try again."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (

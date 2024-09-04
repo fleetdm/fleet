@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"strings"
 
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -20,58 +23,49 @@ import (
 type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
 
-	db          *sqlx.DB
-	logger      log.Logger
-	pushCertPEM []byte
-	pushKeyPEM  []byte
+	db     *sqlx.DB
+	logger log.Logger
+	ds     fleet.Datastore
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
+func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	if err != nil {
 		return nil, err
 	}
 	return &NanoMDMStorage{
 		MySQLStorage: s,
-		pushCertPEM:  pushCertPEM,
-		pushKeyPEM:   pushKeyPEM,
 		db:           ds.primary,
 		logger:       ds.logger,
+		ds:           ds,
 	}, nil
 }
 
 // RetrievePushCert partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns "0" as stale token because we are not storing the APNS in MySQL storage,
-// and instead loading them at startup, thus the APNS will never be considered stale.
+// Always returns "0" as stale token because fleet.Datastore always returns a valid push certificate.
 func (s *NanoMDMStorage) RetrievePushCert(
 	ctx context.Context, topic string,
-) (cert *tls.Certificate, staleToken string, err error) {
-	tlsCert, err := tls.X509KeyPair(s.pushCertPEM, s.pushKeyPEM)
+) (*tls.Certificate, string, error) {
+	cert, err := assets.APNSKeyPair(ctx, s.ds)
 	if err != nil {
-		return nil, "", err
+		return nil, "", ctxerr.Wrap(ctx, err, "loading push certificate")
 	}
-	return &tlsCert, "0", nil
+	return cert, "0", nil
 }
 
 // IsPushCertStale partially implements nanomdm_storage.PushCertStore.
 //
-// Given that we are not storing the APNS certificate in MySQL storage, and instead loading
-// them at startup (as env variables), the APNS will never be considered stale.
-//
-// TODO(lucas): Revisit solution to support changing the APNS.
+// Always returns `false` because the underlying datastore implementation makes sure that the token is always fresh.
 func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
 	return false, nil
 }
 
 // StorePushCert partially implements nanomdm_storage.PushCertStore.
-//
-// Leaving this unimplemented as APNS certificate and key are not stored in MySQL storage,
-// instead they are loaded to memory at startup.
 func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
-	return errors.New("unimplemented")
+	return errors.New("please use fleet.Datastore to manage MDM assets")
 }
 
 // EnqueueDeviceLockCommand enqueues a DeviceLock command for the given host.
@@ -138,9 +132,17 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 	}, s.logger)
 }
 
+func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	return s.ds.GetAllMDMConfigAssetsByName(ctx, assetNames)
+}
+
+func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	return s.ds.GetABMTokenByOrgName(ctx, orgName)
+}
+
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*NanoDEPStorage, error) {
+func (ds *Datastore) NewMDMAppleDEPStorage() (*NanoDEPStorage, error) {
 	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.primary.DB))
 	if err != nil {
 		return nil, err
@@ -148,31 +150,37 @@ func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*Na
 
 	return &NanoDEPStorage{
 		MySQLStorage: s,
-		tokens:       tok,
+		ds:           ds,
 	}, nil
 }
 
 // NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides functionality to load
-// DEP auth tokens from memory.
+// DEP auth tokens from the tables managed by Fleet.
 type NanoDEPStorage struct {
 	*nanodep_mysql.MySQLStorage
-
-	tokens nanodep_client.OAuth1Tokens
+	ds fleet.Datastore
 }
 
-// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
-//
-// RetrieveAuthTokens returns the DEP auth tokens stored in memory.
+// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever. NOTE: this method will first
+// check the context for an ABM token; if it doesn't find one, it will fall back to checking the DB.
+// This is so we can use the existing DEP client machinery without major changes. See
+// https://github.com/fleetdm/fleet/issues/21177 for more details.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	return &s.tokens, nil
+	if ctxTok, ok := abmctx.FromContext(ctx); ok {
+		return ctxTok, nil
+	}
+
+	token, err := assets.ABMToken(ctx, s.ds, name)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving token in nano dep storage: %w", err)
+	}
+
+	return token, nil
 }
 
 // StoreAuthTokens partially implements nanodep.AuthTokensStorer.
-//
-// Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
-// instead they are loaded to memory at startup.
 func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *nanodep_client.OAuth1Tokens) error {
-	return errors.New("unimplemented")
+	return errors.New("please use fleet.Datastore to manage MDM assets")
 }
 
 func enqueueCommandDB(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Command) error {

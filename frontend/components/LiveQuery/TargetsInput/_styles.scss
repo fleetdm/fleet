@@ -93,5 +93,15 @@
       width: 100%;
       overflow: auto;
     }
+
+    .delete__cell {
+      text-align: center;
+    }
+  }
+
+  // override the default styles for the spinner.
+  // TODO: set better default styles for the spinner
+  .loading-spinner.centered {
+    margin: 1rem auto;
   }
 }

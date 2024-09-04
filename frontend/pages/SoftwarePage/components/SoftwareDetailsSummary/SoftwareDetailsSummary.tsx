@@ -24,6 +24,7 @@ interface ISoftwareDetailsSummaryProps {
   name?: string;
   source?: string;
   versions?: number;
+  iconUrl?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -34,16 +35,17 @@ const SoftwareDetailsSummary = ({
   name,
   source,
   versions,
+  iconUrl,
 }: ISoftwareDetailsSummaryProps) => {
   return (
     <div className={baseClass}>
-      <SoftwareIcon name={name} source={source} size="large" />
+      <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
       <dl className={`${baseClass}__info`}>
         <h1>{title}</h1>
         <dl className={`${baseClass}__description-list`}>
-          {type && <DataSet title="Type" value={type} />}
+          {!!type && <DataSet title="Type" value={type} />}
 
-          {versions && <DataSet title="Versions" value={versions} />}
+          {!!versions && <DataSet title="Versions" value={versions} />}
           <DataSet title="Hosts" value={hosts === 0 ? "---" : hosts} />
         </dl>
       </dl>

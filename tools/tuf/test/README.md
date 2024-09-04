@@ -9,6 +9,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 1. The script is executed on a macOS host.
 2. Fleet server also running on the same macOS host.
 3. All VMs (and the macOS host itself) are configured to resolve `host.docker.internal` to the macOS host IP (by modifying their `hosts` file).
+4. The hosts are running on the same GOARCH as the macOS host. If not, you can set the `GOARCH` environment variable to compile for the desired architecture. For example: `GOARCH=amd64`
 
 > PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
 > has such hostname (and `localhost`) defined as SANs.
@@ -30,7 +31,9 @@ MSI_FLEET_URL=https://host.docker.internal:8080 \
 MSI_TUF_URL=http://host.docker.internal:8081 \
 GENERATE_PKG=1 \
 GENERATE_DEB=1 \
+GENERATE_DEB_ARM64=1 \
 GENERATE_RPM=1 \
+GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \

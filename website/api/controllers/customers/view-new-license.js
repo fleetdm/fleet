@@ -25,7 +25,7 @@ module.exports = {
 
     // if the user isn't logged in, we'll redirect them to the register page.
     if (!this.req.me) {
-      throw {redirect: '/customers/register'};
+      throw {redirect: '/register#purchaseLicense'};
     }
     // If the user is a super admin, we'll redirect them to the generate-license page.
     if(this.req.me.isSuperAdmin) {

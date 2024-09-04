@@ -4,6 +4,7 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
+    selectedCategory: 'mdm'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -11,8 +12,12 @@ parasails.registerPage('homepage', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     //…
+    if(window.location.hash === '#unsubscribed'){
+      this.modal = 'unsubscribed';
+      window.location.hash = '';
+    }
   },
-  mounted: async function(){
+  mounted: async function() {
     //…
   },
 

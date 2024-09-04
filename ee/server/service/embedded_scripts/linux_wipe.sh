@@ -38,9 +38,34 @@ wipe_system_files() {
     done
 }
 
-# Start the wiping process
-logout_users
-wipe_non_essential_data
-wipe_system_files
+prepare_system_reset() {
+    cp /usr/bin/sync /sync_bin
+    # https://docs.kernel.org/admin-guide/sysrq.html
+    echo "1" > /proc/sys/kernel/sysrq
+}
 
-echo "Wiping process completed."
+system_reset() {
+    # Give the system time to sync
+    /sync_bin
+    # Halt the system immediately
+    echo "o" > /proc/sysrq-trigger
+}
+
+wipe_all_files() {
+    sleep 10 # Give fleetd enough time to register the script as completed
+    prepare_system_reset
+    wipe_non_essential_data
+    wipe_system_files
+    system_reset
+}
+
+if [ "$1" = "wipe" ]; then
+    # We are in the detatched child process
+    wipe_all_files
+else
+    # We are in the parent shell, logout users and begin the detached
+    # wipe child process
+    logout_users
+    echo "Wiping, system will be unreachable"
+    (/usr/bin/nohup sh $0 wipe >/dev/null 2>/dev/null </dev/null) &
+fi

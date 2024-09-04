@@ -132,8 +132,28 @@
   },
   {
     "software": {
+      "name": ["/^intellij-idea(-ce)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["/^com\\.jetbrains\\.pycharm/"],
       "source": ["apps"]
+    },
+    "filter": {
+      "product": ["pycharm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^pycharm(-ce)?$/"],
+      "source": ["homebrew_packages"]
     },
     "filter": {
       "product": ["pycharm"],
@@ -358,6 +378,34 @@
     "filter": {
       "product": ["edge_chromium"],
       "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Steam"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["Steam.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["/^linux-image\\.*/"]
+    },
+    "filter": {
+      "product": ["linux_kernel"],
+      "vendor": ["linux"],
+      "part": "o"
     }
   }
 ]

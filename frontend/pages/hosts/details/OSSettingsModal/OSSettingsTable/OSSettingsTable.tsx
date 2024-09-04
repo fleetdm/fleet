@@ -1,21 +1,37 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
 
-import tableHeaders, { ITableRowOsSettings } from "./OSSettingsTableConfig";
+import generateTableHeaders, {
+  IHostMdmProfileWithAddedStatus,
+} from "./OSSettingsTableConfig";
 
 const baseClass = "os-settings-table";
 
 interface IOSSettingsTableProps {
-  tableData?: ITableRowOsSettings[];
+  canResendProfiles: boolean;
+  hostId: number;
+  tableData: IHostMdmProfileWithAddedStatus[];
+  onProfileResent?: () => void;
 }
 
-const OSSettingsTable = ({ tableData }: IOSSettingsTableProps) => {
+const OSSettingsTable = ({
+  canResendProfiles,
+  hostId,
+  tableData,
+  onProfileResent,
+}: IOSSettingsTableProps) => {
+  const tableConfig = generateTableHeaders(
+    hostId,
+    canResendProfiles,
+    onProfileResent
+  );
+
   return (
     <div className={baseClass}>
       <TableContainer
         resultsTitle="settings"
         defaultSortHeader="name"
-        columnConfigs={tableHeaders}
+        columnConfigs={tableConfig}
         data={tableData}
         emptyComponent="symbol"
         isLoading={false}

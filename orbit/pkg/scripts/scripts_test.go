@@ -349,7 +349,7 @@ type mockExecCmd struct {
 	execFn   func() ([]byte, int, error)
 }
 
-func (m *mockExecCmd) run(ctx context.Context, scriptPath string) ([]byte, int, error) {
+func (m *mockExecCmd) run(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
 	m.count++
 	if m.execFn != nil {
 		return m.execFn()

@@ -1,15 +1,13 @@
 name: bitlocker_info
-examples: >-
+examples: |-
   Full Disk Encryption (FDE) reduces the risk of compromise when a device is lost or stolen. This query lists any system that does not have BitLocker enabled on its OS drive (typically `C:`). 
   
   ```
-     
-   SELECT * FROM bitlocker_info WHERE drive_letter='C:' AND protection_status != 1;
-
+  SELECT * FROM bitlocker_info WHERE drive_letter='C:' AND protection_status != 1;
   ```
 
     
-notes: >-
+notes: |-
   * `protection_status` is quite nuanced - from the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume#parameters):
 
    `protection_status = 0`

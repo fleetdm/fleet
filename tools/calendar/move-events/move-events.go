@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -16,6 +20,7 @@ import (
 
 // Move all events with eventTitle from the primary calendar of the user to the new time.
 // Only events in the future relative to the new event time are moved. In other words, if the current event time is in the past, it is not moved.
+// Example: go run move-events.go --users john@example.com,jane@example.com --datetime 2024-04-01T10:00:00Z
 
 var (
 	serviceEmail = os.Getenv("FLEET_TEST_GOOGLE_CALENDAR_SERVICE_EMAIL")
@@ -23,13 +28,15 @@ var (
 )
 
 const (
-	eventTitle = "💻🚫Downtime"
+	eventTitle = "💻🚫 Scheduled maintenance"
 )
 
 func main() {
 	if serviceEmail == "" || privateKey == "" {
 		log.Fatal("FLEET_TEST_GOOGLE_CALENDAR_SERVICE_EMAIL and FLEET_TEST_GOOGLE_CALENDAR_PRIVATE_KEY must be set")
 	}
+	// Strip newlines from private key
+	privateKey = strings.Replace(privateKey, "\\n", "\n", -1)
 	userEmails := flag.String("users", "", "Comma-separated list of user emails to impersonate")
 	dateTimeStr := flag.String("datetime", "", "Event time in "+time.RFC3339+" format")
 	flag.Parse()
@@ -74,38 +81,102 @@ func main() {
 			}
 
 			numberMoved := 0
+			var maxResults int64 = 1000
+			pageToken := ""
+			now := time.Now()
 			for {
-				list, err := service.Events.List("primary").EventTypes("default").
-					MaxResults(1000).
-					OrderBy("startTime").
-					SingleEvents(true).
-					ShowDeleted(false).
-					TimeMin(dateTimeEndStr).
-					Q(eventTitle).
-					Do()
+				list, err := withRetry(
+					func() (any, error) {
+						return service.Events.List("primary").EventTypes("default").
+							MaxResults(maxResults).
+							OrderBy("startTime").
+							SingleEvents(true).
+							ShowDeleted(false).
+							TimeMin(dateTimeEndStr).
+							Q(eventTitle).
+							PageToken(pageToken).
+							Do()
+					},
+				)
+
 				if err != nil {
 					log.Fatalf("Unable to retrieve list of events: %v", err)
 				}
-				if len(list.Items) == 0 {
+				if len(list.(*calendar.Events).Items) == 0 {
 					break
 				}
-				for _, item := range list.Items {
+				foundNewEvents := false
+				for _, item := range list.(*calendar.Events).Items {
+					created, err := time.Parse(time.RFC3339, item.Created)
+					if err != nil {
+						log.Fatalf("Unable to parse event created time: %v", err)
+					}
+					if created.After(now) {
+						// Found events created after we started moving events, so we should stop
+						foundNewEvents = true
+						continue // Skip this event but finish the loop to make sure we don't miss something
+					}
 					if item.Summary == eventTitle {
 						item.Start.DateTime = dateTime.Format(time.RFC3339)
 						item.End.DateTime = dateTime.Add(30 * time.Minute).Format(time.RFC3339)
-						_, err := service.Events.Update("primary", item.Id, item).Do()
+						_, err := withRetry(
+							func() (any, error) {
+								return service.Events.Update("primary", item.Id, item).Do()
+							},
+						)
 						if err != nil {
 							log.Fatalf("Unable to update event: %v", err)
 						}
 						numberMoved++
+						if numberMoved%10 == 0 {
+							log.Printf("Moved %d events for %s", numberMoved, userEmail)
+						}
+
 					}
 				}
+				pageToken = list.(*calendar.Events).NextPageToken
+				if pageToken == "" || foundNewEvents {
+					break
+				}
 			}
-			log.Printf("Moved %d events for %s", numberMoved, userEmail)
+			log.Printf("DONE. Moved total %d events for %s", numberMoved, userEmail)
 		}(userEmail)
 	}
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 
+}
+
+func withRetry(fn func() (any, error)) (any, error) {
+	retryStrategy := backoff.NewExponentialBackOff()
+	retryStrategy.MaxElapsedTime = 60 * time.Minute
+	var result any
+	err := backoff.Retry(
+		func() error {
+			var err error
+			result, err = fn()
+			if err != nil {
+				if isRateLimited(err) {
+					return err
+				}
+				return backoff.Permanent(err)
+			}
+			return nil
+		}, retryStrategy,
+	)
+	return result, err
+}
+
+func isRateLimited(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ae *googleapi.Error
+	ok := errors.As(err, &ae)
+	return ok && (ae.Code == http.StatusTooManyRequests ||
+		(ae.Code == http.StatusForbidden &&
+			(ae.Message == "Rate Limit Exceeded" || ae.Message == "User Rate Limit Exceeded" || ae.Message == "Calendar usage limits exceeded." || strings.HasPrefix(
+				ae.Message, "Quota exceeded",
+			))))
 }

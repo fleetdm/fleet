@@ -29,7 +29,7 @@
         }
       }
 
-      &--disabled {
+      &--read-only {
         &::after {
           @include disabled-checkbox;
         }
@@ -60,7 +60,7 @@
 
   &__tick {
     @include size(20px);
-    @include position(absolute, 0 null null 0);
+    position: absolute;
     display: inline-block;
     cursor: pointer;
 

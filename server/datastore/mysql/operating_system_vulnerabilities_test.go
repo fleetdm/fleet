@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -158,12 +159,12 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false)
 	require.NoError(t, err)
 
-	expected := fleet.Vulnerabilities{
-		{CVE: "CVE-2021-1234"},
-		{CVE: "CVE-2021-1235"},
-	}
+	expected := []string{"CVE-2021-1234", "CVE-2021-1235"}
 	require.Len(t, cves, 2)
-	require.ElementsMatch(t, expected, cves)
+	for _, cve := range cves {
+		require.Contains(t, expected, cve.CVE)
+		require.Greater(t, cve.CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero time
+	}
 
 	// test with CVS meta
 	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true)
@@ -233,10 +234,15 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, didInsert)
 
-	// Inserting the same vulnerability should not insert
-	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	// Inserting the same vulnerability should not insert, but update
+	didInsertOrUpdate, err := ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
-	require.Equal(t, false, didInsert)
+	assert.True(t, didInsertOrUpdate)
+
+	// Inserting the exact same vulnerability again should not insert and not update
+	didInsertOrUpdate, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	require.NoError(t, err)
+	assert.False(t, didInsertOrUpdate)
 
 	expected := vulnsUpdate
 	expected.Source = fleet.MSRCSource

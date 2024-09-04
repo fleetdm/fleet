@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useCallback } from "react";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+import { noop } from "lodash";
 
 import { IHostPolicy } from "interfaces/policy";
+import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
+import { createHostsByPolicyPath } from "utilities/helpers";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 
 import {
   generatePolicyTableHeaders,
@@ -18,6 +24,16 @@ interface IPoliciesProps {
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
+  hostPlatform: string;
+  router: InjectedRouter;
+  currentTeamId?: number;
+}
+
+interface IHostPoliciesRowProps extends Row {
+  original: {
+    id: number;
+    response: "pass" | "fail";
+  };
 }
 
 const Policies = ({
@@ -25,16 +41,56 @@ const Policies = ({
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
+  hostPlatform,
+  router,
+  currentTeamId,
 }: IPoliciesProps): JSX.Element => {
-  if (policies.length === 0) {
-    return (
-      <Card
-        borderRadiusSize="large"
-        includeShadow
-        largePadding
-        className={baseClass}
-      >
-        <p className="card__header">Policies</p>
+  const tableHeaders = generatePolicyTableHeaders(
+    togglePolicyDetailsModal,
+    currentTeamId
+  );
+  if (deviceUser) {
+    // Remove view all hosts link
+    tableHeaders.pop();
+  }
+  const failingResponses: IHostPolicy[] =
+    policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+
+  const onClickRow = useCallback(
+    (row: IHostPoliciesRowProps) => {
+      const { id: policyId, response: policyResponse } = row.original;
+
+      const viewAllHostPath = createHostsByPolicyPath(
+        policyId,
+        policyResponse === "pass"
+          ? PolicyResponse.PASSING
+          : PolicyResponse.FAILING,
+        currentTeamId
+      );
+
+      router.push(viewAllHostPath);
+    },
+    [router]
+  );
+
+  const renderHostPolicies = () => {
+    if (hostPlatform === "ios" || hostPlatform === "ipados") {
+      return (
+        <EmptyTable
+          header={<>Policies are not supported for this host</>}
+          info={
+            <>
+              Interested in detecting device health issues on{" "}
+              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
+    if (policies.length === 0) {
+      return (
         <EmptyTable
           header={
             <>
@@ -50,47 +106,42 @@ const Policies = ({
             </>
           }
         />
-      </Card>
-    );
-  }
+      );
+    }
 
-  const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
-  if (deviceUser) {
-    // Remove view all hosts link
-    tableHeaders.pop();
-  }
-  const failingResponses: IHostPolicy[] =
-    policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+    return (
+      <>
+        {failingResponses?.length > 0 && (
+          <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
+        )}
+        <TableContainer
+          columnConfigs={tableHeaders}
+          data={generatePolicyDataSet(policies)}
+          isLoading={isLoading}
+          defaultSortHeader="response"
+          defaultSortDirection="asc"
+          resultsTitle="policies"
+          emptyComponent={() => <></>}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disableCount
+          disableMultiRowSelect={!deviceUser} // Removes hover/click state if deviceUser
+          isClientSidePagination
+          onClickRow={deviceUser ? noop : onClickRow}
+        />
+      </>
+    );
+  };
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}
     >
       <p className="card__header">Policies</p>
-
-      {policies.length > 0 && (
-        <>
-          {failingResponses?.length > 0 && (
-            <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
-          )}
-          <TableContainer
-            columnConfigs={tableHeaders}
-            data={generatePolicyDataSet(policies)}
-            isLoading={isLoading}
-            manualSortBy
-            resultsTitle="policy items"
-            emptyComponent={() => <></>}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disablePagination
-            disableCount
-            disableMultiRowSelect
-          />
-        </>
-      )}
+      {renderHostPolicies()}
     </Card>
   );
 };

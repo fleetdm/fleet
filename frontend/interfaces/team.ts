@@ -1,5 +1,9 @@
 import PropTypes from "prop-types";
-import { IConfigFeatures, IWebhookSettings } from "./config";
+import {
+  IAppleDeviceUpdates,
+  IConfigFeatures,
+  IWebhookSettings,
+} from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
@@ -45,10 +49,9 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
-    macos_updates: {
-      minimum_version: string | null;
-      deadline: string | null;
-    };
+    macos_updates: IAppleDeviceUpdates;
+    ios_updates: IAppleDeviceUpdates;
+    ipados_updates: IAppleDeviceUpdates;
     macos_settings: {
       custom_settings: null; // TODO: types?
       enable_disk_encryption: boolean;
@@ -56,7 +59,8 @@ export interface ITeam extends ITeamSummary {
     macos_setup: {
       bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
-      macos_setup_assistant: string | null; // TODO: types?
+      macos_setup_assistant: string | null;
+      enable_release_device_manually: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;

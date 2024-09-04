@@ -120,9 +120,31 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDMAppleABMAssignmentInfo represents an user definition of the association
+// between an ABM token (via organization name) and the teams used to associate
+// hosts when they're ingested during the ABM sync.
+type MDMAppleABMAssignmentInfo struct {
+	OrganizationName string `json:"organization_name"`
+	MacOSTeam        string `json:"macos_team"`
+	IOSTeam          string `json:"ios_team"`
+	IpadOSTeam       string `json:"ipados_team"`
+}
+
+// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
+// between a VPP token (via location) and the team associations.
+type MDMAppleVolumePurchasingProgramInfo struct {
+	Location string   `json:"location"`
+	Teams    []string `json:"teams"`
+}
+
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
-	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	// Deprecated: use AppleBussinessManager instead
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+
+	// AppleBusinessManager defines the associations between ABM tokens
+	// and the teams used to assign hosts when they're ingested from ABM.
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -136,6 +158,10 @@ type MDM struct {
 	// PATCH /config API, it is only set automatically, internally, by detecting
 	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
 	// API.
+	//
+	// It is set to true as soon as one of the ABM tokens receives this error
+	// code, and is set to false only once all ABM tokens have agreed to the new
+	// terms.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
 	// EnabledAndConfigured is set to true if Fleet has been
@@ -148,7 +174,13 @@ type MDM struct {
 	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	// MacOSUpdates defines the OS update settings for macOS devices.
+	MacOSUpdates AppleOSUpdateSettings `json:"macos_updates"`
+	// IOSUpdates defines the OS update settings for iOS devices.
+	IOSUpdates AppleOSUpdateSettings `json:"ios_updates"`
+	// IPadOSUpdates defines the OS update settings for iPadOS devices.
+	IPadOSUpdates AppleOSUpdateSettings `json:"ipados_updates"`
+	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
@@ -166,6 +198,8 @@ type MDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
+	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
@@ -182,8 +216,9 @@ func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 
-// MacOSUpdates is part of AppConfig and defines the macOS update settings.
-type MacOSUpdates struct {
+// AppleOSUpdateSettings is the common type that contains the settings
+// for OS updates on Apple devices.
+type AppleOSUpdateSettings struct {
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required
@@ -191,15 +226,13 @@ type MacOSUpdates struct {
 	Deadline optjson.String `json:"deadline"`
 }
 
-// EnabledForHost returns a boolean indicating if updates are enabled for the host
-func (m MacOSUpdates) EnabledForHost(h *Host) bool {
+// Configured returns a boolean indicating if updates are configured
+func (m AppleOSUpdateSettings) Configured() bool {
 	return m.Deadline.Value != "" &&
-		m.MinimumVersion.Value != "" &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
+		m.MinimumVersion.Value != ""
 }
 
-func (m MacOSUpdates) Validate() error {
+func (m AppleOSUpdateSettings) Validate() error {
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
 		// if one is set and empty, the other must be set and empty too, otherwise
@@ -235,16 +268,6 @@ func (m MacOSUpdates) Validate() error {
 type WindowsUpdates struct {
 	DeadlineDays    optjson.Int `json:"deadline_days"`
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
-}
-
-// EnabledForHost returns a boolean indicating if enforced Windows OS updates
-// are enabled for the host. Note that the provided Host needs to be loaded
-// with full MDMInfo data for the check to be valid.
-func (w WindowsUpdates) EnabledForHost(h *Host) bool {
-	return w.DeadlineDays.Valid &&
-		w.GracePeriodDays.Valid &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
 }
 
 // Equal returns true if the values of the fields of w and other are equal. It
@@ -320,6 +343,18 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
@@ -334,15 +369,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						spec.Path = path
 					}
 
-					// extract the Labels field (if they are not provided, labels are
-					// cleared for that profile)
-					if labels, ok := m["labels"].([]interface{}); ok {
-						for _, label := range labels {
-							if strLabel, ok := label.(string); ok {
-								spec.Labels = append(spec.Labels, strLabel)
-							}
-						}
-					}
+					spec.Labels = extractLabelField(m, "labels")
+					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -381,6 +410,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -433,8 +463,9 @@ type AppConfig struct {
 	// SMTPSettings holds the SMTP integration settings.
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
-	SMTPSettings       *SMTPSettings      `json:"smtp_settings,omitempty"`
-	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
+	SMTPSettings           *SMTPSettings          `json:"smtp_settings,omitempty"`
+	HostExpirySettings     HostExpirySettings     `json:"host_expiry_settings"`
+	ActivityExpirySettings ActivityExpirySettings `json:"activity_expiry_settings"`
 	// Features allows to globally enable or disable features
 	Features               Features  `json:"features"`
 	DeprecatedHostSettings *Features `json:"host_settings,omitempty"`
@@ -604,6 +635,25 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
+	if c.MDM.AppleBusinessManager.Set {
+		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
+		for i, s := range c.MDM.AppleBusinessManager.Value {
+			abm[i] = s
+		}
+		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
+
+	}
+
+	if c.MDM.VolumePurchasingProgram.Set {
+		vpp := make([]MDMAppleVolumePurchasingProgramInfo, len(c.MDM.VolumePurchasingProgram.Value))
+		for i, s := range c.MDM.VolumePurchasingProgram.Value {
+			vpp[i].Location = s.Location
+			vpp[i].Teams = make([]string, len(s.Teams))
+			copy(vpp[i].Teams, s.Teams)
+		}
+		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
+	}
+
 	return &clone
 }
 
@@ -703,6 +753,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 type WebhookSettings struct {
+	ActivitiesWebhook      ActivitiesWebhookSettings      `json:"activities_webhook"`
 	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 	VulnerabilitiesWebhook VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
@@ -710,6 +761,11 @@ type WebhookSettings struct {
 	//
 	// This value currently configures both the host status and failing policies webhooks.
 	Interval Duration `json:"interval"`
+}
+
+type ActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -819,7 +875,12 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
-
+	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if c.MDM.AppleBusinessManager.Set {
+		c.MDM.DeprecatedAppleBMDefaultTeam = ""
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -876,12 +937,29 @@ type ServerSettings struct {
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
+	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	QueryReportCap       int    `json:"query_report_cap"`
+}
+
+const DefaultMaxQueryReportRows int = 1000
+
+func (f *ServerSettings) GetQueryReportCap() int {
+	if f.QueryReportCap <= 0 {
+		return DefaultMaxQueryReportRows
+	}
+	return f.QueryReportCap
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
 type HostExpirySettings struct {
 	HostExpiryEnabled bool `json:"host_expiry_enabled"`
 	HostExpiryWindow  int  `json:"host_expiry_window"`
+}
+
+// ActivityExpirySettings contains settings pertaining to automatic activities cleanup.
+type ActivityExpirySettings struct {
+	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
+	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
 }
 
 type Features struct {
@@ -973,7 +1051,7 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint `query:"per_page,optional"`
-	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
+	// Key to use for ordering. Can be a comma-separated set of items, eg: host_count,id
 	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
 	OrderDirection OrderDirection `query:"order_direction,optional"`
@@ -986,6 +1064,11 @@ type ListOptions struct {
 	After string `query:"after,optional"`
 	// Used to request the metadata of a query
 	IncludeMetadata bool
+
+	// The following fields are for tests, to ensure a deterministic sort order
+	// when the single-column order key is not unique.
+	TestSecondaryOrderKey       string         `query:"-,optional"`
+	TestSecondaryOrderDirection OrderDirection `query:"-,optional"`
 }
 
 func (l ListOptions) Empty() bool {
@@ -1004,6 +1087,9 @@ type ListQueryOptions struct {
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled *bool
+	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
+	// is set.
+	MergeInherited bool
 }
 
 type ListActivitiesOptions struct {
@@ -1022,6 +1108,21 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+}
+
+type ApplyTeamSpecOptions struct {
+	ApplySpecOptions
+	DryRunAssumptions *TeamSpecsDryRunAssumptions
+}
+
+// ApplyClientSpecOptions embeds a ApplySpecOptions and adds additional client
+// side configuration.
+type ApplyClientSpecOptions struct {
+	ApplySpecOptions
+
+	// ExpandEnvConfigProfiles enables expansion of environment variables in
+	// configuration profiles.
+	ExpandEnvConfigProfiles bool
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
@@ -1220,13 +1321,22 @@ type KafkaRESTConfig struct {
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
-	MDM DeviceGlobalMDMConfig `json:"mdm"`
+	MDM      DeviceGlobalMDMConfig `json:"mdm"`
+	Features DeviceFeatures        `json:"features"`
 }
 
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// DeviceFeatures is a subset of AppConfig.Features with information used by
+// the device endpoints.
+type DeviceFeatures struct {
+	// EnableSoftwareInventory is the setting used by the device's team (or
+	// globally in the AppConfig if the device is not in any team).
+	EnableSoftwareInventory bool `json:"enable_software_inventory"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

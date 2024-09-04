@@ -30,15 +30,15 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ vars.GO_VERSION }}
-
     - name: Checkout Code
       uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
       with:
         fetch-depth: 0
+
+    - name: Install Go
+      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      with:
+        go-version-file: 'go.mod'
 
     - name: Update orbit/TUF.md
       run: |
@@ -51,6 +51,7 @@ jobs:
         branch: update-versions-of-fleetd-components-tuf
         delete-branch: true
         title: Update versions of fleetd components in Fleet's TUF [automated]
+        reviewers: lukeheath,georgekarrv,sharon-fdm
         commit-message: |
           Update versions of fleetd components in Fleet's TUF [automated]
 

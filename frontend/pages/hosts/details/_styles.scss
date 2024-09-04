@@ -186,7 +186,7 @@
 
   .empty-table {
     &__container {
-      margin: 0 0 $pad-xxlarge 0;
+      margin: $pad-xxlarge 0; // Equal padding above and below empty states
       min-height: initial;
     }
   }

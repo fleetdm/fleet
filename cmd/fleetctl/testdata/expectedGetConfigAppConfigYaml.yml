@@ -7,6 +7,9 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 0
   features:
     enable_host_users: true
     enable_software_inventory: false
@@ -18,7 +21,8 @@ spec:
     apple_bm_terms_expired: false
     apple_bm_enabled_and_configured: false
     enabled_and_configured: false
-    apple_bm_default_team: ""
+    apple_business_manager: null
+    volume_purchasing_program: null
     windows_enabled_and_configured: false
     enable_disk_encryption: false
     macos_migration:
@@ -26,6 +30,12 @@ spec:
       mode: ""
       webhook_url: ""
     macos_updates:
+      minimum_version: null
+      deadline: null
+    ios_updates:
+      minimum_version: null
+      deadline: null
+    ipados_updates:
       minimum_version: null
       deadline: null
     windows_updates:
@@ -36,6 +46,7 @@ spec:
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
+      enable_release_device_manually: false
       macos_setup_assistant:
     windows_settings:
       custom_settings: null
@@ -55,9 +66,11 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    query_report_cap: 0
     query_reports_disabled: false
     server_url: ""
     scripts_disabled: false
+    ai_features_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""
@@ -86,6 +99,9 @@ spec:
   vulnerability_settings:
     databases_path: /some/path
   webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: false
+      destination_url: ""
     failing_policies_webhook:
       destination_url: ""
       enable_failing_policies_webhook: false

@@ -15,6 +15,10 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
+
+import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
 
@@ -22,7 +26,6 @@ const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
   isPremiumTier: boolean;
-  isSandboxMode?: boolean;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -30,11 +33,18 @@ const DEFAULT_PAGE_SIZE = 8;
 const ActivityFeed = ({
   setShowActivityFeedTitle,
   isPremiumTier,
-  isSandboxMode = false,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    appInstallDetails,
+    setAppInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -93,6 +103,12 @@ const ActivityFeed = ({
         scriptExecutionId.current = details.script_execution_id ?? "";
         setShowScriptDetailsModal(true);
         break;
+      case ActivityType.InstalledSoftware:
+        setPackageInstallDetails({ ...details });
+        break;
+      case ActivityType.InstalledAppStoreApp:
+        setAppInstallDetails({ ...details });
+        break;
       default:
         break;
     }
@@ -138,7 +154,6 @@ const ActivityFeed = ({
               <ActivityItem
                 activity={activity}
                 isPremiumTier={isPremiumTier}
-                isSandboxMode={isSandboxMode}
                 onDetailsClick={handleDetailsClick}
                 key={activity.id}
               />
@@ -182,6 +197,18 @@ const ActivityFeed = ({
         <ScriptDetailsModal
           scriptExecutionId={scriptExecutionId.current}
           onCancel={() => setShowScriptDetailsModal(false)}
+        />
+      )}
+      {packageInstallDetails && (
+        <SoftwareInstallDetailsModal
+          details={packageInstallDetails}
+          onCancel={() => setPackageInstallDetails(null)}
+        />
+      )}
+      {appInstallDetails && (
+        <AppInstallDetailsModal
+          details={appInstallDetails}
+          onCancel={() => setAppInstallDetails(null)}
         />
       )}
     </div>

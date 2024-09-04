@@ -3,7 +3,7 @@
     @include position(fixed, 0 0 0 0);
     background-color: rgba($core-fleet-black, 0.4);
     z-index: 101;
-    overflow: scroll;
+    overflow: auto;
     display: flex;
     justify-content: center;
     animation: fade-in 150ms ease-out;
@@ -16,7 +16,7 @@
     }
   }
 
-  &__content {
+  &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
 
@@ -99,5 +99,22 @@
     &__auto {
       width: auto;
     }
+  }
+
+  // these styles are for the modal content when it is disabled
+  &__content-wrapper-disabled {
+    position: relative;
+  }
+
+  &__content-disabled {
+    transition: opacity 150ms ease-in-out;
+    opacity: 0.5; // this adds a disabled effect to the modal content
+  }
+
+  &__disabled-overlay {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    z-index: 1000;
   }
 }

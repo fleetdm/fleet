@@ -6,6 +6,13 @@ module.exports = {
 
   description: 'Display "fleetctl preview" page.',
 
+  inputs: {
+    start: {
+      type: 'boolean',
+      description: 'A boolean flag that will hide the "next steps" buttons on the page if set to true',
+      defaultsTo: false,
+    }
+  },
 
   exits: {
 
@@ -21,10 +28,10 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({start}) {
 
     // Respond with view.
-    return {};
+    return {hideNextStepsButtons: start};
 
   }
 

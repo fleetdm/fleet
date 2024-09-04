@@ -7,7 +7,18 @@ on:
     paths:
       - 'it-and-security/**'
       - '.github/workflows/dogfood-gitops.yml'
+  pull_request:
+    paths:
+      - 'it-and-security/**'
+      - '.github/workflows/dogfood-gitops.yml'
   workflow_dispatch: # allows manual triggering
+  schedule:
+  - cron: '0 6 * * *' # Nightly 6AM UTC
+
+# Prevent concurrent runs of this workflow, but allow all runs to finish.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -48,11 +59,12 @@ jobs:
         uses: ./fleet-gitops/.github/gitops-action
         with:
           working-directory: ${{ github.workspace }}/fleet-gitops
+          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com
           FLEET_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
-          DOGFOOD_APPLE_BM_DEFAULT_TEAM: "💻Workstations"
+          DOGFOOD_APPLE_BM_DEFAULT_TEAM: "💻 Workstations"
           DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL: ${{ secrets.DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL }}
           DOGFOOD_GLOBAL_ENROLL_SECRET: ${{ secrets.DOGFOOD_GLOBAL_ENROLL_SECRET }}
           DOGFOOD_SSO_ISSUER_URI: ${{ secrets.DOGFOOD_SSO_ISSUER_URI }}
@@ -60,7 +72,12 @@ jobs:
           DOGFOOD_FAILING_POLICIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_FAILING_POLICIES_WEBHOOK_URL }}
           DOGFOOD_VULNERABILITIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_VULNERABILITIES_WEBHOOK_URL }}
           DOGFOOD_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.DOGFOOD_WORKSTATIONS_ENROLL_SECRET }}
+          DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL: ${{ secrets.DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL }}
           DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET }}
           DOGFOOD_SERVERS_ENROLL_SECRET: ${{ secrets.DOGFOOD_SERVERS_ENROLL_SECRET }}
           DOGFOOD_SERVERS_CANARY_ENROLL_SECRET: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
           DOGFOOD_EXPLORE_DATA_ENROLL_SECRET: ${{ secrets.DOGFOOD_EXPLORE_DATA_ENROLL_SECRET }}
+          DOGFOOD_CALENDAR_API_KEY: ${{ secrets.DOGFOOD_CALENDAR_API_KEY }}
+          DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET }}
+          DOGFOOD_COMPANY_OWNED_IPHONES_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_IPHONES_ENROLL_SECRET }}
+          DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET }}

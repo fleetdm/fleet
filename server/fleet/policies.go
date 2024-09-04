@@ -30,8 +30,44 @@ type PolicyPayload struct {
 	//
 	// Empty string targets all platforms.
 	Platform string
-	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	//
+	// Only applies to team policies.
 	CalendarEventsEnabled bool
+	// SoftwareInstallerID is the ID of the software installer that will be installed if the policy fails.
+	//
+	// Only applies to team policies.
+	SoftwareInstallerID *uint
+}
+
+// NewTeamPolicyPayload holds data for team policy creation.
+//
+// If QueryID is not nil, then Name, Query and Description are ignored
+// (such fields are fetched from the queries table).
+type NewTeamPolicyPayload struct {
+	// QueryID allows creating a policy from an existing query.
+	//
+	// Using QueryID is the old way of creating policies.
+	// Use Query, Name and Description instead.
+	QueryID *uint
+	// Name is the name of the policy (ignored if QueryID != nil).
+	Name string
+	// Query is the policy query (ignored if QueryID != nil).
+	Query string
+	// Critical marks the policy as high impact.
+	Critical bool
+	// Description is the policy description text (ignored if QueryID != nil).
+	Description string
+	// Resolution indicates the steps needed to solve a failing policy.
+	Resolution string
+	// Platform is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platform string
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	CalendarEventsEnabled bool
+	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
+	SoftwareTitleID *uint
 }
 
 var (
@@ -109,8 +145,15 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
-	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	//
+	// Only applies to team policies.
 	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
+	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
+	// Value 0 will unset the current installer from the policy.
+	//
+	// Only applies to team policies.
+	SoftwareTitleID *uint `json:"software_title_id" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -163,7 +206,8 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
-	CalendarEventsEnabled bool `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
 
 	UpdateCreateTimestamps
 }
@@ -177,11 +221,33 @@ type Policy struct {
 	// FailingHostCount is the number of hosts this policy fails on.
 	FailingHostCount   uint       `json:"failing_host_count" db:"failing_host_count"`
 	HostCountUpdatedAt *time.Time `json:"host_count_updated_at" db:"host_count_updated_at"`
+
+	// InstallSoftware is used to trigger installation of a software title
+	// when this policy fails.
+	//
+	// Only applies to team policies.
+	//
+	// This field is populated from PolicyData.SoftwareInstallerID.
+	InstallSoftware *PolicySoftwareTitle `json:"install_software,omitempty"`
 }
 
 type PolicyCalendarData struct {
 	ID   uint   `db:"id" json:"id"`
 	Name string `db:"name" json:"name"`
+}
+
+type PolicySoftwareInstallerData struct {
+	ID          uint `db:"id"`
+	InstallerID uint `db:"software_installer_id"`
+}
+
+// PolicyLite is a stripped down version of the policy.
+type PolicyLite struct {
+	ID uint `db:"id"`
+	// Description describes the policy.
+	Description string `db:"description"`
+	// Resolution describes how to solve a failing policy.
+	Resolution *string `db:"resolution"`
 }
 
 func (p Policy) AuthzType() string {
@@ -223,8 +289,19 @@ type PolicySpec struct {
 	//
 	// Empty string targets all platforms.
 	Platform string `json:"platform,omitempty"`
-	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	//
+	// Only applies to team policies.
 	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
+}
+
+// PolicySoftwareTitle contains software title data for policies.
+type PolicySoftwareTitle struct {
+	// SoftwareTitleID is the ID of the title associated to the policy.
+	SoftwareTitleID uint `json:"software_title_id"`
+	// Name is the associated installer title name
+	// (not the package name, but the installed software title).
+	Name string `json:"name"`
 }
 
 // Verify verifies the policy data is valid.

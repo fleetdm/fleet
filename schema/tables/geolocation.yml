@@ -20,5 +20,5 @@ columns:
     type: text
     required: false
     description: Region
-notes: |
+notes: |-
   - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

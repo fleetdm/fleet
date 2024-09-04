@@ -3,6 +3,7 @@ package calendar
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,16 +19,22 @@ type GoogleCalendarMockAPI struct {
 	logger kitlog.Logger
 }
 
+type channel struct {
+	channelID  string
+	resourceID string
+}
+
 var (
-	mockEvents = make(map[string]*calendar.Event)
-	mu         sync.Mutex
-	id         uint64
+	mockEvents   = make(map[string]*calendar.Event)
+	mockChannels = make([]channel, 0)
+	mu           sync.Mutex
+	id           uint64
 )
 
-const latency = 500 * time.Millisecond
+const latency = 200 * time.Millisecond
 
 // Configure creates a new Google Calendar service using the provided credentials.
-func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string) error {
+func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string, _ string) error {
 	if lowLevelAPI.logger == nil {
 		lowLevelAPI.logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarMockAPI", "user", userToImpersonate)
 	}
@@ -53,6 +60,15 @@ func (lowLevelAPI *GoogleCalendarMockAPI) CreateEvent(event *calendar.Event) (*c
 	id += 1
 	event.Id = strconv.FormatUint(id, 10)
 	lowLevelAPI.logger.Log("msg", "CreateEvent", "id", event.Id, "start", event.Start.DateTime)
+	mockEvents[event.Id] = event
+	return event, nil
+}
+
+func (lowLevelAPI *GoogleCalendarMockAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	time.Sleep(latency)
+	mu.Lock()
+	defer mu.Unlock()
+	lowLevelAPI.logger.Log("msg", "UpdateEvent", "id", event.Id, "start", event.Start.DateTime)
 	mockEvents[event.Id] = event
 	return event, nil
 }
@@ -84,6 +100,31 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 	return nil
 }
 
+func (lowLevelAPI *GoogleCalendarMockAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
+	time.Sleep(latency)
+	mu.Lock()
+	defer mu.Unlock()
+	resourceID = uuid.New().String()
+	mockChannels = append(mockChannels, channel{
+		channelID:  channelID,
+		resourceID: resourceID,
+	})
+	return resourceID, nil
+}
+
+func (lowLevelAPI *GoogleCalendarMockAPI) Stop(channelID string, resourceID string) error {
+	time.Sleep(latency)
+	mu.Lock()
+	defer mu.Unlock()
+	for i, ch := range mockChannels {
+		if ch.channelID == channelID && ch.resourceID == resourceID {
+			mockChannels = append(mockChannels[:i], mockChannels[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("channel not found")
+}
+
 func ListGoogleMockEvents() map[string]*calendar.Event {
 	return mockEvents
 }
@@ -92,4 +133,25 @@ func ClearMockEvents() {
 	mu.Lock()
 	defer mu.Unlock()
 	mockEvents = make(map[string]*calendar.Event)
+}
+
+func MockChannelsCount() int {
+	return len(mockChannels)
+}
+
+func ClearMockChannels() {
+	mu.Lock()
+	defer mu.Unlock()
+	mockChannels = make([]channel, 0)
+}
+
+func SetMockEventsToNow() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	now := time.Now()
+	for _, mockEvent := range mockEvents {
+		mockEvent.Start = &calendar.EventDateTime{DateTime: now.Format(time.RFC3339)}
+		mockEvent.End = &calendar.EventDateTime{DateTime: now.Add(30 * time.Minute).Format(time.RFC3339)}
+	}
 }

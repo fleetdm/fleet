@@ -1,15 +1,17 @@
 name: user_ssh_keys
-examples: >-
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN user_ssh_keys USING (uid);
+  ```
+
   Identify SSH keys stored in clear text in user directories
   
   ```
-  
   SELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;
-  
   ```
 columns:
   - name: pid_with_namespace
     platforms:
       - linux
   - name: uid
-    requires_user_context: true
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

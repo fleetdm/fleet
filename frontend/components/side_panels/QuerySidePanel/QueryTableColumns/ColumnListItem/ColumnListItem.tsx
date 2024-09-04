@@ -1,10 +1,13 @@
 import React from "react";
 import classnames from "classnames";
 
-import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
+import {
+  ColumnType,
+  IQueryTableColumn,
+  TableSchemaPlatform,
+} from "interfaces/osquery_table";
 import TooltipWrapper from "components/TooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
-import { OsqueryPlatform } from "interfaces/platform";
 
 interface IColumnListItemProps {
   column: IQueryTableColumn;
@@ -47,7 +50,15 @@ const renderTooltip = (
     );
   };
 
-  const renderPlatformFootnotes = (columnPlatforms: OsqueryPlatform[]) => {
+  const renderHiddenFootnote = () => {
+    return (
+      <span className={`${baseClass}__footnote`}>
+        Not returned in SELECT * FROM {selectedTableName}
+      </span>
+    );
+  };
+
+  const renderPlatformFootnotes = (columnPlatforms: TableSchemaPlatform[]) => {
     let platformsCopy;
     switch (columnPlatforms.length) {
       case 1:
@@ -78,6 +89,7 @@ const renderTooltip = (
         <span className={`${baseClass}__footnote`}>{FOOTNOTES.required}</span>
       )}
       {column.requires_user_context && renderUserContextFootnote()}
+      {column.hidden && renderHiddenFootnote()}
       {column.platforms && renderPlatformFootnotes(column.platforms)}
     </>
   );

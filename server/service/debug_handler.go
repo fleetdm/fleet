@@ -3,16 +3,19 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kithttp "github.com/go-kit/kit/transport/http"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -49,9 +52,19 @@ func jsonHandler(
 	jsonGenerator func(ctx context.Context) (interface{}, error),
 ) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		jsonData, err := jsonGenerator(r.Context())
+		lc := &logging.LoggingContext{SkipUser: true} // The debug handler does not save the logged-in user.
+		ctx := logging.NewContext(kithttp.PopulateRequestContext(r.Context(), r), lc)
+		ctx = logging.WithStartTime(ctx)
+		jsonData, err := jsonGenerator(ctx)
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			lc.SetErrs(err)
+			lc.Log(ctx, logger)
+			var sce kithttp.StatusCoder
+			if errors.As(err, &sce) {
+				rw.WriteHeader(sce.StatusCode())
+				_, _ = rw.Write([]byte(err.Error()))
+				return
+			}
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}

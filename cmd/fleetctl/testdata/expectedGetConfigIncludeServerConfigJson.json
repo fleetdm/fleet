@@ -11,10 +11,12 @@
 		"server_settings": {
 			"server_url": "",
 			"live_query_disabled": false,
+			"query_report_cap": 0,
 			"query_reports_disabled": false,
 			"enable_analytics": false,
 			"deferred_save_host": false,
-			"scripts_disabled": false
+			"scripts_disabled": false,
+			"ai_features_disabled": false
 		},
 		"smtp_settings": {
 			"enable_smtp": false,
@@ -35,18 +37,31 @@
 			"host_expiry_enabled": false,
 			"host_expiry_window": 0
 		},
+		"activity_expiry_settings": {
+			"activity_expiry_enabled": false,
+			"activity_expiry_window": 0
+		},
 		"features": {
 			"enable_host_users": true,
 			"enable_software_inventory": false
 		},
 		"mdm": {
-			"apple_bm_default_team": "",
+			"apple_business_manager": null,
+			"volume_purchasing_program": null,
 			"apple_bm_terms_expired": false,
 			"apple_bm_enabled_and_configured": false,
 			"enabled_and_configured": false,
 			"windows_enabled_and_configured": false,
 			"enable_disk_encryption": false,
 			"macos_updates": {
+				"minimum_version": null,
+				"deadline": null
+			},
+			"ios_updates": {
+				"minimum_version": null,
+				"deadline": null
+			},
+			"ipados_updates": {
 				"minimum_version": null,
 				"deadline": null
 			},
@@ -65,7 +80,8 @@
 			"macos_setup": {
 				"bootstrap_package": null,
 				"enable_end_user_authentication": false,
-				"macos_setup_assistant": null
+				"macos_setup_assistant": null,
+				"enable_release_device_manually": false
 			},
 			"windows_settings": {
 				"custom_settings": null
@@ -98,6 +114,10 @@
 			"databases_path": "/some/path"
 		},
 		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": false,
+				"destination_url": ""
+			},
 			"host_status_webhook": {
 				"enable_host_status_webhook": false,
 				"destination_url": "",

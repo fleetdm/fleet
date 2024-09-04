@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,11 +25,13 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 var userRoleSpecList = []*fleet.User{
@@ -164,15 +167,43 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.Len(t, labels, 1)
+		switch labels[0] {
+		case fleet.BuiltinLabelMacOS14Plus:
+			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		case fleet.BuiltinLabelIOS:
+			return map[string]uint{fleet.BuiltinLabelIOS: 2}, nil
+		case fleet.BuiltinLabelIPadOS:
+			return map[string]uint{fleet.BuiltinLabelIPadOS: 3}, nil
+		default:
+			return nil, &notFoundError{}
+		}
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -203,16 +234,23 @@ spec:
 
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	newMDMSettings := fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
-	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team2"].Config.MDM)
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
+		},
+	}, teamsByName["team2"].Config.MDM)
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	ds.ApplyEnrollSecretsFuncInvoked = false
@@ -232,13 +270,16 @@ spec:
 `)
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
 			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -257,7 +298,7 @@ spec:
 `, mobileCfgPath))
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -267,6 +308,9 @@ spec:
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 
@@ -293,14 +337,28 @@ spec:
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
+      ios_updates:
+        minimum_version: 11.11.11
+        deadline: 1993-04-02
+      ipados_updates:
+        minimum_version: 12.12.12
+        deadline: 1994-05-03
     secrets:
       - secret: BBB
 `)
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("11.11.11"),
+			Deadline:       optjson.SetString("1993-04-02"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("12.12.12"),
+			Deadline:       optjson.SetString("1994-05-03"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -308,6 +366,9 @@ spec:
 		},
 		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -363,6 +424,12 @@ spec:
       macos_updates:
         minimum_version:
         deadline:
+      ios_updates:
+        minimum_version:
+        deadline:
+      ipados_updates:
+        minimum_version:
+        deadline:
       windows_updates:
         deadline_days:
         grace_period_days:
@@ -371,7 +438,15 @@ spec:
 `)
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
 		},
@@ -381,6 +456,9 @@ spec:
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{},
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 
@@ -511,7 +589,13 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -546,6 +630,31 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
+	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{Name: "team1", ID: 1}}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -564,11 +673,14 @@ spec:
 `)
 
 	newMDMSettings := fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
-		MacOSUpdates: fleet.MacOSUpdates{
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -616,11 +728,14 @@ spec:
 `)
 
 	newMDMSettings = fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
-		MacOSUpdates: fleet.MacOSUpdates{
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -647,7 +762,9 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -912,6 +1029,49 @@ spec:
   platforms:
     - darwin
 `
+	manualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: manual_label
+  label_membership_type: manual
+  hosts:
+    - host1
+  platforms:
+    - darwin
+`
+	emptyManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: empty_manual_label
+  label_membership_type: manual
+  hosts: []
+  platforms:
+    - darwin
+`
+	nohostsManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: invalid_nohost_manual_label
+  label_membership_type: manual
+  hosts:
+  platforms:
+    - darwin
+`
+	builtinLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  description: All Ubuntu hosts
+  hosts: null
+  id: 8
+  label_membership_type: dynamic
+  label_type: builtin
+  name: Ubuntu Linux
+  query: select 1 from os_version where platform = 'ubuntu';
+`
 	packsSpec = `---
 apiVersion: v1
 kind: pack
@@ -950,7 +1110,9 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1000,7 +1162,7 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	enqueuer := new(mock.MDMAppleStore)
+	enqueuer := new(mdmmock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	// mdm test configuration must be set so that activating windows MDM works.
@@ -1009,7 +1171,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License:     license,
@@ -1038,7 +1200,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return gitOps, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1076,6 +1240,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return savedTeam, nil
 	}
+
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		assert.False(t, new)
+		assert.Equal(t, uint(123), *teamID)
+		return true, nil
+	}
 	var teamEnrollSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil || *teamID != 123 {
@@ -1084,11 +1254,14 @@ func TestApplyAsGitOps(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 		return nil, &notFoundError{}
@@ -1102,13 +1275,24 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 		return nil, &notFoundError{}
 	}
-	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
 	}
 	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -1182,9 +1366,10 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
@@ -1223,10 +1408,11 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
-			BootstrapPackage:    optjson.SetString(bootstrapURL),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			BootstrapPackage:            optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
@@ -1277,9 +1463,12 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(0),
@@ -1316,7 +1505,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1325,7 +1514,8 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
 
@@ -1352,7 +1542,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1361,8 +1551,9 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
-			BootstrapPackage:    optjson.SetString(bootstrapURL),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			BootstrapPackage:            optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
 
@@ -1476,6 +1667,66 @@ func TestApplyLabels(t *testing.T) {
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, manualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, emptyManualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, nohostsManualLabelSpec)
+
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
+
+	// Apply built-in label (no changes)
+	// The label values below should match the spec.
+	ubuntuLabel := &fleet.Label{
+		ID:                  8,
+		Name:                fleet.BuiltinLabelNameUbuntuLinux,
+		Query:               "select 1 from os_version where platform = 'ubuntu';",
+		Description:         "All Ubuntu hosts",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
+		return map[string]*fleet.Label{
+			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
+		}, nil
+	}
+
+	name = writeTmpYml(t, builtinLabelSpec)
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.False(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.LabelsByNameFuncInvoked)
+
+	// Apply built-in label (with changes)
+	ubuntuLabel.Description = "CHANGED"
+	name = writeTmpYml(t, builtinLabelSpec)
+	_, err = runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cannot modify or add built-in label")
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -1484,7 +1735,9 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1534,7 +1787,9 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1639,7 +1894,9 @@ func TestApplyMacosSetup(t *testing.T) {
 		teamsByID := map[uint]*fleet.Team{
 			tm1.ID: tm1,
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
 			return nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -1717,6 +1974,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			return nil
 		}
 
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			teamsByName[team.Name] = team
 			teamsByID[team.ID] = team
@@ -1758,7 +2018,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			}
 			return nil, &notFoundError{}
 		}
-		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			return nil
 		}
 		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
@@ -1774,6 +2034,9 @@ func TestApplyMacosSetup(t *testing.T) {
 	invalidURLMacosSetup := writeTmpJSON(t, map[string]any{
 		"url": "https://example.com",
 	})
+	invalidAwaitMacosSetup := writeTmpJSON(t, map[string]any{
+		"await_device_configured": true,
+	})
 
 	const (
 		appConfigSpec = `
@@ -1784,6 +2047,9 @@ spec:
     macos_setup:
       bootstrap_package: %s
       macos_setup_assistant: %s
+`
+		appConfigEnableReleaseSpec = appConfigSpec + `
+      enable_release_device_manually: %s
 `
 		appConfigNoKeySpec = `
 apiVersion: v1
@@ -1810,6 +2076,9 @@ spec:
       macos_setup:
         bootstrap_package: %s
         macos_setup_assistant: %s
+`
+		team1EnableReleaseSpec = team1Spec + `
+        enable_release_device_manually: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
@@ -1971,10 +2240,16 @@ spec:
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
 		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 		require.NoError(t, err)
 		expectedEmptyTm1 := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
+		require.NoError(t, err)
+		expectedTm1Set := fmt.Sprintf(string(b), "", "")
+		expectedTm1SetReleaseEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -2004,8 +2279,8 @@ spec:
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
-		// apply appconfig for real
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
+		// apply appconfig for real, and enable release device
+		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
@@ -2018,7 +2293,7 @@ spec:
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, setup assistant is now set
-		assert.YAMLEq(t, expectedAppCfgSet, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// clear with dry-run, appconfig
@@ -2054,11 +2329,11 @@ spec:
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, results unchanged
-		assert.YAMLEq(t, expectedAppCfgSet, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// clear appconfig for real
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
+		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
 		ds.SaveAppConfigFuncInvoked = false
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -2077,16 +2352,40 @@ spec:
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
-		// apply appconfig with invalid key
+		// apply team 1 without the setup assistant key but enable device release
+		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true"))
+		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
+		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
+		ds.SaveTeamFuncInvoked = false
+		assert.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.True(t, ds.SaveTeamFuncInvoked)
+
+		assert.YAMLEq(t, expectedTm1SetReleaseEnabled, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+
+		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")
+		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
-		// apply teams with invalid key
+		// apply teams with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidURLMacosSetup, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")
+		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+
+		// apply appconfig with invalid await_device_configured key
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidAwaitMacosSetup))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+
+		// apply teams with invalid await_device_configured key
+		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidAwaitMacosSetup, "", invalidAwaitMacosSetup))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	})
 
@@ -2105,7 +2404,7 @@ spec:
 			t.Run(c.pkgName, func(t *testing.T) {
 				srv, pkgLen := serveMDMBootstrapPackage(t, filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName), c.pkgName)
 				ds := setupServer(t, true)
-				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 					require.Equal(t, len(bp.Bytes), pkgLen)
 					return nil
 				}
@@ -2164,7 +2463,7 @@ spec:
 		defer srv.Close()
 
 		ds := setupServer(t, true)
-		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			mockStore.Lock()
 			defer mockStore.Unlock()
 			require.Equal(t, pkgName, bp.Name)
@@ -2317,6 +2616,7 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 
@@ -2361,12 +2661,17 @@ func TestApplySpecs(t *testing.T) {
 			return team, nil
 		}
 
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 			return nil
 		}
 
 		// activities
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
 			return nil
 		}
 
@@ -3428,6 +3733,58 @@ spec:
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},
+		{
+			desc: "activities_webhook empty destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ""
+`,
+			wantErr: `422 Validation Failed: destination_url is required`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 1",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ftp://host
+`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 2",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: /foo
+`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 3",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: foo
+`,
+			wantErr: `422 Validation Failed: parse "foo": invalid URI`,
+		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
 	// they require a complex setup to mock the client that would communicate
@@ -3454,6 +3811,84 @@ spec:
 				require.Empty(t, got)
 			} else {
 				require.Contains(t, got, c.wantOutput)
+			}
+		})
+	}
+}
+
+func TestApplyFileExtensionValidation(t *testing.T) {
+	cases := []struct {
+		desc     string
+		filename string
+		wantErr  string
+	}{
+		{
+			desc:     "Valid .yml extension",
+			filename: "test_file.yml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Valid .yaml extension",
+			filename: "test_file.yaml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Invalid .txt extension",
+			filename: "test_file.txt",
+			wantErr:  "Invalid file extension .txt: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "Invalid .json extension",
+			filename: "test_file.json",
+			wantErr:  "Invalid file extension .json: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "No extension",
+			filename: "test_file",
+			wantErr:  "Missing file extension: only .yml or .yaml files can be applied",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			// Create a temporary directory
+			tmpDir, err := os.MkdirTemp("", "test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir) // clean up
+
+			// Create the file with the exact name in the temporary directory
+			tmpFilePath := filepath.Join(tmpDir, c.filename)
+			tmpFile, err := os.Create(tmpFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tmpFile.Close()
+
+			// Create a new cli.App for each test
+			app := &cli.App{
+				Commands: []*cli.Command{
+					applyCommand(),
+				},
+			}
+
+			// Set up arguments
+			args := []string{"fleetctl", "apply", "-f", tmpFilePath}
+
+			// Run the command
+			err = app.Run(args)
+
+			if c.wantErr == "" {
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, but got none")
+				} else if err.Error() != c.wantErr {
+					t.Errorf("Expected error message '%s', but got '%s'", c.wantErr, err.Error())
+				}
 			}
 		})
 	}

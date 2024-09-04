@@ -7,18 +7,20 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
-
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
 
 func TestMDMAppleConfigProfile(t *testing.T) {
@@ -30,6 +32,11 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{
 			testName:     "TestParseConfigProfileOK",
 			mobileconfig: MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""),
+			shouldFail:   false,
+		},
+		{
+			testName:     "TestParseConfigProfileLeadingSpace",
+			mobileconfig: append([]byte{' '}, []byte(MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""))...),
 			shouldFail:   false,
 		},
 		{
@@ -410,4 +417,200 @@ func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 			require.Equal(t, c.expect, ep.IsWithinGracePeriod(c.hostDetailUpdatedAt))
 		})
 	}
+}
+
+func TestMDMAppleHostDeclarationEqual(t *testing.T) {
+	t.Parallel()
+
+	// This test is intended to ensure that the Equal method on MDMAppleHostDeclaration is updated when new fields are added.
+	// The Equal method is used to identify whether database update is needed.
+
+	items := [...]MDMAppleHostDeclaration{{}, {}}
+
+	numberOfFields := 0
+	for i := 0; i < len(items); i++ {
+		rValue := reflect.ValueOf(&items[i]).Elem()
+		numberOfFields = rValue.NumField()
+		for j := 0; j < numberOfFields; j++ {
+			field := rValue.Field(j)
+			switch field.Kind() {
+			case reflect.String:
+				valueToSet := fmt.Sprintf("test %d", i)
+				field.SetString(valueToSet)
+			case reflect.Int:
+				field.SetInt(int64(i))
+			case reflect.Bool:
+				field.SetBool(i%2 == 0)
+			case reflect.Pointer:
+				field.Set(reflect.New(field.Type().Elem()))
+			default:
+				t.Fatalf("unhandled field type %s", field.Kind())
+			}
+		}
+	}
+
+	status0 := MDMDeliveryStatus("status")
+	status1 := MDMDeliveryStatus("status")
+	items[0].Status = &status0
+	assert.False(t, items[0].Equal(items[1]))
+
+	// Set known fields to be equal
+	fieldsInEqualMethod := 0
+	items[1].HostUUID = items[0].HostUUID
+	fieldsInEqualMethod++
+	items[1].DeclarationUUID = items[0].DeclarationUUID
+	fieldsInEqualMethod++
+	items[1].Name = items[0].Name
+	fieldsInEqualMethod++
+	items[1].Identifier = items[0].Identifier
+	fieldsInEqualMethod++
+	items[1].OperationType = items[0].OperationType
+	fieldsInEqualMethod++
+	items[1].Detail = items[0].Detail
+	fieldsInEqualMethod++
+	items[1].Checksum = items[0].Checksum
+	fieldsInEqualMethod++
+	items[1].Status = &status1
+	fieldsInEqualMethod++
+	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
+	assert.True(t, items[0].Equal(items[1]))
+
+	// Set pointers to nil
+	items[0].Status = nil
+	items[1].Status = nil
+	assert.True(t, items[0].Equal(items[1]))
+
+}
+
+func TestMDMAppleProfilePayloadEqual(t *testing.T) {
+	t.Parallel()
+
+	// This test is intended to ensure that the Equal method on MDMAppleProfilePayload is updated when new fields are added.
+	// The Equal method is used to identify whether database update is needed.
+
+	items := [...]MDMAppleProfilePayload{{}, {}}
+
+	numberOfFields := 0
+	for i := 0; i < len(items); i++ {
+		rValue := reflect.ValueOf(&items[i]).Elem()
+		numberOfFields = rValue.NumField()
+		for j := 0; j < numberOfFields; j++ {
+			field := rValue.Field(j)
+			switch field.Kind() {
+			case reflect.String:
+				valueToSet := fmt.Sprintf("test %d", i)
+				field.SetString(valueToSet)
+			case reflect.Int:
+				field.SetInt(int64(i))
+			case reflect.Bool:
+				field.SetBool(i%2 == 0)
+			case reflect.Pointer:
+				field.Set(reflect.New(field.Type().Elem()))
+			case reflect.Slice:
+				switch field.Type().Elem().Kind() {
+				case reflect.Uint8:
+					valueToSet := []byte("test")
+					field.Set(reflect.ValueOf(valueToSet))
+				default:
+					t.Fatalf("unhandled slice type %s", field.Type().Elem().Kind())
+				}
+			default:
+				t.Fatalf("unhandled field type %s", field.Kind())
+			}
+		}
+	}
+
+	status0 := MDMDeliveryStatus("status")
+	status1 := MDMDeliveryStatus("status")
+	items[0].Status = &status0
+	checksum0 := []byte("checksum")
+	checksum1 := []byte("checksum")
+	items[0].Checksum = checksum0
+	assert.False(t, items[0].Equal(items[1]))
+
+	// Set known fields to be equal
+	fieldsInEqualMethod := 0
+	items[1].ProfileUUID = items[0].ProfileUUID
+	fieldsInEqualMethod++
+	items[1].ProfileIdentifier = items[0].ProfileIdentifier
+	fieldsInEqualMethod++
+	items[1].ProfileName = items[0].ProfileName
+	fieldsInEqualMethod++
+	items[1].HostUUID = items[0].HostUUID
+	fieldsInEqualMethod++
+	items[1].HostPlatform = items[0].HostPlatform
+	fieldsInEqualMethod++
+	items[1].Checksum = checksum1
+	fieldsInEqualMethod++
+	items[1].Status = &status1
+	fieldsInEqualMethod++
+	items[1].OperationType = items[0].OperationType
+	fieldsInEqualMethod++
+	items[1].Detail = items[0].Detail
+	fieldsInEqualMethod++
+	items[1].CommandUUID = items[0].CommandUUID
+	fieldsInEqualMethod++
+	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleProfilePayload.Equal needs to be updated for new/updated field(s)")
+	assert.True(t, items[0].Equal(items[1]))
+
+	// Set pointers and slices to nil
+	items[0].Status = nil
+	items[1].Status = nil
+	items[0].Checksum = nil
+	items[1].Checksum = nil
+	assert.True(t, items[0].Equal(items[1]))
+
+}
+
+func TestConfigurationProfileLabelEqual(t *testing.T) {
+	t.Parallel()
+
+	// This test is intended to ensure that the cmp.Equal method on ConfigurationProfileLabel is updated when new fields are added.
+	// The cmp.Equal method is used to identify whether database update is needed.
+
+	items := [...]ConfigurationProfileLabel{{}, {}}
+
+	numberOfFields := 0
+	for i := 0; i < len(items); i++ {
+		rValue := reflect.ValueOf(&items[i]).Elem()
+		numberOfFields = rValue.NumField()
+		for j := 0; j < numberOfFields; j++ {
+			field := rValue.Field(j)
+			switch field.Kind() {
+			case reflect.String:
+				valueToSet := fmt.Sprintf("test %d", i)
+				field.SetString(valueToSet)
+			case reflect.Int:
+				field.SetInt(int64(i))
+			case reflect.Uint:
+				field.SetUint(uint64(i))
+			case reflect.Bool:
+				field.SetBool(i%2 == 0)
+			case reflect.Pointer:
+				field.Set(reflect.New(field.Type().Elem()))
+			default:
+				t.Fatalf("unhandled field type %s", field.Kind())
+			}
+		}
+	}
+
+	assert.False(t, cmp.Equal(items[0], items[1]))
+
+	// Set known fields to be equal
+	fieldsInEqualMethod := 0
+	items[1].ProfileUUID = items[0].ProfileUUID
+	fieldsInEqualMethod++
+	items[1].LabelName = items[0].LabelName
+	fieldsInEqualMethod++
+	items[1].LabelID = items[0].LabelID
+	fieldsInEqualMethod++
+	items[1].Broken = items[0].Broken
+	fieldsInEqualMethod++
+	items[1].Exclude = items[0].Exclude
+	fieldsInEqualMethod++
+
+	assert.Equal(t, fieldsInEqualMethod, numberOfFields,
+		"Does cmp.Equal for ConfigurationProfileLabel needs to be updated for new/updated field(s)?")
+	assert.True(t, cmp.Equal(items[0], items[1]))
+
 }

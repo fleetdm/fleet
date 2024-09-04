@@ -1,54 +1,20 @@
--
-  task: "Prioritize for next sprint" # Title that will actually show in rituals table
-  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Triweekly" # must be supported by https://github.com/fleetdm/fleet/blob/dbbb501358e226fa3fdf48865175efe3334c826c/website/scripts/build-static-content.js
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/digital-experiencemunication)"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
-  dri: "joStableford" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-business-operations" ] # label to be applied to issue
-    repo: "confidential" # The GitHub repo that issues will be created in
--
-  task: "Key review prep"
-  startedOn: "2024-02-14"
-  frequency: "Triweekly"
-  description: "Prepare for this sprint's Key review meeting"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/leadership#key-reviews"
-  dri: "joStableford"
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "confidential"
-#-
-#   task: "Review ongoing articles"
-#   startedOn: "2023-10-02"
-#   frequency: "Daily"
-#   description: "Check 📃 Planned articles and complete steps in each issue"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
-#   dri: "spokanemac"
--
-  task: "Check ongoing events"
-  startedOn: "2024-02-09"
-  frequency: "Daily"
-  description: "Check event issues and complete steps"
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#book-an-event"
-  dri: "joStableford"
--
-  task: "KPI roundup + weekly update" 
-  startedOn: "2024-02-16" 
+- 
+  task: "Communicate the status of customer financial actions" 
+  startedOn: "2024-02-12" 
   frequency: "Weekly"
-  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#update-weekly-kpis"
-  dri: "hollidayn"
+  description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report findings to in the `#g-sales` channel." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#communicate-the-status-of-customer-financial-actions"
+  dri: "ireedy" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
-  task: "AP invoice monitoring" # TODO tie this to a responsibility
+  task: "AP invoice monitoring"
   startedOn: "2024-04-01" 
   frequency: "Weekly"
-  description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid" 
-  moreInfoUrl: 
-  dri: "hollidayn"
+  description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#process-a-new-vendor-invoice"
+  dri: "ireedy"
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
@@ -56,112 +22,165 @@
   task: "Inform managers about hours worked" 
   startedOn: "2024-02-09" 
   frequency: "Weekly" 
-  description: "https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked" 
+  description: "Gather hours worked for anyone who gets paid hourly by Fleet, and get those hours approved by their manager." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked"
-  dri: "joStableford" 
+  dri: "ireedy" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
-  task: "Vanta check" # TODO tie this to a responsibility
-  startedOn: "2024-04-01" 
-  frequency: "Monthly"
-  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time" 
-  moreInfoUrl: 
+  task: "KPI roundup + weekly update" 
+  startedOn: "2024-02-16" 
+  frequency: "Weekly"
+  description: "Create the weekly KPI issue, complete the BizOps update and ensure all other inputs are completed on time." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#update-weekly-kpis"
   dri: "hollidayn"
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
-  task: "The numbers" # TODO tie this to a responsibility
-  startedOn: "2024-02-28" 
-  frequency: "Monthly"
-  description: "Each month, update the inputs in “The numbers” spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend" 
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278"
-  dri: "joStableford" 
+  task: "Key review prep"
+  startedOn: "2024-02-14"
+  frequency: "Triweekly"
+  description: "Prepare for this sprint's Key review meeting."
+  moreInfoUrl: "https://fleetdm.com/handbook/company/leadership#key-reviews"
+  dri: "jostableford"
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
-  task: "Monthly accounting" # TODO tie this to a responsibility
+  task: "Prioritize for next sprint" # Title that will actually show in rituals table
+  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Triweekly" # must be supported by https://github.com/fleetdm/fleet/blob/dbbb501358e226fa3fdf48865175efe3334c826c/website/scripts/build-static-content.js
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/digital-experiencemunication)"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "jostableford" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-business-operations" ] # label to be applied to issue
+    repo: "confidential" # The GitHub repo that issues will be created in
+-
+  task: "Vanta check" # TODO tie this to a responsibility
+  startedOn: "2024-04-01" 
+  frequency: "Monthly"
+  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time." 
+  moreInfoUrl: 
+  dri: "jostableford"
+  autoIssue:   
+    labels: [ "#g-business-operations" ] 
+    repo: "confidential"
+-
+  task: "Reconcile monthly recurring expenses" 
   startedOn: "2024-02-28" 
   frequency: "Monthly"
-  description: "Create the monthly close GitHub issue and walk through the steps.  (This process includes fulfilling the monthly reporting requirement for SVB)" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#intake"
+  description: "Each month, update the inputs in “The numbers” spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#reconcile-monthly-recurring-expenses"
+  dri: "jostableford" 
+  autoIssue:   
+    labels: [ "#g-business-operations" ] 
+    repo: "confidential"
+-
+  task: "Monthly accounting"
+  startedOn: "2024-02-28" 
+  frequency: "Monthly"
+  description: "Create the monthly close GitHub issue and walk through the steps. This process includes fulfilling the monthly reporting requirement for SVB." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#process-monthly-accounting"
   dri: "hollidayn" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
-  task: "Run US commission payroll" # TODO is this Jo or Taylor?
-  startedOn: "2024-02-28" 
+  task: "Monthly mail review" # TODO tie this to a responsibility
+  startedOn: "2024-04-15" 
   frequency: "Monthly"
-  description: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll"
-  dri: "hughestaylor" 
+  description: "Review and clear mail incurring storage fees" 
+  moreInfoUrl: null 
+  dri: "ireedy"
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
+  task: "Run regular payroll" 
+  startedOn: "2024-02-24" 
+  frequency: "Monthly" 
+  description: "Verify auto-populated payroll for all full time employees is accurate, and approve for processing." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-payroll"
+  dri: "jostableford" 
+  autoIssue:   
+    labels: [ "#g-business-operations" ] 
+    repo: "confidential" 
+-
   task: "Run US contractor payroll" 
   startedOn: "2024-02-28" 
   frequency: "Monthly"
-  description: "https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll" 
+  description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll"
-  dri: "joStableford" 
+  dri: "jostableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential" 
 -
-  task: "Run payroll" 
-  startedOn: "2024-02-28" 
-  frequency: "Monthly" 
-  description: "Check Gusto and Plane manually for accuracy" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked"
-  dri: "joStableford" 
+  task: "Run US commission payroll" 
+  startedOn: "2024-01-31" 
+  frequency: "Monthly"
+  description: "Verify closed-won deal amounts, use commission calculators to determine commissions owed, and process payroll." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll"
+  dri: "jostableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
-    repo: "confidential" 
+    repo: "confidential"
 -
-  task: "Downgrade unused license seats" 
-  startedOn: "2024-03-31" 
+  task: "Recognize and benchmark workiversaries" 
+  startedOn: "2024-07-15" 
+  frequency: "Bimonthly"
+  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#recognize-employee-workiversaries"
+  dri: "ireedy" 
+-
+  task: "Run bonus payroll" 
+  startedOn: "2024-01-31" 
   frequency: "Quarterly"
-  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
-  dri: "joStableford"
+  description: "Verify completion of any objective or outcome based bonus plans, and process payroll." 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
+  dri: "jostableford" 
+-
+  task: "Review state filings for the previous quarter"
+  startedOn: "2024-07-19" 
+  frequency: "Quarterly"
+  description: "Verify that state filings have been successfully submitted for the previous quarter" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#review-state-employment-tax-filings-for-the-previous-quarter"
+  dri: "ireedy" 
 -
   task: "Investor reporting" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
-  description: "Provide updated metrics for CRV in Chronograph" 
+  description: "Provide updated metrics for CRV in Chronograph." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#report-quarterly-numbers-in-chronograph"
   dri: "hollidayn"
 -
   task: "Quartlery finance check" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
-  description: "Create the quarterly close GitHub issue and walk through the steps" 
+  description: "Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up with accounting providers for any quirks found." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#check-finances-for-quirks"
-  dri: "joStableford"
+  dri: "jostableford"
 -
   task: "Quarterly grants" 
-  startedOn: "2024-03-31" 
+  startedOn: "2024-02-01" 
   frequency: "Quarterly"
-  description: "Create the quarterly close GitHub issue and walk through the steps" 
+  description: "Create the equity grants GitHub issue and walk through the steps." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#grant-equity"
   dri: "hollidayn" 
 -
   task: "Deliver annual report for venture line" 
-  startedOn: "2024-11-01" 
+  startedOn: "2024-12-01" 
   frequency: "Annually"
   description: "Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line"
-  dri: "joStableford"
+  dri: "jostableford"
 -
   task: "Tax preparation" # TODO tie this to a responsibility
-  startedOn: "2024-03-01" 
+  startedOn: "2024-02-01" 
   frequency: "Annually"
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
   dri: "hollidayn"
-

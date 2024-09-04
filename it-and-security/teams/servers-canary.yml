@@ -1,15 +1,15 @@
-name: "☁️🐣Servers (canary)"
+name: "☁️🐣 Servers (canary)"
 team_settings:
   features:
-    enable_host_users: false
-    enable_software_inventory: false
+    enable_host_users: true
+    enable_software_inventory: true
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
     - secret: $DOGFOOD_SERVERS_CANARY_ENROLL_SECRET
 agent_options:
-  path: ../lib/servers.agent-options.yml
+  path: ../lib/servers-canary.agent-options.yml
 controls:
   enable_disk_encryption: false
   macos_settings:
@@ -29,3 +29,4 @@ controls:
   scripts:
 policies:
 queries:
+software:

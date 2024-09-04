@@ -4,19 +4,38 @@ platforms:
   - windows
   - linux
   - chrome
-description: Installed extensions (plugins) for [Chromium-based](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers, including [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).
-examples: >-
-  List Chrome extensions by user and profile which have full access to HTTPS
-  browsing.
+description: The `chrome_extensions` table maps browser extensions installed in [Chromium](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers like [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).
+examples: |- 
+
+  Because browser data lives in user space, this query uses a join to include a UID: 
 
   ```
+  SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
+  ```
 
+  This query shows Chrome extensions that have full access to HTTPS browsing;
+
+  ```
   SELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';
-
   ```
+  
+notes: |-
+  Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
+
+  On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+
+  Examples of [malicious Chrome extensions](https://palant.info/2023/06/08/another-cluster-of-potentially-malicious-chrome-extensions/)
+
+  Loosely restricted extension permissions can be an [indicator of malicious intent](https://developer.chrome.com/docs/extensions/reference/api/permissions)
+
+  Tracking browser extensions in an organization can help with:
+
+    - Compliance audits: Ensure extensions comply with company policies
+    - Security training: Educate users about Chrome extension risks
+    - Incident response: Identify suspicious or vulnerable extensions
+
 columns:
   - name: uid
-    requires_user_context: true
     platforms: 
       - darwin
       - windows
@@ -57,7 +76,7 @@ columns:
       - windows
       - linux
   - name: path
-    type: string
+    type: text
     description: Path to extension folder. Defaults to '' on ChromeOS
   - name: optional_permissions
     platforms: 
@@ -85,7 +104,7 @@ columns:
       - windows
       - linux
   - name: state
-    type: string
+    type: text
   - name: install_time
     platforms: 
       - darwin
@@ -106,5 +125,3 @@ columns:
       - darwin
       - windows
       - linux
-notes: |
-  - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
