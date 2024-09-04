@@ -9202,11 +9202,11 @@ Returns information about the specified Fleet library app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet library app's ID. |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team" (default: 0).  |
+
 
 #### Example
 
-`GET /api/v1/fleet/software/fleet_library_apps/1?team_id=3`
+`GET /api/v1/fleet/software/fleet_library_apps/1`
 
 ##### Default response
 
