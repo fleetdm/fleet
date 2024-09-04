@@ -8485,6 +8485,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add package](#add-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [List Fleet library apps](#list-fleet-library-apps)
+- [Get Fleet library app](#get-fleet-library-app)
 - [Add Fleet library app](#add-fleet-library-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
@@ -9123,7 +9125,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 #### Example
 
-`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+`POST /api/v1/fleet/software/app_store_apps`
 
 ##### Request body
 
@@ -9132,6 +9134,125 @@ Add App Store (VPP) app purchased in Apple Business Manager.
   "app_store_id": "497799835",
   "team_id": 2,
   "platform": "ipados"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List Fleet library apps
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+List available Fleet library apps.
+
+`GET /api/v1/fleet/software/fleet_library_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | query | **Required**. The team ID. Filters Fleet library apps to only include apps available for the specified team.  |
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_library_apps?team_id=3`
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_library_apps": [
+    {
+      "id": "1",
+      "name": "1Password",
+      "version": "8.10.40",
+      "platform": "darwin"
+    },
+    {
+      "id": "2",
+      "name": "Adobe Acrobat Reader",
+      "version": "24.002.21005",
+      "platform": "darwin"
+    },
+    {
+      "id": "3",
+      "name": "Box Drive",
+      "version": "2.39.179",
+      "platform": "darwin"
+    },
+  ]
+}
+```
+
+### Get Fleet library app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+Returns information about the specified Fleet library app.
+
+`GET /api/v1/fleet/software/fleet_library_apps/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The Fleet library app's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team" (default: 0).  |
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_library_apps/1?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_library_app": {
+    "id": 1,
+    "name": "1Password",
+    "file_name": "1Password-8.10.44-aarch64.zip",
+    "version": "8.10.40",
+    "platform": "darwin",
+    "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
+    "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+  }
+}
+```
+
+### Add Fleet library app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Add app from Fleet library.
+
+`POST /api/v1/fleet/software/fleet_library_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| fleet_library_app_id   | string | body | **Required.** The ID of Fleet library app. |
+| team_id       | integer | body | **Required**. The team ID. Adds Fleet library app to the specified team.  |
+
+#### Example
+
+`POST /api/v1/fleet/software/fleet_library_apps`
+
+##### Request body
+
+```json
+{
+  "fleet_library_app_id": "3",
+  "team_id": 2,
 }
 ```
 
