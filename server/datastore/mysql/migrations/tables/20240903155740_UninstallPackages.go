@@ -24,24 +24,36 @@ MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
-	// Add dummy uninstall scripts -- these will be updated by a cron job
-	linuxScriptID, err := getOrInsertScript(txx, "exit 1")
-	if err != nil {
-		return err
+	// Add dummy uninstall scripts if needed -- these will be updated later by a cron job
+	var result []int
+	if err := txx.Select(&result, `SELECT 1 FROM software_installers WHERE platform IN ('linux', 'darwin')`); err != nil {
+		return fmt.Errorf("failed to check software installers for linux or darwin: %w", err)
 	}
-	windowsScriptID, err := getOrInsertScript(txx, "Exit 1")
-	if err != nil {
-		return err
+	if len(result) > 0 {
+		linuxScriptID, err := getOrInsertScript(txx, "exit 1")
+		if err != nil {
+			return err
+		}
+		// Update software installers with the scripts
+		if _, err := tx.Exec(`UPDATE software_installers SET uninstall_script_content_id = ? WHERE platform IN ('linux', 'darwin')`,
+			linuxScriptID); err != nil {
+			return fmt.Errorf("failed to update software installers: %w", err)
+		}
 	}
 
-	// Update software installers with the scripts
-	if _, err := tx.Exec(`UPDATE software_installers SET uninstall_script_content_id = ? WHERE platform IN ('linux', 'darwin')`,
-		linuxScriptID); err != nil {
-		return fmt.Errorf("failed to update software installers: %w", err)
+	if err := txx.Select(&result, `SELECT 1 FROM software_installers WHERE platform IN ('windows')`); err != nil {
+		return fmt.Errorf("failed to check software installers for windows: %w", err)
 	}
-	if _, err := tx.Exec(`UPDATE software_installers SET uninstall_script_content_id = ? WHERE platform IN ('windows')`,
-		windowsScriptID); err != nil {
-		return fmt.Errorf("failed to update windows software installers: %w", err)
+	if len(result) > 0 {
+		windowsScriptID, err := getOrInsertScript(txx, "Exit 1")
+		if err != nil {
+			return err
+		}
+		// Update software installers with the scripts
+		if _, err := tx.Exec(`UPDATE software_installers SET uninstall_script_content_id = ? WHERE platform IN ('windows')`,
+			windowsScriptID); err != nil {
+			return fmt.Errorf("failed to update windows software installers: %w", err)
+		}
 	}
 
 	// Add foreign key

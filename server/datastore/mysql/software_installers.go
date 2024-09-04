@@ -368,7 +368,7 @@ SELECT
 	hsi.host_id AS host_id,
 	st.name AS software_title,
 	st.id AS software_title_id,
-	COALESCE(%s, '') AS status,
+	COALESCE(hsi.status, '') AS status,
 	si.filename AS software_package,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
@@ -384,13 +384,10 @@ FROM
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id
-	`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+	`)
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
-		"execution_id":              resultsUUID,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
-		"software_status_pending":   fleet.SoftwareInstallPending,
-		"software_status_installed": fleet.SoftwareInstalled,
+		"execution_id": resultsUUID,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query for get software install results")
@@ -419,7 +416,7 @@ SELECT
 FROM (
 SELECT
 	software_installer_id,
-	%s
+	status
 FROM
 	host_software_installs hsi
 WHERE
@@ -433,13 +430,10 @@ WHERE
 			AND host_deleted_at IS NULL
 			AND removed = 0
 		GROUP BY
-			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			host_id)) s`)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"installer_id":              installerID,
-		"software_status_pending":   fleet.SoftwareInstallPending,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
-		"software_status_installed": fleet.SoftwareInstalled,
+		"installer_id": installerID,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -504,21 +498,18 @@ WHERE
 			AND removed = 0
 		GROUP BY
 			host_id, software_installer_id)
-	AND (%s) = :status) hss ON hss.host_id = h.id
-`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+	AND hsi.status = :status) hss ON hss.host_id = h.id
+`)
 
 	return sqlx.Named(stmt, map[string]interface{}{
-		"status":                    status,
-		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstalled,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
-		"software_status_pending":   fleet.SoftwareInstallPending,
+		"status":       status,
+		"installer_id": installerID,
 	})
 }
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	stmt := fmt.Sprintf(`
-		SELECT execution_id, %s AS status
+		SELECT execution_id, hsi.status AS status
 		FROM host_software_installs hsi
 		WHERE hsi.id = (
 			SELECT
@@ -528,14 +519,11 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 				software_installer_id = :installer_id AND host_id = :host_id
 			GROUP BY
 				host_id, software_installer_id)
-`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+`)
 
 	stmt, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"host_id":                   hostID,
-		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstalled,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
-		"software_status_pending":   fleet.SoftwareInstallPending,
+		"host_id":      hostID,
+		"installer_id": installerID,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query to get host last install data")
