@@ -9295,7 +9295,7 @@ Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Softwa
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/:install_uuid/install/results`
+`GET /api/v1/fleet/software/install/:install_uuid/results`
 
 Get the results of a software package install. 
 
