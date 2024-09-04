@@ -330,7 +330,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'software_title', COALESCE(st.name, ''),
 				'software_package', si.filename,
 				'install_uuid', hsi.execution_id,
-				'status', CAST(%s AS CHAR),
+				'status', CAST(hsi.status AS CHAR),
 				'self_service', si.self_service IS TRUE
 			) as details
 		FROM
@@ -349,7 +349,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.host_id = :host_id AND
 			hsi.pre_install_query_output IS NULL AND
 			hsi.install_script_exit_code IS NULL
-		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
+		`),
 		`
 SELECT
 	hvsi.command_uuid AS uuid,

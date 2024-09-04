@@ -2155,45 +2155,6 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// tblAlias is the table alias to use as prefix for the host_software_installs
-// column names, no prefix used if empty.
-// colAlias is the name to be assigned to the computed status column, pass
-// empty to have the value only, no column alias set.
-func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
-	if tblAlias != "" {
-		tblAlias += "."
-	}
-	if colAlias != "" {
-		colAlias = " AS " + colAlias
-	}
-	// the computed column assumes that all results (pre, install and post) are
-	// stored at once, so that if there is an exit code for the install script
-	// and none for the post-install, it is because there is no post-install.
-	return fmt.Sprintf(`
-			CASE
-				WHEN %[1]sremoved = 1 THEN NULL
-
-				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
-					%[1]spost_install_script_exit_code = 0 THEN :software_status_installed
-
-				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
-					%[1]spost_install_script_exit_code != 0 THEN :software_status_failed
-
-				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
-					%[1]sinstall_script_exit_code = 0 THEN :software_status_installed
-
-				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
-					%[1]sinstall_script_exit_code != 0 THEN :software_status_failed
-
-				WHEN %[1]spre_install_query_output IS NOT NULL AND
-					%[1]spre_install_query_output = '' THEN :software_status_failed
-
-				WHEN %[1]shost_id IS NOT NULL THEN :software_status_pending
-
-				ELSE NULL -- not installed from Fleet installer
-			END %[2]s `, tblAlias, colAlias)
-}
-
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
