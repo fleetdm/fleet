@@ -2848,6 +2848,12 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "iPadOS",
       "description": "All iPadOS hosts",
       "label_type": "builtin"
+    },
+    {
+      "id": 15,
+      "name": "Fedora Linux",
+      "description": "All Fedora hosts",
+      "label_type": "builtin"
     }
   ],
   "platforms": [
