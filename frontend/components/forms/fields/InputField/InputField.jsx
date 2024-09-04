@@ -130,6 +130,13 @@ class InputField extends Component {
         : `${baseClass}__copy-wrapper-inside`
     );
 
+    const copiedConfirmationClasses = classnames(
+      `${baseClass}__copied-confirmation`,
+      copyButtonPosition === "outside"
+        ? `${baseClass}__copied-confirmation-outside`
+        : `${baseClass}__copied-confirmation-inside`
+    );
+
     return (
       <div className={wrapperClasses}>
         <Button
@@ -140,7 +147,7 @@ class InputField extends Component {
           {copyButtonValue}
         </Button>
         {this.state.copied && (
-          <span className={`${baseClass}__copied-confirmation`}>Copied!</span>
+          <span className={copiedConfirmationClasses}>Copied!</span>
         )}
       </div>
     );
@@ -163,6 +170,7 @@ class InputField extends Component {
       value,
       ignore1password,
       enableCopy,
+      copyButtonPosition,
     } = this.props;
 
     const { onInputChange } = this;
@@ -214,15 +222,11 @@ class InputField extends Component {
       );
     }
 
-    const inputContainerClasses = classnames(
-      `${baseClass}__input-container`,
-      {
-        "copy-enabled": enableCopy,
-      },
-      this.props.copyButtonPosition === "outside"
-        ? "copy-outside"
-        : "copy-inside"
-    );
+    const inputContainerClasses = classnames(`${baseClass}__input-container`, {
+      "copy-enabled": enableCopy,
+      "copy-outside": enableCopy && copyButtonPosition === "outside",
+      "copy-inside": enableCopy && copyButtonPosition === "inside",
+    });
 
     return (
       <FormField
