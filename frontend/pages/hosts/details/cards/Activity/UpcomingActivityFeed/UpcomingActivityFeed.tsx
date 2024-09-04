@@ -43,7 +43,7 @@ const UpcomingActivityFeed = ({
     return (
       <EmptyFeed
         title="No pending activity "
-        message="When you run a script on an offline host, it will appear here."
+        message="Pending actions will appear here (scripts, software, lock, and wipe)."
         className={`${baseClass}__empty-feed`}
       />
     );

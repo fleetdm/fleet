@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -18,40 +18,25 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 )
 
+// Used for overriding the env var value in testing
+var testSetEmptyPrivateKey bool
+
 // getVPPToken returns the base64 encoded VPP token, ready for use in requests to Apple's VPP API.
 // It returns an error if the token is expired.
-func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
-	configMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, error) {
+	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+		}
 		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
-	var vppTokenData fleet.VPPTokenData
-	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPToken].Value, &vppTokenData); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
-	}
-
-	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
-	}
-
-	var vppTokenRaw fleet.VPPTokenRaw
-
-	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token data")
-	}
-
-	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
-	}
-
-	if time.Now().After(exp) {
+	if time.Now().After(token.RenewDate) {
 		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
-	return vppTokenData.Token, nil
+	return token.Token, nil
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
@@ -103,7 +88,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		token, err := svc.getVPPToken(ctx)
+		token, err := svc.getVPPToken(ctx, &team.ID)
 		if err != nil {
 			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 		}
@@ -179,7 +164,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		return nil, err
 	}
 
-	vppToken, err := svc.getVPPToken(ctx)
+	vppToken, err := svc.getVPPToken(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
@@ -313,7 +298,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
 	}
 
-	vppToken, err := svc.getVPPToken(ctx)
+	vppToken, err := svc.getVPPToken(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
@@ -431,4 +416,144 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	}
 
 	return apps, nil
+}
+
+func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	if token == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+	}
+
+	tokenBytes, err := io.ReadAll(token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
+	}
+
+	locName, err := vpp.GetConfig(string(tokenBytes))
+	if err != nil {
+		var vppErr *vpp.ErrorResponse
+		if errors.As(err, &vppErr) {
+			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			if vppErr.ErrorNumber == 9622 {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+	}
+
+	data := fleet.VPPTokenData{
+		Token:    string(tokenBytes),
+		Location: locName,
+	}
+
+	tok, err := svc.ds.InsertVPPToken(ctx, &data)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "writing VPP token to db")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEnabledVPP{
+		Location: locName,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
+	}
+
+	return tok, nil
+}
+
+func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	if token == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+	}
+
+	tokenBytes, err := io.ReadAll(token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
+	}
+
+	locName, err := vpp.GetConfig(string(tokenBytes))
+	if err != nil {
+		var vppErr *vpp.ErrorResponse
+		if errors.As(err, &vppErr) {
+			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			if vppErr.ErrorNumber == 9622 {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+	}
+
+	data := fleet.VPPTokenData{
+		Token:    string(tokenBytes),
+		Location: locName,
+	}
+
+	tok, err := svc.ds.UpdateVPPToken(ctx, tokenID, &data)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating vpp token")
+	}
+
+	return tok, nil
+}
+
+func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) (*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	tok, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
+	}
+
+	return tok, nil
+}
+
+func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.ListVPPTokens(ctx)
+}
+
+func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	tok, err := svc.ds.GetVPPToken(ctx, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting vpp token")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDisabledVPP{
+		Location: tok.Location,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for delete VPP token")
+	}
+
+	return svc.ds.DeleteVPPToken(ctx, tokenID)
 }

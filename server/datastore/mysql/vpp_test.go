@@ -3,10 +3,13 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +28,7 @@ func TestVPP(t *testing.T) {
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
 		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
+		{"VPPTokensCRUD", testVPPTokensCRUD},
 	}
 
 	for _, c := range cases {
@@ -55,8 +59,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Nil(t, meta)
 
 	// create no-team app
-	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}}, nil)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
 	require.NoError(t, err)
 	vpp1, titleID1 := va1.VPPAppID, va1.TitleID
 
@@ -66,8 +72,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1}, meta)
 
 	// try to add the same app again, update self_service field
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}, SelfService: true}}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}, SelfService: true},
+	}, nil)
 	require.NoError(t, err)
 
 	// get no-team app
@@ -76,8 +84,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true}, meta)
 
 	// create team1 app
-	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}}, &team1.ID)
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
 	require.NoError(t, err)
 	vpp2, titleID2 := va2.VPPAppID, va2.TitleID
 
@@ -92,8 +102,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// try to add the same app again, fails
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}, SelfService: true}}, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}, SelfService: true},
+	}, &team1.ID)
 	require.NoError(t, err)
 
 	// get it for team 1
@@ -108,8 +120,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Nil(t, meta)
 
 	// create the same app for team2
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}}, &team2.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+	}, &team2.ID)
 	require.NoError(t, err)
 
 	// get it for team 1 and team 2, both work
@@ -121,8 +135,10 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// create another no-team app
-	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}}, nil)
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+	}, nil)
 	require.NoError(t, err)
 	vpp3, titleID3 := va3.VPPAppID, va3.TitleID
 
@@ -197,20 +213,28 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, team1)
 
 	// create some apps, one for no-team, one for team1, and one in both
-	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}}, nil)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
 	require.NoError(t, err)
 	vpp1 := va1.VPPAppID
-	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}}, &team1.ID)
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
 	require.NoError(t, err)
 	vpp2 := va2.VPPAppID
-	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}}, nil)
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+	}, nil)
 	require.NoError(t, err)
 	vpp3 := va3.VPPAppID
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}}, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
 	require.NoError(t, err)
 
 	// for now they all return zeroes
@@ -287,6 +311,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, user.ID, actUser.ID)
 	require.Equal(t, user.Name, actUser.Name)
 	require.Equal(t, cmd3, act.CommandUUID)
+	require.False(t, act.SelfService)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -329,6 +354,19 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp3)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+
+	// simulate a self-service request
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET self_service = true, user_id = NULL WHERE command_uuid = ?`,
+			cmd3)
+		return err
+	})
+	actUser, act, err = ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd3})
+	require.NoError(t, err)
+	require.Nil(t, actUser)
+	require.Equal(t, cmd3, act.CommandUUID)
+	require.True(t, act.SelfService)
 }
 
 // simulates creating the VPP app install request on the host, returns the command UUID.
@@ -397,10 +435,14 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Insert some VPP apps for no team
-	appNoTeam1 := &fleet.VPPApp{Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
-		BundleIdentifier: "b3"}
-	appNoTeam2 := &fleet.VPPApp{Name: "vpp_no_team_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.MacOSPlatform}},
-		BundleIdentifier: "b4"}
+	appNoTeam1 := &fleet.VPPApp{
+		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "b3",
+	}
+	appNoTeam2 := &fleet.VPPApp{
+		Name: "vpp_no_team_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "b4",
+	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam1, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
@@ -414,15 +456,16 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	})
 	require.NoError(t, err)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b", false)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: u})
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, app1.VPPAppID, "a", "b", false)
 	require.NoError(t, err)
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d", true)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, app2.VPPAppID, "c", "d", true)
 	require.NoError(t, err)
 
 	var results []struct {
 		HostID            uint   `db:"host_id"`
-		UserID            uint   `db:"user_id"`
+		UserID            *uint  `db:"user_id"`
 		AdamID            string `db:"adam_id"`
 		CommandUUID       string `db:"command_uuid"`
 		AssociatedEventID string `db:"associated_event_id"`
@@ -434,13 +477,13 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	a1 := results[0]
 	a2 := results[1]
 	require.Equal(t, a1.HostID, uint(1))
-	require.Equal(t, a1.UserID, u.ID)
+	require.Equal(t, a1.UserID, ptr.Uint(u.ID))
 	require.Equal(t, a1.AdamID, app1.AdamID)
 	require.Equal(t, a1.CommandUUID, "a")
 	require.Equal(t, a1.AssociatedEventID, "b")
 	require.False(t, a1.SelfService)
 	require.Equal(t, a2.HostID, uint(2))
-	require.Equal(t, a2.UserID, u.ID)
+	require.Equal(t, a2.UserID, ptr.Uint(u.ID))
 	require.Equal(t, a2.AdamID, app2.AdamID)
 	require.Equal(t, a2.CommandUUID, "c")
 	require.Equal(t, a2.AssociatedEventID, "d")
@@ -579,4 +622,418 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "bar", gotVPPApp.AdamID)
 	require.Equal(t, barTitleID, gotVPPApp.TitleID)
+}
+
+func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kritters"})
+	assert.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
+	_ = team2
+	assert.NoError(t, err)
+
+	tokens, err := ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, tokens, 0)
+
+	orgName := "Donkey Kong"
+	location := "Jungle"
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName, location)
+	require.NoError(t, err)
+
+	orgName2 := "Diddy Kong"
+	location2 := "Mines"
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName2, location2)
+	require.NoError(t, err)
+
+	orgName3 := "Cranky Cong"
+	location3 := "Cranky's Cabin"
+	dataToken3, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName3, location3)
+	require.NoError(t, err)
+
+	orgName4 := "Funky Kong"
+	location4 := "Funky's Fishing Shack"
+	dataToken4, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName4, location4)
+	require.NoError(t, err)
+
+	orgName5 := "Lanky Kong"
+	location5 := "Lanky Kong's Pool"
+	dataToken5, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName5, location5)
+	require.NoError(t, err)
+
+	orgName6 := "Dixie Kong"
+	location6 := "Dixie's Island"
+	dataToken6, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), orgName6, location6)
+	require.NoError(t, err)
+
+	// No assignments / disabled token
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	tokID := tok.ID
+	assert.NoError(t, err)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Nil(t, tok.Teams) // No team assigned
+
+	tok, err = ds.GetVPPToken(ctx, tokID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, tok.ID)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.Nil(t, tok.Teams)
+
+	toks, err := ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+	assert.Equal(t, tokID, toks[0].ID)
+	assert.Equal(t, dataToken.Location, toks[0].Location)
+	assert.Equal(t, dataToken.Token, toks[0].Token)
+	assert.Equal(t, orgName, toks[0].OrgName)
+	assert.Equal(t, location, toks[0].Location)
+	assert.Nil(t, toks[0].Teams)
+
+	teamTok, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+	assert.Nil(t, teamTok)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+	assert.Nil(t, teamTok)
+
+	// Assign to all teams
+	upTok, err := ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, upTok.ID)
+	assert.Equal(t, dataToken.Location, upTok.Location)
+	assert.Equal(t, dataToken.Token, upTok.Token)
+	assert.Equal(t, orgName, upTok.OrgName)
+	assert.Equal(t, location, upTok.Location)
+	assert.NotNil(t, upTok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.Len(t, upTok.Teams, 0)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, tok.ID)
+	assert.Equal(t, dataToken.Location, tok.Location)
+	assert.Equal(t, dataToken.Token, tok.Token)
+	assert.Equal(t, orgName, tok.OrgName)
+	assert.Equal(t, location, tok.Location)
+	assert.NotNil(t, tok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.Len(t, tok.Teams, 0)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+	assert.Equal(t, dataToken.Location, toks[0].Location)
+	assert.Equal(t, dataToken.Token, toks[0].Token)
+	assert.Equal(t, orgName, toks[0].OrgName)
+	assert.Equal(t, location, toks[0].Location)
+	assert.NotNil(t, toks[0].Teams)
+	assert.Len(t, toks[0].Teams, 0)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, teamTok.ID)
+	assert.Equal(t, dataToken.Location, teamTok.Location)
+	assert.Equal(t, dataToken.Token, teamTok.Token)
+	assert.Equal(t, orgName, teamTok.OrgName)
+	assert.Equal(t, location, teamTok.Location)
+	assert.NotNil(t, teamTok.Teams)
+	assert.Len(t, teamTok.Teams, 0)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, teamTok.ID)
+	assert.Equal(t, dataToken.Location, teamTok.Location)
+	assert.Equal(t, dataToken.Token, teamTok.Token)
+	assert.Equal(t, orgName, teamTok.OrgName)
+	assert.Equal(t, location, teamTok.Location)
+	assert.NotNil(t, teamTok.Teams)
+	assert.Len(t, teamTok.Teams, 0)
+
+	// Assign to team "No Team"
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
+	assert.NoError(t, err)
+	assert.Len(t, upTok.Teams, 1)
+	assert.Equal(t, tokID, upTok.ID)
+	assert.Equal(t, uint(0), upTok.Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, upTok.Teams[0].Name)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Len(t, tok.Teams, 1)
+	assert.Equal(t, tokID, tok.ID)
+	assert.Equal(t, uint(0), tok.Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, tok.Teams[0].Name)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+	assert.Len(t, toks[0].Teams, 1)
+	assert.Equal(t, tokID, toks[0].ID)
+	assert.Equal(t, uint(0), toks[0].Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, toks[0].Teams[0].Name)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, teamTok.ID)
+	assert.Equal(t, dataToken.Location, teamTok.Location)
+	assert.Equal(t, dataToken.Token, teamTok.Token)
+	assert.Equal(t, orgName, teamTok.OrgName)
+	assert.Equal(t, location, teamTok.Location)
+	assert.Len(t, teamTok.Teams, 1)
+	assert.Equal(t, uint(0), teamTok.Teams[0].ID)
+	assert.Equal(t, fleet.TeamNameNoTeam, teamTok.Teams[0].Name)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Assign to normal team
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
+	assert.NoError(t, err)
+	assert.Len(t, upTok.Teams, 1)
+	assert.Equal(t, team.ID, upTok.Teams[0].ID)
+	assert.Equal(t, team.Name, upTok.Teams[0].Name)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Len(t, tok.Teams, 1)
+	assert.Equal(t, team.ID, tok.Teams[0].ID)
+	assert.Equal(t, team.Name, tok.Teams[0].Name)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+	assert.Len(t, toks[0].Teams, 1)
+	assert.Equal(t, team.ID, toks[0].Teams[0].ID)
+	assert.Equal(t, team.Name, toks[0].Teams[0].Name)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, teamTok.ID)
+	assert.Equal(t, dataToken.Location, teamTok.Location)
+	assert.Equal(t, dataToken.Token, teamTok.Token)
+	assert.Equal(t, orgName, teamTok.OrgName)
+	assert.Equal(t, location, teamTok.Location)
+	assert.NotNil(t, teamTok.Teams)
+	assert.Len(t, teamTok.Teams, 1)
+	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
+	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
+
+	// Renew flow
+	upTok, err = ds.UpdateVPPToken(ctx, tokID, dataToken6)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, upTok.ID)
+	assert.Equal(t, dataToken6.Location, upTok.Location)
+	assert.Equal(t, dataToken6.Token, upTok.Token)
+	assert.Equal(t, orgName6, upTok.OrgName)
+	assert.Equal(t, location6, upTok.Location)
+	assert.NotNil(t, upTok.Teams)
+	assert.Len(t, upTok.Teams, 1)
+	assert.Equal(t, team.ID, upTok.Teams[0].ID)
+	assert.Equal(t, team.Name, upTok.Teams[0].Name)
+
+	tok, err = ds.GetVPPToken(ctx, tok.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokID, tok.ID)
+	assert.Equal(t, dataToken6.Location, tok.Location)
+	assert.Equal(t, dataToken6.Token, tok.Token)
+	assert.Equal(t, orgName6, tok.OrgName)
+	assert.Equal(t, location6, tok.Location)
+	assert.NotNil(t, tok.Teams)
+	assert.Len(t, tok.Teams, 1)
+	assert.Equal(t, team.ID, tok.Teams[0].ID)
+	assert.Equal(t, team.Name, tok.Teams[0].Name)
+
+	// Assign back to no team / disabled
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokID, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, upTok.Teams)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Delete
+	err = ds.DeleteVPPToken(ctx, tokID)
+	assert.NoError(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 0)
+
+	// Multiple tokens and constraints tests
+	tokNone, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, nil)
+	assert.NoError(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 1)
+
+	_, err = ds.InsertVPPToken(ctx, dataToken)
+	assert.Error(t, err)
+
+	tokAll, err := ds.InsertVPPToken(ctx, dataToken2)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	assert.NoError(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 2)
+
+	tokTeam, err := ds.InsertVPPToken(ctx, dataToken3)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
+	assert.Error(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 3)
+
+	tokTeams, err := ds.InsertVPPToken(ctx, dataToken4)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
+	assert.Error(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
+	assert.Error(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, 0})
+	assert.Error(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
+	assert.NoError(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 4)
+
+	tokTeams, err = ds.GetVPPToken(ctx, tokTeams.ID)
+	assert.NoError(t, err)
+	assert.Len(t, tokTeams.Teams, 2)
+	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: team2.ID, Name: team2.Name})
+	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+
+	tokBadConstraint, err := ds.InsertVPPToken(ctx, dataToken5)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{})
+	assert.Error(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{team.ID})
+	assert.Error(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{0})
+	assert.Error(t, err)
+
+	toks, err = ds.ListVPPTokens(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, toks, 5)
+
+	// Test fallback to all teams
+	tokNil, err := ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokNil.ID)
+
+	tokTeam1, err := ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokTeam.ID, tokTeam1.ID)
+
+	tokTeam2, err := ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokTeam2.ID, tokTeam2.ID)
+	assert.Len(t, tokTeam2.Teams, 2)
+	assert.Contains(t, tokTeam2.Teams, fleet.TeamTuple{ID: team2.ID, Name: team2.Name})
+	assert.Contains(t, tokTeam2.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+
+	////
+	err = ds.DeleteVPPToken(ctx, tokTeam.ID)
+	assert.NoError(t, err)
+
+	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokNil.ID)
+
+	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokAll.ID, tokTeam1.ID)
+
+	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokTeam2.ID)
+
+	////
+	err = ds.DeleteVPPToken(ctx, tokTeams.ID)
+	assert.NoError(t, err)
+
+	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokAll.ID, tokNil.ID)
+
+	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokAll.ID, tokTeam1.ID)
+
+	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokAll.ID, tokTeam2.ID)
+
+	////
+	err = ds.DeleteVPPToken(ctx, tokAll.ID)
+	assert.NoError(t, err)
+
+	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	////
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
+	assert.NoError(t, err)
+
+	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, tokNone.ID, tokNil.ID)
+
+	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokNone.ID, tokTeam1.ID)
+
+	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, tokNone.ID, tokTeam2.ID)
+
+	////
+	err = ds.DeleteVPPToken(ctx, tokNone.ID)
+	assert.NoError(t, err)
 }

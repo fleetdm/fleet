@@ -79,6 +79,8 @@ type SoftwareInstaller struct {
 	Name string `json:"name" db:"filename"`
 	// Version is the version of the software package.
 	Version string `json:"version" db:"version"`
+	// Platform can be "darwin" (for pkgs), "windows" (for exes/msis) or "linux" (for debs).
+	Platform string `json:"platform" db:"platform"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -140,6 +142,14 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	}
 }
 
+// HostLastInstallData contains data for the last installation of a package on a host.
+type HostLastInstallData struct {
+	// ExecutionID is the installation ID of the package on the host.
+	ExecutionID string `db:"execution_id"`
+	// Status is the status of the installation on the host.
+	Status *SoftwareInstallerStatus `db:"status"`
+}
+
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
 type HostSoftwareInstallerResult struct {
 	// ID is the unique numerical ID of the result assigned by the datastore.
@@ -183,6 +193,12 @@ type HostSoftwareInstallerResult struct {
 	// HostDeletedAt indicates if the data is associated with a
 	// deleted host
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
+	// SoftwareInstallerUserID is the ID of the user that uploaded the software installer.
+	SoftwareInstallerUserID *uint `json:"-" db:"software_installer_user_id"`
+	// SoftwareInstallerUserID is the name of the user that uploaded the software installer.
+	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
+	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
+	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
 }
 
 const (
@@ -262,6 +278,7 @@ type UploadSoftwareInstallerPayload struct {
 	Platform          string
 	BundleIdentifier  string
 	SelfService       bool
+	UserID            uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -408,4 +425,10 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	default:
 		return SoftwareInstallerPending
 	}
+}
+
+// SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
+type SoftwareInstallerTokenMetadata struct {
+	TitleID uint `json:"title_id"`
+	TeamID  uint `json:"team_id"`
 }

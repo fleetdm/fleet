@@ -1,0 +1,1 @@
+* Fixed bugs on enrollment profiles when the organization name contains invalid XML characters.

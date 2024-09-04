@@ -79,6 +79,20 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil
 			}
 
+			tokenExpiration := time.Now().Add(24 * time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokenExpiration, "fleet", "ca")
+			require.NoError(t, err)
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokenExpiration,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
+
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{}, nil
 			}
@@ -104,7 +118,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
 
-			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
+			_, err = svc.DownloadSoftwareInstaller(ctx, false, "media", 1, tt.teamID)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

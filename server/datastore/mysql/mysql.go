@@ -82,6 +82,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
@@ -1240,21 +1242,7 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 	return processList, nil
 }
 
-func insertOnDuplicateDidInsert(res sql.Result) bool {
-	// Note that connection string sets CLIENT_FOUND_ROWS (see
-	// generateMysqlConnectionString in this package), so LastInsertId is 0
-	// and RowsAffected 1 when a row is set to its current values.
-	//
-	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
-	// below for more details
-	//
-	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
-	lastID, _ := res.LastInsertId()
-	affected, _ := res.RowsAffected()
-	return lastID != 0 && affected == 1
-}
-
-func insertOnDuplicateDidUpdate(res sql.Result) bool {
+func insertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
 	// From mysql's documentation:
 	//
 	// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
@@ -1264,7 +1252,10 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// connecting to mysqld, the affected-rows value is 1 (not 0) if an
 	// existing row is set to its current values.
 	//
-	// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	// If a table contains an AUTO_INCREMENT column and INSERT ... ON DUPLICATE KEY UPDATE
+	// inserts or updates a row, the LAST_INSERT_ID() function returns the AUTO_INCREMENT value.
+	//
+	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
 	//
 	// Note that connection string sets CLIENT_FOUND_ROWS (see
 	// generateMysqlConnectionString in this package), so it does return 1 when
@@ -1279,7 +1270,8 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()
-	return lastID == 0 || aff != 1
+	// something was updated (lastID != 0) AND row was found (aff == 1 or higher if more rows were found)
+	return lastID != 0 && aff > 0
 }
 
 type parameterizedStmt struct {
