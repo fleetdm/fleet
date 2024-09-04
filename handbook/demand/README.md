@@ -90,7 +90,7 @@ After an intent signal is discovered:
   - "LinkedIn"
   - "Psychological stage" 
   - "intent signals" 
-
+4. If you any reason that the account organization wouldn't benefit from a relationship with Fleet, change the "Type" to "Distraction" stop here. If you haven't disqualified the account at this point, update the "Marketing stage" to "Research-ready". 
 After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
 
 1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
