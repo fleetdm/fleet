@@ -3,23 +3,19 @@ import validator from "validator";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IAddSoftwareFormData, IFormValidation } from "./AddSoftwareForm";
+import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
 
-type IAddSoftwareFormValidatorKey = Exclude<
-  keyof IAddSoftwareFormData,
+type IAddPackageFormValidatorKey = Exclude<
+  keyof IAddPackageFormData,
   "installScript"
 >;
 
-type IMessageFunc = (formData: IAddSoftwareFormData) => string;
+type IMessageFunc = (formData: IAddPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 
 interface IValidation {
   name: string;
-  isValid: (
-    formData: IAddSoftwareFormData,
-    enabledPreInstallCondition?: boolean,
-    enabledPostInstallScript?: boolean
-  ) => boolean;
+  isValid: (formData: IAddPackageFormData) => boolean;
   message?: IValidationMessage;
 }
 
@@ -27,7 +23,7 @@ interface IValidation {
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IAddSoftwareFormValidatorKey,
+  IAddPackageFormValidatorKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -38,70 +34,23 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
-  preInstallCondition: {
+  preInstallQuery: {
     validations: [
       {
-        name: "required",
-        isValid: (
-          formData: IAddSoftwareFormData,
-          enabledPreInstallCondition
-        ) => {
-          if (!enabledPreInstallCondition) {
-            return true;
-          }
-          return (
-            formData.preInstallCondition !== undefined &&
-            !validator.isEmpty(formData.preInstallCondition)
-          );
-        },
-        message: (formData) => {
-          // we dont want an error message until the user has interacted with
-          // the field. This is why we check for undefined here.
-          if (formData.preInstallCondition === undefined) {
-            return "";
-          }
-          return "Pre-install condition is required when enabled.";
-        },
-      },
-      {
         name: "invalidQuery",
-        isValid: (formData, enabledPreInstallCondition) => {
-          if (!enabledPreInstallCondition) {
-            return true;
-          }
+        isValid: (formData) => {
+          const query = formData.preInstallQuery;
           return (
-            formData.preInstallCondition !== undefined &&
-            validateQuery(formData.preInstallCondition).valid
+            query === undefined || query === "" || validateQuery(query).valid
           );
         },
-        message: (formData) =>
-          validateQuery(formData.preInstallCondition).error,
+        message: (formData) => validateQuery(formData.preInstallQuery).error,
       },
     ],
   },
   postInstallScript: {
-    validations: [
-      {
-        name: "required",
-        message: (formData) => {
-          // we dont want an error message until the user has interacted with
-          // the field. This is why we check for undefined here.
-          if (formData.postInstallScript === undefined) {
-            return "";
-          }
-          return "Post-install script is required when enabled.";
-        },
-        isValid: (formData, _, enabledPostInstallScript) => {
-          if (!enabledPostInstallScript) {
-            return true;
-          }
-          return (
-            formData.postInstallScript !== undefined &&
-            !validator.isEmpty(formData.postInstallScript)
-          );
-        },
-      },
-    ],
+    // no validations related to postInstallScript
+    validations: [],
   },
   selfService: {
     // no validations related to self service
@@ -110,7 +59,7 @@ const FORM_VALIDATION_CONFIG: Record<
 };
 
 const getErrorMessage = (
-  formData: IAddSoftwareFormData,
+  formData: IAddPackageFormData,
   message?: IValidationMessage
 ) => {
   if (message === undefined || typeof message === "string") {
@@ -119,11 +68,7 @@ const getErrorMessage = (
   return message(formData);
 };
 
-export const generateFormValidation = (
-  formData: IAddSoftwareFormData,
-  showingPreInstallCondition: boolean,
-  showingPostInstallScript: boolean
-) => {
+export const generateFormValidation = (formData: IAddPackageFormData) => {
   const formValidation: IFormValidation = {
     isValid: true,
     software: {
@@ -134,12 +79,7 @@ export const generateFormValidation = (
   Object.keys(FORM_VALIDATION_CONFIG).forEach((key) => {
     const objKey = key as keyof typeof FORM_VALIDATION_CONFIG;
     const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
-      (validation) =>
-        !validation.isValid(
-          formData,
-          showingPreInstallCondition,
-          showingPostInstallScript
-        )
+      (validation) => !validation.isValid(formData)
     );
 
     if (!failedValidation) {

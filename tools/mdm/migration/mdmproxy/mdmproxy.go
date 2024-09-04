@@ -84,20 +84,20 @@ func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.HasPrefix(r.URL.Path, "/mdm") {
-		if m.logSkipped {
-			log.Printf("Forbidden non-mdm request: %s %s", r.Method, r.URL.String())
-		}
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
 	// Send all micromdm repo requests to the existing server
 	if strings.HasPrefix(r.URL.Path, "/repo") {
 		log.Printf("%s %s -> Existing (Repo)", r.Method, r.URL.String())
 		m.existingProxy.ServeHTTP(w, r)
 		return
 
+	}
+
+	if !strings.HasPrefix(r.URL.Path, "/mdm") {
+		if m.logSkipped {
+			log.Printf("Forbidden non-mdm request: %s %s", r.Method, r.URL.String())
+		}
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// Read the body of the request
