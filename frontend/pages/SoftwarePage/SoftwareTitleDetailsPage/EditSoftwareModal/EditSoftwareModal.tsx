@@ -22,7 +22,7 @@ import {
   MAX_FILE_SIZE_MB,
   MAX_FILE_SIZE_BYTES,
 } from "pages/SoftwarePage/components/AddPackage/AddPackage";
-import { getErrorMessage } from "pages/SoftwarePage/components/AddSoftwareModal/helpers";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "edit-software-modal";
 
@@ -64,7 +64,6 @@ const EditSoftwareModal = ({
         "error",
         `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
       );
-      onExit();
       setIsUpdatingSoftware(false);
       return;
     }
@@ -80,13 +79,12 @@ const EditSoftwareModal = ({
       renderFlash(
         "success",
         <>
-          <b>{formData.software?.name}</b> successfully added.
+          Successfully edited <b>{formData.software?.name}</b>.
           {formData.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
         </>
       );
-
       const newQueryParams: QueryParams = { team_id: teamId };
       if (formData.selfService) {
         newQueryParams.self_service = true;
@@ -95,6 +93,7 @@ const EditSoftwareModal = ({
       }
       // any unique string - triggers SW refetch
       setAddedSoftwareToken(`${Date.now()}`);
+      onExit();
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
@@ -118,8 +117,6 @@ const EditSoftwareModal = ({
       }
       renderFlash("error", getErrorMessage(e));
     }
-
-    onExit();
     setIsUpdatingSoftware(false);
   };
 

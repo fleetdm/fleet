@@ -4,7 +4,7 @@ export const SOFTWARE_PACAKGE_DROPDOWN_OPTIONS = [
     value: "download",
   },
   {
-    label: "Edit software",
+    label: "Edit",
     value: "edit",
   },
   {
