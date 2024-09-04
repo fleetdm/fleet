@@ -78,7 +78,6 @@ Intent signals help measure an individual's current level of engagement with the
 
 Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/demand#measure-intent-signals).
 
-After an intent signal is discovered:
 
 1. Create the account in SalesForce if it doesn't already exist
 3. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
