@@ -1081,7 +1081,8 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 	assert.NoError(t, err)
 
-	ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	assert.NoError(t, err)
 
 	app1 := &fleet.VPPApp{
 		Name: "app1",
