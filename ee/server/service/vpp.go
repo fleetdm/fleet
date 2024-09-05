@@ -152,7 +152,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
-			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "set team vpp assets"), http.StatusInternalServerError)
+			return ctxerr.Wrap(ctx, err, "set team vpp assets")
 		}
 	}
 

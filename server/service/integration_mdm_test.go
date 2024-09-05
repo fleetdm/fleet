@@ -9790,10 +9790,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 
 	// No vpp token set, no association.
-	// FIXME This could return a better message and status code, but
-	// no time to fix right now. Fails because when it looks up the
-	// VPP token in SetTeamVPPApps for that team there is none
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusInternalServerError, "team_name", tmGood.Name)
+	// FIXME This could return a better message and status.
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNotFound, "team_name", tmGood.Name)
 
 	// No vpp token set, try association
 	// FIXME
