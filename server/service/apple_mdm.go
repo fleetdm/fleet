@@ -4186,37 +4186,21 @@ type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 }
 
-type getOTAProfileResponse struct {
-	Profile string `json:"profile"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r getOTAProfileResponse) error() error { return r.Err }
-
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getOTAProfileRequest)
 	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
 	if err != nil {
-		return &getOTAProfileResponse{Err: err}, err
+		return &getMDMAppleConfigProfileResponse{Err: err}, err
 	}
 
 	reader := bytes.NewReader(profile)
-	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "foobar.mobileconfig"}, nil
+	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
 }
 
 func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
 	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
 	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
-
-	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil, fleet.NewAuthFailedError("invalid enroll secret for OTA profile")
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
-	}
 
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
