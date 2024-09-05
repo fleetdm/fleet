@@ -1098,6 +1098,8 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
 	assert.NoError(t, err)
 	_ = vppApp1
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team3.ID)
+	assert.NoError(t, err)
 
 	app2 := &fleet.VPPApp{
 		Name: "app2",
@@ -1112,6 +1114,100 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	vppApp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
 	_ = vppApp2
 	assert.NoError(t, err)
+
+	// team1: token, app1, app2
+	// team2: global token, app 1
+	// team3: global token, app 1
+
+	apps, err := ds.GetAssignedVPPApps(ctx, &team1.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 2)
+	assert.Contains(t, apps, app1.VPPAppID)
+	assert.Contains(t, apps, app2.VPPAppID)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app1.VPPAppID)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app1.VPPAppID)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team3.ID})
+	assert.NoError(t, err)
+
+	// team1: global token, no apps
+	// team2: global token, app 1
+	// team3: token, no apps
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 0)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app1.VPPAppID)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 0)
+
+	///
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team3.ID)
+	assert.NoError(t, err)
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	assert.NoError(t, err)
+
+	// team1: global token, app 2
+	// team2: global token, app 1
+	// team3: token, app 1
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app2.VPPAppID)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app1.VPPAppID)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app1.VPPAppID)
+
+	///
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
+	assert.NoError(t, err)
+
+	// team1: token, no apps
+	// team2: no token, no apps
+	// team3: token, app 1
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 0)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 0)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 1)
+	assert.Contains(t, apps, app1.VPPAppID)
+
+	/// Can't assaign apps with no token
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
+	assert.Error(t, err)
 }
 
 func createAndInsertAllTeamVPPToken(t *testing.T, ds fleet.Datastore) *fleet.VPPTokenDB {
