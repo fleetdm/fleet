@@ -11,7 +11,7 @@ import uninstallDeb from "../../pkg/file/scripts/uninstall_deb.sh";
  * getUninstallScript returns a string with a script to uninstall the
  * provided software.
  * */
-const getUninstallScript = (fileName: string): string => {
+const getDefaultUninstallScript = (fileName: string): string => {
   const extension = fileName.split(".").pop();
   switch (extension) {
     case "pkg":
@@ -27,4 +27,4 @@ const getUninstallScript = (fileName: string): string => {
   }
 };
 
-export default getUninstallScript;
+export default getDefaultUninstallScript;

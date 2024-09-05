@@ -2,8 +2,8 @@ import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
-import getInstallScript from "utilities/software_install_scripts";
-import getUninstallScript from "utilities/software_uninstall_scripts";
+import getDefaultInstallScript from "utilities/software_install_scripts";
+import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -76,17 +76,17 @@ const AddPackageForm = ({
     if (files && files.length > 0) {
       const file = files[0];
 
-      let installScript: string;
+      let defaultInstallScript: string;
       try {
-        installScript = getInstallScript(file.name);
+        defaultInstallScript = getDefaultInstallScript(file.name);
       } catch (e) {
         renderFlash("error", `${e}`);
         return;
       }
 
-      let uninstallScript: string;
+      let defaultUninstallScript: string;
       try {
-        uninstallScript = getUninstallScript(file.name);
+        defaultUninstallScript = getDefaultUninstallScript(file.name);
       } catch (e) {
         renderFlash("error", `${e}`);
         return;
@@ -95,8 +95,8 @@ const AddPackageForm = ({
       const newData = {
         ...formData,
         software: file,
-        installScript,
-        uninstallScript,
+        installScript: defaultInstallScript,
+        uninstallScript: defaultUninstallScript,
       };
       setFormData(newData);
       setFormValidation(generateFormValidation(newData));
