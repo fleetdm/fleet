@@ -3177,6 +3177,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	expectStatus := func(s fleet.SoftwareInstallerStatus) *fleet.SoftwareInstallerStatus {
 		return &s
 	}
@@ -4397,6 +4399,8 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		IncludeAvailableForInstall: true,
 	}
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
@@ -4506,6 +4510,8 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
 		IncludeAvailableForInstall: true,
 	}
+
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
