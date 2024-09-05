@@ -325,6 +325,9 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create a VPP app not installed anywhere
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",

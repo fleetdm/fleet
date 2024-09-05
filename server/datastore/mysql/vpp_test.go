@@ -52,7 +52,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, team2)
 
-	createAndInsertAllTeamVPPToken(t, ds)
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// get for non-existing title
 	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, 1)
@@ -215,7 +215,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, team1)
 
-	createAndInsertAllTeamVPPToken(t, ds)
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create some apps, one for no-team, one for team1, and one in both
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -410,7 +410,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
 
-	createAndInsertAllTeamVPPToken(t, ds)
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create a host with some non-VPP software
 	h1, err := ds.NewHost(ctx, &fleet.Host{
@@ -607,7 +607,7 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 	require.NoError(t, err)
 
-	createAndInsertAllTeamVPPToken(t, ds)
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	var nfe fleet.NotFoundError
 
@@ -1210,16 +1210,4 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
 	assert.Error(t, err)
-}
-
-func createAndInsertAllTeamVPPToken(t *testing.T, ds fleet.Datastore) *fleet.VPPTokenDB {
-	ctx := context.Background()
-	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
-	require.NoError(t, err)
-	tok1, err := ds.InsertVPPToken(ctx, dataToken)
-	assert.NoError(t, err)
-	tok1New, err := ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
-	assert.NoError(t, err)
-
-	return tok1New
 }
