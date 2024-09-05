@@ -22,7 +22,6 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
-	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -75,8 +74,10 @@ import (
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
-const softwareInstallerUploadTimeout = 4 * time.Minute
-const liveQueryMemCacheDuration = 1 * time.Second
+const (
+	softwareInstallerUploadTimeout = 4 * time.Minute
+	liveQueryMemCacheDuration      = 1 * time.Second
+)
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -125,6 +126,10 @@ the way that the Fleet server works.
 			}
 
 			logger := initLogger(config)
+
+			if dev {
+				createTestBucketForInstallers(&config, logger)
+			}
 
 			// Init tracing
 			if config.Logging.TracingEnabled {
@@ -506,7 +511,7 @@ the way that the Fleet server works.
 					initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
-				apnsCert, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
+				_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
 				}
@@ -515,18 +520,6 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Apple SCEP certificate and key")
 				}
-
-				const (
-					apnsConnectionTimeout = 10 * time.Second
-					apnsConnectionURL     = "https://api.sandbox.push.apple.com"
-				)
-
-				// check that the Apple APNs certificate is valid to connect to the API
-				ctx, cancel := context.WithTimeout(context.Background(), apnsConnectionTimeout)
-				if err := certificate.ValidateClientAuthTLSConnection(ctx, apnsCert, apnsConnectionURL); err != nil {
-					initFatal(err, "validate authentication with Apple APNs certificate")
-				}
-				cancel()
 
 				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 					{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM},
@@ -639,6 +632,12 @@ the way that the Fleet server works.
 					}
 					appCfg.MDM.AppleBMEnabledAndConfigured = count > 0
 				}
+			}
+			if appCfg.MDM.EnabledAndConfigured {
+				level.Info(logger).Log("msg", "Apple MDM enabled")
+			}
+			if appCfg.MDM.AppleBMEnabledAndConfigured {
+				level.Info(logger).Log("msg", "Apple Business Manager enabled")
 			}
 
 			// register the Microsoft MDM services
@@ -968,7 +967,7 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
-			var apiHandler, frontendHandler http.Handler
+			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
@@ -986,8 +985,10 @@ the way that the Fleet server works.
 				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
+					endUserEnrollOTAHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
+					endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(config.Server.URLPrefix, logger)
 				}
 
 			}
@@ -1122,6 +1123,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
+			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)
 
 			debugHandler := &debugMux{
@@ -1405,4 +1407,19 @@ var _ push.Pusher = nopPusher{}
 // Push implements push.Pusher.
 func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, error) {
 	return nil, nil
+}
+
+func createTestBucketForInstallers(config *configpkg.FleetConfig, logger log.Logger) {
+	store, err := s3.NewSoftwareInstallerStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 software installer store")
+	}
+	if err := store.CreateTestBucket(config.S3.SoftwareInstallersBucket); err != nil {
+		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		level.Info(logger).Log(
+			"err", err,
+			"msg", "failed to create test bucket",
+			"name", config.S3.SoftwareInstallersBucket,
+		)
+	}
 }

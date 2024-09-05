@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import OSTable from "./OSTable";
 
 describe("Dashboard OS table", () => {
-  it("renders data normally when present", async () => {
+  it("renders data normally when present", () => {
     render(
       <OSTable
         currentTeamId={undefined}

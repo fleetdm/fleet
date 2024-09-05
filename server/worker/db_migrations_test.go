@@ -12,12 +12,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDBMigrationsVPPToken(t *testing.T) {
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 
 	ds := mysql.CreateMySQLDS(t)
@@ -38,7 +37,7 @@ func TestDBMigrationsVPPToken(t *testing.T) {
 
 	// create the migrated token and enqueue the job
 	expDate := time.Date(2024, 8, 27, 0, 0, 0, 0, time.UTC)
-	tok, err := test.CreateVPPTokenEncoded(expDate, "test-org", "test-loc")
+	tok, err := test.CreateVPPTokenEncodedAfterMigration(expDate, "test-org", "test-loc")
 	require.NoError(t, err)
 	encTok, err := mysql.EncryptWithPrivateKey(t, ds, tok)
 	require.NoError(t, err)
@@ -49,12 +48,10 @@ INSERT INTO vpp_tokens
 		organization_name,
 		location,
 		renew_at,
-		token,
-		team_id,
-		null_team_type
+		token
 	)
 VALUES
-	('', '', DATE('2000-01-01'), ?, NULL, 'allteams')
+	('', '', DATE('2000-01-01'), ?)
 `
 
 	const insJob = `
@@ -93,7 +90,9 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 	// nothing more to run
 	jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 	require.NoError(t, err)
-	require.Empty(t, jobs)
+	if !assert.Empty(t, jobs) {
+		t.Logf(">>> %#+v", jobs[0])
+	}
 
 	// token should've been updated
 	vppTok, err := ds.GetVPPTokenByLocation(ctx, "test-loc")
@@ -101,7 +100,7 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 	require.Equal(t, "test-org", vppTok.OrgName)
 	require.Equal(t, "test-loc", vppTok.Location)
 	require.Equal(t, expDate, vppTok.RenewDate)
-	require.Equal(t, string(tok), vppTok.Token)
+	require.Contains(t, string(tok), `"token":"`+vppTok.Token+`"`) // the DB-stored token is the "token" JSON field in the raw tok
 	require.NotNil(t, vppTok.Teams)
 	require.Len(t, vppTok.Teams, 0)
 

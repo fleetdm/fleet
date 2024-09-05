@@ -1,0 +1,1 @@
+API endpoint `/api/v1/fleet/mdm/profiles/batch` will now not log an activity for profile types that did not change in the database (Apple configuration profiles, Windows configuration profiles, or Apple declarations).

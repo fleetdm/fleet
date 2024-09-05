@@ -627,7 +627,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	if len(hostIDs) > 0 {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 

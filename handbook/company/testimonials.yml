@@ -142,15 +142,6 @@
   quoteAuthorJobTitle: Director Of Cyber Risk & Advisory
   productCategories: [Vulnerability management, Endpoint operations]
 -
-  quote: When we look at vendors, we look for ones that are very receptive to feedback, where you’re just part of the family, I guess. Fleet’s really good at that.
-  quoteImageFilename: logo-deputy-118x28@2x.png
-  quoteAuthorName: Harrison Ravazzolo
-  quoteAuthorProfileImageFilename: testimonial-author-harrison-ravazzolo-48x48@2x.png
-  quoteLinkUrl: https://www.linkedin.com/in/harrison-ravazzolo/
-  quoteAuthorJobTitle: Lead platform and identity engineer
-  youtubeVideoUrl: https://www.youtube.com/watch?v=5W0q5yQE3R0
-  productCategories: [Endpoint operations]
--
   quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
   quoteAuthorName: Charles Zaffery
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/

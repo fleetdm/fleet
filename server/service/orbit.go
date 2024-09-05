@@ -998,11 +998,31 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")
 		}
 
+		// Self-Service packages will have a nil author for the activity.
 		var user *fleet.User
-		if hsi.UserID != nil && !hsi.SelfService {
-			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get host software installation user")
+		if !hsi.SelfService {
+			if hsi.UserID != nil {
+				user, err = svc.ds.UserByID(ctx, *hsi.UserID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host software installation user")
+				}
+			} else {
+				// hsi.UserID can be nil if the user was deleted and/or if the installation was
+				// triggered by Fleet (policy automation). Thus we set the author of the installation
+				// to be the user that uploaded the package (by design).
+				var userID uint
+				if hsi.SoftwareInstallerUserID != nil {
+					userID = *hsi.SoftwareInstallerUserID
+				}
+				// If there's no name or email then this may be a package uploaded
+				// before we added authorship to uploaded packages.
+				if hsi.SoftwareInstallerUserName != "" && hsi.SoftwareInstallerUserEmail != "" {
+					user = &fleet.User{
+						ID:    userID,
+						Name:  hsi.SoftwareInstallerUserName,
+						Email: hsi.SoftwareInstallerUserEmail,
+					}
+				}
 			}
 		}
 

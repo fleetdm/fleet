@@ -185,11 +185,11 @@ const CalendarEventsModal = ({
     return (
       <div className="form-field">
         <div className="form-field__label">Policies:</div>
-        <div className="automated-policies-section">
+        <ul className="automated-policies-section">
           {formData.policies.map((policy) => {
             const { isChecked, name, id } = policy;
             return (
-              <div className="checkbox-row" id={`checkbox-row--${id}`} key={id}>
+              <li className="policy-row" id={`policy-row--${id}`} key={id}>
                 <Checkbox
                   value={isChecked}
                   name={name}
@@ -208,14 +208,14 @@ const CalendarEventsModal = ({
                     );
                     togglePreviewCalendarEvent();
                   }}
-                  className="checkbox-row__preview-button"
+                  className="policy-row__preview-button"
                 >
                   <Icon name="eye" /> Preview
                 </Button>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
         <span className="form-field__help-text">
           A calendar event will be created for end users if one of their hosts
           fail any of these policies.{" "}

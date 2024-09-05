@@ -2,6 +2,13 @@
   .component__tooltip-wrapper__element {
     width: 100%; // default component style was causing the select box not to be full width
   }
+
+  // this is needed to wrap the selected team names in that are displayed
+  // in the dropdown select box.
+  .dropdown__select {
+    text-wrap: wrap;
+  }
+
   // styles needed to make select look like figma design when disabled,
   // default styles in the Dropdown component were not enough
   &__form-field--disabled {
