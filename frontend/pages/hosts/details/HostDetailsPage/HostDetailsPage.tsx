@@ -103,7 +103,6 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
 const baseClass = "host-details";
 
