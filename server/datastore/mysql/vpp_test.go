@@ -1135,6 +1135,8 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
+	/// Move team 1 token to team 3
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team3.ID})
 	assert.NoError(t, err)
 
@@ -1155,7 +1157,7 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, apps, 0)
 
-	///
+	/// Add apps with new token assignments
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team3.ID)
 	assert.NoError(t, err)
@@ -1182,7 +1184,7 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
-	///
+	/// Move global token to team 1, no global token now
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
 	assert.NoError(t, err)
