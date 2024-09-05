@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240903155740, Down_20240903155740)
+	MigrationClient.AddMigration(Up_20240905120000, Down_20240905120000)
 }
 
-func Up_20240903155740(tx *sql.Tx) error {
+func Up_20240905120000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 ALTER TABLE software_installers 
 ADD COLUMN package_ids TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -136,6 +136,6 @@ func getOrInsertScript(txx sqlx.Tx, script string) (int64, error) {
 	return scriptID, nil
 }
 
-func Down_20240903155740(_ *sql.Tx) error {
+func Down_20240905120000(_ *sql.Tx) error {
 	return nil
 }
