@@ -8,7 +8,6 @@ import { stringToClipboard } from "utilities/copy_text";
 import FormField from "components/forms/FormField";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import { copy } from "@testing-library/user-event/dist/cjs/clipboard/copy.js";
 
 const baseClass = "input-field";
 
