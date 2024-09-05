@@ -1519,7 +1519,6 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
 
-> #### Tables in the Fleet REST API documentation
 > When using tables to document API endpoint parameters, we use the following conventions:
 > + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
 > + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
