@@ -6,7 +6,6 @@ import {
   isPackageType,
   isWindowsPackageType,
   PackageType,
-  WindowsPackageType,
 } from "interfaces/package_type";
 
 import Editor from "components/Editor";
@@ -15,34 +14,11 @@ import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
 import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 
-const unixInstallHelpText = (
-  <>
-    Use the $INSTALLER_PATH variable to point to the installer. Currently, Shell
-    scripts are supported.{" "}
-    <CustomLink
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
-      text="Learn more about install scripts"
-      newTab
-    />
-  </>
-);
-
-const getWindowsInstallHelpText = (pkgType: WindowsPackageType) => (
-  <>
-    Use the $INSTALLER_PATH variable to point to the installer. Currently,
-    PowerShell scripts are supported.{" "}
-    <CustomLink
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/${
-        pkgType === "exe" ? "exe-" : ""
-      }install-scripts`}
-      text="Learn more about install scripts"
-      newTab
-    />
-  </>
-);
-
-const unixPostInstallHelpText = "Shell scripts are supported.";
-const windowsPostInstallHelpText = "PowerShell scripts are supported.";
+const getSupportedScriptTypeText = (pkgType: PackageType) => {
+  return `Currently, ${
+    isWindowsPackageType(pkgType) ? "Power" : ""
+  }Shell scripts are supported.`;
+};
 
 const PKG_TYPE_TO_ID_TEXT = {
   pkg: "package IDs",
@@ -51,13 +27,28 @@ const PKG_TYPE_TO_ID_TEXT = {
   exe: "software name",
 } as const;
 
-const getUninstallHelpText = (type: PackageType) => {
+const getInstallHelpText = (pkgType: PackageType) => (
+  <>
+    Use the $INSTALLER_PATH variable to point to the installer.{" "}
+    {getSupportedScriptTypeText(pkgType)}{" "}
+    <CustomLink
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
+      text="Learn more about install scripts"
+      newTab
+    />
+  </>
+);
+
+const getPostInstallHelpText = (pkgType: PackageType) => {
+  return getSupportedScriptTypeText(pkgType);
+};
+
+const getUninstallHelpText = (pkgType: PackageType) => {
   return (
     <>
-      $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[type]} from
-      the .{type} file after the software is added.{" "}
-      {isWindowsPackageType(type) && "Power"}
-      Shell scripts are supported.{" "}
+      $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[pkgType]} from
+      the .{pkgType} file after the software is added.{" "}
+      {getSupportedScriptTypeText(pkgType)}{" "}
       <CustomLink
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
         text="Learn more about uninstall scripts"
@@ -66,56 +57,6 @@ const getUninstallHelpText = (type: PackageType) => {
     </>
   );
 };
-
-const PACKAGE_TYPES_TO_HELP_TEXT: Record<
-  PackageType,
-  Record<string, Record<string, React.ReactNode>>
-> = {
-  pkg: {
-    install: {
-      helpText: unixInstallHelpText,
-    },
-    postInstall: {
-      helpText: unixPostInstallHelpText,
-    },
-    uninstall: {
-      helpText: getUninstallHelpText("pkg"),
-    },
-  },
-  deb: {
-    install: {
-      helpText: unixInstallHelpText,
-    },
-    postInstall: {
-      helpText: unixPostInstallHelpText,
-    },
-    uninstall: {
-      helpText: getUninstallHelpText("deb"),
-    },
-  },
-  msi: {
-    install: {
-      helpText: getWindowsInstallHelpText("msi"),
-    },
-    postInstall: {
-      helpText: windowsPostInstallHelpText,
-    },
-    uninstall: {
-      helpText: getUninstallHelpText("msi"),
-    },
-  },
-  exe: {
-    install: {
-      helpText: getWindowsInstallHelpText("exe"),
-    },
-    postInstall: {
-      helpText: windowsPostInstallHelpText,
-    },
-    uninstall: {
-      helpText: getUninstallHelpText("exe"),
-    },
-  },
-} as const;
 
 const baseClass = "add-package-advanced-options";
 
@@ -183,7 +124,7 @@ const AddPackageAdvancedOptions = ({
           name="install-script"
           onChange={onChangeInstallScript}
           value={installScript}
-          helpText={PACKAGE_TYPES_TO_HELP_TEXT[ext].install.helpText}
+          helpText={getInstallHelpText(ext)}
           label="Install script"
           isFormField
         />
@@ -196,7 +137,7 @@ const AddPackageAdvancedOptions = ({
           maxLines={10}
           onChange={onChangePostInstallScript}
           value={postInstallScript}
-          helpText={PACKAGE_TYPES_TO_HELP_TEXT[ext].postInstall.helpText}
+          helpText={getPostInstallHelpText(ext)}
           isFormField
         />
         <Editor
@@ -207,7 +148,7 @@ const AddPackageAdvancedOptions = ({
           maxLines={20}
           onChange={onChangeUninstallScript}
           value={uninstallScript}
-          helpText={PACKAGE_TYPES_TO_HELP_TEXT[ext].uninstall.helpText}
+          helpText={getUninstallHelpText(ext)}
           isFormField
         />
       </div>
