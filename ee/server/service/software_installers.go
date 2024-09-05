@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -415,11 +416,12 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
 			}
-			if lastInstallRequest != nil && lastInstallRequest.Status != nil && *lastInstallRequest.Status == fleet.SoftwareInstallPending {
+			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
+				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install software. Host has a pending install request.",
+					Message: "Could not install software. Host has a pending install/uninstall request.",
 					InternalErr: ctxerr.WrapWithData(
-						ctx, err, "host already has a pending install for this installer",
+						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
 							"host_id":               host.ID,
 							"software_installer_id": installer.InstallerID,
@@ -592,6 +594,151 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
+}
+
+func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
+	// First check if scripts are disabled globally. If so, no need for further processing.
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	if cfg.ServerSettings.ScriptsDisabled {
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
+	}
+
+	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to install/uninstall software (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
+				return err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+		// fleetd is required to install software so if the host is enrolled via plain osquery we return an error
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.NewUserMessageError(errors.New("host does not have fleetd installed"), http.StatusUnprocessableEntity)
+	}
+
+	// If scripts are disabled (according to the last detail query), we return an error.
+	// host.ScriptsEnabled may be nil for older orbit versions.
+	if host.ScriptsEnabled != nil && !*host.ScriptsEnabled {
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.NewUserMessageError(errors.New(fleet.RunScriptsOrbitDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
+	// authorize with the host's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Could not uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "finding software installer for title")
+	}
+
+	lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
+	}
+	if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
+		(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
+		return &fleet.BadRequestError{
+			Message: "Could not uninstall software. Host has a pending install/uninstall request.",
+			InternalErr: ctxerr.WrapWithData(
+				ctx, err, "host already has a pending install/uninstall for this installer",
+				map[string]any{
+					"host_id":               host.ID,
+					"software_installer_id": installer.InstallerID,
+					"team_id":               host.TeamID,
+					"title_id":              softwareTitleID,
+				},
+			),
+		}
+	}
+
+	// Validate platform
+	ext := filepath.Ext(installer.Name)
+	requiredPlatform := packageExtensionToPlatform(ext)
+	if requiredPlatform == "" {
+		// this should never happen
+		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
+	}
+
+	if host.FleetPlatform() != requiredPlatform {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, requiredPlatform),
+			InternalErr: ctxerr.NewWithData(
+				ctx, "invalid host platform for requested uninstall",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+			),
+		}
+	}
+
+	// Get the uninstall script and use the standard script infrastructure to run it.
+	contents, err := svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return fleet.NewInvalidArgumentError("software_title_id", `No uninstall script exists for the provided "software_title_id".`).
+				WithStatus(http.StatusNotFound)
+		}
+		return err
+	}
+
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	// create the script execution request, the host will be notified of the
+	// script execution request via the orbit config's Notifications mechanism.
+	request := fleet.HostScriptRequestPayload{
+		HostID:          host.ID,
+		ScriptContents:  string(contents),
+		ScriptContentID: installer.UninstallScriptContentID,
+		TeamID:          teamID,
+	}
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		request.UserID = &ctxUser.ID
+	}
+	scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &request)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create script execution request")
+	}
+
+	// Update the host software installs table with the uninstall request
+	if err = svc.insertSoftwareUninstallRequest(ctx, scriptResult.ExecutionID, host, installer); err != nil {
+		return err
+	}
+
+	// TODO: Add host activity -- pending uninstall request (upcoming)
+
+	return nil
+}
+
+func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executionID string, host *fleet.Host,
+	installer *fleet.SoftwareInstaller) error {
+	if err := svc.ds.InsertSoftwareUninstallRequest(ctx, executionID, host.ID, installer.InstallerID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting software uninstall request")
+	}
+	return nil
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {

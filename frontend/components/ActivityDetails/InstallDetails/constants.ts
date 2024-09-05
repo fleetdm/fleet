@@ -10,6 +10,8 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   installed: "success-outline",
   failed: "error-outline",
   failed_install: "error-outline",
+  pending_uninstall: "pending-outline",
+  failed_uninstall: "error-outline",
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
@@ -21,6 +23,8 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   installed: "installed",
   failed: "failed to install",
   failed_install: "failed to install",
+  pending_uninstall: "is uninstalling or will uninstall",
+  failed_uninstall: "failed to uninstall",
 } as const;
 
 export const getInstallDetailsStatusPredicate = (

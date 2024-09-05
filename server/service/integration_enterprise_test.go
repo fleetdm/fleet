@@ -5906,7 +5906,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 				case r := <-resultsCh:
 					r.ExecutionID = pending[0].ExecutionID
 					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
-					_, err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					_, _, err = s.ds.SetHostScriptExecutionResult(ctx, r)
 					if err != nil {
 						t.Log(err)
 					}

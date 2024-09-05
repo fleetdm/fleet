@@ -67,7 +67,7 @@ ADD CONSTRAINT fk_uninstall_script_content_id
 	}
 
 	if _, err := tx.Exec(`
-ALTER TABLE host_software_installs 
+ALTER TABLE host_software_installs
 ADD COLUMN uninstall_script_output TEXT COLLATE utf8mb4_unicode_ci,
 ADD COLUMN uninstall_script_exit_code INT DEFAULT NULL,
 ADD COLUMN uninstall TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -94,6 +94,9 @@ CASE
 
 	WHEN uninstall_script_exit_code IS NOT NULL AND
 		uninstall_script_exit_code != 0 THEN 'failed_uninstall'
+
+	WHEN uninstall_script_exit_code IS NOT NULL AND
+		uninstall_script_exit_code = 0 THEN NULL -- available for install again
 
 	WHEN host_id IS NOT NULL AND uninstall = 1 THEN 'pending_uninstall'
 

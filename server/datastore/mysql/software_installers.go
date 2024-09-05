@@ -27,6 +27,8 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
     install_script_exit_code IS NULL
   AND
     pre_install_query_output IS NULL
+  AND
+    uninstall = 0
   ORDER BY
     created_at ASC
 `
@@ -265,6 +267,7 @@ SELECT
   si.pre_install_query,
   si.post_install_script_content_id,
   si.uploaded_at,
+  si.uninstall_script_content_id,
   si.self_service,
   COALESCE(st.name, '') AS software_title
   %s
@@ -358,6 +361,41 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
 
+func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+	const (
+		insertStmt = `
+		  INSERT INTO host_software_installs
+		    (execution_id, host_id, software_installer_id, user_id, uninstall)
+		  VALUES
+		    (?, ?, ?, ?, 1)
+		    `
+		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
+	)
+
+	// we need to explicitly do this check here because we can't set a FK constraint on the schema
+	var hostExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return notFound("Host").WithID(hostID)
+		}
+		return ctxerr.Wrap(ctx, err, "checking if host exists")
+	}
+
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
+	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
+		executionID,
+		hostID,
+		softwareInstallerID,
+		userID,
+	)
+
+	return ctxerr.Wrap(ctx, err, "inserting new uninstall software request")
+}
+
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	query := fmt.Sprintf(`
 SELECT
@@ -433,7 +471,10 @@ WHERE
 			host_id)) s`)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"installer_id": installerID,
+		"installer_id":              installerID,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -509,7 +550,7 @@ WHERE
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	stmt := fmt.Sprintf(`
-		SELECT execution_id, hsi.status AS status
+		SELECT execution_id, hsi.status
 		FROM host_software_installs hsi
 		WHERE hsi.id = (
 			SELECT

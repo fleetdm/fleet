@@ -87,7 +87,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, createdScript.ID, pending[0].ID)
 
 	// record a result for this execution
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	hsr, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
 		ExecutionID: createdScript.ExecutionID,
 		Output:      "foo",
@@ -96,9 +96,11 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Timeout:     300,
 	})
 	require.NoError(t, err)
+	assert.Empty(t, action)
+	assert.NotNil(t, hsr)
 
 	// record a duplicate result for this execution, will be ignored
-	hsr, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	hsr, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
 		ExecutionID: createdScript.ExecutionID,
 		Output:      "foobarbaz",
@@ -163,7 +165,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		strings.Repeat("j", 1000) +
 		strings.Repeat("k", 1000)
 
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
 		ExecutionID: createdScript.ExecutionID,
 		Output:      largeOutput,
@@ -238,7 +240,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	unsignedScriptResult, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	unsignedScriptResult, _, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
 		ExecutionID: createdUnsignedScript.ExecutionID,
 		Output:      "foo",
@@ -781,12 +783,13 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 	require.True(t, status.IsPendingLock())
 
 	// simulate a successful result for the lock script execution
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	_, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      s.HostID,
 		ExecutionID: s.ExecutionID,
 		ExitCode:    0,
 	})
 	require.NoError(t, err)
+	assert.Equal(t, "lock_ref", action)
 
 	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: windowsHostID, Platform: "windows", UUID: "uuid"})
 	require.NoError(t, err)
@@ -832,12 +835,13 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	require.True(t, status.IsPendingUnlock())
 
 	// simulate a successful result for the unlock script execution
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	_, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      s.HostID,
 		ExecutionID: s.ExecutionID,
 		ExitCode:    0,
 	})
 	require.NoError(t, err)
+	assert.Equal(t, "unlock_ref", action)
 
 	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: "windows", UUID: "uuid"})
 	require.NoError(t, err)
@@ -874,12 +878,13 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 			checkLockWipeState(t, status, true, false, false, false, true, false)
 
 			// simulate a successful result for the lock script execution
-			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+			_, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostID,
 				ExecutionID: status.LockScript.ExecutionID,
 				ExitCode:    0,
 			})
 			require.NoError(t, err)
+			assert.Equal(t, "lock_ref", action)
 
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
@@ -899,12 +904,13 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 			checkLockWipeState(t, status, false, true, false, true, false, false)
 
 			// simulate a failed result for the unlock script execution
-			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+			_, action, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostID,
 				ExecutionID: status.UnlockScript.ExecutionID,
 				ExitCode:    -1,
 			})
 			require.NoError(t, err)
+			assert.Equal(t, "unlock_ref", action)
 
 			// still locked
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -925,12 +931,13 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 			checkLockWipeState(t, status, false, true, false, true, false, false)
 
 			// this time simulate a successful result for the unlock script execution
-			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+			_, action, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostID,
 				ExecutionID: status.UnlockScript.ExecutionID,
 				ExitCode:    0,
 			})
 			require.NoError(t, err)
+			assert.Equal(t, "unlock_ref", action)
 
 			// host is now unlocked
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -951,12 +958,13 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 			checkLockWipeState(t, status, true, false, false, false, true, false)
 
 			// simulate a failed result for the lock script execution
-			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+			_, action, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostID,
 				ExecutionID: status.LockScript.ExecutionID,
 				ExitCode:    2,
 			})
 			require.NoError(t, err)
+			assert.Equal(t, "lock_ref", action)
 
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
@@ -1009,12 +1017,13 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				checkLockWipeState(t, status, true, false, false, false, false, true)
 
 				// simulate a failed result for the wipe script execution
-				_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				_, action, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 					HostID:      hostID,
 					ExecutionID: status.WipeScript.ExecutionID,
 					ExitCode:    1,
 				})
 				require.NoError(t, err)
+				assert.Equal(t, "wipe_ref", action)
 
 				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 				require.NoError(t, err)
@@ -1034,12 +1043,13 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				checkLockWipeState(t, status, true, false, false, false, false, true)
 
 				// simulate a successful result for the wipe script execution
-				_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				_, action, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 					HostID:      hostID,
 					ExecutionID: status.WipeScript.ExecutionID,
 					ExitCode:    0,
 				})
 				require.NoError(t, err)
+				assert.Equal(t, "wipe_ref", action)
 
 				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 				require.NoError(t, err)
@@ -1147,6 +1157,7 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	// create a software install that references scripts
 	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install-script",
+		UninstallScript:   "uninstall-script",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "post-install-script",
 		InstallerFile:     bytes.NewReader([]byte("hello")),
@@ -1167,7 +1178,7 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	stmt := `SELECT id, HEX(md5_checksum) as md5_checksum FROM script_contents`
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
 	require.NoError(t, err)
-	require.Len(t, sc, 4)
+	require.Len(t, sc, 5)
 
 	// this should only remove the script_contents of the saved script, since the sync script is
 	// still "in use" by the script execution
@@ -1176,15 +1187,17 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	sc = []scriptContents{}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
 	require.NoError(t, err)
-	require.Len(t, sc, 3)
+	require.Len(t, sc, 4)
 	require.ElementsMatch(t, []string{
 		md5ChecksumScriptContent(res.ScriptContents),
 		md5ChecksumScriptContent("install-script"),
 		md5ChecksumScriptContent("post-install-script"),
+		md5ChecksumScriptContent("uninstall-script"),
 	}, []string{
 		sc[0].Checksum,
 		sc[1].Checksum,
 		sc[2].Checksum,
+		sc[3].Checksum,
 	})
 
 	// remove the software installer from the DB
@@ -1204,6 +1217,7 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	swi, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		PreInstallQuery: "SELECT 1",
 		InstallScript:   "install-script",
+		UninstallScript: "uninstall-script",
 		InstallerFile:   bytes.NewReader([]byte("hello")),
 		StorageID:       "storage1",
 		Filename:        "file1",
@@ -1219,7 +1233,7 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	sc = []scriptContents{}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
 	require.NoError(t, err)
-	require.Len(t, sc, 2)
+	require.Len(t, sc, 3)
 
 	// remove the software installer from the DB
 	err = ds.DeleteSoftwareInstaller(ctx, swi)

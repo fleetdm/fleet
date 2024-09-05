@@ -89,6 +89,8 @@ type SoftwareInstaller struct {
 	InstallScript string `json:"install_script" db:"install_script"`
 	// InstallScriptContentID is the ID of the install script content.
 	InstallScriptContentID uint `json:"-" db:"install_script_content_id"`
+	// UninstallScriptContentID is the ID of the uninstall script content.
+	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
 	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
@@ -353,10 +355,11 @@ type SoftwarePackageOrApp struct {
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 
-	Version     string               `json:"version"`
-	SelfService *bool                `json:"self_service,omitempty"`
-	IconURL     *string              `json:"icon_url"`
-	LastInstall *HostSoftwareInstall `json:"last_install"`
+	Version       string                 `json:"version"`
+	SelfService   *bool                  `json:"self_service,omitempty"`
+	IconURL       *string                `json:"icon_url"`
+	LastInstall   *HostSoftwareInstall   `json:"last_install"`
+	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 }
 
 type SoftwarePackageSpec struct {
@@ -385,6 +388,14 @@ type HostSoftwareInstall struct {
 	// Empty if the install was for an uploaded software installer.
 	CommandUUID string    `json:"command_uuid,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
+}
+
+// HostSoftwareUninstall represents uninstallation of software from a host with a
+// Fleet software installer.
+type HostSoftwareUninstall struct {
+	// ExecutionID is the UUID of the script execution that uninstalled the software.
+	ExecutionID   string    `json:"script_execution_id,omitempty"`
+	UninstalledAt time.Time `json:"uninstalled_at"`
 }
 
 // HostSoftwareInstalledVersion represents a version of software installed on a
