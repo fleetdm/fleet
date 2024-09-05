@@ -97,7 +97,7 @@ const generateActions = ({
   }
 
   // disable install option if software is already installing
-  if (softwareId === installingSoftwareId || status === "pending") {
+  if (softwareId === installingSoftwareId || status === "pending_install") {
     actions[indexInstallAction].disabled = true;
     return actions;
   }

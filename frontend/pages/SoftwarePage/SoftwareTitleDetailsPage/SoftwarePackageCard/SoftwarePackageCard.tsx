@@ -86,8 +86,13 @@ interface IStatusDisplayOption {
   tooltip: React.ReactNode;
 }
 
+// "pending" encompasses both "pending_install" and "pending_uninstall" for the sake of this UI
+type SoftwareInstallDisplayStatus =
+  | Exclude<SoftwareInstallStatus, "pending_install" | "pending_uninstall">
+  | "pending";
+
 const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallDisplayStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -129,7 +134,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
 
 interface IPackageStatusCountProps {
   softwareId: number;
-  status: SoftwareInstallStatus;
+  status: SoftwareInstallDisplayStatus;
   count: number;
   teamId?: number;
 }
@@ -143,7 +148,7 @@ const PackageStatusCount = ({
   const displayData = STATUS_DISPLAY_OPTIONS[status];
   const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     software_title_id: softwareId,
-    software_status: status,
+    software_status: status, // TODO - update host page filters for both pending_install and pending_uninstall?
     team_id: teamId,
   })}`;
   return (

@@ -197,7 +197,8 @@ export const formatSoftwareType = ({
 export const SOFTWARE_INSTALL_STATUSES = [
   "failed",
   "installed",
-  "pending",
+  "pending_install",
+  "pending_uninstall",
 ] as const;
 
 /*
