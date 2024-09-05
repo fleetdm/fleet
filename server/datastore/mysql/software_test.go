@@ -3950,6 +3950,8 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		TestSecondaryOrderKey: "source",
 	}}
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
 		Name:       "userIOS",
