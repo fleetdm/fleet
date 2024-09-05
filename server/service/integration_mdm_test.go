@@ -9790,8 +9790,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 
 	// No vpp token set, no association.
-	// FIXME This could return a better message and status.
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNotFound, "team_name", tmGood.Name)
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
 	// No vpp token set, try association
 	// FIXME
