@@ -1570,47 +1570,17 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID, info.Platform)
-}
-
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string, platform string) error {
-	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
-	ticker := time.NewTicker(300 * time.Millisecond)
-	defer func() {
-		ticker.Stop()
-		cancelFn()
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			// time out after 5 seconds
-			return fleet.MDMAppleCommandTimeoutError{}
-		case <-ticker.C:
-			nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, deviceID)
-			if err != nil {
-				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
-				return err
-			}
-			if nanoEnroll != nil && nanoEnroll.Enabled {
-				// check again on the next tick
-				continue
-			}
-			// success, mdm enrollment is no longer enabled for the device
-			level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
-
-			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
-			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
-				Action:   mdmlifecycle.HostActionTurnOff,
-				Platform: platform,
-				UUID:     deviceID,
-			})
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+		Action:   mdmlifecycle.HostActionTurnOff,
+		Platform: info.Platform,
+		UUID:     h.UUID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "running turn off action in mdm lifecycle")
 	}
+
+	return nil
 }
 
 type mdmAppleGetInstallerRequest struct {

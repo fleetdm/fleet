@@ -1418,8 +1418,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	// 3 profiles added + 1 profile with fleetd configuration + 1 root CA config
 	require.Len(t, *hostResp.Host.MDM.Profiles, 5)
 
-	// try to unenroll the host, fails since the host doesn't respond
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusGatewayTimeout)
+	// returns success, but this is effectively a no-op because the host isn't enrolled yet.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
 
 	// we're going to modify this mock, make sure we restore its default
 	originalPushMock := s.pushProvider.PushFunc
