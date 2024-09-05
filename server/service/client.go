@@ -676,7 +676,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying software installers for team %s\n", tmName)
+				logfn("[+] applying %d software installers for team %s\n", len(software), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)

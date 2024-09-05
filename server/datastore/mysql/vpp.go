@@ -190,9 +190,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
-	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+	var vppToken *fleet.VPPTokenDB
+	if len(appFleets) > 0 {
+		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -856,7 +859,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "modifying vpp token team associations")
 	}

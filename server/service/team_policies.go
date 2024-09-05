@@ -187,8 +187,10 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return nil, nil, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if mergeInherited {
@@ -250,8 +252,10 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 		return 0, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if mergeInherited {
@@ -341,8 +345,10 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if len(ids) == 0 {

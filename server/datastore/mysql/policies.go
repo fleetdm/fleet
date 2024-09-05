@@ -12,7 +12,6 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
@@ -103,8 +102,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-		AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
-			OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
+		AND ((p.team_id IS NULL AND ps.inherited_team_id IS NULL) OR (p.team_id IS NOT NULL))
 		WHERE p.id=? AND %s`, policyCols, teamWhere),
 		args...)
 	if err != nil {
@@ -381,7 +379,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = 0
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id IS NULL
 	`
 
 	if teamID != nil {
@@ -498,8 +496,7 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
 	  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-	  	AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
-				OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
+	  	AND ((p.team_id IS NULL AND ps.inherited_team_id IS NULL) OR (p.team_id IS NOT NULL))
 	  WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
@@ -556,38 +553,25 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 
 // PolicyQueriesForHost returns the policy queries that are to be executed on the given host.
 func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	var rows []struct {
-		ID    string `db:"id"`
-		Query string `db:"query"`
-	}
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens, as the host
 		// won't be receiving any policies targeted for specific platforms.
 		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
-	q := dialect.From("policies").Select(
-		goqu.I("id"),
-		goqu.I("query"),
-	).Where(
-		goqu.And(
-			goqu.Or(
-				goqu.I("platforms").Eq(""),
-				goqu.L("FIND_IN_SET(?, ?)",
-					host.FleetPlatform(),
-					goqu.I("platforms"),
-				).Neq(0),
-			),
-			goqu.Or(
-				goqu.I("team_id").IsNull(),        // global policies
-				goqu.I("team_id").Eq(host.TeamID), // team policies
-			),
-		),
-	)
-	sql, args, err := q.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting policies sql build")
+	const stmt = `
+		SELECT id, query
+		FROM policies
+		WHERE
+			-- team_id == NULL are global policies that apply to all hosts
+			-- team_id == 0 are policies that apply to hosts in "No team"
+			-- team_id > 0 are policies that apply to gosts in teams
+			(team_id IS NULL OR team_id = COALESCE(?, 0)) AND
+			(platforms = '' OR FIND_IN_SET(?, platforms))`
+	var rows []struct {
+		ID    string `db:"id"`
+		Query string `db:"query"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, host.TeamID, host.FleetPlatform()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting policies for host")
 	}
 	results := make(map[string]string)
@@ -606,6 +590,18 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Name = q.Name
 		args.Query = q.Query
 		args.Description = q.Description
+	}
+	// Check team exists.
+	if teamID > 0 {
+		var ok bool
+		err := ds.writer(ctx).GetContext(ctx, &ok, `SELECT COUNT(*) = 1 FROM teams WHERE id = ?`, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team id")
+		}
+		if !ok {
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(teamID), "get team id")
+		}
+
 	}
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
@@ -659,7 +655,7 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-		AND ps.inherited_team_id = IF(p.team_id IS NULL, ?, 0)
+		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
     `
 
@@ -1408,7 +1404,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			WHERE p.team_id IS NULL AND p.id = ?
 			GROUP BY t.id, p.id`
 			err = sqlx.SelectContext(ctx, db, &policyStats, selectStmt, policy.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					// Policy or team was deleted by a parallel process. We proceed.
 					level.Error(ds.logger).Log(
@@ -1418,6 +1414,38 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 				}
 				return ctxerr.Wrap(ctx, err, "select policy counts for inherited global policies")
 			}
+
+			noTeamStmt := `SELECT
+				p.id as policy_id,
+				0 AS inherited_team_id, -- 0 means "No team"
+				(
+					SELECT COUNT(*)
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id
+					WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id IS NULL
+				) AS passing_host_count,
+				(
+					SELECT COUNT(*)
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id
+					WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id IS NULL
+				) AS failing_host_count
+			FROM policies p
+			WHERE p.team_id IS NULL AND p.id = ?`
+			var noTeamPolicyStats []policyStat
+			err = sqlx.SelectContext(ctx, db, &noTeamPolicyStats, noTeamStmt, policy.ID)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					// Policy was deleted by a parallel process. We proceed.
+					level.Error(ds.logger).Log(
+						"msg", "'No team' policy not found for inherited global policies. Was policy deleted?", "policy_id", policy.ID,
+					)
+					continue
+				}
+				return ctxerr.Wrap(ctx, err, "select policy counts for inherited global policies for 'no team' policies")
+			}
+			policyStats = append(policyStats, noTeamPolicyStats...)
+
 			insertStmt := `INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 			VALUES (:policy_id, :inherited_team_id, :passing_host_count, :failing_host_count)
 			ON DUPLICATE KEY UPDATE
@@ -1441,7 +1469,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 		SELECT
 			p.id,
-			0 AS inherited_team_id, -- using 0 to represent global scope
+			NULL AS inherited_team_id, -- using NULL to represent global scope
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
 		FROM policies p
