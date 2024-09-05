@@ -43,6 +43,7 @@ class InputField extends Component {
       PropTypes.object,
     ]),
     enableCopy: PropTypes.bool,
+    copyButtonPosition: PropTypes.oneOfType(["inside", "outside"]),
     ignore1password: PropTypes.bool,
   };
 
@@ -62,6 +63,7 @@ class InputField extends Component {
     labelTooltipPosition: undefined,
     helpText: "",
     enableCopy: false,
+    copyButtonPosition: "outside",
     ignore1password: false,
   };
 
@@ -97,6 +99,59 @@ class InputField extends Component {
     return onChange(value);
   };
 
+  renderCopyButton = () => {
+    const { value, copyButtonPosition } = this.props;
+
+    const copyValue = (e) => {
+      e.preventDefault();
+      stringToClipboard(value).then(() => {
+        this.setState({ copied: true });
+        setTimeout(() => {
+          this.setState({ copied: false });
+        }, 2000);
+      });
+    };
+
+    const copyButtonValue =
+      copyButtonPosition === "outside" ? (
+        <>
+          <Icon name="copy" />
+          <span>Copy</span>
+        </>
+      ) : (
+        <Icon name="copy" />
+      );
+
+    const wrapperClasses = classnames(
+      `${baseClass}__copy-wrapper`,
+      copyButtonPosition === "outside"
+        ? `${baseClass}__copy-wrapper-outside`
+        : `${baseClass}__copy-wrapper-inside`
+    );
+
+    const copiedConfirmationClasses = classnames(
+      `${baseClass}__copied-confirmation`,
+      copyButtonPosition === "outside"
+        ? `${baseClass}__copied-confirmation-outside`
+        : `${baseClass}__copied-confirmation-inside`
+    );
+
+    return (
+      <div className={wrapperClasses}>
+        <Button
+          variant="text-icon"
+          onClick={copyValue}
+          className={`${baseClass}__copy-value-button`}
+        >
+          {copyButtonValue}
+        </Button>
+        {this.state.copied && (
+          <span className={copiedConfirmationClasses}>Copied!</span>
+        )}
+      </div>
+    );
+  };
+
   render() {
     const {
       readOnly,
@@ -113,6 +168,8 @@ class InputField extends Component {
       blockAutoComplete,
       value,
       ignore1password,
+      enableCopy,
+      copyButtonPosition,
     } = this.props;
 
     const { onInputChange } = this;
@@ -138,16 +195,6 @@ class InputField extends Component {
       "tooltip",
       "labelTooltipPosition",
     ]);
-
-    const copyValue = (e) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        this.setState({ copied: true });
-        setTimeout(() => {
-          this.setState({ copied: false });
-        }, 2000);
-      });
-    };
 
     if (type === "textarea") {
       return (
@@ -175,7 +222,9 @@ class InputField extends Component {
     }
 
     const inputContainerClasses = classnames(`${baseClass}__input-container`, {
-      "copy-enabled": this.props.enableCopy,
+      "copy-enabled": enableCopy,
+      "copy-outside": enableCopy && copyButtonPosition === "outside",
+      "copy-inside": enableCopy && copyButtonPosition === "inside",
     });
 
     return (
@@ -203,22 +252,8 @@ class InputField extends Component {
             autoComplete={blockAutoComplete ? "new-password" : ""}
             data-1p-ignore={ignore1password}
           />
-          {this.props.enableCopy && (
-            <div className={`${baseClass}__copy-wrapper`}>
-              <Button
-                variant="text-icon"
-                onClick={copyValue}
-                className={`${baseClass}__copy-value-button`}
-              >
-                <Icon name="copy" /> Copy
-              </Button>
-              {this.state.copied && (
-                <span className={`${baseClass}__copied-confirmation`}>
-                  Copied!
-                </span>
-              )}
-            </div>
-          )}
+
+          {enableCopy && this.renderCopyButton()}
         </div>
       </FormField>
     );

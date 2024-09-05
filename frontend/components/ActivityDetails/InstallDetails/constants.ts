@@ -6,8 +6,12 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   IconNames
 > = {
   pending: "pending-outline",
+  pending_install: "pending-outline",
   installed: "success-outline",
   failed: "error-outline",
+  failed_install: "error-outline",
+  pending_uninstall: "pending-outline",
+  failed_uninstall: "error-outline",
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
@@ -15,20 +19,24 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   string
 > = {
   pending: "is installing or will install",
+  pending_install: "is installing or will install",
   installed: "installed",
   failed: "failed to install",
+  failed_install: "failed to install",
+  pending_uninstall: "is uninstalling or will uninstall",
+  failed_uninstall: "failed to uninstall",
 } as const;
 
 export const getInstallDetailsStatusPredicate = (
   status: string | undefined
 ) => {
   if (!status) {
-    return INSTALL_DETAILS_STATUS_PREDICATES.pending;
+    return INSTALL_DETAILS_STATUS_PREDICATES.pending_install;
   }
   return (
     INSTALL_DETAILS_STATUS_PREDICATES[
       status.toLowerCase() as SoftwareInstallStatus
-    ] || INSTALL_DETAILS_STATUS_PREDICATES.pending
+    ] || INSTALL_DETAILS_STATUS_PREDICATES.pending_install
   );
 };
 

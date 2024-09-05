@@ -80,7 +80,8 @@ func truncateScriptResult(output string) string {
 	return output
 }
 
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
+	string, error) {
 	const resultExistsStmt = `
 	SELECT
 		1
@@ -105,20 +106,27 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	const hostMDMActionsStmt = `
   SELECT
     CASE
-      WHEN lock_ref = ? THEN 'lock_ref'
-      WHEN unlock_ref = ? THEN 'unlock_ref'
-      WHEN wipe_ref = ? THEN 'wipe_ref'
+      WHEN lock_ref = :execution_id THEN 'lock_ref'
+      WHEN unlock_ref = :execution_id THEN 'unlock_ref'
+      WHEN wipe_ref = :execution_id THEN 'wipe_ref'
       ELSE ''
-    END AS ref_col
+    END AS action
   FROM
     host_mdm_actions
   WHERE
-    host_id = ?
+    host_id = :host_id
+  UNION
+  SELECT 'uninstall' AS action
+  FROM
+	host_software_installs
+  WHERE
+	execution_id = :execution_id AND host_id = :host_id
 `
 
 	output := truncateScriptResult(result.Output)
 
 	var hsr *fleet.HostScriptResult
+	var action string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var resultExists bool
 		err := sqlx.GetContext(ctx, tx, &resultExists, resultExistsStmt, result.HostID, result.ExecutionID)
@@ -154,15 +162,31 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 				return ctxerr.Wrap(ctx, err, "load updated host script result")
 			}
 
-			// look up if that script was a lock/unlock/wipe script for that host,
+			// look up if that script was a lock/unlock/wipe/uninstall script for that host,
 			// and if so update the host_mdm_actions table accordingly.
-			var refCol string
-			err = sqlx.GetContext(ctx, tx, &refCol, hostMDMActionsStmt, result.ExecutionID, result.ExecutionID, result.ExecutionID, result.HostID)
+			namedArgs := map[string]any{
+				"host_id":      result.HostID,
+				"execution_id": result.ExecutionID,
+			}
+			stmt, args, err := sqlx.Named(hostMDMActionsStmt, namedArgs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build named query for host mdm actions")
+			}
+			err = sqlx.GetContext(ctx, tx, &action, stmt, args...)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) { // ignore ErrNoRows, refCol will be empty
 				return ctxerr.Wrap(ctx, err, "lookup host script corresponding mdm action")
 			}
-			if refCol != "" {
-				err = updateHostLockWipeStatusFromResult(ctx, tx, result.HostID, refCol, result.ExitCode == 0)
+
+			switch action {
+			case "":
+				// do nothing
+			case "uninstall":
+				err = updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "update host uninstall action based on script result")
+				}
+			default: // lock/unlock/wipe
+				err = updateHostLockWipeStatusFromResult(ctx, tx, result.HostID, action, result.ExitCode == 0)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "update host mdm action based on script result")
 				}
@@ -171,9 +195,9 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return hsr, nil
+	return hsr, action, nil
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
@@ -388,6 +412,25 @@ WHERE
 			return nil, notFound("Script").WithID(id)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get script contents")
+	}
+	return contents, nil
+}
+
+func (ds *Datastore) GetAnyScriptContents(ctx context.Context, id uint) ([]byte, error) {
+	const getStmt = `
+SELECT
+  sc.contents
+FROM
+  script_contents sc
+WHERE
+  sc.id = ?
+`
+	var contents []byte
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &contents, getStmt, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("Script").WithID(id)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get any script contents")
 	}
 	return contents, nil
 }
@@ -1100,6 +1143,16 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
 
+func updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
+	stmt := `
+	UPDATE host_software_installs SET uninstall_script_exit_code = ? WHERE execution_id = ? AND host_id = ?
+	`
+	if _, err := tx.ExecContext(ctx, stmt, exitCode, executionID, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update uninstall status from result")
+	}
+	return nil
+}
+
 func (ds *Datastore) CleanupUnusedScriptContents(ctx context.Context) error {
 	deleteStmt := `
 DELETE FROM
@@ -1111,7 +1164,7 @@ WHERE
     SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
   AND NOT EXISTS (
     SELECT 1 FROM software_installers si
-    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id)
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
   )
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)

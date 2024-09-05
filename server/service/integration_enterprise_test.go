@@ -5885,7 +5885,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 				case r := <-resultsCh:
 					r.ExecutionID = pending[0].ExecutionID
 					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
-					_, err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					_, _, err = s.ds.SetHostScriptExecutionResult(ctx, r)
 					if err != nil {
 						t.Log(err)
 					}
@@ -9953,7 +9953,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[2].Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[2].Status)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
 	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 
@@ -9974,7 +9974,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getDeviceSw.Software[2].Status)
 	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
@@ -10831,7 +10831,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
 	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	require.NotNil(t, getHostSoftwareResp.Software[0].Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSoftwareResp.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSoftwareResp.Software[0].Status)
 	installUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 
 	gsirr := getSoftwareInstallResultsResponse{}
@@ -10840,7 +10840,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NotNil(t, gsirr.Results)
 	results := gsirr.Results
 	require.Equal(t, installUUID, results.InstallUUID)
-	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, results.Status)
 
 	// create 3 more hosts, will have statuses installed, failed and one with two
 	// install requests - one failed and the latest install pending
@@ -11026,7 +11026,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NotNil(t, gsirr.Results)
 	results = gsirr.Results
 	require.Equal(t, installUUID, results.InstallUUID)
-	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, results.Status)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
@@ -11078,7 +11078,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	require.Equal(t, host1.ID, details.HostID)
 	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
 	require.True(t, details.SelfService)
-	require.EqualValues(t, fleet.SoftwareInstallerPending, details.Status)
+	require.EqualValues(t, fleet.SoftwareInstallPending, details.Status)
 	installID := details.InstallUUID
 
 	// record the installation results
@@ -11108,7 +11108,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	require.Equal(t, host1.ID, details.HostID)
 	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
 	require.True(t, details.SelfService)
-	require.EqualValues(t, fleet.SoftwareInstallerInstalled, details.Status)
+	require.EqualValues(t, fleet.SoftwareInstalled, details.Status)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
@@ -11195,7 +11195,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	checkResults(result{
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[0],
-		Status:                fleet.SoftwareInstallerFailed,
+		Status:                fleet.SoftwareInstallFailed,
 		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
 		Output:                ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed")),
 	})
@@ -11205,7 +11205,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwareTitle:   payload.Title,
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
-		Status:          string(fleet.SoftwareInstallerFailed),
+		Status:          string(fleet.SoftwareInstallFailed),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -11219,7 +11219,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	checkResults(result{
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[1],
-		Status:                fleet.SoftwareInstallerFailed,
+		Status:                fleet.SoftwareInstallFailed,
 		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQueryFailCopy),
 	})
 	wantAct = fleet.ActivityTypeInstalledSoftware{
@@ -11228,7 +11228,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwareTitle:   payload2.Title,
 		SoftwarePackage: payload2.Filename,
 		InstallUUID:     installUUIDs[1],
-		Status:          string(fleet.SoftwareInstallerFailed),
+		Status:          string(fleet.SoftwareInstallFailed),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -11246,7 +11246,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	checkResults(result{
 		HostID:                  host.ID,
 		InstallUUID:             installUUIDs[2],
-		Status:                  fleet.SoftwareInstallerInstalled,
+		Status:                  fleet.SoftwareInstalled,
 		PreInstallQueryOutput:   ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
 		Output:                  ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success")),
 		PostInstallScriptOutput: ptr.String(fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok")),
@@ -11257,7 +11257,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwareTitle:   payload3.Title,
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
-		Status:          string(fleet.SoftwareInstallerInstalled),
+		Status:          string(fleet.SoftwareInstalled),
 	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -13107,7 +13107,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host1LastInstall)
 	require.NotEmpty(t, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 	prevExecutionID := host1LastInstall.ExecutionID
 
 	// Request a manual installation on the host for the same installer, which should fail.
@@ -13131,7 +13131,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, prevExecutionID, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
 	// Submit same results but policy1Team1 now passes,
 	// and then submit again but policy1Team1 fails.
@@ -13160,7 +13160,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, prevExecutionID, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
 	// host2Team1 is failing policy2Team1 and policy3Team1 policies.
 	distributedResp = submitDistributedQueryResultsResponse{}
@@ -13177,7 +13177,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host2LastInstall)
 	require.NotEmpty(t, host2LastInstall.ExecutionID)
 	require.NotNil(t, host2LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host2LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host2LastInstall.Status)
 
 	// Associate fleet-osquery.msi to policy4Team2.
 	mtplr = modifyTeamPolicyResponse{}
@@ -13201,7 +13201,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host3LastInstall)
 	require.NotEmpty(t, host3LastInstall.ExecutionID)
 	require.NotNil(t, host3LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host3LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host3LastInstall.Status)
 	host3LastInstallDetails, err := s.ds.GetSoftwareInstallDetails(ctx, host3LastInstall.ExecutionID)
 	require.NoError(t, err)
 	// Even if fleet-osquery.msi was uploaded as Self-service, it was installed by Fleet, so

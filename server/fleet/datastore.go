@@ -532,6 +532,9 @@ type Datastore interface {
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error)
+	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
+	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
+	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -1288,7 +1291,7 @@ type Datastore interface {
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
 	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip
 	// any serials that have a non-zero `retry_job_id`.
-	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error)
+	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 	// GetDEPAssignProfileExpiredCooldowns returns the serials of the hosts that have expired
 	// cooldowns, grouped by team.
 	GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error)
@@ -1535,8 +1538,8 @@ type Datastore interface {
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// and returns the updated host script result record. Note that it does not
 	// fail if the script execution request does not exist, in this case it will
-	// return nil, nil.
-	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (*HostScriptResult, error)
+	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (hsr *HostScriptResult, action string, err error)
 	// GetHostScriptExecutionResult returns the result of a host script
 	// execution. It returns the host script results even if no results have been
 	// received, it is the caller's responsibility to check if that was the case
@@ -1555,6 +1558,10 @@ type Datastore interface {
 	// GetScriptContents returns the raw script contents of the corresponding
 	// script.
 	GetScriptContents(ctx context.Context, id uint) ([]byte, error)
+
+	// GetAnyScriptContents returns the raw script contents of the corresponding
+	// script, regardless whether it is present in the scripts table.
+	GetAnyScriptContents(ctx context.Context, id uint) ([]byte, error)
 
 	// DeleteScript deletes the script identified by its id.
 	DeleteScript(ctx context.Context, id uint) error

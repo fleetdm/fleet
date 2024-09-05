@@ -89,7 +89,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "pending status",
 			initial: HostSoftwareInstallerResult{
-				Status: SoftwareInstallerPending,
+				Status: SoftwareInstallPending,
 			},
 			expectedPreInstallQueryOutput:   nil,
 			expectedOutput:                  nil,
@@ -98,7 +98,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with empty PreInstallQueryOutput",
 			initial: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallerInstalled,
+				Status:                SoftwareInstalled,
 				PreInstallQueryOutput: ptr.String(""),
 			},
 			expectedPreInstallQueryOutput:   ptr.String(SoftwareInstallerQueryFailCopy),
@@ -108,7 +108,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with non-empty PreInstallQueryOutput",
 			initial: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallerInstalled,
+				Status:                SoftwareInstalled,
 				PreInstallQueryOutput: ptr.String("Some output"),
 			},
 			expectedPreInstallQueryOutput:   ptr.String(SoftwareInstallerQuerySuccessCopy),
@@ -118,7 +118,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with nil PreInstallQueryOutput",
 			initial: HostSoftwareInstallerResult{
-				Status: SoftwareInstallerInstalled,
+				Status: SoftwareInstalled,
 			},
 			expectedPreInstallQueryOutput:   nil,
 			expectedOutput:                  nil,
@@ -127,7 +127,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with install scripts disabled",
 			initial: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallerInstalled,
+				Status:                SoftwareInstalled,
 				InstallScriptExitCode: ptr.Int(-2),
 				Output:                ptr.String(""),
 			},
@@ -138,7 +138,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with failed install script",
 			initial: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallerFailed,
+				Status:                SoftwareInstallFailed,
 				InstallScriptExitCode: ptr.Int(1),
 				Output:                ptr.String("Some install output"),
 			},
@@ -149,7 +149,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with successful install script",
 			initial: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallerInstalled,
+				Status:                SoftwareInstalled,
 				InstallScriptExitCode: ptr.Int(0),
 				Output:                ptr.String("Some install output"),
 			},
@@ -160,7 +160,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with successful post install script",
 			initial: HostSoftwareInstallerResult{
-				Status:                    SoftwareInstallerInstalled,
+				Status:                    SoftwareInstalled,
 				InstallScriptExitCode:     ptr.Int(0),
 				Output:                    ptr.String("Some install output"),
 				PostInstallScriptExitCode: ptr.Int(0),
@@ -173,7 +173,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "non-pending status with failed post install script",
 			initial: HostSoftwareInstallerResult{
-				Status:                    SoftwareInstallerInstalled,
+				Status:                    SoftwareInstalled,
 				InstallScriptExitCode:     ptr.Int(0),
 				Output:                    ptr.String("Some install output"),
 				PostInstallScriptExitCode: ptr.Int(1),

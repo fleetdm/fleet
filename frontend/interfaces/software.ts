@@ -195,10 +195,11 @@ export const formatSoftwareType = ({
  * This list comprises all possible states of software install operations.
  */
 export const SOFTWARE_INSTALL_STATUSES = [
-  "failed",
   "installed",
   "pending_install",
+  "failed_install",
   "pending_uninstall",
+  "failed_uninstall",
 ] as const;
 
 /*
@@ -285,8 +286,12 @@ export type IDeviceSoftware = IHostSoftware;
 
 const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
   failed: "failed to install",
+  failed_install: "failed to install",
   installed: "installed",
   pending: "told Fleet to install",
+  pending_install: "told Fleet to install",
+  pending_uninstall: "told Fleet to uninstall",
+  failed_uninstall: "failed to uninstall",
 } as const;
 
 export const getInstallStatusPredicate = (status: string | undefined) => {
@@ -301,8 +306,12 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
 
 export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
   pending: "pending-outline",
+  pending_install: "pending-outline",
   installed: "success-outline",
   failed: "error-outline",
+  failed_install: "error-outline",
+  pending_uninstall: "pending-outline",
+  failed_uninstall: "error-outline",
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
