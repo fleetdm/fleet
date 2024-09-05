@@ -685,7 +685,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	hsr, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
+	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
@@ -707,20 +707,26 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			scriptName = scr.Name
 		}
 
-		// TODO(sarah): We may need to special case lock/unlock script results here?
-		if err := svc.NewActivity(
-			ctx,
-			user,
-			fleet.ActivityTypeRanScript{
-				HostID:            host.ID,
-				HostDisplayName:   host.DisplayName(),
-				ScriptExecutionID: hsr.ExecutionID,
-				ScriptName:        scriptName,
-				Async:             !hsr.SyncRequest,
-			},
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+		switch action {
+		case "uninstall":
+			// TODO: Add host activity, and global activity on success.
+		default:
+			// TODO(sarah): We may need to special case lock/unlock script results here?
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeRanScript{
+					HostID:            host.ID,
+					HostDisplayName:   host.DisplayName(),
+					ScriptExecutionID: hsr.ExecutionID,
+					ScriptName:        scriptName,
+					Async:             !hsr.SyncRequest,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
 		}
+
 	}
 	return nil
 }

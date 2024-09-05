@@ -637,6 +637,9 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// UninstallSoftwareTitle uninstalls a software title in the given host.
+	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
+
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 

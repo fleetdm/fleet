@@ -2200,16 +2200,22 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
-			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
-			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
-			-- get either the softare installer status or the vpp app status
+			COALESCE(hsi_install.created_at, hvsi.created_at) as last_install_installed_at,
+			COALESCE(hsi_install.execution_id, hvsi.command_uuid) as last_install_install_uuid,
+			hsi_uninstall.created_at as last_uninstall_uninstalled_at,
+			hsi_uninstall.execution_id as last_uninstall_script_execution_id,
+			-- get either the software installer status or the vpp app status
 			%s as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN
+		LEFT OUTER JOIN -- get the latest install/uninstall attempt
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id AND hsi.removed = 0
+		LEFT OUTER JOIN
+			host_software_installs hsi_install ON si.id = hsi_install.software_installer_id AND hsi_install.host_id = :host_id AND hsi_install.uninstall = 0 AND hsi_install.removed = 0
+		LEFT OUTER JOIN
+			host_software_installs hsi_uninstall ON si.id = hsi.software_installer_id AND hsi_uninstall.host_id = :host_id AND hsi_uninstall.uninstall = 1 AND hsi_uninstall.removed = 0
 		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
@@ -2219,11 +2225,23 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
-			-- use the latest install attempt only
+			-- use the latest install/uninstall attempt only
 			( hsi.id IS NULL OR hsi.id = (
 				SELECT hsi2.id
 				FROM host_software_installs hsi2
 				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id AND hsi2.removed = 0
+				ORDER BY hsi2.created_at DESC
+				LIMIT 1 ) ) AND
+			( hsi_install.id IS NULL OR hsi_install.id = (
+				SELECT hsi2.id
+				FROM host_software_installs hsi2
+				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id AND hsi2.removed = 0 AND uninstall = 0
+				ORDER BY hsi2.created_at DESC
+				LIMIT 1 ) ) AND
+			( hsi_uninstall.id IS NULL OR hsi_uninstall.id = (
+				SELECT hsi2.id
+				FROM host_software_installs hsi2
+				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id AND hsi2.removed = 0 AND uninstall = 1
 				ORDER BY hsi2.created_at DESC
 				LIMIT 1 ) ) AND
 			( hvsi.id IS NULL OR hvsi.id = (
@@ -2258,6 +2276,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
+			NULL as last_uninstall_uninstalled_at,
+			NULL as last_uninstall_script_execution_id,
 			NULL as status
 		FROM
 			software_titles st
@@ -2321,6 +2341,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		vpp_app_icon_url,
 		last_install_installed_at,
 		last_install_install_uuid,
+		last_uninstall_uninstalled_at,
+		last_uninstall_script_execution_id,
 		status
 `
 
@@ -2381,15 +2403,17 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
-		PackageSelfService     *bool      `db:"package_self_service"`
-		PackageName            *string    `db:"package_name"`
-		PackageVersion         *string    `db:"package_version"`
-		VPPAppSelfService      *bool      `db:"vpp_app_self_service"`
-		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
-		VPPAppVersion          *string    `db:"vpp_app_version"`
-		VPPAppIconURL          *string    `db:"vpp_app_icon_url"`
+		LastInstallInstalledAt         *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID         *string    `db:"last_install_install_uuid"`
+		LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
+		LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
+		PackageSelfService             *bool      `db:"package_self_service"`
+		PackageName                    *string    `db:"package_name"`
+		PackageVersion                 *string    `db:"package_version"`
+		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
+		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion                  *string    `db:"vpp_app_version"`
+		VPPAppIconURL                  *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2421,6 +2445,16 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				}
 				if hs.LastInstallInstalledAt != nil {
 					hs.SoftwarePackage.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+				}
+			}
+
+			// promote the last uninstall info to the proper destination fields
+			if hs.LastUninstallScriptExecutionID != nil && *hs.LastUninstallScriptExecutionID != "" {
+				hs.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+					ExecutionID: *hs.LastUninstallScriptExecutionID,
+				}
+				if hs.LastUninstallUninstalledAt != nil {
+					hs.SoftwarePackage.LastUninstall.UninstalledAt = *hs.LastUninstallUninstalledAt
 				}
 			}
 		}
