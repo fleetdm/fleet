@@ -139,6 +139,10 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 	return nil
 }
 
+func (d *DEPService) CreateDefaultAutomaticProfile(ctx context.Context) error {
+	return d.createDefaultAutomaticProfile(ctx)
+}
+
 // RegisterProfileWithAppleDEPServer registers the enrollment profile in
 // Apple's servers via the DEP API, so it can be used for assignment. If
 // setupAsst is nil, the default profile is registered. It assigns the
@@ -253,6 +257,101 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 			requestedTokenProfileUUID = res.ProfileUUID
 		}
 	}
+	return requestedTokenProfileUUID, requestedTokenModTime, nil
+}
+
+func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
+	appCfg, err := d.ds.AppConfig(ctx)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	// must always get the default profile, because the authentication token is
+	// defined on that profile.
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching default profile")
+	}
+
+	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	var rawJSON json.RawMessage
+	var requestedTokenModTime time.Time
+	if defaultProf.DEPProfile != nil {
+		rawJSON = *defaultProf.DEPProfile
+		requestedTokenModTime = defaultProf.UpdatedAt
+	}
+	if setupAsst != nil {
+		rawJSON = setupAsst.Profile
+		requestedTokenModTime = setupAsst.UploadedAt
+	}
+
+	var jsonProf godep.Profile
+	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
+	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	}
+
+	// if configuration_web_url is set, this setting is completely managed by the
+	// IT admin.
+	if jsonProf.ConfigurationWebURL == "" {
+		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+		// flow, otherwise use Fleet's enroll URL.
+		//
+		// Even though the DEP profile supports an `url` attribute, we should
+		// always still set configuration_web_url, otherwise the request method
+		// coming from Apple changes from GET to POST, and we want to preserve
+		// backwards compatibility.
+		jsonProf.ConfigurationWebURL = enrollURL
+		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		if team != nil {
+			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+		}
+		if endUserAuthEnabled {
+			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
+		}
+	}
+
+	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
+	// to get a token without SSO enabled
+	jsonProf.URL = jsonProf.ConfigurationWebURL
+	// always set await_device_configured to true - it will be released either
+	// automatically by Fleet or manually by the user if
+	// enable_release_device_manually is true.
+	jsonProf.AwaitDeviceConfigured = true
+
+	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
+	// Get all relevant org names
+	var tmID *uint
+	if team != nil {
+		tmID = &team.ID
+	}
+
+	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
+	}
+
+	if len(orgNames) == 0 {
+		d.logger.Log("msg", "skipping defining profile for team with no relevant ABM token")
+		return "", time.Time{}, nil
+	}
+
+	var requestedTokenProfileUUID string
+	for _, orgName := range orgNames {
+		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+		if err != nil {
+			return "", time.Time{}, ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
+		}
+
+		if orgName == abmTokenOrgName {
+			requestedTokenProfileUUID = res.ProfileUUID
+		}
+	}
+
 	return requestedTokenProfileUUID, requestedTokenModTime, nil
 }
 

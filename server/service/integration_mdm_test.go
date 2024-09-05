@@ -4104,15 +4104,161 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	ctx := context.Background()
 	t := s.T()
 
+	const defaultProf = `{
+	"profile_name": "%s",
+	"allow_pairing": true,
+	"is_mdm_removable": true,
+	"org_magic": "1",
+	"language": "en",
+	"region": "US",
+	"skip_setup_items": [
+		"Accessibility",
+		"Appearance",
+		"AppleID",
+		"AppStore",
+		"Biometric",
+		"Diagnostics",
+		"FileVault",
+		"iCloudDiagnostics",
+		"iCloudStorage",
+		"Location",
+		"Payment",
+		"Privacy",
+		"Restore",
+		"ScreenTime",
+		"Siri",
+		"TermsOfAddress",
+		"TOS",
+		"UnlockWithWatch"
+	]
+}
+`
+
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(ctx))
+
+	// start a server that will mock the Apple DEP API
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof godep.Profile
+			require.NoError(t, json.Unmarshal(body, &prof))
+			switch {
+			case len(prof.ProfileName) > 125:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_INVALID"}))
+			case prof.ProfileName == "":
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_REQUIRED"}))
+			case len(prof.ConfigurationWebURL) > 125:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_URL_INVALID"}))
+			case len(prof.Department) > 125:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "DEPARTMENT_INVALID"}))
+			case len(prof.SupportPhoneNumber) > 50:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_PHONE_INVALID"}))
+			case len(prof.SupportEmailAddress) > 250:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_EMAIL_INVALID"}))
+			case len(prof.OrgMagic) > 256:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "MAGIC_INVALID"}))
+			case !prof.IsMDMRemovable && !prof.IsSupervised:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "FLAGS_INVALID"}))
+			default:
+				w.WriteHeader(http.StatusOK)
+				require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+			}
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	err := s.depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
+
 	// get for no team returns 404
 	var getResp getMDMAppleSetupAssistantResponse
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNotFound, &getResp)
 	// get for non-existing team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNotFound, &getResp, "team_id", "123")
 
-	// create a setup assistant for no team
-	noTeamProf := `{"x": 1}`
+	// Profile name too long
 	var createResp createMDMAppleSetupAssistantResponse
+	r := s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_too_long",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "%s"}`, strings.Repeat("a", 126))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "CONFIG_NAME_INVALID")
+
+	// Profile name missing
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(`{"profile_name": ""}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "CONFIG_NAME_REQUIRED")
+
+	// Config URL invalid
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "%s"}`, strings.Repeat("a", 126))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "CONFIG_URL_INVALID")
+
+	// Department invalid
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "%s"}`, strings.Repeat("a", 126))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "DEPARTMENT_INVALID")
+
+	// Invalid support phone
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "%s"}`, strings.Repeat("1", 51))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "SUPPORT_PHONE_INVALID")
+
+	// Invalid support email
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "555-123-4567", "support_email_address": "%s"}`, strings.Repeat("1", 251))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "SUPPORT_EMAIL_INVALID")
+
+	// Invalid magic
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "555-123-4567", "support_email_address": "support@example.com", "org_magic": "%s"}`, strings.Repeat("1", 257))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "MAGIC_INVALID")
+
+	// Invalid flag combo
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "555-123-4567", "support_email_address": "support@example.com", "org_magic": "1", "is_mdm_removable": false, "is_supervised": false}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "FLAGS_INVALID")
+
+	// create a setup assistant for no team
+	noTeamProf := fmt.Sprintf(defaultProf, "no-team")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team",
@@ -4148,7 +4294,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		fmt.Sprintf(`{"name": "team1", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
 
 	// update no-team
-	noTeamProf = `{"x": 2}`
+	noTeamProf = fmt.Sprintf(defaultProf, "no-team2")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team2",

@@ -510,8 +510,10 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	// enabled (either globally or for a specific team, if provided)
 	var endUserAuthEnabled bool
 	var teamName *string
+	var tm *fleet.Team
 	if asst.TeamID != nil {
-		tm, err := svc.ds.Team(ctx, *asst.TeamID)
+		var err error
+		tm, err = svc.ds.Team(ctx, *asst.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team")
 		}
@@ -538,6 +540,11 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 	if _, ok := m["await_device_configured"]; ok {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
+	}
+
+	// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
+	if _, _, err := svc.depService.RegisterProfileWithAppleDEPServer(ctx, tm, asst, ""); err != nil {
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
 	// must read the existing setup assistant first to detect if it did change
