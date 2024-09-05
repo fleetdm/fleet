@@ -17,8 +17,8 @@ import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 
 const unixInstallHelpText = (
   <>
-    Use the $INSTALLER_PATH to point to the installer. Shell scripts are
-    supported.{" "}
+    Use the $INSTALLER_PATH variable to point to the installer. Currently, Shell
+    scripts are supported.{" "}
     <CustomLink
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
       text="Learn more about install scripts"
@@ -29,8 +29,8 @@ const unixInstallHelpText = (
 
 const getWindowsInstallHelpText = (pkgType: WindowsPackageType) => (
   <>
-    Use the $INSTALLER_PATH to point to the installer. PowerShell scripts are
-    supported.{" "}
+    Use the $INSTALLER_PATH variable to point to the installer. Currently,
+    PowerShell scripts are supported.{" "}
     <CustomLink
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/${
         pkgType === "exe" ? "exe-" : ""
