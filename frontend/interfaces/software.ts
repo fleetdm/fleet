@@ -66,7 +66,7 @@ export interface ISoftwarePackage {
   icon_url: string | null;
   status: {
     installed: number;
-    pending: number;
+    pending: number; // includes total of hosts pending_install and pending_uninstall
     failed: number;
   };
 }
@@ -284,14 +284,16 @@ export interface IHostSoftware {
 
 export type IDeviceSoftware = IHostSoftware;
 
-const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
-  failed: "failed to install",
-  failed_install: "failed to install",
+const INSTALL_STATUS_PREDICATES: Record<
+  SoftwareInstallStatus | "pending",
+  string
+> = {
+  pending: "pending", // TODO - confirm this, current is to allow successful build while WIP
   installed: "installed",
-  pending: "told Fleet to install",
-  pending_install: "told Fleet to install",
-  pending_uninstall: "told Fleet to uninstall",
-  failed_uninstall: "failed to uninstall",
+  pending_install: "told Fleet to install", // TODO - confirm
+  failed_install: "failed to install", // TODO - confirm
+  pending_uninstall: "told Fleet to uninstall", // TODO - confirm
+  failed_uninstall: "failed to uninstall", // TODO - confirm
 } as const;
 
 export const getInstallStatusPredicate = (status: string | undefined) => {
@@ -304,7 +306,10 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
   );
 };
 
-export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+export const INSTALL_STATUS_ICONS: Record<
+  SoftwareInstallStatus | "pending" | "failed", // TODO - confirm this, current is to allow successful build while WIP
+  IconNames
+> = {
   pending: "pending-outline",
   pending_install: "pending-outline",
   installed: "success-outline",

@@ -112,13 +112,13 @@ describe("SelfService", () => {
     ).toHaveTextContent("Reinstall");
   });
 
-  it("renders 'Retry' action button with 'Failed' status", async () => {
+  it("renders 'Retry' action button with 'failed_install' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
-            status: "failed",
+            status: "failed_install",
           }),
         ],
       })
@@ -166,13 +166,13 @@ describe("SelfService", () => {
     ).toHaveTextContent("Install");
   });
 
-  it("renders no action button with 'Pending' status", async () => {
+  it("renders no action button with 'pending_install' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
-            status: "pending",
+            status: "pending_install",
           }),
         ],
       })

@@ -21,56 +21,27 @@ import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell"
 
 const baseClass = "self-service-item";
 
-const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
+const STATUS_CONFIG: Record<
+  Exclude<SoftwareInstallStatus, "pending_uninstall" | "failed_uninstall">,
+  IStatusDisplayConfig
+> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
     tooltip: ({ lastInstalledAt }) =>
       `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
-  pending: {
+  pending_install: {
     iconName: "pending-outline",
     displayText: "Pending",
     tooltip: () => "Fleet is installing software.",
-  },
-  pending_install: {
-    iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
-  },
-  pending_uninstall: {
-    iconName: "pending-outline",
-    displayText: "Uninstall in progress...",
-    tooltip: () => "Software uninstallation in progress...",
-  },
-  failed: {
-    iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
-      <>
-        Software failed to install{" "}
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again, or contact your IT department.
-      </>
-    ),
   },
   failed_install: {
     iconName: "error",
     displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
-        Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again, or contact your IT department.
-      </>
-    ),
-  },
-  failed_uninstall: {
-    iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
-      <>
-        Software failed to install
+        Software failed to install{" "}
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>
@@ -166,7 +137,7 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
   switch (status) {
     case null:
       return "Install";
-    case "failed":
+    case "failed_install":
       return "Retry";
     case "installed":
       return "Reinstall";
@@ -195,7 +166,7 @@ const InstallerStatusAction = ({
 
   // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
-  const lastInstall = localStatus === "failed" ? null : last_install;
+  const lastInstall = localStatus === "failed_install" ? null : last_install;
 
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -206,7 +177,7 @@ const InstallerStatusAction = ({
   }, []);
 
   const onClick = useCallback(async () => {
-    setLocalStatus("pending");
+    setLocalStatus("pending_install");
     try {
       await deviceApi.installSelfServiceSoftware(deviceToken, id);
       if (isMountedRef.current) {
@@ -215,7 +186,7 @@ const InstallerStatusAction = ({
     } catch (error) {
       renderFlash("error", "Couldn't install. Please try again.");
       if (isMountedRef.current) {
-        setLocalStatus("failed");
+        setLocalStatus("failed_install");
       }
     }
   }, [deviceToken, id, onInstall, renderFlash]);
@@ -232,7 +203,7 @@ const InstallerStatusAction = ({
             type="button"
             className={`${baseClass}__item-action-button`}
             onClick={onClick}
-            disabled={localStatus === "pending"}
+            disabled={localStatus === "pending_install"}
           >
             <span data-testid={`${baseClass}__item-action-button--test`}>
               {installButtonText}
