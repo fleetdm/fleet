@@ -76,10 +76,10 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 	l := strings.ToLower(*p.Name)
 	if l == strings.ToLower(fleet.ReservedNameAllTeams) {
-		return nil, fleet.NewInvalidArgumentError("name", "may not be all teams")
+		return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
 	}
 	if l == strings.ToLower(fleet.ReservedNameNoTeam) {
-		return nil, fleet.NewInvalidArgumentError("name", "may not be no team")
+		return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
 	}
 	team.Name = *p.Name
 
@@ -139,10 +139,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		l := strings.ToLower(*payload.Name)
 		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
-			return nil, fleet.NewInvalidArgumentError("name", "may not be all teams")
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
 		}
 		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
-			return nil, fleet.NewInvalidArgumentError("name", "may not be no team")
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
 		}
 		team.Name = *payload.Name
 	}
