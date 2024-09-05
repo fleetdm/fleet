@@ -2,7 +2,10 @@ package worker
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -70,7 +73,7 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "get VPP token to migrate")
 	}
 
-	rawToken, didUpdate, err := tok.ExtractToken()
+	tokenData, didUpdate, err := extractVPPTokenFromMigration(tok)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "extract VPP token metadata")
 	}
@@ -81,7 +84,47 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		m.Log.Log("info", "VPP token metadata was not updated")
 	}
 
-	tokenData := fleet.VPPTokenData{Token: rawToken, Location: tok.Location}
-	_, err = m.Datastore.UpdateVPPToken(ctx, tok.ID, &tokenData)
-	return ctxerr.Wrap(ctx, err, "update VPP token")
+	if _, err := m.Datastore.UpdateVPPToken(ctx, tok.ID, tokenData); err != nil {
+		return ctxerr.Wrap(ctx, err, "update VPP token")
+	}
+	// the migated token should target "All teams"
+	_, err = m.Datastore.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	return ctxerr.Wrap(ctx, err, "update VPP token teams")
+}
+
+func extractVPPTokenFromMigration(migratedToken *fleet.VPPTokenDB) (tokData *fleet.VPPTokenData, didUpdateMetadata bool, err error) {
+	var vppTokenData fleet.VPPTokenData
+	if err := json.Unmarshal([]byte(migratedToken.Token), &vppTokenData); err != nil {
+		return nil, false, fmt.Errorf("unmarshaling VPP token data: %w", err)
+	}
+
+	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
+	if err != nil {
+		return nil, false, fmt.Errorf("decoding raw vpp token data: %w", err)
+	}
+
+	var vppTokenRaw fleet.VPPTokenRaw
+	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
+		return nil, false, fmt.Errorf("unmarshaling raw vpp token data: %w", err)
+	}
+
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
+	if err != nil {
+		return nil, false, fmt.Errorf("parsing vpp token expiration date: %w", err)
+	}
+
+	if vppTokenData.Location != migratedToken.Location {
+		migratedToken.Location = vppTokenData.Location
+		didUpdateMetadata = true
+	}
+	if vppTokenRaw.OrgName != migratedToken.OrgName {
+		migratedToken.OrgName = vppTokenRaw.OrgName
+		didUpdateMetadata = true
+	}
+	if !exp.Equal(migratedToken.RenewDate) {
+		migratedToken.RenewDate = exp.UTC()
+		didUpdateMetadata = true
+	}
+
+	return &vppTokenData, didUpdateMetadata, nil
 }

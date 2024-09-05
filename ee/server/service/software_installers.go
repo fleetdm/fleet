@@ -37,6 +37,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if !ok {
 		return fleet.ErrNoContext
 	}
+	payload.UserID = vc.UserID()
 
 	// make sure all scripts use unix-style newlines to prevent errors when
 	// running them, browsers use windows-style newlines, which breaks the
@@ -384,6 +385,24 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 		// if we found an installer, use that
 		if installer != nil {
+			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
+			}
+			if lastInstallRequest != nil && lastInstallRequest.Status != nil && *lastInstallRequest.Status == fleet.SoftwareInstallerPending {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install software. Host has a pending install request.",
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "host already has a pending install for this installer",
+						map[string]any{
+							"host_id":               host.ID,
+							"software_installer_id": installer.InstallerID,
+							"team_id":               host.TeamID,
+							"title_id":              softwareTitleID,
+						},
+					),
+				}
+			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
 	}
@@ -629,6 +648,14 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
+
+	if meta.Version == "" {
+		return "", &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the version from %s.", payload.Filename),
+			InternalErr: ctxerr.New(ctx, "extracting version from installer metadata"),
+		}
+	}
+
 	payload.Title = meta.Name
 	if payload.Title == "" {
 		// use the filename if no title from metadata
@@ -684,6 +711,11 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
 	}
 
 	g, workerCtx := errgroup.WithContext(ctx)
@@ -762,6 +794,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				PostInstallScript: p.PostInstallScript,
 				InstallerFile:     bytes.NewReader(bodyBytes),
 				SelfService:       p.SelfService,
+				UserID:            vc.UserID(),
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
