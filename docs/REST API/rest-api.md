@@ -9185,7 +9185,11 @@ List available Fleet library apps.
       "version": "2.39.179",
       "platform": "darwin"
     },
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -9242,6 +9246,10 @@ Add app from Fleet library.
 | ---- | ---- | -- | ----------- |
 | fleet_library_app_id   | string | body | **Required.** The ID of Fleet library app. |
 | team_id       | integer | body | **Required**. The team ID. Adds Fleet library app to the specified team.  |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs default install command for each library app. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
