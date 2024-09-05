@@ -1041,3 +1041,36 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	return nil
 }
+
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
+	if err != nil {
+		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
+	}
+
+	enrollURL, err := url.Parse(path)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ota enrollment url: %w", err)
+	}
+
+	q := enrollURL.Query()
+	q.Set("enroll_secret", enrollSecret)
+	enrollURL.RawQuery = q.Encode()
+
+	var profileBuf bytes.Buffer
+	tmplArgs := struct {
+		Organization string
+		URL          string
+		EnrollSecret string
+	}{
+		Organization: orgName,
+		URL:          enrollURL.String(),
+	}
+
+	err = mobileconfig.OTAMobileConfigTemplate.Execute(&profileBuf, tmplArgs)
+	if err != nil {
+		return nil, fmt.Errorf("executing ota profile template: %w", err)
+	}
+
+	return profileBuf.Bytes(), nil
+}

@@ -4147,3 +4147,45 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 
 	return nil, fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /enrollment_profiles/ota
+////////////////////////////////////////////////////////////////////////////////
+
+type getOTAProfileRequest struct {
+	EnrollSecret string `query:"enroll_secret"`
+}
+
+func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOTAProfileRequest)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
+	if err != nil {
+		return &getMDMAppleConfigProfileResponse{Err: err}, err
+	}
+
+	reader := bytes.NewReader(profile)
+	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
+}
+
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
+	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
+	// by the enroll secret verification below
+	svc.authz.SkipAuthorization(ctx)
+
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
+	}
+
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
+	}
+
+	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
+}
