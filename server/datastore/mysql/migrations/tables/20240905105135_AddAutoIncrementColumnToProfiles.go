@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240827132940, Down_20240827132940)
+	MigrationClient.AddMigration(Up_20240905105135, Down_20240905105135)
 }
 
-func Up_20240827132940(tx *sql.Tx) error {
+func Up_20240905105135(tx *sql.Tx) error {
 	// The AUTO_INCREMENT columns are used to determine if a row was updated by an INSERT ... ON DUPLICATE KEY UPDATE statement.
 	// This is needed because we are currently using CLIENT_FOUND_ROWS option to determine if a row was found.
 	// And in order to find if the row was updated, we need to check LAST_INSERT_ID().
@@ -35,6 +35,6 @@ ADD COLUMN auto_increment BIGINT NOT NULL AUTO_INCREMENT UNIQUE
 	return nil
 }
 
-func Down_20240827132940(_ *sql.Tx) error {
+func Down_20240905105135(tx *sql.Tx) error {
 	return nil
 }
