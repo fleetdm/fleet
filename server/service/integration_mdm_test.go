@@ -4413,7 +4413,9 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs,
+			`SELECT profile_uuid, team_id, name, syncml, created_at, uploaded_at FROM mdm_windows_configuration_profiles WHERE team_id = ?`,
+			teamID)
 	})
 
 	label := "exist"
