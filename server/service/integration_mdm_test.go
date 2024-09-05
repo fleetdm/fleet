@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -4198,6 +4199,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(ctx))
+	mysql.CreateAndSetABMKeyCert(t, s.ds)
+	mysql.CreateAndSetABMToken(t, s.ds, "fleet")
 
 	// start a server that will mock the Apple DEP API
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4245,7 +4248,15 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}))
 	t.Cleanup(srv.Close)
 
-	err := s.depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
+	toks, err := s.ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+
+	slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestMacosSetupAssistant").Info("JVE_LOG: toks", "toks", toks)
+	for _, t := range toks {
+		slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestMacosSetupAssistant").Info("JVE_LOG: existing abm token ", "orgname", t.OrganizationName, "id", t.ID)
+	}
+
+	err = s.depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
 	// get for no team returns 404
