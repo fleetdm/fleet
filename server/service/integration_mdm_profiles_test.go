@@ -4820,8 +4820,8 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Getting profile for non-existent secret should fail
-	s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusUnauthorized, "enroll_secret", "not-real")
+	// Getting profile for non-existent secret it's ok
+	s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", "not-real")
 
 	// Create an enroll secret; has some special characters that should be escaped in the profile
 	globalEnrollSec := "global_enroll+_/sec"
@@ -4838,13 +4838,13 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	// Get profile with that enroll secret
 	resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
 	require.NotZero(t, resp.ContentLength)
-	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
 	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
 	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.Equal(t, resp.ContentLength, int64(len(b)))
 	require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
-	require.Contains(t, string(b), fmt.Sprintf("%s/api/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
+	require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
 	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 }
