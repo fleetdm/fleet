@@ -414,12 +414,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
-	abmAssignments, err := svc.validateABMAssignments(ctx, &appConfig.MDM, &oldAppConfig.MDM, invalid, license)
+	abmAssignments, err := svc.validateABMAssignments(ctx, &newAppConfig.MDM, &oldAppConfig.MDM, invalid, license)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
 	}
 
-	vppAssignments, err := svc.validateVPPAssignments(ctx, &appConfig.MDM, invalid, license)
+	vppAssignments, err := svc.validateVPPAssignments(ctx, &newAppConfig.MDM, invalid, license)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
 	}
@@ -545,15 +545,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if appConfig.MDM.AppleBusinessManager.Set || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
 		for _, tok := range abmAssignments {
+			fmt.Println(tok.EncryptedToken)
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 			}
 		}
 	}
 
-	if appConfig.MDM.VolumePurchasingProgram.Set {
+	if appConfig.MDM.VolumePurchasingProgram.Set && appConfig.MDM.VolumePurchasingProgram.Valid {
 		for tokenID, tokenTeams := range vppAssignments {
 			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")

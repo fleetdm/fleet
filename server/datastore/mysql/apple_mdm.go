@@ -3754,9 +3754,9 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
-		return skipSerials, serialsByOrgName, nil
+		return skipSerialsByOrgName, serialsByOrgName, nil
 	}
 
 	stmt := `
@@ -3791,19 +3791,20 @@ WHERE
 	}
 
 	serialsByOrgName = make(map[string][]string)
+	skipSerialsByOrgName = make(map[string][]string)
 
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
 			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
-			skipSerials = append(skipSerials, r.HardwareSerial)
+			skipSerialsByOrgName[r.ABMOrgName] = append(skipSerialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		default:
 			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
 		}
 	}
 
-	return skipSerials, serialsByOrgName, nil
+	return skipSerialsByOrgName, serialsByOrgName, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
@@ -4967,6 +4968,7 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.renew_at,
+	abt.token,
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
@@ -5023,6 +5025,15 @@ LEFT OUTER JOIN
 		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
 		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
 
+		// decrypt the token with the serverPrivateKey, the resulting value will be
+		// the token still encrypted, but just with the ABM cert and key (it is that
+		// encrypted value that is stored with another layer of encryption with the
+		// serverPrivateKey).
+		decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+		}
+		tok.EncryptedToken = decrypted
 	}
 
 	return tokens, nil
