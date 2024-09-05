@@ -395,6 +395,27 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
+	// reserved team name; should error in both dry run and real
+	t.Setenv("TEST_TEAM_NAME", "no TEam")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
+
+	t.Setenv("TEST_TEAM_NAME", "no TEam")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
+
+	t.Setenv("TEST_TEAM_NAME", "All teams")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"All teams" is a reserved team name`)
+
+	t.Setenv("TEST_TEAM_NAME", "All TEAMS")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"All teams" is a reserved team name`)
+
 	// Dry run
 	t.Setenv("TEST_TEAM_NAME", teamName)
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
