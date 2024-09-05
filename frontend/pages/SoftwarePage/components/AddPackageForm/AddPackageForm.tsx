@@ -3,6 +3,7 @@ import React, { useContext, useState } from "react";
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
+import getUninstallScript from "utilities/software_uninstall_scripts";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -71,7 +72,7 @@ const AddPackageForm = ({
     software: { isValid: false },
   });
 
-  const onFileUpload = (files: FileList | null) => {
+  const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
 
@@ -83,10 +84,19 @@ const AddPackageForm = ({
         return;
       }
 
+      let uninstallScript: string;
+      try {
+        uninstallScript = getUninstallScript(file.name);
+      } catch (e) {
+        renderFlash("error", `${e}`);
+        return;
+      }
+
       const newData = {
         ...formData,
         software: file,
         installScript,
+        uninstallScript,
       };
       setFormData(newData);
       setFormValidation(generateFormValidation(newData));
@@ -138,7 +148,7 @@ const AddPackageForm = ({
             graphicName={"file-pkg"}
             accept=".pkg,.msi,.exe,.deb"
             message=".pkg, .msi, .exe, or .deb"
-            onFileUpload={onFileUpload}
+            onFileUpload={onFileSelect}
             buttonMessage="Choose file"
             buttonType="link"
             className={`${baseClass}__file-uploader`}
