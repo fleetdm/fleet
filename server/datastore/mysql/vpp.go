@@ -789,7 +789,24 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			null_team_type
 	) VALUES `
 	stmtValues := `(?, ?, ?)`
+	// Delete all apps associated with a token if we change its team
 	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`
+	deleteArgs := []any{id}
+
+	if len(teams) > 0 {
+		// If we're adding a VPP token to one or more teams, delete
+		// any VPP apps already assigned to those teams (using the All
+		// teams token)
+		questions := make([]string, 0, len(teams))
+		for range len(teams) {
+			questions = append(questions, "?")
+		}
+		stmtDeleteApps += fmt.Sprintf(" OR team_id IN (%s)", strings.Join(questions, ","))
+
+		for _, team := range teams {
+			deleteArgs = append(deleteArgs, team)
+		}
+	}
 
 	var values string
 	var args []any
@@ -834,7 +851,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			return ctxerr.Wrap(ctx, err, "vpp token null team check")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtDeleteApps, id); err != nil {
+		if _, err := tx.ExecContext(ctx, stmtDeleteApps, deleteArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
 		}
 
