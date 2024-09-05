@@ -86,17 +86,32 @@
     }
   }
 
-  &__copy-wrapper {
+  &__copy-wrapper-outside {
     position: relative;
   }
 
+  &__copy-wrapper-inside {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 12px;
+  }
+
+
   &__input-container.copy-enabled {
-    display: flex;
-    align-items: center;
-    gap: $pad-medium;
+    &.copy-outside {
+      display: flex;
+      align-items: center;
+      gap: $pad-medium;
+    }
+
+    &.copy-inside {
+      position: relative;
+    }
   }
 
   &__copied-confirmation {
+    font-size: $x-small;
     position: absolute;
     background-color: $ui-light-grey;
     border: solid 1px $ui-fleet-black-10;
@@ -104,6 +119,13 @@
     padding: $pad-xxsmall 6px;
     top: 50%;
     transform: translateY(-50%);
+  }
+
+  &__copied-confirmation-inside {
+    right: 24px;
+  }
+
+  &__copied-confirmation-outside {
     left: -90px;
   }
 }
