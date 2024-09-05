@@ -403,7 +403,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			}
 
 			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName, "team", team.Name)
+				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName)
 				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
 					result = multierror.Append(result, err)
 					continue
@@ -624,7 +624,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
-		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
 
 		skipSerials, assignSerials, err := d.ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
@@ -643,12 +642,14 @@ func (d *DEPService) processDeviceResponse(
 		for orgName, serials := range assignSerials {
 			apiResp, err := d.depClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
+				// only log the error so the failure can be recorded
+				// below in UpdateHostDEPAssignProfileResponses and
+				// the proper cooldowns are applied
 				level.Error(logger).Log(
 					"msg", "assign profile",
 					"devices", len(assignSerials),
 					"err", err,
 				)
-				return fmt.Errorf("assign profile: %w", err)
 			}
 
 			logs := []interface{}{
