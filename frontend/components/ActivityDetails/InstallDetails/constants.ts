@@ -5,10 +5,8 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   SoftwareInstallStatus,
   IconNames
 > = {
-  pending: "pending-outline",
   pending_install: "pending-outline",
   installed: "success-outline",
-  failed: "error-outline",
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error-outline",
@@ -18,10 +16,8 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   SoftwareInstallStatus,
   string
 > = {
-  pending: "is installing or will install",
   pending_install: "is installing or will install",
   installed: "installed",
-  failed: "failed to install",
   failed_install: "failed to install",
   pending_uninstall: "is uninstalling or will uninstall",
   failed_uninstall: "failed to uninstall",

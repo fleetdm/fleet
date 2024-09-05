@@ -44,7 +44,8 @@ const StatusMessage = ({
       <span>
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
         ({software_package}) on {formattedHost}
-        {status === "pending" ? " when it comes online" : ""}.
+        {status === "pending_install" ? " when it comes online" : ""}.{" "}
+        {/* TODO confirm - just put this to fix build while WIP */}
       </span>
     </div>
   );
@@ -104,7 +105,8 @@ export const SoftwareInstallDetails = ({
             result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
           }
         />
-        {result.status !== "pending" && (
+        {/* TODO confirm - put this for build while WIP */}
+        {!["pending_install", "pending_uninstall"].includes(result.status) && (
           <>
             {result.pre_install_query_output && (
               <Output displayKey="pre_install_query_output" result={result} />
