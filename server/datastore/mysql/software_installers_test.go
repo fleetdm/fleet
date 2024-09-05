@@ -440,17 +440,19 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	// batch set with everything empty
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
+	softwareInstallers, err := ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
 	require.NoError(t, err)
+	require.Empty(t, softwareInstallers)
 	assertSoftware(nil)
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
+	require.Empty(t, softwareInstallers)
 	assertSoftware(nil)
 
 	// add a single installer
 	ins0 := "installer0"
 	ins0File := bytes.NewReader([]byte("installer0"))
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
 		InstallScript:   "install",
 		InstallerFile:   ins0File,
 		StorageID:       ins0,
@@ -462,6 +464,9 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		UserID:          user1.ID,
 	}})
 	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	require.Equal(t, ins0, softwareInstallers[0].Name)
+	require.Equal(t, "darwin", softwareInstallers[0].Platform)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 	})
@@ -469,7 +474,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// add a new installer + ins0 installer
 	ins1 := "installer1"
 	ins1File := bytes.NewReader([]byte("installer1"))
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:   "install",
 			InstallerFile:   ins0File,
@@ -495,13 +500,18 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 2)
+	require.Equal(t, ins0, softwareInstallers[0].Name)
+	require.Equal(t, "darwin", softwareInstallers[0].Platform)
+	require.Equal(t, ins1, softwareInstallers[1].Name)
+	require.Equal(t, "darwin", softwareInstallers[1].Platform)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
 	// remove ins0
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:     "install",
 			PostInstallScript: "post-install",
@@ -516,13 +526,16 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	require.Equal(t, ins1, softwareInstallers[0].Name)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
 	// remove everything
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
+	require.Empty(t, softwareInstallers)
 	assertSoftware([]fleet.SoftwareTitle{})
 }
 

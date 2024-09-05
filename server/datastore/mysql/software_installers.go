@@ -558,7 +558,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }
 
-func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
   (name, source, browser)
@@ -652,13 +652,33 @@ ON DUPLICATE KEY UPDATE
   url = VALUES(url)
 `
 
+	const loadInsertedSoftwareInstallers = `
+SELECT
+  id,
+  team_id,
+  storage_id,
+  filename,
+  version,
+  install_script_content_id,
+  pre_install_query,
+  post_install_script_content_id,
+  platform,
+  self_service,
+  title_id,
+  url
+FROM
+  software_installers
+WHERE global_or_team_id = ?
+`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	if tmID != nil {
 		globalOrTeamID = *tmID
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var insertedSoftwareInstallers []fleet.SoftwareInstaller
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
@@ -745,9 +765,18 @@ ON DUPLICATE KEY UPDATE
 			if _, err := tx.ExecContext(ctx, insertNewOrEditedInstaller, args...); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
 			}
+
 		}
+
+		if err := sqlx.SelectContext(ctx, tx, &insertedSoftwareInstallers, loadInsertedSoftwareInstallers, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load inserted software installers")
+		}
+
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return insertedSoftwareInstallers, nil
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {

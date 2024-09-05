@@ -2320,8 +2320,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+		return nil, nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

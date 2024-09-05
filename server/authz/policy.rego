@@ -628,34 +628,49 @@ allow {
 # Software
 ##
 
-# Global admins, maintainers, gitops and observers and observer_plus can read all software.
+# Global admins, maintainers, observers and observer_plus can read all software.
 allow {
   object.type == "software_inventory"
-  subject.global_role == [admin, maintainer, gitops, observer, observer_plus][_]
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team admins, maintainers, gitops, observers and observer_plus can read all software in their teams.
+# Team admins, maintainers, observers and observer_plus can read all software in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "software_inventory"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops, observer, observer_plus][_]
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Global admins, maintainers and gitops can read and write any installable entity (software installer or VPP app)
+# Global admins and maintainers can read any installable entity (software installer or VPP app)
+allow {
+  object.type == "installable_entity"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
   subject.global_role == [admin, maintainer, gitops][_]
-  action == [read, write][_]
+  action == write
 }
 
-# Team admins, maintainers and gitops can read any installable entity (software installer or VPP app) in their teams.
+# Team admins and maintainers can read any installable entity (software installer or VPP app) in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "installable_entity"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "installable_entity"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
-  action == [read, write][_]
+  action == write
 }
 
 ##
