@@ -237,7 +237,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam")
 	}
 
 	return app, nil
@@ -395,7 +395,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		},
 	)
 	if err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert VPP app")
 	}
 
 	return titleID, nil

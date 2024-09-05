@@ -29,6 +29,7 @@ func TestVPP(t *testing.T) {
 		{"VPPApps", testVPPApps},
 		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 		{"VPPTokensCRUD", testVPPTokensCRUD},
+		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
 	}
 
 	for _, c := range cases {
@@ -50,6 +51,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 	require.NoError(t, err)
 	require.NotNil(t, team2)
+
+	createAndInsertAllTeamVPPToken(t, ds)
 
 	// get for non-existing title
 	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, 1)
@@ -211,6 +214,8 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
 	require.NotNil(t, team1)
+
+	createAndInsertAllTeamVPPToken(t, ds)
 
 	// create some apps, one for no-team, one for team1, and one in both
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -405,6 +410,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
 
+	createAndInsertAllTeamVPPToken(t, ds)
+
 	// create a host with some non-VPP software
 	h1, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "macos-test-1",
@@ -515,6 +522,13 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp gang"})
 	require.NoError(t, err)
 
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
 	// Insert some VPP apps for the team
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
@@ -593,6 +607,8 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 	require.NoError(t, err)
 
+	createAndInsertAllTeamVPPToken(t, ds)
+
 	var nfe fleet.NotFoundError
 
 	fooApp, err := ds.InsertVPPAppWithTeam(ctx,
@@ -631,7 +647,6 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
-	_ = team2
 	assert.NoError(t, err)
 
 	tokens, err := ds.ListVPPTokens(ctx)
@@ -1036,4 +1051,77 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	////
 	err = ds.DeleteVPPToken(ctx, tokNone.ID)
 	assert.NoError(t, err)
+}
+
+func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kritters"})
+	assert.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
+	assert.NoError(t, err)
+
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kremling"})
+	_ = team3
+	assert.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
+	require.NoError(t, err)
+
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Diddy Kong", "Mines")
+	require.NoError(t, err)
+
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+
+	tok2, err := ds.InsertVPPToken(ctx, dataToken2)
+	assert.NoError(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+
+	app1 := &fleet.VPPApp{
+		Name: "app1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: "app1",
+	}
+	vppApp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	assert.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
+	assert.NoError(t, err)
+	_ = vppApp1
+
+	app2 := &fleet.VPPApp{
+		Name: "app2",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: "app2",
+	}
+	vppApp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	_ = vppApp2
+	assert.NoError(t, err)
+}
+
+func createAndInsertAllTeamVPPToken(t *testing.T, ds fleet.Datastore) *fleet.VPPTokenDB {
+	ctx := context.Background()
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	tok1New, err := ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	return tok1New
 }
