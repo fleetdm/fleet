@@ -127,7 +127,7 @@ export type ISoftwareVulnFiltersParams = {
   maxCvssScore?: number;
 };
 
-const isValidNumber = (
+export const isValidNumber = (
   value: any,
   min?: number,
   max?: number

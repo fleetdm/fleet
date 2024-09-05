@@ -1,0 +1,1 @@
+- resolved an issue where virtual box for macOS wasn't matching against the vm_virtualbox NVD product name
