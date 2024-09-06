@@ -3042,7 +3042,24 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "packages": [
+    {
+      "team_id": 3,
+      "software_title_id": 6690,
+      "url": "https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe"
+    },
+    {
+      "team_id": 3,
+      "software_title_id": 10412,
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+    }
+  ]
+}
+```
 
  ### Run live script
 
