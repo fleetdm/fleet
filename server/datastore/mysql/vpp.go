@@ -793,21 +793,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`
 	deleteArgs := []any{id}
 
-	if len(teams) > 0 {
-		// If we're adding a VPP token to one or more teams, delete
-		// any VPP apps already assigned to those teams (using the All
-		// teams token)
-		questions := make([]string, 0, len(teams))
-		for range len(teams) {
-			questions = append(questions, "?")
-		}
-		stmtDeleteApps += fmt.Sprintf(" OR team_id IN (%s)", strings.Join(questions, ","))
-
-		for _, team := range teams {
-			deleteArgs = append(deleteArgs, team)
-		}
-	}
-
 	var values string
 	var args []any
 	// No DB constraint for null_team_type, if no team or all teams
@@ -1113,6 +1098,37 @@ TEAMLOOP:
 
 func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
 	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
+	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL`
+
+	if nullTeam == fleet.NullTeamAllTeams {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
+		}
+
+		if len(ids) > 0 {
+			if len(ids) > 1 {
+				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
+			}
+			if currentID == nil || ids[0] != *currentID {
+				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
+			}
+		}
+	}
+
+	var id uint
+	allTeamsFound := true
+	if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, fleet.NullTeamAllTeams); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			allTeamsFound = false
+		} else {
+			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
+		}
+	}
+
+	if allTeamsFound && currentID != nil && *currentID != id {
+		return ctxerr.Wrap(ctx, errors.New("All teams token already exists"))
+	}
 
 	if nullTeam != fleet.NullTeamNone {
 		var id uint

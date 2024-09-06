@@ -740,7 +740,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, tok.Token)
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
-	assert.NotNil(t, tok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.NotNil(t, tok.Teams) // "All Teams" teams array is non-nil but empty
 	assert.Len(t, tok.Teams, 0)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -775,7 +775,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	// Assign to team "No Team"
 	upTok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, upTok.Teams, 1)
 	assert.Equal(t, tokID, upTok.ID)
 	assert.Equal(t, uint(0), upTok.Teams[0].ID)
@@ -921,12 +921,32 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, toks, 2)
 
+	// Remove tokAll from All teams
+	tokAll, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
+	assert.NoError(t, err)
+
 	tokTeam, err := ds.InsertVPPToken(ctx, dataToken3)
 	assert.NoError(t, err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
 	assert.Error(t, err)
+
+	// Cannot move tokAll to all teams now
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	assert.Error(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{0})
+	assert.NoError(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	assert.Error(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
+	assert.NoError(t, err)
+
+	///
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -968,7 +988,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, toks, 5)
 
-	// Test fallback to all teams
+	///
 	tokNil, err := ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, tokTeams.ID, tokNil.ID)
@@ -993,8 +1013,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, tokTeams.ID, tokNil.ID)
 
 	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, tokAll.ID, tokTeam1.ID)
+	assert.Error(t, err)
 
 	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
 	assert.NoError(t, err)
@@ -1002,6 +1021,22 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	////
 	err = ds.DeleteVPPToken(ctx, tokTeams.ID)
+	assert.NoError(t, err)
+
+	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	////
+	tokAll, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
 	assert.NoError(t, err)
 
 	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
@@ -1016,21 +1051,8 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Equal(t, tokAll.ID, tokTeam2.ID)
 
-	////
 	err = ds.DeleteVPPToken(ctx, tokAll.ID)
 	assert.NoError(t, err)
-
-	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
-
-	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
-
-	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
 
 	////
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
@@ -1051,6 +1073,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	////
 	err = ds.DeleteVPPToken(ctx, tokNone.ID)
 	assert.NoError(t, err)
+
 }
 
 func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
