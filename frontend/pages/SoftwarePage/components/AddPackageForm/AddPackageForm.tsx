@@ -116,8 +116,8 @@ const AddPackageForm = ({
       const newData = {
         ...formData,
         software: file,
-        installScript: defaultInstallScript,
-        uninstallScript: defaultUninstallScript,
+        installScript: defaultInstallScript || "", // TODO: figure this out
+        uninstallScript: defaultUninstallScript || "", // TODO: figure this out
       };
       setFormData(newData);
       setFormValidation(generateFormValidation(newData));
