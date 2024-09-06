@@ -40,8 +40,8 @@ org_settings:
     apple_bm_default_team: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
-      idp_image_url: ""
       idp_name: Google Workspace
+      idp_image_url: ""
       metadata_url: $DOGFOOD_MDM_SSO_METADATA_URL
   org_info:
     contact_url: https://fleetdm.com/company/contact
