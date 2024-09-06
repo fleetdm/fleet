@@ -9946,8 +9946,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	})
 	require.NoError(t, err)
 
-	// No vpp token set, no association
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+	// No vpp token set, no association.
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
 	// No vpp token set, try association
 	// FIXME
@@ -10846,7 +10846,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_macos": json.RawMessage(fmt.Sprintf(
 				`[{"name": "%s", "version": "%s", "type": "Application (macOS)",
-					"bundle_identifier": "%s", "source": "apps", "last_opened_at": "", 
+					"bundle_identifier": "%s", "source": "apps", "last_opened_at": "",
 					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier)),
 		},
 		Statuses: map[string]interface{}{

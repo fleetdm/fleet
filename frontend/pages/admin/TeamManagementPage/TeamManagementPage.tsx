@@ -116,6 +116,14 @@ const TeamManagementPage = (): JSX.Element => {
             setBackendValidators({
               name: "A team with this name already exists",
             });
+          } else if (createError.data.errors[0].reason.includes("all teams")) {
+            setBackendValidators({
+              name: `"All teams" is a reserved team name. Please try another name.`,
+            });
+          } else if (createError.data.errors[0].reason.includes("no team")) {
+            setBackendValidators({
+              name: `"No team" is a reserved team name. Please try another name.`,
+            });
           } else {
             renderFlash("error", "Could not create team. Please try again.");
             toggleCreateTeamModal();
@@ -184,6 +192,16 @@ const TeamManagementPage = (): JSX.Element => {
             if (updateError.data.errors[0].reason.includes("Duplicate")) {
               setBackendValidators({
                 name: "A team with this name already exists",
+              });
+            } else if (
+              updateError.data.errors[0].reason.includes("all teams")
+            ) {
+              setBackendValidators({
+                name: `"All teams" is a reserved team name.`,
+              });
+            } else if (updateError.data.errors[0].reason.includes("no team")) {
+              setBackendValidators({
+                name: `"No team" is a reserved team name. Please try another name.`,
               });
             } else {
               renderFlash(
