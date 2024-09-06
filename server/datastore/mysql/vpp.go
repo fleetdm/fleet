@@ -798,14 +798,13 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		// any VPP apps already assigned to those teams (using the All
 		// teams token)
 		questions := make([]string, 0, len(teams))
-		for range len(teams) {
-			questions = append(questions, "?")
-		}
-		stmtDeleteApps += fmt.Sprintf(" OR team_id IN (%s)", strings.Join(questions, ","))
 
-		for _, team := range teams {
+		for _, team := range len(teams) {
+			questions = append(questions, "?")
 			deleteArgs = append(deleteArgs, team)
 		}
+
+		stmtDeleteApps += fmt.Sprintf(" OR global_or_team_id IN (%s)", strings.Join(questions, ","))
 	}
 
 	var values string
