@@ -1524,6 +1524,7 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 > + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
 > + In the **Description** column for required parameters, begin the description with "**Required.**"
 
+
 ### Blockquotes
 
 To add a tip blockquote, start a line with ">" and end the blockquote with a blank newline.
