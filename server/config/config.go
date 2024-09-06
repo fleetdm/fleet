@@ -763,7 +763,7 @@ type ParsedAppleBM struct {
 	Token          *nanodep_client.OAuth1Tokens
 }
 
-func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+func decryptABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
 	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
@@ -775,9 +775,6 @@ func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPE
 	var jsonTok nanodep_client.OAuth1Tokens
 	if err := json.Unmarshal(token, &jsonTok); err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
-	}
-	if jsonTok.AccessTokenExpiry.Before(time.Now()) {
-		return nil, errors.New("Apple BM configuration: token is expired")
 	}
 	return &jsonTok, nil
 }
@@ -801,7 +798,7 @@ func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		jsonTok, err := decryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
+		jsonTok, err := decryptABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
 			return nil, err
 		}
