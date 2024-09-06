@@ -365,6 +365,14 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
   6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped.
 
 
+### Confirm CEO shadow dates
+
+After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next roundup as a "DISCUSS: CEO shadow dates". Use the following steps to confirm CEO shadow dates:
+1. Create an "All day", "Free" event on the CEO's calendar that matches the CEO shadow dates and name the calendar event "CEO shadow - [NAME] (Job title)".
+3. Confirm the "shadowability" for external and nonrecurring internal meetings with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
+4. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
+
+
 ### Process the CEO's inbox
 
 - The Apprentice is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review to reduce the scope of Mike's inbox to only include necessary and actionable communication.
