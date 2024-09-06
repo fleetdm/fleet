@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"sort"
 	"strings"
@@ -543,9 +544,16 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
-	if _, _, err := svc.depService.RegisterProfileWithAppleDEPServer(ctx, tm, asst, ""); err != nil {
+	err := svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
+	slog.With("filename", "ee/server/service/mdm.go", "func", "SetOrUpdateMDMAppleSetupAssistant").Info("JVE_LOG: checking error ", "err", err)
+	if err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
+
+	// if profUUID == "" && modTime.IsZero() {
+	// 	// Then we skipped this one
+	// 	return nil, fleet.NewInvalidArgumentError("profile", "no relevant ABM token found")
+	// }
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"slices"
 	"strings"
@@ -260,39 +262,34 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	return requestedTokenProfileUUID, requestedTokenModTime, nil
 }
 
-func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
+// Convert godep.Profile -> fleet.MDMAppleSetupAssistant
+
+// Send the profile to Apple for validation (wrap around depClient.DefineProfile)
+
+func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) error {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching app config")
+		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
 	// must always get the default profile, because the authentication token is
 	// defined on that profile.
 	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching default profile")
+		return ctxerr.Wrap(ctx, err, "fetching default profile")
 	}
 
 	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
 	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "generating enroll URL")
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
 	}
 
-	var rawJSON json.RawMessage
-	var requestedTokenModTime time.Time
-	if defaultProf.DEPProfile != nil {
-		rawJSON = *defaultProf.DEPProfile
-		requestedTokenModTime = defaultProf.UpdatedAt
-	}
-	if setupAsst != nil {
-		rawJSON = setupAsst.Profile
-		requestedTokenModTime = setupAsst.UploadedAt
-	}
+	rawJSON := setupAsst.Profile
 
 	var jsonProf godep.Profile
 	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
 	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
 
 	// if configuration_web_url is set, this setting is completely managed by the
@@ -332,27 +329,42 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 
 	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
 	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
+		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
 	}
+	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "ValidateSetupAssistant").Info("JVE_LOG: org names for team ", "team", team.Name, "orgNames", orgNames)
 
 	if len(orgNames) == 0 {
-		d.logger.Log("msg", "skipping defining profile for team with no relevant ABM token")
-		return "", time.Time{}, nil
-	}
-
-	var requestedTokenProfileUUID string
-	for _, orgName := range orgNames {
-		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+		// Then check to see if there are any tokens at all. If there is only 1, we assume we can
+		// use it (the vast majority of deployments will only have a single token).
+		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "ValidateSetupAssistant").Info("JVE_LOG: couldn't find org names, should error", "team", team.Name, "orgNames", orgNames)
+		toks, err := d.ds.ListABMTokens(ctx)
 		if err != nil {
-			return "", time.Time{}, ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
+			return ctxerr.Wrap(ctx, err, "listing ABM tokens")
 		}
 
-		if orgName == abmTokenOrgName {
-			requestedTokenProfileUUID = res.ProfileUUID
+		if len(toks) != 1 {
+			return ctxerr.New(ctx, "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+		}
+
+		orgNames = append(orgNames, toks[0].OrganizationName)
+	}
+
+	for _, orgName := range orgNames {
+		_, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+		if err != nil {
+			var httpErr *godep.HTTPError
+			if errors.As(err, &httpErr) {
+				// We can count on this working because of how the godep.HTTPerror Error() method
+				// formats its output.
+				parts := strings.Split(err.Error(), " ")
+				return ctxerr.Errorf(ctx, "Couldn't upload. %s", parts[len(parts)-1])
+			}
+
+			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")
 		}
 	}
 
-	return requestedTokenProfileUUID, requestedTokenModTime, nil
+	return nil
 }
 
 // EnsureDefaultSetupAssistant ensures that the default Setup Assistant profile
