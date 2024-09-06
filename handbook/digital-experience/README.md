@@ -364,14 +364,13 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - Google Drive 
   6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped.
 
-### Confirm the CEO shadow dates
 
-Once the onbaording Fleetie selects their 3 days to shadow the CEO and notifies the Head of Digital Experience (via slack). The CEO's calendar needs to reflect when the onbaording Fleetie is shadowing and the shadowability of those meetings for those 3 days.
-  
-1. Create an "all day" event on the calendar labeled "CEO shadow - [Name of onbaording Fleetie] (Job title)".
-2. Go through the calendar and make sure all private meetings have "[no shadows]" in the event title.
-   - Confirm the shadowability for external meetings with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
-   - For internal meetings such as, 1:1's and the E-Group, they should have "[no shadows]" in the event title. The remaining internal meetings should be considered having shadowability, unless said otherwise. 
+### Confirm CEO shadow dates
+
+After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next roundup as a "DISCUSS: CEO shadow dates". Use the following steps to confirm CEO shadow dates:
+1. Create an "All day", "Free" event on the CEO's calendar that matches the CEO shadow dates and name the calendar event "CEO shadow - [NAME] (Job title)".
+3. Confirm the "shadowability" for external and nonrecurring internal meetings with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
+4. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
 
 
 ### Process the CEO's inbox
