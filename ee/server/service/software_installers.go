@@ -117,6 +117,155 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
 }
 
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareTitle, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	payload.UserID = vc.UserID()
+
+	var teamName *string
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		if err != nil {
+			return nil, err
+		}
+		teamName = &t.Name
+	}
+
+	// get software by id, fail if it does not exist or does not have an installer
+	software, err := svc.ds.SoftwareTitleByID(ctx, titleID, payload.TeamID, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
+	}
+
+	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
+	if software.SoftwareInstallersCount != 1 {
+		return nil, &fleet.BadRequestError{
+			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
+		}
+	}
+
+	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
+		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil {
+		return software, nil // no payload, noop
+	}
+
+	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
+	}
+
+	dirty := false
+	cancelPendingInstalls := false
+	resetInstallCounts := false
+
+	if payload.SelfService != nil && *payload.SelfService != installer.SelfService {
+		dirty = true
+		installer.SelfService = *payload.SelfService
+	}
+
+	if payload.InstallerFile != nil || payload.PreInstallQuery != nil ||
+		payload.InstallScript != nil || payload.PostInstallScript != nil || payload.UninstallScript != nil {
+
+		// pull existing installer to calculate metadata for defaulting/validation
+
+		// check if the installer exists in the store
+		exists, err := svc.softwareInstallStore.Exists(ctx, installer.StorageID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
+		}
+		if !exists {
+			return nil, ctxerr.Wrap(ctx, notFoundError{}, "does not exist in software installer store")
+		}
+
+		// get the installer from the store
+		existingInstallerFile, _, err := svc.softwareInstallStore.Get(ctx, installer.StorageID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting installer from store")
+		}
+
+		existingInstallerFileMeta, err := file.ExtractInstallerMetadata(existingInstallerFile)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "extracting existing installer metadata")
+		}
+
+		if payload.InstallerFile != nil {
+			// TODO check if installer file is a different extension (if so, fail)
+			// TODO check if installer file is different than the one we have
+			// TODO check if installer file is for a different software title (if so, fail)
+			dirty = true
+			cancelPendingInstalls = true
+			resetInstallCounts = true
+			// TODO store software; DON'T overwrite scripts, other than uninstall if not custom
+			// TODO update source column for existing installer, as it may have changed (platform won't since ext is unchanged)
+		}
+
+		// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
+		if payload.PreInstallQuery != nil && *payload.PreInstallQuery != installer.PreInstallQuery {
+			dirty = true
+			cancelPendingInstalls = true
+			installer.PreInstallQuery = *payload.PreInstallQuery
+		}
+
+		if payload.InstallScript != nil {
+			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
+			if installScript == "" {
+				installScript = file.GetInstallScript(existingInstallerFileMeta.Extension)
+			}
+
+			if installScript != installer.InstallScript {
+				dirty = true
+				cancelPendingInstalls = true
+				installer.InstallScript = installScript
+			}
+		}
+
+		if payload.PostInstallScript != nil {
+			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
+			if postInstallScript != installer.PostInstallScript {
+				dirty = true
+				cancelPendingInstalls = true
+				installer.PostInstallScript = postInstallScript
+			}
+		}
+
+		// TODO uninstall script
+	}
+
+	if dirty == true {
+		// TODO run update query, including setting author
+	}
+
+	if cancelPendingInstalls == true {
+		// TODO cancel pending installs
+	}
+
+	if resetInstallCounts == true {
+		// TODO reset counts
+	}
+
+	// Create activity
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedSoftware{
+		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+		SelfService:     installer.SelfService,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
+	}
+
+	return svc.SoftwareTitleByID(ctx, titleID, payload.TeamID)
+}
+
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
 	if teamID == nil {
 		return fleet.NewInvalidArgumentError("team_id", "is required")

@@ -5268,7 +5268,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &listSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusForbidden, &countSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusForbidden, &GetSoftwareTitleResponse{})
 
 	// Attempt to list a software, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
@@ -8442,11 +8442,11 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "baz", bazTitle.Name)
 
 	// non-existent id is a 404
-	var stResp getSoftwareTitleResponse
+	var stResp GetSoftwareTitleResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles/999", getSoftwareTitleRequest{}, http.StatusNotFound, &stResp)
 
 	// valid title
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
 	softwareTitlesMatch([]fleet.SoftwareTitle{
 		{
@@ -8462,7 +8462,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// valid title for team
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
@@ -8511,25 +8511,25 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		},
 	}
 	// Global
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
 	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// No Team
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
 		"team_id", "0")
 	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// invalid title for team
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 
 	// invalid title for no team
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", bazTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", "0")
@@ -8548,7 +8548,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	// valid title with vulnerabilities
-	stResp = getSoftwareTitleResponse{}
+	stResp = GetSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
@@ -8688,7 +8688,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
-	respTitle := getSoftwareTitleResponse{}
+	respTitle := GetSoftwareTitleResponse{}
 	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
 
 	require.NotNil(t, respTitle.SoftwareTitle)
@@ -9074,7 +9074,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareTitlesRequest{}, http.StatusForbidden, &resp)
 
 				// Get a global software title
-				var getSoftwareTitleResp getSoftwareTitleResponse
+				var getSoftwareTitleResp GetSoftwareTitleResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
 
 				// Get a global software version
@@ -9106,7 +9106,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				require.NotEmpty(t, resp.CountsUpdatedAt)
 
 				// Get a global software title
-				var getSoftwareTitleResp getSoftwareTitleResponse
+				var getSoftwareTitleResp GetSoftwareTitleResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResp)
 
 				// Get a global software version
@@ -9138,7 +9138,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
 
 				// Get a team software title
-				var getSoftwareTitleResp getSoftwareTitleResponse
+				var getSoftwareTitleResp GetSoftwareTitleResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
 
 				// Get a team software version
@@ -9170,7 +9170,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				require.NotEmpty(t, resp.CountsUpdatedAt)
 
 				// Get a team software title
-				var getSoftwareTitleResp getSoftwareTitleResponse
+				var getSoftwareTitleResp GetSoftwareTitleResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResp)
 
 				// Get a team software version
@@ -11390,7 +11390,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	_ = installUUID4b
 
 	// status is reflected in software title response
-	titleResp := getSoftwareTitleResponse{}
+	titleResp := GetSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", strconv.Itoa(int(*teamID)))
 	// TODO: confirm expected behavior of the title response host counts (unspecified)
 	require.Zero(t, titleResp.SoftwareTitle.HostsCount)

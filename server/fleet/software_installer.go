@@ -306,6 +306,24 @@ type UploadSoftwareInstallerPayload struct {
 	Extension         string
 }
 
+type UpdateSoftwareInstallerPayload struct {
+	TeamID            *uint
+	InstallScript     *string
+	PreInstallQuery   *string
+	PostInstallScript *string
+	SelfService       *bool
+	UninstallScript   *string
+	InstallerFile     io.ReadSeeker
+	StorageID         string
+	Filename          string
+	Title             string
+	Version           string
+	Source            string
+	Platform          string
+	BundleIdentifier  string
+	UserID            uint
+}
+
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
 type DownloadSoftwareInstallerPayload struct {
 	Filename  string

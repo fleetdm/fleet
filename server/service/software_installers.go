@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/go-units"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -32,18 +31,147 @@ type uploadSoftwareInstallerRequest struct {
 	UninstallScript   string
 }
 
+type updateSoftwareInstallerRequest struct {
+	ID                uint `url:"id"`
+	File              *multipart.FileHeader
+	TeamID            *uint
+	InstallScript     *string
+	PreInstallQuery   *string
+	PostInstallScript *string
+	SelfService       *bool
+}
+
 type uploadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
 // MaxSoftwareInstallerSize is the maximum size allowed for software
-// installers. This is enforced by the endpoint that uploads installers.
+// installers. This is enforced by the endpoints that upload installers.
 const MaxSoftwareInstallerSize = 500 * units.MiB
+
+// TODO: We parse the whole body before running svc.authz.Authorize.
+// An authenticated but unauthorized user could abuse this.
+func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := updateSoftwareInstallerRequest{}
+
+	// populate software title ID since we're overriding the decoder that would do it for us
+	titleID, err := uintFromRequest(r, "id")
+	if err != nil {
+		return nil, badRequestErr("intFromRequest", err)
+	}
+	decoded.ID = uint(titleID)
+
+	err = r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			return nil, &fleet.BadRequestError{
+				Message:     "The maximum file size is 500 MB.",
+				InternalErr: err,
+			}
+		}
+		var nerr net.Error
+		if errors.As(err, &nerr) && nerr.Timeout() {
+			return nil, fleet.NewUserMessageError(
+				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				http.StatusRequestTimeout,
+			)
+		}
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form: " + err.Error(),
+			InternalErr: err,
+		}
+	}
+
+	// unlike for uploadSoftwareInstallerRequest, every field is optional, including the file upload
+	if r.MultipartForm.File["software"] != nil || len(r.MultipartForm.File["software"]) > 0 {
+		decoded.File = r.MultipartForm.File["software"][0]
+		if decoded.File.Size > MaxSoftwareInstallerSize {
+			// Should never happen here since the request's body is limited to the maximum size.
+			return nil, &fleet.BadRequestError{
+				Message: "The maximum file size is 500 MB.",
+			}
+		}
+	}
+
+	// default is no team
+	val, ok := r.MultipartForm.Value["team_id"]
+	if ok {
+		teamID, err := strconv.ParseUint(val[0], 10, 32)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid team_id: %s", val[0])}
+		}
+		decoded.TeamID = ptr.Uint(uint(teamID))
+	}
+
+	val, ok = r.MultipartForm.Value["install_script"]
+	if ok && len(val) > 0 {
+		decoded.InstallScript = &val[0]
+	}
+
+	val, ok = r.MultipartForm.Value["pre_install_query"]
+	if ok && len(val) > 0 {
+		decoded.PreInstallQuery = &val[0]
+	}
+
+	val, ok = r.MultipartForm.Value["post_install_script"]
+	if ok && len(val) > 0 {
+		decoded.PostInstallScript = &val[0]
+	}
+
+	val, ok = r.MultipartForm.Value["self_service"]
+	if ok && len(val) > 0 && val[0] != "" {
+		parsed, err := strconv.ParseBool(val[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode self_service bool in multipart form: %s", err.Error())}
+		}
+		decoded.SelfService = &parsed
+	}
+
+	return &decoded, nil
+}
+
+func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateSoftwareInstallerRequest)
+
+	payload := &fleet.UpdateSoftwareInstallerPayload{
+		TeamID:            req.TeamID,
+		InstallScript:     req.InstallScript,
+		PreInstallQuery:   req.PreInstallQuery,
+		PostInstallScript: req.PostInstallScript,
+		SelfService:       req.SelfService,
+	}
+	if req.File != nil {
+		ff, err := req.File.Open()
+		if err != nil {
+			return uploadSoftwareInstallerResponse{Err: err}, nil
+		}
+		defer ff.Close()
+		payload.InstallerFile = ff
+		payload.Filename = req.File.Filename
+	}
+
+	software, err := svc.UpdateSoftwareInstaller(ctx, req.ID, payload)
+	if err != nil {
+		return uploadSoftwareInstallerResponse{Err: err}, nil
+	}
+
+	return GetSoftwareTitleResponse{SoftwareTitle: software}, nil
+}
+
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
 // An authenticated but unauthorized user could abuse this.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
+
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		var mbe *http.MaxBytesError

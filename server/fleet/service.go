@@ -1105,6 +1105,7 @@ type Service interface {
 	//
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
+	UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *UpdateSoftwareInstallerPayload) (*SoftwareTitle, error)
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
 	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
