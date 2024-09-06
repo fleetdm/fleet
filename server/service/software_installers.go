@@ -462,7 +462,7 @@ func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io
 	if err := json.NewDecoder(r).Decode(b); err != nil {
 		var typeErr *json.UnmarshalTypeError
 		if errors.As(err, &typeErr) {
-			return ctxerr.Wrap(ctx, fleet.NewUserMessageError(fmt.Errorf("Couldn't edit software. \"%s\" must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value), http.StatusBadRequest))
+			return ctxerr.Wrap(ctx, fleet.NewUserMessageError(fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value), http.StatusBadRequest))
 		}
 	}
 
