@@ -436,3 +436,5 @@ type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
 	TeamID  uint `json:"team_id"`
 }
+
+const SoftwareInstallerURLMaxLength = 255

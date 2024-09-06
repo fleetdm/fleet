@@ -715,6 +715,15 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	for _, payload := range payloads {
+		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
+			return nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				"software URL is too long, must be less than 256 characters",
+			)
+		}
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext

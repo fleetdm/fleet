@@ -10595,6 +10595,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 
+	// software with a too big URL
+	softwareToInstall = []fleet.SoftwareInstallerPayload{
+		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 233)},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+
 	// create an HTTP server to host the software installer
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))

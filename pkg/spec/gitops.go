@@ -629,6 +629,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			multiError = multierror.Append(multiError, errors.New("software URL is required"))
 			continue
 		}
+		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
+			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be less than 256 characters", softwarePackageSpec.URL))
+			continue
+		}
 		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -816,17 +817,34 @@ policies:
 	_, err = gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "empty package_path")
 
+	// Software has a URL that's too big
+	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 232))
+	config = getTeamConfig([]string{"software"})
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, tooBigURL)
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	path, basePath := createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be less than 256 characters", tooBigURL))
+
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
 	config += `
 policies:
   - path: ./team_install_software.policies.yml
 software:
-  - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
-    self_service: true
+  packages:
+    - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+      self_service: true
 
 `
-	path, basePath := createTempFile(t, "", config)
+	path, basePath = createTempFile(t, "", config)
 	err = file.Copy(
 		filepath.Join("testdata", "team_install_software.policies.yml"),
 		filepath.Join(basePath, "team_install_software.policies.yml"),
@@ -839,10 +857,6 @@ software:
 		0o755,
 	)
 	require.NoError(t, err)
-	appConfig := fleet.EnrichedAppConfig{}
-	appConfig.License = &fleet.LicenseInfo{
-		Tier: fleet.TierPremium,
-	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig)
 	assert.ErrorContains(t, err,
 		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
@@ -854,8 +868,9 @@ software:
 policies:
   - path: ./team_install_software.policies.yml
 software:
-  - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
-    self_service: true
+  packages:
+    - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+      self_service: true
 `
 	path, basePath = createTempFile(t, "", config)
 	err = file.Copy(
