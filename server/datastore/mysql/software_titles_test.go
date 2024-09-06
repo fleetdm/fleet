@@ -321,6 +321,9 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create a VPP app not installed anywhere
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
@@ -594,6 +597,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -856,6 +861,7 @@ func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	test.CreateInsertGlobalVPPToken(t, ds)
 	// create a couple software installers not installed on any host
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
@@ -955,6 +961,8 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 
 func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create 2 software installers
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -1134,6 +1142,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 
 func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)

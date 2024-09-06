@@ -555,6 +555,8 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 	require.NoError(t, err)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	const platform = "linux"
 	// No installers
 	hasSelfService, err := ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
