@@ -49,6 +49,15 @@ jobs:
       # Use & to background this
       run: docker compose up -d mysql_test &
 
+    - name: Wait for mysql
+      run: |
+        echo "waiting for mysql..."
+        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql is ready"
+
     - name: Verify test schema changes
       run: |
         make dump-test-schema
