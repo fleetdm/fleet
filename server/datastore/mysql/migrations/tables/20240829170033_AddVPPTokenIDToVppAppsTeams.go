@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240905140513, Down_20240905140513)
+	MigrationClient.AddMigration(Up_20240829170033, Down_20240829170033)
 }
 
-func Up_20240905140513(tx *sql.Tx) error {
+func Up_20240829170033(tx *sql.Tx) error {
 	stmtAddColumn := `
 ALTER TABLE vpp_apps_teams
 	ADD COLUMN vpp_token_id int(10) UNSIGNED NOT NULL`
@@ -38,6 +38,6 @@ ALTER TABLE vpp_apps_teams
 	return nil
 }
 
-func Down_20240905140513(tx *sql.Tx) error {
+func Down_20240829170033(tx *sql.Tx) error {
 	return nil
 }
