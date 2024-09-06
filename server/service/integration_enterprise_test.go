@@ -12761,6 +12761,8 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	// Create host
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
 	// Create team and add host to team
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
@@ -12793,6 +12795,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NoError(t, err)
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
