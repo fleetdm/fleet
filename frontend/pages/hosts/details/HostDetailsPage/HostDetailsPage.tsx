@@ -53,7 +53,7 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
-import { isIPadOrIPhone, Platform } from "interfaces/platform";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -479,7 +479,7 @@ const HostDetailsPage = ({
       case "ios":
         return mdmConfig?.ios_updates;
       default:
-        null;
+        return undefined;
     }
   };
 

@@ -2,10 +2,10 @@
 
 ## The Fleet binary
 
-The Fleet application contains two single static binaries which provide web based administration, REST API, and CLI interface to Fleet.
+The Fleet application contains two single static binaries which provide web based administration, a REST API, and a [CLI interface](https://fleetdm.com/guides/fleetctl).
 
 The `fleet` binary contains:
-- The Fleet TLS web server (no external webserver is required but it supports a proxy if desired)
+- The [Fleet TLS web server](https://fleetdm.com/docs/configuration/fleet-server-configuration) (no external webserver is required but it supports a proxy if desired)
 - The Fleet web interface
 - The Fleet application management [REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 - The Fleet osquery API endpoints
@@ -24,7 +24,7 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 ### MySQL
 
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
-For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
+For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [MySQL configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql) documentation.
 
 Fleet requires at least MySQL version 8.0, and is tested using the InnoDB storage engine. 
 
@@ -32,7 +32,7 @@ There are many "drop-in replacements" for MySQL available. If you'd like to expe
 
 ### Redis
 
-Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
+Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Redis configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#redis) documentation.
 
 ## Systemd
 

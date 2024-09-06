@@ -829,6 +829,10 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 		if len(args) > 0 {
 			if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
+				if isChildForeignKeyError(err) {
+					return foreignKey("team", fmt.Sprintf("(team_id)=(%v)", values))
+				}
+
 				return ctxerr.Wrap(ctx, err, "updating vpp token team")
 			}
 		}
