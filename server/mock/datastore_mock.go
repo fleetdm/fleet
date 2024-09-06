@@ -398,6 +398,10 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error)
 
+type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
+
+type GetSoftwareTitleNameFromExecutionIDFunc func(ctx context.Context, executionID string) (string, error)
+
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
@@ -844,7 +848,7 @@ type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) er
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
-type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error)
+type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 
 type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint][]string, error)
 
@@ -980,7 +984,7 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
-type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error)
+type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
@@ -991,6 +995,8 @@ type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Scrip
 type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
 
 type GetScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
+
+type GetAnyScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
 
 type DeleteScriptFunc func(ctx context.Context, id uint) error
 
@@ -1635,6 +1641,12 @@ type DataStore struct {
 
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
+
+	InsertSoftwareUninstallRequestFunc        InsertSoftwareUninstallRequestFunc
+	InsertSoftwareUninstallRequestFuncInvoked bool
+
+	GetSoftwareTitleNameFromExecutionIDFunc        GetSoftwareTitleNameFromExecutionIDFunc
+	GetSoftwareTitleNameFromExecutionIDFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -2526,6 +2538,9 @@ type DataStore struct {
 
 	GetScriptContentsFunc        GetScriptContentsFunc
 	GetScriptContentsFuncInvoked bool
+
+	GetAnyScriptContentsFunc        GetAnyScriptContentsFunc
+	GetAnyScriptContentsFuncInvoked bool
 
 	DeleteScriptFunc        DeleteScriptFunc
 	DeleteScriptFuncInvoked bool
@@ -3965,6 +3980,20 @@ func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uin
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, selfService)
+}
+
+func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+	s.mu.Lock()
+	s.InsertSoftwareUninstallRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertSoftwareUninstallRequestFunc(ctx, executionID, hostID, softwareInstallerID)
+}
+
+func (s *DataStore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+	s.mu.Lock()
+	s.GetSoftwareTitleNameFromExecutionIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareTitleNameFromExecutionIDFunc(ctx, executionID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
@@ -5528,7 +5557,7 @@ func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, res
 	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
 }
 
-func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
+func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
 	s.mu.Lock()
 	s.ScreenDEPAssignProfileSerialsForCooldownFuncInvoked = true
 	s.mu.Unlock()
@@ -6004,7 +6033,7 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
-func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
+func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
 	s.mu.Unlock()
@@ -6044,6 +6073,13 @@ func (s *DataStore) GetScriptContents(ctx context.Context, id uint) ([]byte, err
 	s.GetScriptContentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetScriptContentsFunc(ctx, id)
+}
+
+func (s *DataStore) GetAnyScriptContents(ctx context.Context, id uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetAnyScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAnyScriptContentsFunc(ctx, id)
 }
 
 func (s *DataStore) DeleteScript(ctx context.Context, id uint) error {

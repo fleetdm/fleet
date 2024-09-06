@@ -637,6 +637,9 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// UninstallSoftwareTitle uninstalls a software title in the given host.
+	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
+
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -929,6 +932,9 @@ type Service interface {
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
+	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
+	GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

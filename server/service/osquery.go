@@ -1713,7 +1713,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 		// hostLastInstall.Status == nil can happen when a software is installed by Fleet and later removed.
 		if hostLastInstall != nil && hostLastInstall.Status != nil &&
-			*hostLastInstall.Status == fleet.SoftwareInstallerPending {
+			*hostLastInstall.Status == fleet.SoftwareInstallPending {
 			// There's a pending install for this host and installer,
 			// thus we do not queue another install request.
 			level.Debug(svc.logger).Log(

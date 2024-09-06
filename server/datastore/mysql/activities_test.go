@@ -371,6 +371,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
 	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create three hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
@@ -506,7 +508,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h2A := hsr.ExecutionID
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
 	require.NoError(t, err)
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
+	_, _, err = ds.SetHostScriptExecutionResult(ctx,
+		&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
 	require.NoError(t, err)
 	h2F := hsr.ExecutionID
 	// add a pending software install request for h2

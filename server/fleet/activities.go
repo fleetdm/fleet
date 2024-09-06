@@ -99,6 +99,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeResentConfigurationProfile{},
 
 	ActivityTypeInstalledSoftware{},
+	ActivityTypeUninstalledSoftware{},
 	ActivityTypeAddedSoftware{},
 	ActivityTypeDeletedSoftware{},
 	ActivityEnabledVPP{},
@@ -1518,6 +1519,38 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"
+}`
+}
+
+type ActivityTypeUninstalledSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	ExecutionID     string `json:"script_execution_id"`
+	Status          string `json:"status"`
+}
+
+func (a ActivityTypeUninstalledSoftware) ActivityName() string {
+	return "uninstalled_software"
+}
+
+func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a software is uninstalled on a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "script_execution_id": ID of the software uninstall script.
+- "status": Status of the software uninstallation.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "status": "uninstalled"
 }`
 }
 

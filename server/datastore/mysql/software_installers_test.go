@@ -228,7 +228,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			userTeamFilter := fleet.TeamFilter{
 				User: &fleet.User{GlobalRole: ptr.String("admin")},
 			}
-			expectStatus := fleet.SoftwareInstallerPending
+			expectStatus := fleet.SoftwareInstallPending
 			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
@@ -271,27 +271,27 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 	}{
 		{
 			name:                    "pending install",
-			expectedStatus:          fleet.SoftwareInstallerPending,
+			expectedStatus:          fleet.SoftwareInstallPending,
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
 		},
 		{
 			name:                    "failing install post install script",
-			expectedStatus:          fleet.SoftwareInstallerFailed,
+			expectedStatus:          fleet.SoftwareInstallFailed,
 			postInstallScriptEC:     ptr.Int(1),
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
 		},
 		{
 			name:                    "failing install install script",
-			expectedStatus:          fleet.SoftwareInstallerFailed,
+			expectedStatus:          fleet.SoftwareInstallFailed,
 			installScriptEC:         ptr.Int(1),
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
 		},
 		{
 			name:                    "failing install pre install query",
-			expectedStatus:          fleet.SoftwareInstallerFailed,
+			expectedStatus:          fleet.SoftwareInstallFailed,
 			preInstallQueryOutput:   ptr.String(""),
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
@@ -582,6 +582,8 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	const platform = "linux"
 	// No installers
 	hasSelfService, err := ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
@@ -790,7 +792,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, installUUID1, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
 	// Set result of last installation.
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -807,7 +809,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, installUUID1, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerInstalled, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstalled, *host1LastInstall.Status)
 
 	// Install installer2.pkg on host1.
 	installUUID2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID2, false)
@@ -820,14 +822,14 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, installUUID1, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerInstalled, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstalled, *host1LastInstall.Status)
 	// Last installation for installer2.pkg should be "pending".
 	host1LastInstall, err = ds.GetHostLastInstallData(ctx, host1.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, installUUID2, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
 	// Perform another installation of installer1.pkg.
 	installUUID3, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID1, false)
@@ -840,7 +842,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, installUUID3, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerPending, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
 	// Set result of last installer1.pkg installation.
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -857,7 +859,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1LastInstall)
 	require.Equal(t, installUUID3, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallerFailed, *host1LastInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *host1LastInstall.Status)
 
 	// No installations on host2.
 	host2LastInstall, err := ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID1)

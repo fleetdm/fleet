@@ -3177,6 +3177,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	expectStatus := func(s fleet.SoftwareInstallerStatus) *fleet.SoftwareInstallerStatus {
 		return &s
 	}
@@ -3426,6 +3428,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		scriptContentID, _ := res.LastInsertId()
 
+		// create the uninstall script content (same for all installers, doesn't matter)
+		uninstallScript := `echo 'bar'`
+		resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+			uninstallScript, uninstallScript)
+		if err != nil {
+			return err
+		}
+		uninstallScriptContentID, _ := resUninstall.LastInsertId()
+
 		// create software titles for all but swi1Pending (will be linked to
 		// existing software title b)
 		var titleIDs []uint
@@ -3456,10 +3467,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			res, err := q.ExecContext(ctx, `
 						INSERT INTO software_installers
-							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service)
 						VALUES
-							(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
-				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "darwin", i < 2)
+							(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID,
+				uninstallScriptContentID,
+				hex.EncodeToString([]byte("test")), "darwin", i < 2)
 			if err != nil {
 				return err
 			}
@@ -3524,10 +3537,11 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		lid, _ := res.LastInsertId()
 		_, err = q.ExecContext(ctx, `
 						INSERT INTO software_installers
-							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id, platform)
 						VALUES
-							(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
-			nil, 0, lid, "windows-installer-6.msi", "v6.0.0", scriptContentID, hex.EncodeToString([]byte("test")), "windows")
+							(?, ?, ?, ?, ?, ?, ?, unhex(?), ?)`,
+			nil, 0, lid, "windows-installer-6.msi", "v6.0.0", scriptContentID, uninstallScriptContentID, hex.EncodeToString([]byte("test")),
+			"windows")
 		if err != nil {
 			return err
 		}
@@ -3539,7 +3553,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerPending),
+		Status:          expectStatus(fleet.SoftwareInstallPending),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
@@ -3548,7 +3562,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	i0 := fleet.HostSoftwareWithInstaller{
 		Name:            "i0",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:          expectStatus(fleet.SoftwareInstalled),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid2"}},
 	}
 	expected[i0.Name+i0.Source] = i0
@@ -3556,7 +3570,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	i1 := fleet.HostSoftwareWithInstaller{
 		Name:            "i1",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerFailed),
+		Status:          expectStatus(fleet.SoftwareInstallFailed),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid3"}},
 	}
 	expected[i1.Name+i1.Source] = i1
@@ -3640,7 +3654,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerFailed),
+		Status:          expectStatus(fleet.SoftwareInstallFailed),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
@@ -3649,7 +3663,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[i1.Name+i1.Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "i1",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallerPending),
+		Status:          expectStatus(fleet.SoftwareInstallPending),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid4"}},
 	}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
@@ -3773,13 +3787,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:      expectStatus(fleet.SoftwareInstalled),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallerPending),
+		Status:      expectStatus(fleet.SoftwareInstallPending),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
@@ -3824,7 +3838,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		"vpp1apps": {
 			Name:        "vpp1",
 			Source:      "apps",
-			Status:      expectStatus(fleet.SoftwareInstallerPending),
+			Status:      expectStatus(fleet.SoftwareInstallPending),
 			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
 		},
 	}, sw, true)
@@ -3845,13 +3859,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		"i1apps": {
 			Name:            "i1",
 			Source:          "apps",
-			Status:          expectStatus(fleet.SoftwareInstallerPending),
+			Status:          expectStatus(fleet.SoftwareInstallPending),
 			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI1UUID}},
 		},
 		"i2apps": {
 			Name:            "i2",
 			Source:          "apps",
-			Status:          expectStatus(fleet.SoftwareInstallerPending),
+			Status:          expectStatus(fleet.SoftwareInstallPending),
 			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI2UUID}},
 		},
 	}
@@ -3947,6 +3961,8 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		PerPage: 10, IncludeMetadata: true, OrderKey: "name",
 		TestSecondaryOrderKey: "source",
 	}}
+
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -4200,13 +4216,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		Status:      expectStatus(fleet.SoftwareInstalled),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallerPending),
+		Status:      expectStatus(fleet.SoftwareInstallPending),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
@@ -4263,6 +4279,14 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		}
 		scriptContentID, _ := res.LastInsertId()
 
+		uninstallScript := `echo 'bar'`
+		resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+			uninstallScript, uninstallScript)
+		if err != nil {
+			return err
+		}
+		uninstallScriptContentID, _ := resUninstall.LastInsertId()
+
 		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', 'apps')`)
 		if err != nil {
 			return err
@@ -4271,10 +4295,10 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 
 		res, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, version, install_script_content_id, storage_id)
+				(title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id)
 			VALUES
-				(?, ?, ?, ?, unhex(?))`,
-			titleID, "installer.pkg", "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")))
+				(?, ?, ?, ?, ?, unhex(?))`,
+			titleID, "installer.pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, hex.EncodeToString([]byte("test")))
 		if err != nil {
 			return err
 		}
@@ -4397,6 +4421,8 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		IncludeAvailableForInstall: true,
 	}
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
@@ -4506,6 +4532,8 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
 		IncludeAvailableForInstall: true,
 	}
+
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)

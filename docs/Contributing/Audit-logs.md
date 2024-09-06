@@ -1170,6 +1170,29 @@ This activity contains the following fields:
 }
 ```
 
+## uninstalled_software
+
+Generated when a software is uninstalled on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "script_execution_id": ID of the software uninstall script.
+- "status": Status of the software uninstallation.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "status": "uninstalled"
+}
+```
+
 ## added_software
 
 Generated when a software installer is uploaded to Fleet.

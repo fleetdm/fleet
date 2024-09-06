@@ -45,10 +45,42 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: () =>
       "Fleet is installing or will install when the host comes online.",
   },
+  pending_install: {
+    iconName: "pending-outline",
+    displayText: "Pending",
+    tooltip: () => "Fleet will install software when the host comes online.",
+  },
+  pending_uninstall: {
+    iconName: "pending-outline",
+    displayText: "Pending",
+    tooltip: () => "Fleet will uninstall software when the host comes online.",
+  },
   failed: {
     iconName: "error",
     displayText: "Failed",
     tooltip: () => (
+      <>
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
+      </>
+    ),
+  },
+  failed_install: {
+    iconName: "error",
+    displayText: "Failed",
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
+      <>
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
+      </>
+    ),
+  },
+  failed_uninstall: {
+    iconName: "error",
+    displayText: "Failed",
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
         The host failed to install software. To view errors, select
         <br />

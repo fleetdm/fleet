@@ -89,6 +89,8 @@ type SoftwareInstaller struct {
 	InstallScript string `json:"install_script" db:"install_script"`
 	// InstallScriptContentID is the ID of the install script content.
 	InstallScriptContentID uint `json:"-" db:"install_script_content_id"`
+	// UninstallScriptContentID is the ID of the uninstall script content.
+	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
 	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
@@ -125,17 +127,26 @@ type SoftwareInstallerStatusSummary struct {
 type SoftwareInstallerStatus string
 
 const (
-	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
-	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
-	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
+	SoftwareInstallPending   SoftwareInstallerStatus = "pending_install"
+	SoftwareInstallFailed    SoftwareInstallerStatus = "failed_install"
+	SoftwareInstalled        SoftwareInstallerStatus = "installed"
+	SoftwareUninstallPending SoftwareInstallerStatus = "pending_uninstall"
+	SoftwareUninstallFailed  SoftwareInstallerStatus = "failed_uninstall"
+	// SoftwarePending and SoftwareFailed statuses are only used as filters in the API and are not stored in the database.
+	SoftwarePending SoftwareInstallerStatus = "pending" // either pending_install or pending_uninstall
+	SoftwareFailed  SoftwareInstallerStatus = "failed"  // either failed_install or failed_uninstall
 )
 
 func (s SoftwareInstallerStatus) IsValid() bool {
 	switch s {
 	case
-		SoftwareInstallerFailed,
-		SoftwareInstallerInstalled,
-		SoftwareInstallerPending:
+		SoftwarePending,
+		SoftwareFailed,
+		SoftwareUninstallPending,
+		SoftwareUninstallFailed,
+		SoftwareInstallFailed,
+		SoftwareInstalled,
+		SoftwareInstallPending:
 		return true
 	default:
 		return false
@@ -220,7 +231,7 @@ Rolled back successfully
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
 // output fields so they're easier to consume by users.
 func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
-	if h.Status == SoftwareInstallerPending {
+	if h.Status == SoftwareInstallPending {
 		return
 	}
 
@@ -279,6 +290,9 @@ type UploadSoftwareInstallerPayload struct {
 	BundleIdentifier  string
 	SelfService       bool
 	UserID            uint
+	PackageIDs        []string
+	UninstallScript   string
+	Extension         string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -346,10 +360,11 @@ type SoftwarePackageOrApp struct {
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 
-	Version     string               `json:"version"`
-	SelfService *bool                `json:"self_service,omitempty"`
-	IconURL     *string              `json:"icon_url"`
-	LastInstall *HostSoftwareInstall `json:"last_install"`
+	Version       string                 `json:"version"`
+	SelfService   *bool                  `json:"self_service,omitempty"`
+	IconURL       *string                `json:"icon_url"`
+	LastInstall   *HostSoftwareInstall   `json:"last_install"`
+	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 }
 
 type SoftwarePackageSpec struct {
@@ -378,6 +393,14 @@ type HostSoftwareInstall struct {
 	// Empty if the install was for an uploaded software installer.
 	CommandUUID string    `json:"command_uuid,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
+}
+
+// HostSoftwareUninstall represents uninstallation of software from a host with a
+// Fleet software installer.
+type HostSoftwareUninstall struct {
+	// ExecutionID is the UUID of the script execution that uninstalled the software.
+	ExecutionID   string    `json:"script_execution_id,omitempty"`
+	UninstalledAt time.Time `json:"uninstalled_at"`
 }
 
 // HostSoftwareInstalledVersion represents a version of software installed on a
@@ -413,17 +436,17 @@ type HostSoftwareInstallResultPayload struct {
 func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	switch {
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstalled
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstalled
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	default:
-		return SoftwareInstallerPending
+		return SoftwareInstallPending
 	}
 }
 

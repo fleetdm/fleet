@@ -6,12 +6,16 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 # Argument to make install silent depends on installer,
 # each installer might use different argument (usually it's "/S" or "/s")
 $processOptions = @{
-    FilePath = "$exeFilePath"
-    ArgumentList = "/S"
-    PassThru = $true
-    Wait = $true
+  FilePath = "$exeFilePath"
+  ArgumentList = "/S"
+  PassThru = $true
+  Wait = $true
 }
     
+# Start process and track exit code
+$process = Start-Process @processOptions
+$exitCode = $process.ExitCode
+
 # Start process and track exit code
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode

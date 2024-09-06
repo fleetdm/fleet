@@ -100,9 +100,9 @@ WHERE
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: named query")
@@ -190,9 +190,14 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
+	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID); err != nil {
+			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
 		}
@@ -208,7 +213,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
 			return err
@@ -220,14 +230,14 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		if err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID); err != nil {
+		if err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppToken.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam")
 	}
 
 	return app, nil
@@ -288,12 +298,12 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint) error {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform, self_service)
+	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id)
 VALUES
-	(?, ?, ?, ?, ?)
+	(?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 	`
 
@@ -306,7 +316,7 @@ ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID)
 	if IsDuplicate(err) {
 		err = &existsError{
 			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
@@ -385,7 +395,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		},
 	)
 	if err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert VPP app")
 	}
 
 	return titleID, nil
@@ -508,8 +518,8 @@ WHERE
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
 		"command_uuid":              commandResults.CommandUUID,
-		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
-		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
+		"software_status_failed":    string(fleet.SoftwareInstallFailed),
+		"software_status_installed": string(fleet.SoftwareInstalled),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
@@ -536,14 +546,14 @@ WHERE
 	var status string
 	switch commandResults.Status {
 	case fleet.MDMAppleStatusAcknowledged:
-		status = string(fleet.SoftwareInstallerInstalled)
+		status = string(fleet.SoftwareInstalled)
 	case fleet.MDMAppleStatusCommandFormatError:
 	case fleet.MDMAppleStatusError:
-		status = string(fleet.SoftwareInstallerFailed)
+		status = string(fleet.SoftwareInstallFailed)
 	default:
 		// This case shouldn't happen (we should only be doing this check if the command is in a
 		// "terminal" state, but adding it so we have a default
-		status = string(fleet.SoftwareInstallerPending)
+		status = string(fleet.SoftwareInstallPending)
 	}
 
 	act := &fleet.ActivityInstalledAppStoreApp{
@@ -779,6 +789,24 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			null_team_type
 	) VALUES `
 	stmtValues := `(?, ?, ?)`
+	// Delete all apps associated with a token if we change its team
+	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`
+	deleteArgs := []any{id}
+
+	if len(teams) > 0 {
+		// If we're adding a VPP token to one or more teams, delete
+		// any VPP apps already assigned to those teams (using the All
+		// teams token)
+		questions := make([]string, 0, len(teams))
+		for range len(teams) {
+			questions = append(questions, "?")
+		}
+		stmtDeleteApps += fmt.Sprintf(" OR team_id IN (%s)", strings.Join(questions, ","))
+
+		for _, team := range teams {
+			deleteArgs = append(deleteArgs, team)
+		}
+	}
 
 	var values string
 	var args []any
@@ -823,12 +851,20 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			return ctxerr.Wrap(ctx, err, "vpp token null team check")
 		}
 
+		if _, err := tx.ExecContext(ctx, stmtDeleteApps, deleteArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
+		}
+
 		if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 		}
 
 		if len(args) > 0 {
 			if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
+				if isChildForeignKeyError(err) {
+					return foreignKey("team", fmt.Sprintf("(team_id)=(%v)", values))
+				}
+
 				return ctxerr.Wrap(ctx, err, "updating vpp token team")
 			}
 		}

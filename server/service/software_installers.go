@@ -26,6 +26,7 @@ type uploadSoftwareInstallerRequest struct {
 	PreInstallQuery   string
 	PostInstallScript string
 	SelfService       bool
+	UninstallScript   string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -133,6 +134,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		InstallerFile:     ff,
 		Filename:          req.File.Filename,
 		SelfService:       req.SelfService,
+		UninstallScript:   req.UninstallScript,
 	}
 
 	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
@@ -324,6 +326,28 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
+	return fleet.ErrMissingLicense
+}
+
+type uninstallSoftwareRequest struct {
+	HostID          uint `url:"host_id"`
+	SoftwareTitleID uint `url:"software_title_id"`
+}
+
+func uninstallSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uninstallSoftwareRequest)
+
+	err := svc.UninstallSoftwareTitle(ctx, req.HostID, req.SoftwareTitleID)
+	if err != nil {
+		return installSoftwareResponse{Err: err}, nil
+	}
+
+	return installSoftwareResponse{}, nil
+}
+
+func (svc *Service) UninstallSoftwareTitle(ctx context.Context, _ uint, _ uint) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense
 }
 

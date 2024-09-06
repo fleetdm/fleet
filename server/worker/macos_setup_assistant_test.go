@@ -24,8 +24,6 @@ import (
 )
 
 func TestMacosSetupAssistant(t *testing.T) {
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
 	// call TruncateTables immediately as some DB migrations may create jobs
@@ -193,19 +191,6 @@ func TestMacosSetupAssistant(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
 			require.False(t, modTime.Before(start))
-		}
-	}
-	// the default token is not used by any team, only defined for no team (due
-	// to it defaulting to no team)
-	for _, tmID := range tmIDs {
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, "FIXME")
-		if tmID == nil {
-			require.NoError(t, err)
-			require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
-			require.False(t, modTime.Before(start))
-		} else {
-			require.Error(t, err)
-			require.ErrorIs(t, err, sql.ErrNoRows)
 		}
 	}
 	require.Equal(t, map[string]string{

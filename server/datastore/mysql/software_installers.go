@@ -24,14 +24,12 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
   WHERE
     host_id = ?
   AND
-    install_script_exit_code IS NULL
-  AND
-    pre_install_query_output IS NULL
+	status = ?
   ORDER BY
     created_at ASC
 `
 	var results []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID, fleet.SoftwareInstallPending); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
 	}
 	return results, nil
@@ -86,6 +84,11 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
 	}
 
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+
 	var postInstallScriptID *uint
 	if payload.PostInstallScript != "" {
 		sid, err := ds.getOrGenerateScriptContentsID(ctx, payload.PostInstallScript)
@@ -113,15 +116,17 @@ INSERT INTO software_installers (
 	storage_id,
 	filename,
 	version,
+	package_ids,
 	install_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
+    uninstall_script_content_id,
 	platform,
     self_service,
 	user_id,
 	user_name,
 	user_email
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
 
 	args := []interface{}{
 		tid,
@@ -130,9 +135,11 @@ INSERT INTO software_installers (
 		payload.StorageID,
 		payload.Filename,
 		payload.Version,
+		strings.Join(payload.PackageIDs, ","),
 		installScriptID,
 		payload.PreInstallQuery,
 		postInstallScriptID,
+		uninstallScriptID,
 		payload.Platform,
 		payload.SelfService,
 		payload.UserID,
@@ -256,6 +263,7 @@ SELECT
   si.pre_install_query,
   si.post_install_script_content_id,
   si.uploaded_at,
+  si.uninstall_script_content_id,
   si.self_service,
   COALESCE(st.name, '') AS software_title
   %s
@@ -349,6 +357,41 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
 
+func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+	const (
+		insertStmt = `
+		  INSERT INTO host_software_installs
+		    (execution_id, host_id, software_installer_id, user_id, uninstall)
+		  VALUES
+		    (?, ?, ?, ?, 1)
+		    `
+		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
+	)
+
+	// we need to explicitly do this check here because we can't set a FK constraint on the schema
+	var hostExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return notFound("Host").WithID(hostID)
+		}
+		return ctxerr.Wrap(ctx, err, "checking if host exists")
+	}
+
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
+	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
+		executionID,
+		hostID,
+		softwareInstallerID,
+		userID,
+	)
+
+	return ctxerr.Wrap(ctx, err, "inserting new uninstall software request")
+}
+
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	query := fmt.Sprintf(`
 SELECT
@@ -359,7 +402,7 @@ SELECT
 	hsi.host_id AS host_id,
 	st.name AS software_title,
 	st.id AS software_title_id,
-	COALESCE(%s, '') AS status,
+	COALESCE(hsi.status, '') AS status,
 	si.filename AS software_package,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
@@ -375,13 +418,10 @@ FROM
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id
-	`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+	`)
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
-		"execution_id":              resultsUUID,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"execution_id": resultsUUID,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query for get software install results")
@@ -404,13 +444,13 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 
 	stmt := fmt.Sprintf(`
 SELECT
-	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
-	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :software_status_pending_install OR status = :software_status_pending_uninstall, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed_install OR status = :software_status_failed_uninstall, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 SELECT
 	software_installer_id,
-	%s
+	status
 FROM
 	host_software_installs hsi
 WHERE
@@ -424,13 +464,15 @@ WHERE
 			AND host_deleted_at IS NULL
 			AND removed = 0
 		GROUP BY
-			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			host_id)) s`)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"installer_id":              installerID,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"installer_id":                      installerID,
+		"software_status_pending_install":   fleet.SoftwareInstallPending,
+		"software_status_failed_install":    fleet.SoftwareInstallFailed,
+		"software_status_pending_uninstall": fleet.SoftwareUninstallPending,
+		"software_status_failed_uninstall":  fleet.SoftwareUninstallFailed,
+		"software_status_installed":         fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -445,6 +487,15 @@ WHERE
 }
 
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	// Since VPP does not have uninstaller yet, we map the generic pending/failed statuses to the install statuses
+	switch status {
+	case fleet.SoftwarePending:
+		status = fleet.SoftwareInstallPending
+	case fleet.SoftwareFailed:
+		status = fleet.SoftwareInstallFailed
+	default:
+		// no change
+	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -469,9 +520,9 @@ WHERE
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
@@ -479,6 +530,21 @@ WHERE
 }
 
 func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	statusFilter := "hsi.status = :status"
+	var status2 fleet.SoftwareInstallerStatus
+	switch status {
+	case fleet.SoftwarePending:
+		status = fleet.SoftwareInstallPending
+		status2 = fleet.SoftwareUninstallPending
+	case fleet.SoftwareFailed:
+		status = fleet.SoftwareInstallFailed
+		status2 = fleet.SoftwareUninstallFailed
+	default:
+		// no change
+	}
+	if status2 != "" {
+		statusFilter = "hsi.status IN (:status, :status2)"
+	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -495,21 +561,19 @@ WHERE
 			AND removed = 0
 		GROUP BY
 			host_id, software_installer_id)
-	AND (%s) = :status) hss ON hss.host_id = h.id
-`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+	AND %s) hss ON hss.host_id = h.id
+`, statusFilter)
 
 	return sqlx.Named(stmt, map[string]interface{}{
-		"status":                    status,
-		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"status":       status,
+		"status2":      status2,
+		"installer_id": installerID,
 	})
 }
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	stmt := fmt.Sprintf(`
-		SELECT execution_id, %s AS status
+		SELECT execution_id, hsi.status
 		FROM host_software_installs hsi
 		WHERE hsi.id = (
 			SELECT
@@ -519,14 +583,11 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 				software_installer_id = :installer_id AND host_id = :host_id
 			GROUP BY
 				host_id, software_installer_id)
-`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+`)
 
 	stmt, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"host_id":                   hostID,
-		"installer_id":              installerID,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"host_id":      hostID,
+		"installer_id": installerID,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build named query to get host last install data")
@@ -600,6 +661,7 @@ INSERT INTO software_installers (
 	filename,
 	version,
 	install_script_content_id,
+	uninstall_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
 	platform,
@@ -609,12 +671,13 @@ INSERT INTO software_installers (
 	user_name,
 	user_email
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
   ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?)
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
+  uninstall_script_content_id = VALUES(uninstall_script_content_id),
   post_install_script_content_id = VALUES(post_install_script_content_id),
   storage_id = VALUES(storage_id),
   filename = VALUES(filename),
@@ -674,6 +737,12 @@ ON DUPLICATE KEY UPDATE
 			}
 			installScriptID, _ := isRes.LastInsertId()
 
+			uisRes, err := insertScriptContents(ctx, tx, installer.UninstallScript)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
+			}
+			uninstallScriptID, _ := uisRes.LastInsertId()
+
 			var postInstallScriptID *int64
 			if installer.PostInstallScript != "" {
 				pisRes, err := insertScriptContents(ctx, tx, installer.PostInstallScript)
@@ -692,6 +761,7 @@ ON DUPLICATE KEY UPDATE
 				installer.Filename,
 				installer.Version,
 				installScriptID,
+				uninstallScriptID,
 				installer.PreInstallQuery,
 				postInstallScriptID,
 				installer.Platform,
@@ -736,4 +806,20 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 		return false, ctxerr.Wrap(ctx, err, "check for self-service software installers")
 	}
 	return hasInstallers, nil
+}
+
+func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+	stmt := `
+	SELECT name
+	FROM software_titles st
+	INNER JOIN software_installers si ON si.title_id = st.id
+	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
+	WHERE hsi.execution_id = ?
+	`
+	var name string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get software title name from execution ID")
+	}
+	return name, nil
 }
