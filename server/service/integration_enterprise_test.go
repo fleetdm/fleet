@@ -10973,7 +10973,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_linux": json.RawMessage(fmt.Sprintf(
 				`[{"name": "%s", "version": "1.0", "type": "Package (deb)",
-					"source": "deb_packages", "last_opened_at": "", 
+					"source": "deb_packages", "last_opened_at": "",
 					"installed_path": "/bin/ruby"}]`, payload.Title)),
 		},
 		Statuses: map[string]interface{}{

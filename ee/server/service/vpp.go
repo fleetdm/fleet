@@ -148,7 +148,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
-			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "set team vpp assets"), http.StatusInternalServerError)
+			if errors.Is(err, sql.ErrNoRows) {
+				return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
+			}
+			return ctxerr.Wrap(ctx, err, "set team vpp assets")
 		}
 	}
 
