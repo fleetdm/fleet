@@ -106,6 +106,7 @@ const ManagePolicyPage = ({
     currentTeamName,
     currentTeamSummary,
     isAnyTeamSelected,
+    isAllTeamsSelected,
     isTeamAdmin,
     isTeamMaintainer,
     isRouteOk,
@@ -116,7 +117,7 @@ const ManagePolicyPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
@@ -223,7 +224,7 @@ const ManagePolicyPage = ({
       return globalPoliciesAPI.loadAllNew(queryKey[0]);
     },
     {
-      enabled: isRouteOk && !isAnyTeamSelected,
+      enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
       staleTime: 5000,
       onSuccess: (data) => {
@@ -241,12 +242,12 @@ const ManagePolicyPage = ({
     [
       {
         scope: "policiesCount",
-        query: isAnyTeamSelected ? "" : searchQuery,
+        query: !isAllTeamsSelected ? "" : searchQuery,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
     {
-      enabled: isRouteOk,
+      enabled: isRouteOk && isAllTeamsSelected,
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
@@ -273,6 +274,7 @@ const ManagePolicyPage = ({
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
+        // teamIdForApi will never actually be undefined here
         teamId: teamIdForApi || 0,
         mergeInherited: !!teamIdForApi,
       },
@@ -281,7 +283,7 @@ const ManagePolicyPage = ({
       return teamPoliciesAPI.loadAllNew(queryKey[0]);
     },
     {
-      enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
+      enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
       onSuccess: (data) => {
         const allPoliciesAvailableToAutomate = data.filter(
@@ -312,7 +314,7 @@ const ManagePolicyPage = ({
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
     {
-      enabled: isRouteOk && !!teamIdForApi,
+      enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
@@ -356,7 +358,7 @@ const ManagePolicyPage = ({
   );
 
   const refetchPolicies = (teamId?: number) => {
-    if (teamId) {
+    if (teamId !== undefined) {
       refetchTeamPolicies();
       refetchTeamPoliciesCountMergeInherited();
     } else {
@@ -476,7 +478,7 @@ const ManagePolicyPage = ({
   }) => {
     setIsUpdatingOtherWorkflows(true);
     try {
-      await (isAnyTeamSelected
+      await (!isAllTeamsSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
         : configAPI.update(requestBody));
       renderFlash("success", "Successfully updated policy automations.");
@@ -488,7 +490,7 @@ const ManagePolicyPage = ({
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingOtherWorkflows(false);
-      isAnyTeamSelected ? refetchTeamConfig() : refetchConfig();
+      !isAllTeamsSelected ? refetchTeamConfig() : refetchConfig();
     }
   };
 
@@ -631,7 +633,7 @@ const ManagePolicyPage = ({
   const onDeletePolicySubmit = async () => {
     setIsUpdatingPolicies(true);
     try {
-      const request = isAnyTeamSelected
+      const request = !isAllTeamsSelected
         ? teamPoliciesAPI.destroy(teamIdForApi, selectedPolicyIds)
         : globalPoliciesAPI.destroy(selectedPolicyIds);
 
@@ -658,11 +660,11 @@ const ManagePolicyPage = ({
     }
   };
 
-  const policiesErrors = isAnyTeamSelected
+  const policiesErrors = !isAllTeamsSelected
     ? teamPoliciesError
     : globalPoliciesError;
 
-  const policyResults = isAnyTeamSelected
+  const policyResults = !isAllTeamsSelected
     ? teamPolicies && teamPolicies.length > 0
     : globalPolicies && globalPolicies.length > 0;
 
@@ -670,7 +672,7 @@ const ManagePolicyPage = ({
   const showCtaButtons =
     !policiesErrors && (policyResults || searchQuery !== "");
 
-  const automationsConfig = isAnyTeamSelected ? teamConfig : config;
+  const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
   const showAutomationsDropdown =
     canManageAutomations && automationsConfig && hasPoliciesToAutomateOrDelete;
@@ -698,7 +700,7 @@ const ManagePolicyPage = ({
 
   const renderPoliciesCount = (count?: number) => {
     // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
-    const isFetchingCount = isAnyTeamSelected
+    const isFetchingCount = !isAllTeamsSelected
       ? isFetchingTeamCountMergeInherited
       : isFetchingGlobalCount;
 
@@ -715,68 +717,76 @@ const ManagePolicyPage = ({
   };
 
   const renderMainTable = () => {
-    return !isRouteOk || (isPremiumTier && !userTeams) ? (
-      <Spinner />
-    ) : (
+    if (!isRouteOk || (isPremiumTier && !userTeams)) {
+      return <Spinner />;
+    }
+    if (isAllTeamsSelected) {
+      // Global policies
+
+      if (globalPoliciesError) {
+        return <TableDataError />;
+      }
+      return (
+        <PoliciesTable
+          policiesList={globalPolicies || []}
+          isLoading={isFetchingGlobalPolicies || isFetchingConfig}
+          onAddPolicyClick={onAddPolicyClick}
+          onDeletePolicyClick={onDeletePolicyClick}
+          canAddOrDeletePolicy={canAddOrDeletePolicy}
+          hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
+          currentTeam={currentTeamSummary}
+          currentAutomatedPolicies={currentAutomatedPolicies}
+          isPremiumTier={isPremiumTier}
+          renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
+          searchQuery={searchQuery}
+          sortHeader={sortHeader}
+          sortDirection={sortDirection}
+          page={page}
+          onQueryChange={onQueryChange}
+          resetPageIndex={resetPageIndex}
+        />
+      );
+    }
+
+    // Team policies
+    if (teamPoliciesError) {
+      return <TableDataError />;
+    }
+    return (
       <div>
-        {isAnyTeamSelected && teamPoliciesError && <TableDataError />}
-        {isAnyTeamSelected && !teamPoliciesError && (
-          <PoliciesTable
-            policiesList={teamPolicies || []}
-            isLoading={
-              isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
-            }
-            onAddPolicyClick={onAddPolicyClick}
-            onDeletePolicyClick={onDeletePolicyClick}
-            canAddOrDeletePolicy={canAddOrDeletePolicy}
-            hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
-            currentTeam={currentTeamSummary}
-            currentAutomatedPolicies={currentAutomatedPolicies}
-            renderPoliciesCount={() =>
-              renderPoliciesCount(teamPoliciesCountMergeInherited)
-            }
-            isPremiumTier={isPremiumTier}
-            searchQuery={searchQuery}
-            sortHeader={sortHeader}
-            sortDirection={sortDirection}
-            page={page}
-            onQueryChange={onQueryChange}
-            resetPageIndex={resetPageIndex}
-          />
-        )}
-        {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
-        {!isAnyTeamSelected && !globalPoliciesError && (
-          <PoliciesTable
-            policiesList={globalPolicies || []}
-            isLoading={isFetchingGlobalPolicies || isFetchingConfig}
-            onAddPolicyClick={onAddPolicyClick}
-            onDeletePolicyClick={onDeletePolicyClick}
-            canAddOrDeletePolicy={canAddOrDeletePolicy}
-            hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
-            currentTeam={currentTeamSummary}
-            currentAutomatedPolicies={currentAutomatedPolicies}
-            isPremiumTier={isPremiumTier}
-            renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
-            searchQuery={searchQuery}
-            sortHeader={sortHeader}
-            sortDirection={sortDirection}
-            page={page}
-            onQueryChange={onQueryChange}
-            resetPageIndex={resetPageIndex}
-          />
-        )}
+        <PoliciesTable
+          policiesList={teamPolicies || []}
+          isLoading={
+            isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
+          }
+          onAddPolicyClick={onAddPolicyClick}
+          onDeletePolicyClick={onDeletePolicyClick}
+          canAddOrDeletePolicy={canAddOrDeletePolicy}
+          hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
+          currentTeam={currentTeamSummary}
+          currentAutomatedPolicies={currentAutomatedPolicies}
+          renderPoliciesCount={() =>
+            renderPoliciesCount(teamPoliciesCountMergeInherited)
+          }
+          isPremiumTier={isPremiumTier}
+          searchQuery={searchQuery}
+          sortHeader={sortHeader}
+          sortDirection={sortDirection}
+          page={page}
+          onQueryChange={onQueryChange}
+          resetPageIndex={resetPageIndex}
+        />
       </div>
     );
   };
 
   const getAutomationsDropdownOptions = () => {
-    const isAllTeams = teamIdForApi === undefined || teamIdForApi === -1;
     let disabledInstallTooltipContent: React.ReactNode;
     let disabledCalendarTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
       disabledInstallTooltipContent = "Available in Fleet Premium.";
       disabledCalendarTooltipContent = "Available in Fleet Premium.";
-    } else if (isAllTeams) {
+    } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
           Select a team to manage
@@ -836,6 +846,7 @@ const ManagePolicyPage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
+                      includeNoTeams
                     />
                   )}
                 {isPremiumTier &&
