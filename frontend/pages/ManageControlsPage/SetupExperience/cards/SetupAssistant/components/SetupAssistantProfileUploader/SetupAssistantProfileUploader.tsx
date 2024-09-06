@@ -5,6 +5,7 @@ import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 
+import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 
 import { getErrorMessage } from "./helpers";
@@ -40,7 +41,23 @@ const SetupAssistantProfileUploader = ({
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage);
+      let errComponent = <>{errMessage}</>;
+      if (errMessage.includes("Couldn't upload")) {
+        errComponent = (
+          <>
+            {errMessage}.{" "}
+            <CustomLink
+              url="https://example.com"
+              text="Learn more"
+              className={`${baseClass}__new-tab`}
+              newTab
+              color="core-fleet-black"
+              iconColor="core-fleet-white"
+            />
+          </>
+        );
+      }
+      renderFlash("error", errComponent);
     } finally {
       setShowLoading(false);
     }

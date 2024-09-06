@@ -679,6 +679,10 @@ func (c *Client) ApplyGroup(
 				}
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						if strings.Contains(err.Error(), "Couldn't upload") {
+							parts := strings.Split(err.Error(), ".")
+							return nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
+						}
 						return nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
