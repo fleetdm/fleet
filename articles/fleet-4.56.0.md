@@ -11,7 +11,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 * Exact match CVE search
 * Software vulnerabilities severity filter
 * Self-service VPP apps
-* Multiple ABM and VPP tokens
+* Multiple ABM and VPP support
 
 
 ### Improved end-user MDM migration
