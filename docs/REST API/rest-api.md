@@ -8485,9 +8485,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add package](#add-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [List Fleet library apps](#list-fleet-library-apps)
-- [Get Fleet library app](#get-fleet-library-app)
-- [Add Fleet library app](#add-fleet-library-app)
+- [List Fleet maintained apps](#list-fleet-maintained-apps)
+- [Get Fleet maintained app](#get-fleet-maintained-app)
+- [Add Fleet maintained app](#add-fleet-maintained-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -9141,23 +9141,23 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
-### List Fleet library apps
+### List Fleet maintained apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-List available Fleet library apps.
+List available Fleet maintained apps.
 
-`GET /api/v1/fleet/software/fleet_library_apps`
+`GET /api/v1/fleet/software/fleet_maintained_apps`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | query | **Required**. The team ID. Filters Fleet library apps to only include apps available for the specified team.  |
+| team_id       | integer | query | **Required**. The team ID. Filters Fleet maintained apps to only include apps available for the specified team.  |
 
 #### Example
 
-`GET /api/v1/fleet/software/fleet_library_apps?team_id=3`
+`GET /api/v1/fleet/software/fleet_maintained_apps?team_id=3`
 
 
 ##### Default response
@@ -9166,7 +9166,7 @@ List available Fleet library apps.
 
 ```json
 {
-  "fleet_library_apps": [
+  "fleet_maintained_apps": [
     {
       "id": "1",
       "name": "1Password",
@@ -9193,24 +9193,24 @@ List available Fleet library apps.
 }
 ```
 
-### Get Fleet library app
+### Get Fleet maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Returns information about the specified Fleet library app.
+Returns information about the specified Fleet maintained app.
 
-`GET /api/v1/fleet/software/fleet_library_apps/:id`
+`GET /api/v1/fleet/software/fleet_maintained_apps/:id`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The Fleet library app's ID. |
+| id   | integer | path | **Required.** The Fleet maintained app's ID. |
 
 
 #### Example
 
-`GET /api/v1/fleet/software/fleet_library_apps/1`
+`GET /api/v1/fleet/software/fleet_maintained_apps/1`
 
 ##### Default response
 
@@ -9218,7 +9218,7 @@ Returns information about the specified Fleet library app.
 
 ```json
 {
-  "fleet_library_app": {
+  "fleet_maintained_app": {
     "id": 1,
     "name": "1Password",
     "file_name": "1Password-8.10.44-aarch64.zip",
@@ -9230,36 +9230,36 @@ Returns information about the specified Fleet library app.
 }
 ```
 
-### Add Fleet library app
+### Add Fleet maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Add app from Fleet library.
+Add Fleet maintained app so it's available for install.
 
-`POST /api/v1/fleet/software/fleet_library_apps`
+`POST /api/v1/fleet/software/fleet_maintained`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| fleet_library_app_id   | string | body | **Required.** The ID of Fleet library app. |
-| team_id       | integer | body | **Required**. The team ID. Adds Fleet library app to the specified team.  |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs default install command for each library app. |
+| fleet_maintained_app_id   | string | body | **Required.** The ID of Fleet maintained app. |
+| team_id       | integer | body | **Required**. The team ID. Adds Fleet maintained app to the specified team.  |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs default install command for each maintained app. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
-`POST /api/v1/fleet/software/fleet_library_apps`
+`POST /api/v1/fleet/software/fleet_maintained`
 
 ##### Request body
 
 ```json
 {
-  "fleet_library_app_id": "3",
+  "fleet_maintained_app_id": "3",
   "team_id": 2,
 }
 ```
