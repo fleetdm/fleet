@@ -8873,6 +8873,12 @@ Returns information about the specified software. By default, `versions` are sor
       "self_service": true,
       "status": {
         "installed": 3,
+        "pending_install": 1,
+        "failed_install": 0,
+        "pending_uninstall": 2,
+        "failed_uninstall": 1
+      }
+        "installed": 3,
         "pending": 1,
         "failed": 2,
       }
