@@ -10510,6 +10510,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusBadRequest, &installResp)
 
+	// Disable all teams token
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
+
 	// Spoof an expired VPP token and attempt to install VPP app
 	tokenJSONBad := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2099-06-24T15:50:50+0000", "badtoken", "Evil Fleet")
 	s.appleVPPConfigSrvConfig.Location = "Spooky Haunted House"
@@ -10530,6 +10533,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Disable the token
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
+
+	// Enable all teams token
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
 	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
