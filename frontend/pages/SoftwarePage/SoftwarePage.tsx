@@ -255,16 +255,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
 
-  const onAddSoftware = useCallback(() => {
-    if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
-      setShowAddSoftwareModal(true);
-    } else {
-      router.push(
-        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
-      );
-    }
-  }, [currentTeamId, router]);
-
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
   }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
@@ -299,6 +289,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       toggleManageAutomationsModal();
     }
   };
+
+  const onAddSoftware = useCallback(() => {
+    if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
+      setShowAddSoftwareModal(true);
+    } else {
+      router.push(
+        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
+      );
+    }
+  }, [currentTeamId, router]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   // NOTE: Solution reused from ManageHostPage.tsx
@@ -479,10 +479,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         )}
         {showAddSoftwareModal && (
           <AddSoftwareModal
-            teamId={currentTeamId ?? 0}
-            router={router}
             onExit={() => setShowAddSoftwareModal(false)}
-            setAddedSoftwareToken={setAddedSoftwareToken}
             isFreeTier={isFreeTier}
           />
         )}
