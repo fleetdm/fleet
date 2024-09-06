@@ -2664,8 +2664,8 @@ SELECT
 	0 as vpp_apps_count
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
-INNER JOIN host_software_installs hsi ON hsi.host_id = ? AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0 AND hsi.status = ?
+INNER JOIN host_software_installs hsi ON hsi.host_id = :host_id AND hsi.software_installer_id = si.id
+WHERE hsi.removed = 0 AND hsi.status = :software_status_installed
 
 UNION
 
@@ -2678,13 +2678,21 @@ SELECT
 	1 as vpp_apps_count
 FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
-INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = ? AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
 INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE hvsi.removed = 0 AND ncr.status = ?
+WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
 `
+	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
+		"host_id":                   hostID,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build query to get installed software titles")
+	}
+
 	var titles []fleet.SoftwareTitle
-	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID, fleet.SoftwareInstalled,
-		fleet.MDMAppleStatusAcknowledged); err != nil {
+	if err := sqlx.SelectContext(ctx, qc, &titles, selectStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get installed software titles")
 	}
 	return titles, nil

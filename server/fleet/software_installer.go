@@ -140,6 +140,8 @@ const (
 func (s SoftwareInstallerStatus) IsValid() bool {
 	switch s {
 	case
+		SoftwarePending,
+		SoftwareFailed,
 		SoftwareUninstallPending,
 		SoftwareUninstallFailed,
 		SoftwareInstallFailed,

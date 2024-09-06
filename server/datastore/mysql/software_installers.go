@@ -543,7 +543,7 @@ func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.Softwa
 		// no change
 	}
 	if status2 != "" {
-		statusFilter = fmt.Sprintf("(%s OR hsi.status = :status2)", statusFilter)
+		statusFilter = "hsi.status IN (:status, :status2)"
 	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
@@ -661,6 +661,7 @@ INSERT INTO software_installers (
 	filename,
 	version,
 	install_script_content_id,
+	uninstall_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
 	platform,
@@ -670,12 +671,13 @@ INSERT INTO software_installers (
 	user_name,
 	user_email
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
   ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?)
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
+  uninstall_script_content_id = VALUES(uninstall_script_content_id),
   post_install_script_content_id = VALUES(post_install_script_content_id),
   storage_id = VALUES(storage_id),
   filename = VALUES(filename),
@@ -735,6 +737,12 @@ ON DUPLICATE KEY UPDATE
 			}
 			installScriptID, _ := isRes.LastInsertId()
 
+			uisRes, err := insertScriptContents(ctx, tx, installer.UninstallScript)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
+			}
+			uninstallScriptID, _ := uisRes.LastInsertId()
+
 			var postInstallScriptID *int64
 			if installer.PostInstallScript != "" {
 				pisRes, err := insertScriptContents(ctx, tx, installer.PostInstallScript)
@@ -753,6 +761,7 @@ ON DUPLICATE KEY UPDATE
 				installer.Filename,
 				installer.Version,
 				installScriptID,
+				uninstallScriptID,
 				installer.PreInstallQuery,
 				postInstallScriptID,
 				installer.Platform,

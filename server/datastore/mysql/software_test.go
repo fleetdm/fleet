@@ -3428,6 +3428,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		scriptContentID, _ := res.LastInsertId()
 
+		// create the uninstall script content (same for all installers, doesn't matter)
+		uninstallScript := `echo 'bar'`
+		resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+			uninstallScript, uninstallScript)
+		if err != nil {
+			return err
+		}
+		uninstallScriptContentID, _ := resUninstall.LastInsertId()
+
 		// create software titles for all but swi1Pending (will be linked to
 		// existing software title b)
 		var titleIDs []uint
@@ -3458,10 +3467,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			res, err := q.ExecContext(ctx, `
 						INSERT INTO software_installers
-							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service)
 						VALUES
-							(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
-				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "darwin", i < 2)
+							(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID,
+				uninstallScriptContentID,
+				hex.EncodeToString([]byte("test")), "darwin", i < 2)
 			if err != nil {
 				return err
 			}
@@ -3526,10 +3537,11 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		lid, _ := res.LastInsertId()
 		_, err = q.ExecContext(ctx, `
 						INSERT INTO software_installers
-							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id, platform)
 						VALUES
-							(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
-			nil, 0, lid, "windows-installer-6.msi", "v6.0.0", scriptContentID, hex.EncodeToString([]byte("test")), "windows")
+							(?, ?, ?, ?, ?, ?, ?, unhex(?), ?)`,
+			nil, 0, lid, "windows-installer-6.msi", "v6.0.0", scriptContentID, uninstallScriptContentID, hex.EncodeToString([]byte("test")),
+			"windows")
 		if err != nil {
 			return err
 		}
@@ -4267,6 +4279,14 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		}
 		scriptContentID, _ := res.LastInsertId()
 
+		uninstallScript := `echo 'bar'`
+		resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+			uninstallScript, uninstallScript)
+		if err != nil {
+			return err
+		}
+		uninstallScriptContentID, _ := resUninstall.LastInsertId()
+
 		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', 'apps')`)
 		if err != nil {
 			return err
@@ -4275,10 +4295,10 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 
 		res, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, version, install_script_content_id, storage_id)
+				(title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id)
 			VALUES
-				(?, ?, ?, ?, unhex(?))`,
-			titleID, "installer.pkg", "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")))
+				(?, ?, ?, ?, ?, unhex(?))`,
+			titleID, "installer.pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, hex.EncodeToString([]byte("test")))
 		if err != nil {
 			return err
 		}
