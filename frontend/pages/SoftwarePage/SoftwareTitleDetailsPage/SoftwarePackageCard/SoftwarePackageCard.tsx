@@ -128,16 +128,6 @@ const STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
-  failed_install: {
-    displayName: "Failed",
-    iconName: "error",
-    tooltip: "Fleet failed to install software on these hosts.",
-  },
-  failed_uninstall: {
-    displayName: "Failed",
-    iconName: "error",
-    tooltip: "Fleet failed to uninstall software on these hosts.",
-  },
 };
 
 interface IPackageStatusCountProps {

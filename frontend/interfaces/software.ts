@@ -195,9 +195,11 @@ export const formatSoftwareType = ({
  * This list comprises all possible states of software install operations.
  */
 export const SOFTWARE_INSTALL_STATUSES = [
-  "failed",
   "installed",
-  "pending",
+  "pending_install",
+  "failed_install",
+  "pending_uninstall",
+  "failed_uninstall",
 ] as const;
 
 /*
@@ -282,10 +284,16 @@ export interface IHostSoftware {
 
 export type IDeviceSoftware = IHostSoftware;
 
-const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
-  failed: "failed to install",
+const INSTALL_STATUS_PREDICATES: Record<
+  SoftwareInstallStatus | "pending",
+  string
+> = {
+  pending: "pending", // TODO - confirm this, current is to allow successful build while WIP
   installed: "installed",
-  pending: "told Fleet to install",
+  pending_install: "told Fleet to install", // TODO - confirm
+  failed_install: "failed to install", // TODO - confirm
+  pending_uninstall: "told Fleet to uninstall", // TODO - confirm
+  failed_uninstall: "failed to uninstall", // TODO - confirm
 } as const;
 
 export const getInstallStatusPredicate = (status: string | undefined) => {
