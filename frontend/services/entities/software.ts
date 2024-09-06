@@ -256,10 +256,11 @@ export default {
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
+    // TODO: uninstall script once uninstall is merged
     teamId && formData.append("team_id", teamId.toString());
 
     return sendRequest(
-      "POST",
+      "PATCH",
       SOFTWARE_TITLE(softwareId),
       formData,
       undefined,

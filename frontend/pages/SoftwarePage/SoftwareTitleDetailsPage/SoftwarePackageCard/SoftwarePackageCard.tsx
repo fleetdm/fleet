@@ -33,9 +33,10 @@ import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
-  SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+  SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
+import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "software-package-card";
 
@@ -215,7 +216,7 @@ const ActionsDropdown = ({
         searchable={false}
         options={
           isSoftwarePackage
-            ? SOFTWARE_PACAKGE_DROPDOWN_OPTIONS
+            ? SOFTWARE_PACKAGE_DROPDOWN_OPTIONS
             : APP_STORE_APP_DROPDOWN_OPTIONS
         }
       />
@@ -265,7 +266,17 @@ const SoftwarePackageCard = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
+  const [
+    showConfirmSaveChangesModal,
+    setShowConfirmSaveChangesModal,
+  ] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const toggleConfirmSaveChangesModal = () => {
+    debugger;
+    // open and closes save changes modal
+    setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
+  };
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -393,6 +404,15 @@ const SoftwarePackageCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
           setAddedSoftwareToken={noop}
+          showConfirmSaveChangesModal={showConfirmSaveChangesModal}
+          toggleConfirmSaveChangesModal={toggleConfirmSaveChangesModal}
+        />
+      )}
+      {showConfirmSaveChangesModal && (
+        <ConfirmSaveChangesModal
+          onClose={toggleConfirmSaveChangesModal}
+          softwarePackageName={softwarePackage?.name}
+          onSaveChanges={noop} // TODO
         />
       )}
       {showDeleteModal && (

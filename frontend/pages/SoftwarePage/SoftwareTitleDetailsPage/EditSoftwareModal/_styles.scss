@@ -10,4 +10,8 @@
     flex-direction: column;
     gap: $pad-medium;
   }
+
+  &--hidden {
+    display: none;
+  }
 }

@@ -3,6 +3,7 @@ import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
+import deepDifference from "utilities/deep_difference";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 
@@ -56,6 +57,7 @@ interface IAddPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
+  toggleSaveChangesForEditModal?: () => void;
 }
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
@@ -71,17 +73,21 @@ const AddPackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
+  toggleSaveChangesForEditModal,
 }: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [formData, setFormData] = useState<IAddPackageFormData>({
+  const initialFormData = {
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || undefined,
     postInstallScript: defaultPostInstallScript || undefined,
     uninstallScript: defaultUninstallScript || undefined,
     selfService: defaultSelfService || false,
-  });
+  };
+  const [formData, setFormData] = useState<IAddPackageFormData>(
+    initialFormData
+  );
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
     software: { isValid: false },
@@ -119,8 +125,22 @@ const AddPackageForm = ({
   };
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    onSubmit(formData);
+    // When editing software, we prompt a save changes modal for all changes except to self-service
+    const updates = deepDifference(initialFormData, formData);
+    const onlySelfServiceUpdated =
+      Object.keys(updates).length === 1 && "selfService" in updates;
+
+    const promptSaveChangesForEditModal =
+      isEditingSoftware && !onlySelfServiceUpdated;
+
+    if (promptSaveChangesForEditModal && !!toggleSaveChangesForEditModal) {
+      evt.preventDefault();
+      toggleSaveChangesForEditModal();
+    } else {
+      evt.preventDefault();
+
+      onSubmit(formData);
+    }
   };
 
   const onChangeInstallScript = (value: string) => {
@@ -216,4 +236,5 @@ const AddPackageForm = ({
   );
 };
 
-export default AddPackageForm;
+// Allows form not to re-render as long as it's props don't change
+export default React.memo(AddPackageForm);

@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import classnames from "classnames";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -38,6 +39,8 @@ interface IEditSoftwareModalProps {
   selfService?: boolean;
   onExit: () => void;
   setAddedSoftwareToken: (token: string) => void;
+  showConfirmSaveChangesModal: boolean;
+  toggleConfirmSaveChangesModal: () => void;
 }
 
 const EditSoftwareModal = ({
@@ -52,7 +55,14 @@ const EditSoftwareModal = ({
   selfService,
   onExit,
   setAddedSoftwareToken,
+  showConfirmSaveChangesModal,
+  toggleConfirmSaveChangesModal,
 }: IEditSoftwareModalProps) => {
+  // Add class to hide modal based on showConfirmSaveChangesModal,
+  const editSoftwareModalClasses = classnames(baseClass, {
+    [`${baseClass}--hidden`]: !!showConfirmSaveChangesModal,
+  });
+
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdatingSoftware, setIsUpdatingSoftware] = useState(false);
 
@@ -121,7 +131,11 @@ const EditSoftwareModal = ({
   };
 
   return (
-    <Modal className={baseClass} title="Edit software" onExit={onExit}>
+    <Modal
+      className={editSoftwareModalClasses}
+      title="Edit software"
+      onExit={onExit}
+    >
       <AddPackageForm
         isEditingSoftware
         isUploading={isUpdatingSoftware}
@@ -133,6 +147,7 @@ const EditSoftwareModal = ({
         defaultPostInstallScript={postInstallScript}
         defaultUninstallScript={uninstallScript}
         defaultSelfService={selfService}
+        toggleSaveChangesForEditModal={toggleConfirmSaveChangesModal}
       />
     </Modal>
   );
