@@ -799,7 +799,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		// teams token)
 		questions := make([]string, 0, len(teams))
 
-		for _, team := range len(teams) {
+		for _, team := range teams {
 			questions = append(questions, "?")
 			deleteArgs = append(deleteArgs, team)
 		}
