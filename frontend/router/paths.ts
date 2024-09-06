@@ -75,6 +75,9 @@ export default {
   SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
     return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
+  SOFTWARE_ADD_FLEET_MAINTAINED: `${URL_PREFIX}/software/add-fleet-maintained`,
+  SOFTWARE_ADD_PACKAGE: `${URL_PREFIX}/software/add/package`,
+  SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
