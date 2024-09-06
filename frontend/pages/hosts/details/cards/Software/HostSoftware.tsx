@@ -175,7 +175,7 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const userHasSWInstallPermission = Boolean(
+  const userHasSWInstallUninstallPermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
@@ -219,7 +219,7 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           installingSoftwareId,
-          userHasSWInstallPermission,
+          userHasSWInstallPermission: userHasSWInstallUninstallPermission,
           onSelectAction,
           teamId: hostTeamId,
           hostCanInstallSoftware,
@@ -228,7 +228,7 @@ const HostSoftware = ({
     isMyDevicePage,
     router,
     installingSoftwareId,
-    userHasSWInstallPermission,
+    userHasSWInstallUninstallPermission,
     onSelectAction,
     hostTeamId,
     hostCanInstallSoftware,
