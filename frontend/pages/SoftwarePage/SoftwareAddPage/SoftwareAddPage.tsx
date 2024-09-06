@@ -44,7 +44,7 @@ const getTabIndex = (path: string): number => {
   });
 };
 
-interface IQueryParams {
+export interface ISoftwareAddPageQueryParams {
   team_id?: string;
   query?: string;
   page?: string;
@@ -53,8 +53,8 @@ interface IQueryParams {
 }
 
 interface ISoftwareAddPageProps {
-  children: React.ReactNode;
-  location: Location<IQueryParams>;
+  children: JSX.Element;
+  location: Location<ISoftwareAddPageQueryParams>;
   router: InjectedRouter;
 }
 
@@ -63,8 +63,6 @@ const SoftwareAddPage = ({
   location,
   router,
 }: ISoftwareAddPageProps) => {
-  console.log(location);
-
   const navigateToNav = useCallback(
     (i: number): void => {
       // Only query param to persist between tabs is team id
@@ -103,7 +101,10 @@ const SoftwareAddPage = ({
             </TabList>
           </Tabs>
         </TabsWrapper>
-        <>{children}</>
+        {React.cloneElement(children, {
+          router,
+          teamId: location.query.team_id,
+        })}
       </>
     </MainContent>
   );
