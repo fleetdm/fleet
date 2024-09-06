@@ -371,6 +371,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
 	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create three hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)

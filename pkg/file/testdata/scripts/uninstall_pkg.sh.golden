@@ -10,7 +10,6 @@ do
 done
 
 # Loop through each pkg_id and remove receipts
-
 for pkg_id in "${pkg_ids[@]}"
 do
     pkgutil --forget $pkg_id

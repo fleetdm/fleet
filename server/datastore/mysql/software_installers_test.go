@@ -582,6 +582,8 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	const platform = "linux"
 	// No installers
 	hasSelfService, err := ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)

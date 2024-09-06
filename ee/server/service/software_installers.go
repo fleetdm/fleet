@@ -419,7 +419,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Could not install software. Host has a pending install/uninstall request.",
+					Message: "Couldn't install software. Host has a pending install/uninstall request.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -645,7 +645,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{
-				Message: "Could not uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall.",
+				Message: "Couldn't uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall.",
 				InternalErr: ctxerr.WrapWithData(
 					ctx, err, "couldn't find an installer for software title",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
@@ -662,7 +662,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 		(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 		return &fleet.BadRequestError{
-			Message: "Could not uninstall software. Host has a pending install/uninstall request.",
+			Message: "Couldn't uninstall software. Host has a pending install/uninstall request.",
 			InternalErr: ctxerr.WrapWithData(
 				ctx, err, "host already has a pending install/uninstall for this installer",
 				map[string]any{
@@ -723,12 +723,11 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return ctxerr.Wrap(ctx, err, "create script execution request")
 	}
 
-	// Update the host software installs table with the uninstall request
+	// Update the host software installs table with the uninstall request.
+	// Pending uninstalls will automatically show up in the UI Host Details -> Activity -> Upcoming tab.
 	if err = svc.insertSoftwareUninstallRequest(ctx, scriptResult.ExecutionID, host, installer); err != nil {
 		return err
 	}
-
-	// TODO: Add host activity -- pending uninstall request (upcoming)
 
 	return nil
 }

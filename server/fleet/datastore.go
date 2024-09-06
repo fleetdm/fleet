@@ -535,6 +535,8 @@ type Datastore interface {
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
+	// GetSoftwareTitleNameFromExecutionID returns the software title name associated with the provided software install execution ID.
+	GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -1361,6 +1363,9 @@ type Datastore interface {
 	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
+	// UpdateVPPTokenTeams sets the teams associated with this token.
+	// Note that updating the token's associations removes all
+	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error

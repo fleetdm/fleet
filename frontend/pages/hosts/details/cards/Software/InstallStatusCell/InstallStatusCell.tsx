@@ -78,6 +78,28 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
+  failed_install: {
+    iconName: "error",
+    displayText: "Failed",
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
+      <>
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
+      </>
+    ),
+  },
+  failed_uninstall: {
+    iconName: "error",
+    displayText: "Failed",
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
+      <>
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
+      </>
+    ),
+  },
   avaiableForInstall: {
     iconName: "install",
     displayText: "Available for install",

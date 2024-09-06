@@ -709,7 +709,28 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 		switch action {
 		case "uninstall":
-			// TODO: Add host activity, and global activity on success.
+			// Get software title from execution ID
+			softwareTitleName, err := svc.ds.GetSoftwareTitleNameFromExecutionID(ctx, hsr.ExecutionID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get software title from execution ID")
+			}
+			activityStatus := "failed"
+			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
+				activityStatus = "uninstalled"
+			}
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeUninstalledSoftware{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+					SoftwareTitle:   softwareTitleName,
+					ExecutionID:     hsr.ExecutionID,
+					Status:          activityStatus,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
 			if err := svc.NewActivity(

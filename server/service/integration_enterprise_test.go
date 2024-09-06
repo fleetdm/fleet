@@ -1120,6 +1120,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
+	// create a team with reserved team names; should be case-insensitive
+	teamReserved := &fleet.Team{
+		Name:        "no TeAm",
+		Description: "description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "foobar"}},
+	}
+
+	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+
+	teamReserved.Name = "AlL TeaMS"
+	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+
 	// create a team with too many secrets
 	team3 := &fleet.Team{
 		Name:        name + "lots_of_secrets",
@@ -1218,6 +1232,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// invalid team host expiry (<= 0)
 	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to rename to reserved names
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("no TEAM")}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
 
 	// Modify team's calendar config
 	modifyCalendar := fleet.TeamPayload{
@@ -10719,6 +10740,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 			}
 			scriptContentID, _ := res.LastInsertId()
 
+			uninstallScript := fmt.Sprintf(`echo uninstall '%s'`, kind)
+			resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+				uninstallScript, uninstallScript)
+			if err != nil {
+				return err
+			}
+			uninstallScriptContentID, _ := resUninstall.LastInsertId()
+
 			res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', ?)`, kind)
 			if err != nil {
 				return err
@@ -10728,10 +10757,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 
 			_, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, version, install_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
+				(title_id, filename, version, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
 			VALUES
-				(?, ?, ?, ?, unhex(?), ?, ?, ?)`,
-				titleID, fmt.Sprintf("installer.%s", kind), "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
+				(?, ?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+				titleID, fmt.Sprintf("installer.%s", kind), "v1.0.0", scriptContentID, uninstallScriptContentID,
+				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
 			return err
 		})
 	}
@@ -10974,7 +11004,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_linux": json.RawMessage(fmt.Sprintf(
 				`[{"name": "%s", "version": "1.0", "type": "Package (deb)",
-					"source": "deb_packages", "last_opened_at": "", 
+					"source": "deb_packages", "last_opened_at": "",
 					"installed_path": "/bin/ruby"}]`, payload.Title)),
 		},
 		Statuses: map[string]interface{}{
@@ -13303,8 +13333,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"software_package": "%s",
 		"self_service": false,
 		"install_uuid": "%s",
-		"status": "failed"
-	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID), 0)
+		"status": "%s"
+	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed), 0)
 
 	// Check that the activity item generated for ruby.deb installation has a null user,
 	// but has name and email set.
@@ -13340,8 +13370,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"software_package": "%s",
 		"self_service": false,
 		"install_uuid": "%s",
-		"status": "failed"
-	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID), 0)
+		"status": "%s"
+	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID,
+		fleet.SoftwareInstallFailed), 0)
 
 	// Check that the activity item generated for fleet-osquery.msi installation has the admin user set as author.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
