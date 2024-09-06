@@ -2665,10 +2665,7 @@ SELECT
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = ? AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0 AND 
-	-- :software_status_installed
-	((hsi.post_install_script_exit_code IS NOT NULL AND hsi.post_install_script_exit_code = 0) OR
-	(hsi.install_script_exit_code IS NOT NULL AND hsi.install_script_exit_code = 0))
+WHERE hsi.removed = 0 AND hsi.status = ?
 
 UNION
 
@@ -2686,7 +2683,8 @@ INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 WHERE hvsi.removed = 0 AND ncr.status = ?
 `
 	var titles []fleet.SoftwareTitle
-	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID, fleet.MDMAppleStatusAcknowledged); err != nil {
+	if err := sqlx.SelectContext(ctx, qc, &titles, stmt, hostID, hostID, fleet.SoftwareInstalled,
+		fleet.MDMAppleStatusAcknowledged); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get installed software titles")
 	}
 	return titles, nil

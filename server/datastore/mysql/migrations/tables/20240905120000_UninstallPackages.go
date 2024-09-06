@@ -30,7 +30,7 @@ MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 		return fmt.Errorf("failed to check software installers for linux or darwin: %w", err)
 	}
 	if len(result) > 0 {
-		linuxScriptID, err := getOrInsertScript(txx, "exit 1")
+		linuxScriptID, err := getOrInsertScript(txx, "# This script will be automatically updated within the next hour\nexit 1")
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 		return fmt.Errorf("failed to check software installers for windows: %w", err)
 	}
 	if len(result) > 0 {
-		windowsScriptID, err := getOrInsertScript(txx, "Exit 1")
+		windowsScriptID, err := getOrInsertScript(txx, "# This script will be automatically updated within the next hour\nExit 1")
 		if err != nil {
 			return err
 		}
@@ -115,7 +115,7 @@ MODIFY COLUMN host_deleted_at TIMESTAMP(6) NULL DEFAULT NULL
 
 func getOrInsertScript(txx sqlx.Tx, script string) (int64, error) {
 	var ids []int64
-	// check is such script already exists
+	// check is script already exists
 	csum := md5ChecksumScriptContent(script)
 	if err := txx.Select(&ids, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)`, csum); err != nil {
 		return 0, fmt.Errorf("failed to find script contents: %w", err)

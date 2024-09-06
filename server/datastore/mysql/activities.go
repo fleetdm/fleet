@@ -242,15 +242,22 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`SELECT
 			COUNT(*) c
 			FROM host_script_results hsr
+			LEFT OUTER JOIN
+		    	host_software_installs hsi ON hsi.execution_id = hsr.execution_id
 			WHERE hsr.host_id = :host_id AND
 						exit_code IS NULL AND
-						(sync_request = 0 OR created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
+						hsi.execution_id IS NULL AND
+						(sync_request = 0 OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
 			WHERE hsi.host_id = :host_id AND
-						pre_install_query_output IS NULL AND
-						install_script_exit_code IS NULL`,
+				hsi.status = :software_status_install_pending`,
+		`SELECT
+			COUNT(*) c
+			FROM host_software_installs hsi
+			WHERE hsi.host_id = :host_id AND
+				hsi.status = :software_status_uninstall_pending`,
 		`
 		SELECT
 			COUNT(*) c
@@ -265,8 +272,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 
 	seconds := int(scripts.MaxServerWaitTime.Seconds())
 	countStmt, args, err := sqlx.Named(countStmt, map[string]any{
-		"host_id":       hostID,
-		"max_wait_time": seconds,
+		"host_id":                           hostID,
+		"max_wait_time":                     seconds,
+		"software_status_install_pending":   fleet.SoftwareInstallPending,
+		"software_status_uninstall_pending": fleet.SoftwareUninstallPending,
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build count query from named args")
@@ -305,13 +314,16 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_display_names hdn ON hdn.host_id = hsr.host_id
 		LEFT OUTER JOIN
 			scripts scr ON scr.id = hsr.script_id
+		LEFT OUTER JOIN
+		    host_software_installs hsi ON hsi.execution_id = hsr.execution_id
 		WHERE
 			hsr.host_id = :host_id AND
 			hsr.exit_code IS NULL AND
 			(
 				hsr.sync_request = 0 OR
 				hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND)
-			)
+			) AND
+			hsi.execution_id IS NULL
 `,
 		// list pending software installs
 		fmt.Sprintf(`SELECT
@@ -347,8 +359,41 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE
 			hsi.host_id = :host_id AND
-			hsi.pre_install_query_output IS NULL AND
-			hsi.install_script_exit_code IS NULL
+			hsi.status = :software_status_install_pending
+		`),
+		// list pending software uninstalls
+		fmt.Sprintf(`SELECT
+			hsi.execution_id as uuid,
+			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
+			-- thus the user_id for the upcoming activity needs to be the user that uploaded the software installer.
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.name, u.name) AS name,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.id, u.id) as user_id,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.gravatar_url, u.gravatar_url) as gravatar_url,
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.email, u.email) AS user_email,
+			:uninstalled_software_type as activity_type,
+			hsi.created_at as created_at,
+			JSON_OBJECT(
+				'host_id', hsi.host_id,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
+				'script_execution_id', hsi.execution_id,
+				'status', CAST(hsi.status AS CHAR)
+			) as details
+		FROM
+			host_software_installs hsi
+		INNER JOIN
+			software_installers si ON si.id = hsi.software_installer_id
+		LEFT OUTER JOIN
+			software_titles st ON st.id = si.title_id
+		LEFT OUTER JOIN
+			users u ON u.id = hsi.user_id
+		LEFT OUTER JOIN
+			users u2 ON u2.id = si.user_id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = hsi.host_id
+		WHERE
+			hsi.host_id = :host_id AND
+			hsi.status = :software_status_uninstall_pending
 		`),
 		`
 SELECT
@@ -367,7 +412,7 @@ SELECT
 		'command_uuid', hvsi.command_uuid,
 		'self_service', hvsi.self_service IS TRUE,
 		-- status is always pending because only pending MDM commands are upcoming.
-		'status', :software_status_pending
+		'status', :software_status_install_pending
 	) AS details
 FROM
 	host_vpp_software_installs hvsi
@@ -399,14 +444,14 @@ WHERE
 			details
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming `
 	listStmt, args, err = sqlx.Named(listStmt, map[string]any{
-		"host_id":                      hostID,
-		"ran_script_type":              fleet.ActivityTypeRanScript{}.ActivityName(),
-		"installed_software_type":      fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
-		"installed_app_store_app_type": fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		"max_wait_time":                seconds,
-		"software_status_failed":       string(fleet.SoftwareInstallFailed),
-		"software_status_installed":    string(fleet.SoftwareInstalled),
-		"software_status_pending":      string(fleet.SoftwareInstallPending),
+		"host_id":                           hostID,
+		"ran_script_type":                   fleet.ActivityTypeRanScript{}.ActivityName(),
+		"installed_software_type":           fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
+		"uninstalled_software_type":         fleet.ActivityTypeUninstalledSoftware{}.ActivityName(),
+		"installed_app_store_app_type":      fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		"max_wait_time":                     seconds,
+		"software_status_install_pending":   fleet.SoftwareInstallPending,
+		"software_status_uninstall_pending": fleet.SoftwareUninstallPending,
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")

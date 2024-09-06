@@ -24,16 +24,12 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
   WHERE
     host_id = ?
   AND
-    install_script_exit_code IS NULL
-  AND
-    pre_install_query_output IS NULL
-  AND
-    uninstall = 0
+	status = ?
   ORDER BY
     created_at ASC
 `
 	var results []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID, fleet.SoftwareInstallPending); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
 	}
 	return results, nil
@@ -448,8 +444,8 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 
 	stmt := fmt.Sprintf(`
 SELECT
-	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
-	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :software_status_pending_install OR status = :software_status_pending_uninstall, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed_install OR status = :software_status_failed_uninstall, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 SELECT
@@ -471,10 +467,12 @@ WHERE
 			host_id)) s`)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"installer_id":              installerID,
-		"software_status_pending":   fleet.SoftwareInstallPending,
-		"software_status_failed":    fleet.SoftwareInstallFailed,
-		"software_status_installed": fleet.SoftwareInstalled,
+		"installer_id":                      installerID,
+		"software_status_pending_install":   fleet.SoftwareInstallPending,
+		"software_status_failed_install":    fleet.SoftwareInstallFailed,
+		"software_status_pending_uninstall": fleet.SoftwareUninstallPending,
+		"software_status_failed_uninstall":  fleet.SoftwareUninstallFailed,
+		"software_status_installed":         fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -489,6 +487,15 @@ WHERE
 }
 
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	// Since VPP does not have uninstaller yet, we map the generic pending/failed statuses to the install statuses
+	switch status {
+	case fleet.SoftwarePending:
+		status = fleet.SoftwareInstallPending
+	case fleet.SoftwareFailed:
+		status = fleet.SoftwareInstallFailed
+	default:
+		// no change
+	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -523,6 +530,21 @@ WHERE
 }
 
 func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	statusFilter := "hsi.status = :status"
+	var status2 fleet.SoftwareInstallerStatus
+	switch status {
+	case fleet.SoftwarePending:
+		status = fleet.SoftwareInstallPending
+		status2 = fleet.SoftwareUninstallPending
+	case fleet.SoftwareFailed:
+		status = fleet.SoftwareInstallFailed
+		status2 = fleet.SoftwareUninstallFailed
+	default:
+		// no change
+	}
+	if status2 != "" {
+		statusFilter = fmt.Sprintf("(%s OR hsi.status = :status2)", statusFilter)
+	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -539,11 +561,12 @@ WHERE
 			AND removed = 0
 		GROUP BY
 			host_id, software_installer_id)
-	AND hsi.status = :status) hss ON hss.host_id = h.id
-`)
+	AND %s) hss ON hss.host_id = h.id
+`, statusFilter)
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":       status,
+		"status2":      status2,
 		"installer_id": installerID,
 	})
 }
@@ -774,4 +797,20 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 		return false, ctxerr.Wrap(ctx, err, "check for self-service software installers")
 	}
 	return hasInstallers, nil
+}
+
+func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+	stmt := `
+	SELECT name
+	FROM software_titles st
+	INNER JOIN software_installers si ON si.title_id = st.id
+	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
+	WHERE hsi.execution_id = ?
+	`
+	var name string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get software title name from execution ID")
+	}
+	return name, nil
 }

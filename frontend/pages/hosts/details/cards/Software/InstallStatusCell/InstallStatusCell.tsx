@@ -71,8 +71,9 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     displayText: "Failed",
     tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
-        Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
-        Select <b>Actions &gt; Software details</b> to see more.
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
       </>
     ),
   },
@@ -81,8 +82,9 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     displayText: "Failed",
     tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
-        Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
-        Select <b>Actions &gt; Software details</b> to see more.
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
       </>
     ),
   },

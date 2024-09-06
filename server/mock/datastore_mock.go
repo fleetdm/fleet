@@ -400,6 +400,8 @@ type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, sof
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
 
+type GetSoftwareTitleNameFromExecutionIDFunc func(ctx context.Context, executionID string) (string, error)
+
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
@@ -1642,6 +1644,9 @@ type DataStore struct {
 
 	InsertSoftwareUninstallRequestFunc        InsertSoftwareUninstallRequestFunc
 	InsertSoftwareUninstallRequestFuncInvoked bool
+
+	GetSoftwareTitleNameFromExecutionIDFunc        GetSoftwareTitleNameFromExecutionIDFunc
+	GetSoftwareTitleNameFromExecutionIDFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -3982,6 +3987,13 @@ func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executio
 	s.InsertSoftwareUninstallRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertSoftwareUninstallRequestFunc(ctx, executionID, hostID, softwareInstallerID)
+}
+
+func (s *DataStore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+	s.mu.Lock()
+	s.GetSoftwareTitleNameFromExecutionIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareTitleNameFromExecutionIDFunc(ctx, executionID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {

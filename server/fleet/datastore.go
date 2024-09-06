@@ -535,6 +535,8 @@ type Datastore interface {
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
+	// GetSoftwareTitleNameFromExecutionID returns the software title name associated with the provided software install execution ID.
+	GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore

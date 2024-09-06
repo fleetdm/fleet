@@ -132,6 +132,9 @@ const (
 	SoftwareInstalled        SoftwareInstallerStatus = "installed"
 	SoftwareUninstallPending SoftwareInstallerStatus = "pending_uninstall"
 	SoftwareUninstallFailed  SoftwareInstallerStatus = "failed_uninstall"
+	// SoftwarePending and SoftwareFailed statuses are only used as filters in the API and are not stored in the database.
+	SoftwarePending SoftwareInstallerStatus = "pending" // either pending_install or pending_uninstall
+	SoftwareFailed  SoftwareInstallerStatus = "failed"  // either failed_install or failed_uninstall
 )
 
 func (s SoftwareInstallerStatus) IsValid() bool {
