@@ -66,6 +66,7 @@ func TestPolicies(t *testing.T) {
 		{"GetTeamHostsPolicyMemberships", testGetTeamHostsPolicyMemberships},
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
+		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4003,4 +4004,213 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithInstallers)
+}
+
+func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1;",
+		PostInstallScript: "world1",
+		InstallerFile:     bytes.NewReader([]byte("hello1")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+	})
+	require.NoError(t, err)
+	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer1ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer1.TitleID)
+	installer2ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello2",
+		PreInstallQuery:   "SELECT 2;",
+		PostInstallScript: "world2",
+		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		StorageID:         "storage2",
+		Filename:          "file2",
+		Title:             "file2",
+		Version:           "1.0",
+		Source:            "deb_packages",
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+	})
+	require.NoError(t, err)
+	installer2, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer2ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer2.TitleID)
+
+	// Installers cannot be assigned to global policies.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Global policy",
+			Query:           "SELECT 1;",
+			Description:     "Description",
+			Resolution:      "Resolution",
+			Team:            "",
+			Platform:        "darwin",
+			SoftwareTitleID: installer1.TitleID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errSoftwareTitleIDOnGlobalPolicy)
+
+	// Apply two team policies associated to two installers.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer1.TitleID,
+		},
+		{
+			Name:            "Team policy 2",
+			Query:           "SELECT 2;",
+			Description:     "Description 2",
+			Resolution:      "Resolution 2",
+			Team:            "team2",
+			Platform:        "linux",
+			SoftwareTitleID: installer2.TitleID,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
+	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
+	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team2Policies, 1)
+	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, installer2.InstallerID, *team2Policies[0].SoftwareInstallerID)
+
+	// Unset software installer from "Team policy 1".
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: nil,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.Nil(t, team1Policies[0].SoftwareInstallerID)
+
+	// Set software installer "Team policy 1" to a software installer on team2.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer2.TitleID,
+		},
+	})
+	require.Error(t, err)
+	var notFoundErr *notFoundError
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Set software installer "Team policy 1" to a software title that doesn't exist.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: ptr.Uint(999_999),
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Unset software installer from "Team policy 2" using 0.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 2",
+			Query:           "SELECT 2;",
+			Description:     "Description 2",
+			Resolution:      "Resolution 2",
+			Team:            "team2",
+			Platform:        "linux",
+			SoftwareTitleID: ptr.Uint(0),
+		},
+	})
+	require.NoError(t, err)
+	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team2Policies, 1)
+	require.Nil(t, team2Policies[0].SoftwareInstallerID)
+
+	// Apply team policies associated to two installers (again, with two installers with the same title).
+	installer3ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello3",
+		PreInstallQuery:   "SELECT 3;",
+		PostInstallScript: "world3",
+		InstallerFile:     bytes.NewReader([]byte("hello3")),
+		StorageID:         "storage3",
+		Filename:          "file1",
+		Title:             "file1", // same title as installer1.
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+	})
+	require.NoError(t, err)
+	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer2.TitleID)
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer1.TitleID,
+		},
+		{
+			Name:            "Team policy 2",
+			Query:           "SELECT 2;",
+			Description:     "Description 2",
+			Resolution:      "Resolution 2",
+			Team:            "team2",
+			Platform:        "linux",
+			SoftwareTitleID: installer3.TitleID,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
+	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
+	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team2Policies, 1)
+	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, installer3.InstallerID, *team2Policies[0].SoftwareInstallerID)
 }

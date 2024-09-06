@@ -293,6 +293,9 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
+	// SoftwareTitleID is the title ID of the installer associated with this policy.
+	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
+	SoftwareTitleID *uint `json:"software_title_id"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
