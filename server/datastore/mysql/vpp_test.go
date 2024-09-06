@@ -740,7 +740,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, tok.Token)
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
-	assert.NotNil(t, tok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.NotNil(t, tok.Teams) // "All Teams" teams array is non-nil but empty
 	assert.Len(t, tok.Teams, 0)
 
 	toks, err = ds.ListVPPTokens(ctx)
@@ -775,7 +775,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	// Assign to team "No Team"
 	upTok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{0})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, upTok.Teams, 1)
 	assert.Equal(t, tokID, upTok.ID)
 	assert.Equal(t, uint(0), upTok.Teams[0].ID)
@@ -921,12 +921,32 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, toks, 2)
 
+	// Remove tokAll from All teams
+	tokAll, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
+	assert.NoError(t, err)
+
 	tokTeam, err := ds.InsertVPPToken(ctx, dataToken3)
 	assert.NoError(t, err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
 	assert.Error(t, err)
+
+	// Cannot move tokAll to all teams now
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	assert.Error(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{0})
+	assert.NoError(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	assert.Error(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
+	assert.NoError(t, err)
+
+	///
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -968,7 +988,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, toks, 5)
 
-	// Test fallback to all teams
+	///
 	tokNil, err := ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, tokTeams.ID, tokNil.ID)
@@ -993,8 +1013,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, tokTeams.ID, tokNil.ID)
 
 	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, tokAll.ID, tokTeam1.ID)
+	assert.Error(t, err)
 
 	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
 	assert.NoError(t, err)
@@ -1002,6 +1021,22 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	////
 	err = ds.DeleteVPPToken(ctx, tokTeams.ID)
+	assert.NoError(t, err)
+
+	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	assert.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	////
+	tokAll, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
 	assert.NoError(t, err)
 
 	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
@@ -1016,21 +1051,8 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Equal(t, tokAll.ID, tokTeam2.ID)
 
-	////
 	err = ds.DeleteVPPToken(ctx, tokAll.ID)
 	assert.NoError(t, err)
-
-	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
-
-	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
-
-	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
 
 	////
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
@@ -1051,6 +1073,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	////
 	err = ds.DeleteVPPToken(ctx, tokNone.ID)
 	assert.NoError(t, err)
+
 }
 
 func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
@@ -1060,10 +1083,6 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Zingers"})
-	assert.NoError(t, err)
-
-	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "Kremling"})
-	_ = team3
 	assert.NoError(t, err)
 
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
@@ -1078,10 +1097,10 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	tok2, err := ds.InsertVPPToken(ctx, dataToken2)
 	assert.NoError(t, err)
 
-	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
 	assert.NoError(t, err)
 
-	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team2.ID})
 	assert.NoError(t, err)
 
 	app1 := &fleet.VPPApp{
@@ -1094,12 +1113,9 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "app1",
 	}
-	vppApp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	assert.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
-	assert.NoError(t, err)
-	_ = vppApp1
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team3.ID)
 	assert.NoError(t, err)
 
 	app2 := &fleet.VPPApp{
@@ -1116,9 +1132,8 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	_ = vppApp2
 	assert.NoError(t, err)
 
-	// team1: token, app1, app2
-	// team2: global token, app 1
-	// team3: global token, app 1
+	// team1: token 1, app1, app2
+	// team2: token 2, app 1
 
 	apps, err := ds.GetAssignedVPPApps(ctx, &team1.ID)
 	assert.NoError(t, err)
@@ -1131,19 +1146,28 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
-	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
+	/// Try to move team 1 token to team 2
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team2.ID})
+	assert.Error(t, err)
+
+	// team1: token 1, app1, app2
+	// team2: token 2, app 1
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	assert.NoError(t, err)
+	assert.Len(t, apps, 2)
+
+	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
 	assert.NoError(t, err)
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
-	/// Move team 1 token to team 3
-
-	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team3.ID})
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, nil)
 	assert.NoError(t, err)
 
-	// team1: global token, no apps
-	// team2: global token, app 1
-	// team3: token, no apps
+	// team1: no token, no apps
+	// team2: token 2, app 1
 
 	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
 	assert.NoError(t, err)
@@ -1154,45 +1178,13 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
-	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
-	assert.NoError(t, err)
-	assert.Len(t, apps, 0)
+	// Move team 2 token to team 1
 
-	/// Add apps with new token assignments
-
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team3.ID)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
 	assert.NoError(t, err)
 
-	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
-	assert.NoError(t, err)
-
-	// team1: global token, app 2
-	// team2: global token, app 1
-	// team3: token, app 1
-
-	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
-	assert.NoError(t, err)
-	assert.Len(t, apps, 1)
-	assert.Contains(t, apps, app2.VPPAppID)
-
-	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
-	assert.NoError(t, err)
-	assert.Len(t, apps, 1)
-	assert.Contains(t, apps, app1.VPPAppID)
-
-	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
-	assert.NoError(t, err)
-	assert.Len(t, apps, 1)
-	assert.Contains(t, apps, app1.VPPAppID)
-
-	/// Move global token to team 1, no global token now
-
-	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
-	assert.NoError(t, err)
-
-	// team1: token, no apps
+	// team1: token 2, app 1
 	// team2: no token, no apps
-	// team3: token, app 1
 
 	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
 	assert.NoError(t, err)
@@ -1201,11 +1193,6 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
 	assert.NoError(t, err)
 	assert.Len(t, apps, 0)
-
-	apps, err = ds.GetAssignedVPPApps(ctx, &team3.ID)
-	assert.NoError(t, err)
-	assert.Len(t, apps, 1)
-	assert.Contains(t, apps, app1.VPPAppID)
 
 	/// Can't assaign apps with no token
 
