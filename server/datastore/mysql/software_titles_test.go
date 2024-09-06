@@ -599,7 +599,6 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -861,8 +860,6 @@ func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 	// create a couple software installers not installed on any host
