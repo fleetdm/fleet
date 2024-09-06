@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"slices"
 	"strings"
@@ -331,12 +330,10 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
 	}
-	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "ValidateSetupAssistant").Info("JVE_LOG: org names for team ", "team", team.Name, "orgNames", orgNames)
 
 	if len(orgNames) == 0 {
 		// Then check to see if there are any tokens at all. If there is only 1, we assume we can
 		// use it (the vast majority of deployments will only have a single token).
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", "ValidateSetupAssistant").Info("JVE_LOG: couldn't find org names, should error", "team", team.Name, "orgNames", orgNames)
 		toks, err := d.ds.ListABMTokens(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "listing ABM tokens")

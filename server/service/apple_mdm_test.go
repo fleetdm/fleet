@@ -2746,6 +2746,15 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id}, nil
 	}
+	ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+		return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+	}
+	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return []string{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
 
 	testCases := []struct {
 		name            string

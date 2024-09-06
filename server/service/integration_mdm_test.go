@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -4197,11 +4196,6 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 }
 `
 
-	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
-	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(ctx))
-	mysql.CreateABMKeyCertIfNotExists(t, s.ds)
-	mysql.CreateAndSetABMToken(t, s.ds, "fleet")
-
 	// start a server that will mock the Apple DEP API
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
@@ -4247,17 +4241,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		}
 	}))
 	t.Cleanup(srv.Close)
-
-	toks, err := s.ds.ListABMTokens(ctx)
-	require.NoError(t, err)
-
-	slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestMacosSetupAssistant").Info("JVE_LOG: toks", "toks", toks)
-	for _, t := range toks {
-		slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestMacosSetupAssistant").Info("JVE_LOG: existing abm token ", "orgname", t.OrganizationName, "id", t.ID)
-	}
-
-	err = s.depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
-	require.NoError(t, err)
+	s.depSetup(ctx, srv.URL)
 
 	// get for no team returns 404
 	var getResp getMDMAppleSetupAssistantResponse
@@ -4351,7 +4335,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Description: "desc",
 	})
 	require.NoError(t, err)
-	tmProf := `{"y": 1}`
+	tmProf := fmt.Sprintf(defaultProf, "team1")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team1",
@@ -4377,7 +4361,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
 
 	// update team
-	tmProf = `{"y": 2}`
+	tmProf = fmt.Sprintf(defaultProf, "team2")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team2",
@@ -4412,7 +4396,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	// update team with only a setup assistant JSON change, should detect it
 	// and create a new activity (name is the same)
-	tmProf = `{"y": 3}`
+	tmProf = fmt.Sprintf(defaultProf, "update")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team2",
@@ -4488,7 +4472,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Description: "desc2",
 	})
 	require.NoError(t, err)
-	tm2Prof := `{"z": 1}`
+	tm2Prof := fmt.Sprintf(defaultProf, "teamB")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm2.ID,
 		Name:              "teamB",

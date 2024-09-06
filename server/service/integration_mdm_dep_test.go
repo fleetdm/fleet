@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -17,7 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -36,9 +39,35 @@ type profileAssignmentReq struct {
 	Devices     []string `json:"devices"`
 }
 
+func (s *integrationMDMTestSuite) depSetup(ctx context.Context, serverURL string) {
+	t := s.T()
+
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(ctx))
+	mysql.CreateABMKeyCertIfNotExists(t, s.ds)
+	mysql.CreateAndSetABMToken(t, s.ds, "fleet")
+	err := s.depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: serverURL})
+	require.NoError(t, err)
+}
+
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	t := s.T()
 	ctx := context.Background()
+	// Set up a mock Apple DEP API
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	s.depSetup(ctx, srv.URL)
 
 	globalDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 
@@ -105,6 +134,22 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	t := s.T()
 	ctx := context.Background()
+
+	// Set up a mock DEP Apple API
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	s.depSetup(ctx, srv.URL)
 
 	teamDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 

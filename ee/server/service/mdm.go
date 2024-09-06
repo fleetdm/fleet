@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/url"
 	"sort"
 	"strings"
@@ -545,7 +544,6 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
 	err := svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
-	slog.With("filename", "ee/server/service/mdm.go", "func", "SetOrUpdateMDMAppleSetupAssistant").Info("JVE_LOG: checking error ", "err", err)
 	if err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}

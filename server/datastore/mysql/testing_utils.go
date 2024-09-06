@@ -721,7 +721,6 @@ func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
 		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: certPEM})
 	}
 
-	require.NoError(t, err)
 	if len(assets) != 0 {
 		err = ds.InsertMDMConfigAssets(context.Background(), assets)
 		require.NoError(t, err)
