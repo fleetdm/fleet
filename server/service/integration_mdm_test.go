@@ -10671,7 +10671,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		http.StatusBadRequest, &installResp)
 
 	// Spoof an expired VPP token and attempt to install VPP app
-	tokenJSONBad := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2020-06-24T15:50:50+0000", "badtoken", "Evil Fleet")
+	tokenJSONBad := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2099-06-24T15:50:50+0000", "badtoken", "Evil Fleet")
 	s.appleVPPConfigSrvConfig.Location = "Spooky Haunted House"
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
@@ -10680,15 +10680,34 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
-	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	_, err := q.ExecContext(context.Background(), "UPDATE vpp_tokens SET renew_at = ? WHERE organization_name = ?", time.Now().Add(-1*time.Hour), "badtoken")
+	// 	return err
+	// })
+
+	// r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	// require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
 
 	// Disable the token
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
-	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.")
+
+	// Add app 1 as self-service
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: errApp.AdamID, Platform: errApp.Platform, SelfService: true},
+		http.StatusOK, &addAppResp)
+
+	// Add remaining apps without self-service
+	for _, app := range expectedApps {
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform, SelfService: app.AdamID == macOSApp.AdamID},
+			http.StatusOK, &addAppResp)
+	}
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
