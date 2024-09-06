@@ -48,6 +48,7 @@ module.exports = {
           return page;
         }
       });
+      articles = _.sortBy(articles, 'meta.publishedOn');
     }
 
     let pageTitleForMeta = 'Fleet blog';
@@ -107,6 +108,7 @@ module.exports = {
       currentSection,
       pageTitleForMeta,
       pageDescriptionForMeta,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }
