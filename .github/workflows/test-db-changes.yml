@@ -10,7 +10,7 @@ on:
     paths:
       - '**.go'
       - 'server/datastore/mysql/schema.sql'
-      - '.github/workflows/test-schema-changes.yml'
+      - '.github/workflows/test-db-changes.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
