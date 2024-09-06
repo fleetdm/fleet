@@ -398,6 +398,27 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
+	// reserved team name; should error in both dry run and real
+	t.Setenv("TEST_TEAM_NAME", "no TEam")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
+
+	t.Setenv("TEST_TEAM_NAME", "no TEam")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
+
+	t.Setenv("TEST_TEAM_NAME", "All teams")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"All teams" is a reserved team name`)
+
+	t.Setenv("TEST_TEAM_NAME", "All TEAMS")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"All teams" is a reserved team name`)
+
 	// Dry run
 	t.Setenv("TEST_TEAM_NAME", teamName)
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
@@ -1855,13 +1876,13 @@ software:
 			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Equal(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam, "💻 Workstations")
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
@@ -1901,7 +1922,7 @@ software:
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -1910,7 +1931,7 @@ software:
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
-					appCfg.MDM.AppleBussinessManager.Value,
+					appCfg.MDM.AppleBusinessManager.Value,
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
@@ -1942,7 +1963,7 @@ software:
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -1951,7 +1972,7 @@ software:
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
-					appCfg.MDM.AppleBussinessManager.Value,
+					appCfg.MDM.AppleBusinessManager.Value,
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
@@ -2024,7 +2045,7 @@ software:
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -2033,7 +2054,7 @@ software:
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
-					appCfg.MDM.AppleBussinessManager.Value,
+					appCfg.MDM.AppleBusinessManager.Value,
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
@@ -2057,7 +2078,7 @@ software:
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -2066,7 +2087,7 @@ software:
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
-					appCfg.MDM.AppleBussinessManager.Value,
+					appCfg.MDM.AppleBusinessManager.Value,
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
@@ -2090,13 +2111,13 @@ software:
 			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.ErrorContains(t, err, "token with organization name Does not exist doesn't exist")
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.ErrorContains(t, err, "token with organization name Does not exist doesn't exist")
-				assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},

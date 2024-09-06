@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240902144014, Down_20240902144014)
+	MigrationClient.AddMigration(Up_20240905140514, Down_20240905140514)
 }
 
-func Up_20240902144014(tx *sql.Tx) error {
+func Up_20240905140514(tx *sql.Tx) error {
 	// The new 'url' column will only be set for software uploaded in batch via GitOps.
 	if _, err := tx.Exec(`
 		ALTER TABLE software_installers
@@ -20,6 +20,6 @@ func Up_20240902144014(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240902144014(tx *sql.Tx) error {
+func Down_20240905140514(tx *sql.Tx) error {
 	return nil
 }

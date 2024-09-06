@@ -1,0 +1,2 @@
+- Prevents teams with the name "All teams" or "No team" from being created (these are reserved team
+  names in Fleet).
