@@ -107,7 +107,10 @@
   jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Configuration]
-  usualDepartment: IT     
+  usualDepartment: IT
+  waysToUse:
+    - description: Supply-chain Levels for Software Artifacts (SLSA) attestations for the fleetd binary artifacts and server container image to enable verification that the binaries are built and uploaded using GitHub Actions from the Fleet repository at a particular commit SHA coming soon (2024-12-31).
+    - moreInfoUrl: https://github.com/fleetdm/fleet/issues/20219 #customer-figali
 #
 #  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
 #  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
