@@ -1,1 +1,0 @@
-- Fixed CVE-2024-4030 in Vulncheck feed incorrectly targeting non-Windows hosts
