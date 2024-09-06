@@ -4199,7 +4199,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(ctx))
-	mysql.CreateAndSetABMKeyCert(t, s.ds)
+	mysql.CreateABMKeyCertIfNotExists(t, s.ds)
 	mysql.CreateAndSetABMToken(t, s.ds, "fleet")
 
 	// start a server that will mock the Apple DEP API
