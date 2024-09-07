@@ -48,7 +48,7 @@ Fleet now enables administrators to add and manage multiple Apple Business Manag
 
 **NOTE:** Beginning with Fleet v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.
 
-## Fleet 4.56.0 (Sep 6, 2024)
+## Fleet 4.56.0 (Sep 7, 2024)
 
 ### Endpoint operations
 
