@@ -367,7 +367,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/software/titles", listSoftwareTitlesEndpoint, listSoftwareTitlesRequest{})
 	ue.GET("/api/_version_/fleet/software/titles/{id:[0-9]+}", getSoftwareTitleEndpoint, getSoftwareTitleRequest{})
-	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/install/{software_title_id:[0-9]+}", installSoftwareTitleEndpoint, installSoftwareRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/{software_title_id:[0-9]+}/install", installSoftwareTitleEndpoint, installSoftwareRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/{software_title_id:[0-9]+}/uninstall", uninstallSoftwareTitleEndpoint,
 		uninstallSoftwareRequest{})
 
