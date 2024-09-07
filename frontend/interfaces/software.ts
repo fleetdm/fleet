@@ -153,7 +153,6 @@ export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
-  python_packages_ubuntu: "Package (Ubuntu Python)",
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",

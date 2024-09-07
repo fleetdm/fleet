@@ -1854,38 +1854,6 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "2020-03-10T00-00-00Z",
 			},
 		},
-		{
-			name: "python package on macOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "setuptools",
-				Version: "57.5.0",
-				Source:  "python_packages",
-			},
-			sanitized: &fleet.Software{
-				Name:    "setuptools",
-				Version: "57.5.0",
-				Source:  "python_packages",
-			},
-		},
-		{
-			name: "python package on Ubuntu",
-			h: &fleet.Host{
-				Platform: "ubuntu",
-			},
-			s: &fleet.Software{
-				Name:    "setuptools",
-				Version: "57.5.0",
-				Source:  "python_packages",
-			},
-			sanitized: &fleet.Software{
-				Name:    "setuptools",
-				Version: "57.5.0",
-				Source:  "python_packages_ubuntu",
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
