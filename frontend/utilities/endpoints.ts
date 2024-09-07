@@ -52,9 +52,9 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install/`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
   HOST_SOFTWARE_PACKAGE_UNINSTALL: (hostId: number, softwareId: number) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall/`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
 
