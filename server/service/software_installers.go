@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/docker/go-units"
 	"io"
 	"mime/multipart"
 	"net"
@@ -159,12 +160,12 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	return GetSoftwareTitleResponse{SoftwareTitle: software}, nil
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) error {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareTitle, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
