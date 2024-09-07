@@ -197,6 +197,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 			return nil, ctxerr.Wrap(ctx, err, "extracting existing installer metadata")
 		}
 
+		var newInstallerFileMeta *file.InstallerMetadata = nil
 		if payload.InstallerFile != nil {
 			// TODO check if installer file is a different extension (if so, fail)
 			// TODO check if installer file is different than the one we have
@@ -237,7 +238,26 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 			}
 		}
 
-		// TODO uninstall script
+		if payload.UninstallScript != nil {
+			uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
+			if uninstallScript == "" {
+				uninstallScript = file.GetUninstallScript(existingInstallerFileMeta.Extension)
+			}
+
+			payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
+				Extension:       existingInstallerFileMeta.Extension,
+				UninstallScript: uninstallScript,
+				PackageIDs:      existingInstallerFileMeta.PackageIDs,
+			}
+			if newInstallerFileMeta != nil {
+				payloadForUninstallScript.PackageIDs = newInstallerFileMeta.PackageIDs
+			}
+
+			preProcessUninstallScript(payloadForUninstallScript)
+			uninstallScript = payloadForUninstallScript.UninstallScript
+
+			// TODO dirty check on uninstall script
+		}
 	}
 
 	if dirty == true {
