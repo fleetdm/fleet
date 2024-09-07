@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -118,7 +119,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                    host2.ID,
 		InstallUUID:               hostInstall5,
-		PreInstallConditionOutput: ptr.String("output"),
+		PreInstallConditionOutput: ptr.String(""), // pre-install query did not return results, so install failed
 	})
 	require.NoError(t, err)
 
@@ -211,23 +212,130 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			_, err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID, false)
 			require.ErrorAs(t, err, &nfe)
 
-			// successful insert
-			host, err := ds.NewHost(ctx, &fleet.Host{
-				Hostname:      "macos-test" + tc,
-				OsqueryHostID: ptr.String("osquery-macos" + tc),
-				NodeKey:       ptr.String("node-key-macos" + tc),
+			// Host with software install pending
+			tag := "-pending_install"
+			hostPendingInstall, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-macos" + tag + tc),
+				NodeKey:       ptr.String("node-key-macos" + tag + tc),
 				UUID:          uuid.NewString(),
 				Platform:      "darwin",
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.InstallerID, false)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, hostPendingInstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 
-			// list hosts with software install requests
+			// Host with software install failed
+			tag = "-failed_install"
+			hostFailedInstall, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-macos" + tag + tc),
+				NodeKey:       ptr.String("node-key-macos" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, false)
+			require.NoError(t, err)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_software_installs SET install_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
+					hostFailedInstall.ID, si.InstallerID)
+				require.NoError(t, err)
+				return nil
+			})
+
+			// Host with software install successful
+			tag = "-installed"
+			hostInstalled, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-macos" + tag + tc),
+				NodeKey:       ptr.String("node-key-macos" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, false)
+			require.NoError(t, err)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_software_installs SET install_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
+					hostInstalled.ID, si.InstallerID)
+				require.NoError(t, err)
+				return nil
+			})
+
+			// Host with pending uninstall
+			tag = "-pending_uninstall"
+			hostPendingUninstall, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-macos" + tag + tc),
+				NodeKey:       ptr.String("node-key-macos" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID)
+			require.NoError(t, err)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_software_installs SET uninstall = 1 WHERE host_id = ? AND software_installer_id = ?`,
+					hostPendingUninstall.ID, si.InstallerID)
+				require.NoError(t, err)
+				return nil
+			})
+
+			// Host with failed uninstall
+			tag = "-failed_uninstall"
+			hostFailedUninstall, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-macos" + tag + tc),
+				NodeKey:       ptr.String("node-key-macos" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostFailedUninstall.ID, si.InstallerID)
+			require.NoError(t, err)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_software_installs SET uninstall = 1, uninstall_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
+					hostFailedUninstall.ID, si.InstallerID)
+				require.NoError(t, err)
+				return nil
+			})
+
+			// Host with successful uninstall
+			tag = "-uninstalled"
+			hostUninstalled, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test" + tag + tc,
+				OsqueryHostID: ptr.String("osquery-macos" + tag + tc),
+				NodeKey:       ptr.String("node-key-macos" + tag + tc),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        teamID,
+			})
+			require.NoError(t, err)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostUninstalled.ID, si.InstallerID)
+			require.NoError(t, err)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err = q.ExecContext(ctx, `
+					UPDATE host_software_installs SET uninstall = 1, uninstall_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
+					hostUninstalled.ID, si.InstallerID)
+				require.NoError(t, err)
+				return nil
+			})
+
 			userTeamFilter := fleet.TeamFilter{
 				User: &fleet.User{GlobalRole: ptr.String("admin")},
 			}
+
+			// list hosts with software install pending requests
 			expectStatus := fleet.SoftwareInstallPending
 			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
@@ -237,15 +345,96 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			require.Len(t, hosts, 1)
-			require.Equal(t, host.ID, hosts[0].ID)
+			require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
+
+			// list hosts with all pending requests
+			expectStatus = fleet.SoftwarePending
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 2)
+			assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+
+			// list hosts with software install failed requests
+			expectStatus = fleet.SoftwareInstallFailed
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
+
+			// list hosts with all failed requests
+			expectStatus = fleet.SoftwareFailed
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 2)
+			assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+
+			// list hosts with software installed
+			expectStatus = fleet.SoftwareInstalled
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
+
+			// list hosts with pending software uninstall requests
+			expectStatus = fleet.SoftwareUninstallPending
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
+
+			// list hosts with failed software uninstall requests
+			expectStatus = fleet.SoftwareUninstallFailed
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
+
+			// list all hosts with the software title that shows up in host_software (after fleetd software query is run)
+			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			assert.Empty(t, hosts)
 
 			// get software title includes status
 			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
 			require.NoError(t, err)
 			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-				Installed: 0,
-				Pending:   1,
-				Failed:    0,
+				Installed: 1,
+				Pending:   2,
+				Failed:    2,
 			}, *summary)
 		})
 	}
