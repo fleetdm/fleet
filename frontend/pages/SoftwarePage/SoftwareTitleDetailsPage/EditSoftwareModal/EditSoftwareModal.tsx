@@ -1,6 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
+import { noop } from "lodash";
+import deepDifference from "utilities/deep_difference";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -24,6 +26,7 @@ import {
   MAX_FILE_SIZE_BYTES,
 } from "pages/SoftwarePage/components/AddPackage/AddPackage";
 import { getErrorMessage } from "./helpers";
+import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "edit-software-modal";
 
@@ -32,15 +35,9 @@ interface IEditSoftwareModalProps {
   teamId: number;
   router: InjectedRouter;
   software?: any; // TODO
-  installScript?: string;
-  preInstallQuery?: string;
-  postInstallScript?: string;
-  uninstallScript?: string;
-  selfService?: boolean;
+
   onExit: () => void;
   setAddedSoftwareToken: (token: string) => void;
-  showConfirmSaveChangesModal: boolean;
-  toggleConfirmSaveChangesModal: () => void;
 }
 
 const EditSoftwareModal = ({
@@ -48,25 +45,36 @@ const EditSoftwareModal = ({
   teamId,
   router,
   software,
-  installScript,
-  preInstallQuery,
-  postInstallScript,
-  uninstallScript,
-  selfService,
   onExit,
   setAddedSoftwareToken,
-  showConfirmSaveChangesModal,
-  toggleConfirmSaveChangesModal,
 }: IEditSoftwareModalProps) => {
-  // Add class to hide modal based on showConfirmSaveChangesModal,
-  const editSoftwareModalClasses = classnames(baseClass, {
-    [`${baseClass}--hidden`]: !!showConfirmSaveChangesModal,
-  });
-
   const { renderFlash } = useContext(NotificationContext);
-  const [isUpdatingSoftware, setIsUpdatingSoftware] = useState(false);
 
-  const onEditSoftware = async (formData: IAddPackageFormData) => {
+  const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
+    baseClass
+  );
+  const [isUpdatingSoftware, setIsUpdatingSoftware] = useState(false);
+  const [
+    showConfirmSaveChangesModal,
+    setShowConfirmSaveChangesModal,
+  ] = useState(false);
+
+  // Work around to not lose Edit Software modal data when Save changes modal opens
+  // by using CSS to hide Edit Software modal when Save changes modal is open
+  useEffect(() => {
+    setEditSoftwareModalClasses(
+      classnames(baseClass, {
+        [`${baseClass}--hidden`]: showConfirmSaveChangesModal,
+      })
+    );
+  }, [showConfirmSaveChangesModal]);
+
+  const toggleConfirmSaveChangesModal = () => {
+    // open and closes save changes modal
+    setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
+  };
+
+  const onSaveSoftwareChanges = async (formData: IAddPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -78,14 +86,15 @@ const EditSoftwareModal = ({
       return;
     }
 
+    // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.editSoftwarePackage(
         softwareId,
         formData,
-        teamId,
         UPLOAD_TIMEOUT
       );
+
       renderFlash(
         "success",
         <>
@@ -130,26 +139,56 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
+  const onEditSoftware = (formData: IAddPackageFormData) => {
+    // Check for changes to conditionally confirm save changes modal
+    const updates = deepDifference(formData, {
+      software,
+      installScript: software.install_script || "",
+      preInstallQuery: software.pre_install_query || "",
+      postInstallScript: software.post_install_script || "",
+      uninstallScript: software.uninstall_script || "",
+      selfService: software.self_service || false,
+    });
+
+    const onlySelfServiceUpdated =
+      Object.keys(updates).length === 1 && "selfService" in updates;
+    if (!onlySelfServiceUpdated) {
+      // Open the confirm save changes modal
+      setShowConfirmSaveChangesModal(true);
+    } else {
+      // Proceed with saving changes (API expects only changes)
+      onSaveSoftwareChanges(updates);
+    }
+  };
+
   return (
-    <Modal
-      className={editSoftwareModalClasses}
-      title="Edit software"
-      onExit={onExit}
-    >
-      <AddPackageForm
-        isEditingSoftware
-        isUploading={isUpdatingSoftware}
-        onCancel={onExit}
-        onSubmit={onEditSoftware}
-        defaultSoftware={software}
-        defaultInstallScript={installScript}
-        defaultPreInstallQuery={preInstallQuery}
-        defaultPostInstallScript={postInstallScript}
-        defaultUninstallScript={uninstallScript}
-        defaultSelfService={selfService}
-        toggleSaveChangesForEditModal={toggleConfirmSaveChangesModal}
-      />
-    </Modal>
+    <>
+      <Modal
+        className={editSoftwareModalClasses}
+        title="Edit software"
+        onExit={onExit}
+      >
+        <AddPackageForm
+          isEditingSoftware
+          isUploading={isUpdatingSoftware}
+          onCancel={onExit}
+          onSubmit={onEditSoftware}
+          defaultSoftware={software}
+          defaultInstallScript={software.install_script}
+          defaultPreInstallQuery={software.pre_install_query}
+          defaultPostInstallScript={software.post_install_script}
+          defaultUninstallScript={software.uninstall_script}
+          defaultSelfService={software.self_service}
+        />
+      </Modal>
+      {showConfirmSaveChangesModal && (
+        <ConfirmSaveChangesModal
+          onClose={toggleConfirmSaveChangesModal}
+          softwarePackageName={software?.name}
+          onSaveChanges={onSaveSoftwareChanges}
+        />
+      )}
+    </>
   );
 };
 

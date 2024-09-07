@@ -1,15 +1,20 @@
+// TODO: Rease onto 20320 Jacob's work that includes all correct fields, help text, default scripts, etc
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
 import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
+<<<<<<< HEAD
 import deepDifference from "utilities/deep_difference";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
+=======
+import getInstallScript from "utilities/software_install_scripts";
+>>>>>>> 75f550456f (Updates to have FileDetails separate component, move confirm save changes logic into edit software modal, reinstate CSS, update comments)
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import { FileUploader } from "components/FileUploader/FileUploader";
+import FileUploader from "components/FileUploader";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -28,6 +33,7 @@ const UploadingSoftware = () => {
   );
 };
 
+// TODO: Rename to PackageFormData since its used in both add/edit software packages
 export interface IAddPackageFormData {
   software: File | null;
   preInstallQuery?: string;
@@ -57,11 +63,11 @@ interface IAddPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
-  toggleSaveChangesForEditModal?: () => void;
 }
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
 
+// TODO: Rename to PackageForm everywhere (after Jacob's work is merged to avoid conflicts)
 const AddPackageForm = ({
   isUploading,
   onCancel,
@@ -73,16 +79,15 @@ const AddPackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
-  toggleSaveChangesForEditModal,
 }: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const initialFormData = {
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
-    preInstallQuery: defaultPreInstallQuery || undefined,
-    postInstallScript: defaultPostInstallScript || undefined,
-    uninstallScript: defaultUninstallScript || undefined,
+    preInstallQuery: defaultPreInstallQuery || "",
+    postInstallScript: defaultPostInstallScript || "",
+    uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
   };
   const [formData, setFormData] = useState<IAddPackageFormData>(
@@ -97,6 +102,8 @@ const AddPackageForm = ({
     if (files && files.length > 0) {
       const file = files[0];
 
+      // Only populate default install/uninstall scripts when adding (but not editing) software
+      if (!isEditingSoftware) {
       let newDefaultInstallScript: string;
       try {
         newDefaultInstallScript = getDefaultInstallScript(file.name);
@@ -106,12 +113,12 @@ const AddPackageForm = ({
       }
 
       let newDefaultUninstallScript: string;
-      try {
-        newDefaultUninstallScript = getDefaultUninstallScript(file.name);
-      } catch (e) {
-        renderFlash("error", `${e}`);
-        return;
-      }
+        try {
+          newDefaultUninstallScript = getDefaultUninstallScript(file.name);
+        } catch (e) {
+          renderFlash("error", `${e}`);
+          return;
+        }
 
       const newData = {
         ...formData,
@@ -125,22 +132,8 @@ const AddPackageForm = ({
   };
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
-    // When editing software, we prompt a save changes modal for all changes except to self-service
-    const updates = deepDifference(initialFormData, formData);
-    const onlySelfServiceUpdated =
-      Object.keys(updates).length === 1 && "selfService" in updates;
-
-    const promptSaveChangesForEditModal =
-      isEditingSoftware && !onlySelfServiceUpdated;
-
-    if (promptSaveChangesForEditModal && !!toggleSaveChangesForEditModal) {
-      evt.preventDefault();
-      toggleSaveChangesForEditModal();
-    } else {
-      evt.preventDefault();
-
-      onSubmit(formData);
-    }
+    evt.preventDefault();
+    onSubmit(formData);
   };
 
   const onChangeInstallScript = (value: string) => {
@@ -176,7 +169,7 @@ const AddPackageForm = ({
   return (
     <div className={baseClass}>
       {isUploading ? (
-        <UploadingSoftware />
+        <UploadingSoftware /> // Note: Sarah is replacing uploading state as subsequent 4.57 feature
       ) : (
         <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
           <FileUploader
@@ -236,5 +229,5 @@ const AddPackageForm = ({
   );
 };
 
-// Allows form not to re-render as long as it's props don't change
+// Allows form not to re-render as long as its props don't change
 export default React.memo(AddPackageForm);

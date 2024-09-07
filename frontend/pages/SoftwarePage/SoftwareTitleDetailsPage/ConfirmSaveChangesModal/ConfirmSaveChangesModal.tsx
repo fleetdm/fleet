@@ -3,10 +3,12 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
+import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
+
 const baseClass = "save-changes-modal";
 
 export interface IConfirmSaveChangesModalProps {
-  onSaveChanges: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  onSaveChanges: (formData: IAddPackageFormData) => Promise<void>;
   softwarePackageName?: string;
   onClose: () => void;
 }

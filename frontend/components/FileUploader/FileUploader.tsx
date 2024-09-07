@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -6,10 +6,11 @@ import Card from "components/Card";
 import { GraphicNames } from "components/graphics";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
+import FileDetails from "components/FileDetails";
 
 const baseClass = "file-uploader";
 
-type ISupportedGraphicNames = Extract<
+export type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
   | "file-sh"
@@ -99,41 +100,6 @@ export const FileUploader = ({
     ));
   };
 
-  const renderFileDetails = () => (
-    <div className={`${baseClass}__file`}>
-      <div className={`${baseClass}__file-info`}>
-        <Graphic
-          name={
-            typeof graphicNames === "string" ? graphicNames : graphicNames[0]
-          }
-        />
-        <div className={`${baseClass}__file-content`}>
-          <div className={`${baseClass}__file-name`}>{fileDetails?.name}</div>
-          {fileDetails?.platform && (
-            <div className={`${baseClass}__file-platform`}>
-              {fileDetails.platform}
-            </div>
-          )}
-        </div>
-      </div>
-      {canEdit && (
-        <div className={`${baseClass}__file-edit`}>
-          <Button className={`${baseClass}__edit-button`} variant="icon">
-            <label htmlFor="edit-file">
-              <Icon name="pencil" color="ui-fleet-black-75" />
-            </label>
-          </Button>
-          <input
-            accept={accept}
-            id="edit-file"
-            type="file"
-            onChange={onFileSelect}
-          />
-        </div>
-      )}
-    </div>
-  );
-
   const renderFileUploader = () => {
     return (
       <>
@@ -165,9 +131,17 @@ export const FileUploader = ({
 
   return (
     <Card color="gray" className={classes}>
-      {isFileSelected && fileDetails
-        ? renderFileDetails()
-        : renderFileUploader()}
+      {isFileSelected && fileDetails ? (
+        <FileDetails
+          graphicNames={graphicNames}
+          fileDetails={fileDetails}
+          canEdit={canEdit}
+          onFileSelect={onFileSelect}
+          accept={accept}
+        />
+      ) : (
+        renderFileUploader()
+      )}
     </Card>
   );
 };

@@ -79,6 +79,7 @@ const AddPackage = ({
       return;
     }
 
+    // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId, UPLOAD_TIMEOUT);

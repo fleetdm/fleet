@@ -36,7 +36,6 @@ import {
   SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
-import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "software-package-card";
 
@@ -266,17 +265,7 @@ const SoftwarePackageCard = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
-  const [
-    showConfirmSaveChangesModal,
-    setShowConfirmSaveChangesModal,
-  ] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const toggleConfirmSaveChangesModal = () => {
-    debugger;
-    // open and closes save changes modal
-    setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
-  };
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -397,27 +386,9 @@ const SoftwarePackageCard = ({
           softwareId={softwareId}
           teamId={teamId}
           software={softwarePackage}
-          installScript={softwarePackage?.install_script ?? ""}
-          preInstallQuery={softwarePackage?.pre_install_query}
-          postInstallScript={softwarePackage?.post_install_script}
-          selfService={isSelfService}
-<<<<<<< HEAD
-=======
-          isUpdatingSoftware={false} // TODO
-          onEditSoftware={noop} // TODO
->>>>>>> 777170f01b (Updates to FileUploader to include FileDetails if fileDetails is provided)
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
           setAddedSoftwareToken={noop}
-          showConfirmSaveChangesModal={showConfirmSaveChangesModal}
-          toggleConfirmSaveChangesModal={toggleConfirmSaveChangesModal}
-        />
-      )}
-      {showConfirmSaveChangesModal && (
-        <ConfirmSaveChangesModal
-          onClose={toggleConfirmSaveChangesModal}
-          softwarePackageName={softwarePackage?.name}
-          onSaveChanges={noop} // TODO
         />
       )}
       {showDeleteModal && (

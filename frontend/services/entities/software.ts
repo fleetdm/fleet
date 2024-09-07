@@ -236,10 +236,10 @@ export default {
       true
     );
   },
+  // TODO: Only send data that is changing and test E2E
   editSoftwarePackage: (
     softwareId: number,
-    data: IAddPackageFormData, // TODO: Update name in renaming
-    teamId?: number,
+    data: IAddPackageFormData,
     timeout?: number
   ) => {
     const { SOFTWARE_TITLE } = endpoints;
@@ -256,8 +256,9 @@ export default {
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
-    // TODO: uninstall script once uninstall is merged
-    teamId && formData.append("team_id", teamId.toString());
+    // TODO: Add uninstall script once Jacob's 20320 uninstall work is merged
+    // data.uninstallScript &&
+    //   formData.append("uninstall_script", data.uninstallScript);
 
     return sendRequest(
       "PATCH",
