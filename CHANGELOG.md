@@ -69,6 +69,13 @@
 - Fixed an issue with the scheduling of cron jobs at startup if the job has never run, which caused it to be delayed.
 - Fixed UI to display the label names in case-insensitive alphabetical order.
 
+## Fleet 4.55.2 (Sep 05, 2024)
+
+### Bug fixes
+
+- Removed validation of APNS certificate from server startup. This was no longer necessary because we now allow for APNS certificates to be renewed in the UI.
+- Fixed logic to properly catch and log APNs errors.
+
 ## Fleet 4.55.1 (Aug 15, 2024)
 
 ### Bug fixes
