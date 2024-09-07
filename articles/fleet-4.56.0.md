@@ -148,6 +148,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2024-08-30">
+<meta name="publishedOn" value="2024-09-07">
 <meta name="articleTitle" value="Fleet 4.56.0 | Enhanced MDM migration, Exact CVE Search, and Self-Service VPP Apps.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.56.0-1600x900@2x.png">
