@@ -1,2 +1,0 @@
-- Adds enforcement of FileVault during the MacOS Setup Assistant process for hosts that are enrolled
-into teams (or no team) with disk encryption turned on.

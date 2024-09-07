@@ -1,1 +1,0 @@
-* Added support for S3 to store MDM bootstrap packages (uses the same bucket configuration as for software installers).
