@@ -1,7 +1,5 @@
 # Learn more about .exe install scripts: http://fleetdm.com/learn-more-about/exe-install-scripts
 
-# Learn more about .exe install scripts: http://fleetdm.com/learn-more-about/exe-install-scripts
-
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 # Add argument to install silently
