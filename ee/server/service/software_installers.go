@@ -199,14 +199,28 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 		var newInstallerFileMeta *file.InstallerMetadata = nil
 		if payload.InstallerFile != nil {
-			// TODO check if installer file is a different extension (if so, fail)
-			// TODO check if installer file is different than the one we have
-			// TODO check if installer file is for a different software title (if so, fail)
-			dirty = true
-			cancelPendingInstalls = true
-			resetInstallCounts = true
-			// TODO store software; DON'T overwrite scripts, other than uninstall if not custom
-			// TODO update source column for existing installer, as it may have changed (platform won't since ext is unchanged)
+			newInstallerFileMeta, err = file.ExtractInstallerMetadata(payload.InstallerFile)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
+			}
+
+			if newInstallerFileMeta.Extension != existingInstallerFileMeta.Extension {
+				return nil, &fleet.BadRequestError{
+					Message:     "You must upload an installer of the same type as the currently uploaded installer. To switch installer types, delete and re-add.",
+					InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
+				}
+			}
+
+			// TODO check if installer file is for a different software title (if so, fail; this will implicitly fail on source mismatch)
+
+			// noop if uploaded installer is identical to previous installer
+			if bytes.Compare(newInstallerFileMeta.SHASum, existingInstallerFileMeta.SHASum) != 0 {
+				dirty = true
+				cancelPendingInstalls = true
+				resetInstallCounts = true
+
+				// TODO store software
+			}
 		}
 
 		// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
@@ -254,9 +268,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 			}
 
 			preProcessUninstallScript(payloadForUninstallScript)
-			uninstallScript = payloadForUninstallScript.UninstallScript
-
-			// TODO dirty check on uninstall script
+			if payloadForUninstallScript.UninstallScript != installer.UninstallScript {
+				dirty = true
+				cancelPendingInstalls = true
+				installer.UninstallScript = payloadForUninstallScript.UninstallScript
+			}
 		}
 	}
 
