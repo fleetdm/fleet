@@ -1,5 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
+import { formatDistanceToNow } from "date-fns";
 
 import { IActivityDetails } from "interfaces/activity";
 import {
@@ -29,7 +30,13 @@ export type IPackageInstallDetails = Pick<
 >;
 
 const StatusMessage = ({
-  result: { host_display_name, software_package, software_title, status },
+  result: {
+    host_display_name,
+    software_package,
+    software_title,
+    status,
+    updated_at,
+  },
 }: {
   result: ISoftwareInstallResult;
 }) => {
@@ -44,8 +51,11 @@ const StatusMessage = ({
       <span>
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
         ({software_package}) on {formattedHost}
-        {status === "pending_install" ? " when it comes online" : ""}.{" "}
-        {/* TODO confirm - just put this to fix build while WIP */}
+        {status === "pending_install" ? " when it comes online" : ""}
+        {status === "failed_install" && updated_at
+          ? `${formatDistanceToNow(new Date(updated_at))}`
+          : ""}
+        .{" "}
       </span>
     </div>
   );

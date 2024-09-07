@@ -217,17 +217,20 @@ export const isValidSoftwareInstallStatus = (
  * returned by the Fleet API.
  */
 export interface ISoftwareInstallResult {
+  host_display_name?: string;
   install_uuid: string;
   software_title: string;
   software_title_id: number;
   software_package: string;
   host_id: number;
-  host_display_name: string;
   status: SoftwareInstallStatus;
   detail: string;
   output: string;
   pre_install_query_output: string;
   post_install_script_output: string;
+  created_at: string;
+  updated_at: string | null;
+  self_service: boolean;
 }
 
 export interface ISoftwareInstallResults {
