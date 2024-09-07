@@ -222,6 +222,7 @@ SELECT
 	si.install_script_content_id,
 	si.pre_install_query,
 	si.post_install_script_content_id,
+	si.uninstall_script_content_id,
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
 	si.platform
@@ -246,9 +247,10 @@ WHERE
 func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 	var scriptContentsSelect, scriptContentsFrom string
 	if withScriptContents {
-		scriptContentsSelect = ` , inst.contents AS install_script, COALESCE(pisnt.contents, '') AS post_install_script `
+		scriptContentsSelect = ` , inst.contents AS install_script, COALESCE(pinst.contents, '') AS post_install_script, uninst.contents AS uninstall_script `
 		scriptContentsFrom = ` LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
-		LEFT OUTER JOIN script_contents pisnt ON pisnt.id = si.post_install_script_content_id `
+		LEFT OUTER JOIN script_contents pinst ON pinst.id = si.post_install_script_content_id
+		LEFT OUTER JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id`
 	}
 
 	query := fmt.Sprintf(`
@@ -262,6 +264,7 @@ SELECT
   si.install_script_content_id,
   si.pre_install_query,
   si.post_install_script_content_id,
+  si.uninstall_script_content_id,
   si.uploaded_at,
   si.uninstall_script_content_id,
   si.self_service,

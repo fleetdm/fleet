@@ -95,6 +95,8 @@ type SoftwareInstaller struct {
 	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
+	// UninstallScript is the script to run to uninstall the software package.
+	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
