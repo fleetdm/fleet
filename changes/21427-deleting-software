@@ -1,2 +1,0 @@
-- Deleting installed software or VPP app now makes it available for re-installation.
-- Matching software that is not installed by Fleet now shows up as 'Available for install' on host details page.
