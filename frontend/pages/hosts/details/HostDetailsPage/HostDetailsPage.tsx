@@ -933,9 +933,7 @@ const HostDetailsPage = ({
                 id={host.id}
                 platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanInstallSoftware={
-                  !!host.orbit_version || isIosOrIpadosHost
-                }
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}

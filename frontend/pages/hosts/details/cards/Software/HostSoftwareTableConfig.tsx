@@ -33,6 +33,7 @@ import InstallStatusCell from "./InstallStatusCell";
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
   { value: "install", label: "Install", disabled: false },
+  { value: "uninstall", label: "Uninstall", disabled: false },
 ];
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
@@ -50,17 +51,17 @@ type IInstalledVersionsCellProps = CellProps<
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
 const generateActions = ({
-  userHasSWInstallPermission,
-  hostCanInstallSoftware,
-  installingSoftwareId,
+  userHasSWWritePermission,
+  hostCanWriteSoftware,
+  softwareIdActionPending,
   softwareId,
   status,
   software_package,
   app_store_app,
 }: {
-  userHasSWInstallPermission: boolean;
-  hostCanInstallSoftware: boolean;
-  installingSoftwareId: number | null;
+  userHasSWWritePermission: boolean;
+  hostCanWriteSoftware: boolean;
+  softwareIdActionPending: number | null;
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
@@ -76,39 +77,68 @@ const generateActions = ({
     // error to fail loudly so that we know to update this function
     throw new Error("Install action not found in default actions");
   }
+  const indexUninstallAction = actions.findIndex(
+    (a) => a.value === "uninstall"
+  );
+  if (indexUninstallAction === -1) {
+    // this should never happen unless the default actions change, but if it does we'll throw an
+    // error to fail loudly so that we know to update this function
+    throw new Error("Uninstall action not found in default actions");
+  }
 
-  const hasSoftwareToInstall = !!software_package || !!app_store_app;
-  // remove install if there is no package to install or if the software is already installed
-  if (
-    !hasSoftwareToInstall ||
-    !userHasSWInstallPermission ||
-    status === "installed"
-  ) {
+  if (!userHasSWWritePermission) {
     actions.splice(indexInstallAction, 1);
-    return actions;
-  }
+    actions.splice(indexUninstallAction, 1);
+  } else {
+    // user has software write permission for host
 
-  // disable install option if not a fleetd, iPad, or iOS host
-  if (!hostCanInstallSoftware) {
-    actions[indexInstallAction].disabled = true;
-    actions[indexInstallAction].tooltipContent =
-      "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
-    return actions;
-  }
+    // handle install option
+    const hasSoftwareToInstall = !!software_package || !!app_store_app;
+    // remove install if there is no package to install or if the software is already installed
+    if (!hasSoftwareToInstall || status === "installed") {
+      actions.splice(indexInstallAction, 1);
+    } else if (!hostCanWriteSoftware) {
+      // disable install option if not a fleetd, iPad, or iOS host
+      actions[indexInstallAction].disabled = true;
+      actions[indexInstallAction].tooltipContent =
+        "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
+    } else if (
+      softwareId === softwareIdActionPending ||
+      status === "pending_install"
+    ) {
+      // disable install option if software is already installing
+      actions[indexInstallAction].disabled = true;
+    }
 
-  // disable install option if software is already installing
-  if (softwareId === installingSoftwareId || status === "pending_install") {
-    actions[indexInstallAction].disabled = true;
-    return actions;
+    // handle uninstall option
+    // if status not installed nor uninstall pending, or if user doesn't have permission to modify,
+    // remove uninstall action
+    switch (status) {
+      case "installed":
+        // keep uninstall option
+        break;
+      case "pending_uninstall":
+        // disable the action
+        actions[indexUninstallAction].disabled = true;
+        break;
+      default:
+        // remove uninstall option
+        actions.splice(indexUninstallAction, 1);
+    }
+    // TODO - do we want to handle this case?
+    // } else if (!hostCanWriteSoftware) {
+    //   // disable uninstall option if not a fleetd, iPad, or iOS host
+    //   actions[indexUninstallAction].disabled = true;
+    //   actions[indexUninstallAction].tooltipContent =
+    //     "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
   }
-
   return actions;
 };
 
 interface ISoftwareTableHeadersProps {
-  userHasSWInstallPermission: boolean;
-  hostCanInstallSoftware: boolean;
-  installingSoftwareId: number | null;
+  userHasSWWritePermission: boolean;
+  hostCanWriteSoftware: boolean;
+  softwareIdActionPending: number | null;
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
@@ -117,9 +147,9 @@ interface ISoftwareTableHeadersProps {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  userHasSWInstallPermission,
-  hostCanInstallSoftware,
-  installingSoftwareId,
+  userHasSWWritePermission,
+  hostCanWriteSoftware,
+  softwareIdActionPending,
   router,
   teamId,
   onSelectAction,
@@ -209,9 +239,9 @@ export const generateSoftwareTableHeaders = ({
           <DropdownCell
             placeholder="Actions"
             options={generateActions({
-              userHasSWInstallPermission,
-              hostCanInstallSoftware,
-              installingSoftwareId,
+              userHasSWWritePermission,
+              hostCanWriteSoftware,
+              softwareIdActionPending,
               softwareId,
               status,
               software_package,
