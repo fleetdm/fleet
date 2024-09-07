@@ -4,13 +4,8 @@ import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
-<<<<<<< HEAD
-import deepDifference from "utilities/deep_difference";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
-=======
-import getInstallScript from "utilities/software_install_scripts";
->>>>>>> 75f550456f (Updates to have FileDetails separate component, move confirm save changes logic into edit software modal, reinstate CSS, update comments)
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -104,15 +99,15 @@ const AddPackageForm = ({
 
       // Only populate default install/uninstall scripts when adding (but not editing) software
       if (!isEditingSoftware) {
-      let newDefaultInstallScript: string;
-      try {
-        newDefaultInstallScript = getDefaultInstallScript(file.name);
-      } catch (e) {
-        renderFlash("error", `${e}`);
-        return;
-      }
+        let newDefaultInstallScript: string;
+        try {
+          newDefaultInstallScript = getDefaultInstallScript(file.name);
+        } catch (e) {
+          renderFlash("error", `${e}`);
+          return;
+        }
 
-      let newDefaultUninstallScript: string;
+        let newDefaultUninstallScript: string;
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
@@ -120,14 +115,15 @@ const AddPackageForm = ({
           return;
         }
 
-      const newData = {
-        ...formData,
-        software: file,
-        installScript: defaultInstallScript || "", // TODO: figure this out
-        uninstallScript: defaultUninstallScript || "", // TODO: figure this out
-      };
-      setFormData(newData);
-      setFormValidation(generateFormValidation(newData));
+        const newData = {
+          ...formData,
+          software: file,
+          installScript: defaultInstallScript || "", // TODO: figure this out
+          uninstallScript: defaultUninstallScript || "", // TODO: figure this out
+        };
+        setFormData(newData);
+        setFormValidation(generateFormValidation(newData));
+      }
     }
   };
 
