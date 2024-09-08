@@ -172,6 +172,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		installer.SelfService = *payload.SelfService
 	}
 
+	activity := fleet.ActivityTypeEditedSoftware{
+		SoftwareTitle: installer.SoftwareTitle,
+		TeamName:      teamName,
+		TeamID:        payload.TeamID,
+		SelfService:   installer.SelfService,
+	}
+
 	if payload.InstallerFile != nil || payload.PreInstallQuery != nil ||
 		payload.InstallScript != nil || payload.PostInstallScript != nil || payload.UninstallScript != nil {
 
@@ -199,12 +206,17 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 		var newInstallerFileMeta *file.InstallerMetadata = nil
 		if payload.InstallerFile != nil {
-			newInstallerFileMeta, err = file.ExtractInstallerMetadata(payload.InstallerFile)
+			payloadForInstallerFile := &fleet.UploadSoftwareInstallerPayload{
+				InstallerFile: payload.InstallerFile,
+				Filename:      payload.Filename,
+			}
+
+			newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForInstallerFile)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 			}
 
-			if newInstallerFileMeta.Extension != existingInstallerFileMeta.Extension {
+			if newInstallerExtension != existingInstallerFileMeta.Extension {
 				return nil, &fleet.BadRequestError{
 					Message:     "You must upload an installer of the same type as the currently uploaded installer. To switch installer types, delete and re-add.",
 					InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
@@ -214,7 +226,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 			// TODO check if installer file is for a different software title (if so, fail; this will implicitly fail on source mismatch)
 
 			// noop if uploaded installer is identical to previous installer
-			if bytes.Compare(newInstallerFileMeta.SHASum, existingInstallerFileMeta.SHASum) != 0 {
+			if payloadForInstallerFile.StorageID != hex.EncodeToString(existingInstallerFileMeta.SHASum) {
+				activity.SoftwarePackage = &payload.Filename
 				dirty = true
 				cancelPendingInstalls = true
 				resetInstallCounts = true
@@ -289,13 +302,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 	}
 
 	// Create activity
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   payload.Title,
-		SoftwarePackage: payload.Filename,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-		SelfService:     installer.SelfService,
-	}); err != nil {
+	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 	}
 
