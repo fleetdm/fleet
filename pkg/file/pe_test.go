@@ -9,7 +9,8 @@ import (
 )
 
 func TestExtractPEMetadata(t *testing.T) {
-	file, err := os.Open("testdata/installers/hello-world-installer.exe")
+	t.Parallel()
+	file, err := os.Open("testdata/software-installers/hello-world-installer.exe")
 	require.NoError(t, err)
 	meta, err := ExtractPEMetadata(file)
 	require.NoError(t, err)
