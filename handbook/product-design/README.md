@@ -44,11 +44,13 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
+- To help contributors find Figma wireframes for the area of the UI you're making changes to, add page names (ex. Host details page) to the user story's title and/or description.
+
 - Be intentional about changes to design components (e.g. button border-radius or modal width) because these are expensive. They'll require code changes and QA in multiple parts of the product. Propose changes to a design component as part of an already-prioritized user story instead of [making a new request](#making-a-request) in 🎁🗣 Feature Fest.
 
-- While drafting, reach out to sales, customer success, and demand for a business perspective.
+- Reach out to sales, customer success, and demand for a business perspective.
 
-- While drafting, engage engineering to gain insight into technical costs and feasibility.
+- Engage engineering to gain insight into technical costs and feasibility.
 
 >**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
 >

@@ -74,7 +74,7 @@ type SoftwareInstaller struct {
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
-	TitleID *uint `json:"-" db:"title_id"`
+	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
 	// Version is the version of the software package.
@@ -108,6 +108,8 @@ type SoftwareInstaller struct {
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
 	SelfService bool `json:"self_service" db:"self_service"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -292,6 +294,7 @@ type UploadSoftwareInstallerPayload struct {
 	BundleIdentifier  string
 	SelfService       bool
 	UserID            uint
+	URL               string
 	PackageIDs        []string
 	UninstallScript   string
 	Extension         string
@@ -367,6 +370,7 @@ type SoftwarePackageOrApp struct {
 	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
+	PackageURL  *string              `json:"package_url"`
 }
 
 type SoftwarePackageSpec struct {
@@ -457,3 +461,5 @@ type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
 	TeamID  uint `json:"team_id"`
 }
+
+const SoftwareInstallerURLMaxLength = 255
