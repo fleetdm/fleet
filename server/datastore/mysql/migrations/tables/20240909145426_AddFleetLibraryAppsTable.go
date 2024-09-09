@@ -14,13 +14,12 @@ func Up_20240909145426(tx *sql.Tx) error {
 CREATE TABLE fleet_library_apps (
 	id               int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	name             varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	-- TODO: maybe use the "full_token" field from homebrew's JSON API response
+	-- the "full_token" field from homebrew's JSON API response
 	-- see e.g. https://formulae.brew.sh/api/cask/1password.json
 	token            varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	version          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	platform         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	installer_url    varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	-- TODO: is this only the base part of the URL? If not, we need to store that filename (more flexible anyway).
 	filename         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	-- hash of the binary downloaded from installer_url, allows us to validate we got the right bytes
 	-- before sending to S3 (and we store installers on S3 under that sha256 hash as identifier).
@@ -29,15 +28,18 @@ CREATE TABLE fleet_library_apps (
 	created_at       timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
 	updated_at       timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
-	-- TODO: maybe we should leverage the script_contents table and use install/uninstall script ids with FKs here.
-	-- If so we need to alter the script_contents cleanup job to take those references into account.
-	install_script   text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-	uninstall_script text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+	-- foreign-key ids of the script_contents table.
+	-- TODO: we need to alter the script_contents cleanup job to take those references into account.
+	install_script_content_id   int unsigned DEFAULT NULL,
+	uninstall_script_content_id int unsigned DEFAULT NULL,
 
-	-- TODO: if there's a better unique identifier from homebrew, add it to the table and use it.
-	-- Idea is that if homebrew's version is updated, this new version should update the app in the
-	-- Fleet library, not create a new entry.
-	UNIQUE KEY idx_fleet_library_apps_token (token)
+	-- The idea with this unique constraint is that if homebrew's version is updated, 
+	-- this new version should update the app in the Fleet library, not create a new entry.
+	UNIQUE KEY idx_fleet_library_apps_token (token),
+	CONSTRAINT fk_fleet_library_apps_install_script_content FOREIGN KEY (install_script_content_id) 
+		REFERENCES script_contents (id) ON DELETE CASCADE,
+	CONSTRAINT fk_fleet_library_apps_uninstall_script_content FOREIGN KEY (uninstall_script_content_id) 
+		REFERENCES script_contents (id) ON DELETE CASCADE
 )`)
 	if err != nil {
 		return fmt.Errorf("creating fleet_library_apps table: %w", err)
@@ -46,7 +48,7 @@ CREATE TABLE fleet_library_apps (
 	// New column fleet_library_app_id in software_installers allows to keep
 	// track of which Fleet library app the installer comes from, if any.
 	//
-	// TODO: AFAIU it is not crucial to have this, as even if a user adds the
+	// NOTE: it is not _crucial_ to have this, as even if a user adds the
 	// same installer _name_ in software_installers (without passing by the Fleet
 	// Library, so this fleet_library_app_id would be NULL), it shouldn't see the
 	// same _name_ from the Fleet library as available. But it's probably good in
