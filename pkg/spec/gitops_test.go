@@ -55,7 +55,10 @@ func createTempFile(t *testing.T, pattern, contents string) (filePath string, ba
 
 func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 	path, basePath := createTempFile(t, "", s)
-	return GitOpsFromFile(path, basePath, nil)
+	return GitOpsFromFile(path, basePath, nil, nopLogf)
+}
+
+func nopLogf(_ string, _ ...interface{}) {
 }
 
 func TestValidGitOpsYaml(t *testing.T) {
@@ -118,7 +121,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					}
 				}
 
-				gitops, err := GitOpsFromFile(test.filePath, "./testdata", appConfig)
+				gitops, err := GitOpsFromFile(test.filePath, "./testdata", appConfig, nopLogf)
 				require.NoError(t, err)
 
 				if test.isTeam {
@@ -724,7 +727,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil, nopLogf)
 				assert.NoError(t, err)
 
 				// Test a bad path
@@ -737,7 +740,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil, nopLogf)
 				assert.ErrorContains(t, err, "no such file or directory")
 
 				// Test a bad file -- cannot be unmarshalled
@@ -772,7 +775,7 @@ func TestGitOpsPaths(t *testing.T) {
 				}
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil, nopLogf)
 				assert.ErrorContains(t, err, "nested paths are not supported")
 			},
 		)
@@ -830,7 +833,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	path, basePath := createTempFile(t, "", config)
-	_, err = GitOpsFromFile(path, basePath, &appConfig)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be less than 256 characters", tooBigURL))
 
 	// Policy references a software installer not present in the team.
@@ -857,7 +860,7 @@ software:
 		0o755,
 	)
 	require.NoError(t, err)
-	_, err = GitOpsFromFile(path, basePath, &appConfig)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err,
 		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
 	)
@@ -889,7 +892,7 @@ software:
 	appConfig.License = &fleet.LicenseInfo{
 		Tier: fleet.TierPremium,
 	}
-	_, err = GitOpsFromFile(path, basePath, &appConfig)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
 }
 

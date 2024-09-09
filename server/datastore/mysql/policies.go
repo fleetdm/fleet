@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -695,9 +696,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	queryerContext := ds.writer(ctx)
 
 	// Preprocess specs and group them by team
-	teamNameToID := make(map[string]uint, 1)
-	teamIDToPolicies := make(map[uint][]*fleet.PolicySpec, 1)
-	softwareInstallerIDs := make(map[uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
+	teamNameToID := make(map[string]*uint, 1)
+	teamIDToPolicies := make(map[*uint][]*fleet.PolicySpec, 1)
+	softwareInstallerIDs := make(map[*uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
 
 	// Get the team IDs
 	for _, spec := range specs {
@@ -707,13 +708,18 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		teamID, ok := teamNameToID[spec.Team]
 		if !ok {
 			if spec.Team != "" {
-				// if team name is not empty, it must have a team ID; otherwise teamID defaults to 0 value
-				err := sqlx.GetContext(ctx, queryerContext, &teamID, `SELECT id FROM teams WHERE name = ?`, spec.Team)
-				if err != nil {
-					if errors.Is(err, sql.ErrNoRows) {
-						return ctxerr.Wrap(ctx, notFound("Team").WithName(spec.Team), "get team id")
+				if spec.Team == "No team" {
+					teamID = ptr.Uint(0)
+				} else {
+					var tmID uint
+					err := sqlx.GetContext(ctx, queryerContext, &tmID, `SELECT id FROM teams WHERE name = ?`, spec.Team)
+					if err != nil {
+						if errors.Is(err, sql.ErrNoRows) {
+							return ctxerr.Wrap(ctx, notFound("Team").WithName(spec.Team), "get team id")
+						}
+						return ctxerr.Wrap(ctx, err, "get team id")
 					}
-					return ctxerr.Wrap(ctx, err, "get team id")
+					teamID = &tmID
 				}
 			}
 			teamNameToID[spec.Team] = teamID
@@ -751,7 +757,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		Query     string `db:"query"`
 		Platforms string `db:"platforms"`
 	}
-	teamIDToPoliciesByName := make(map[uint]map[string]policyLite, len(teamIDToPolicies))
+	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
 		teamIDToPoliciesByName[teamID] = make(map[string]policyLite, len(teamPolicySpecs))
 		policyNames := make([]string, 0, len(teamPolicySpecs))
@@ -762,11 +768,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		var query string
 		var args []interface{}
 		var err error
-		if teamID == 0 {
+		if teamID == nil {
 			query, args, err = sqlx.In("SELECT name, query, platforms FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms FROM policies WHERE team_id = ? AND name IN (?)", &teamID, policyNames,
+				"SELECT name, query, platforms FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
@@ -810,10 +816,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
-			var teamIDPtr *uint
-			if teamID != 0 {
-				teamIDPtr = &teamID
-			}
 			for _, spec := range teamPolicySpecs {
 				var softwareInstallerID *uint
 				if spec.SoftwareTitleID != nil {
@@ -821,7 +823,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 				res, err := tx.ExecContext(
 					ctx,
-					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamIDPtr, spec.Platform, spec.Critical,
+					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID,
 				)
 				if err != nil {

@@ -1414,6 +1414,14 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:        "team1",
 			Platform:    "windows,linux",
 		},
+		{
+			Name:        "query4",
+			Query:       "select 4;",
+			Description: "query4 desc",
+			Resolution:  "some other good resolution 2",
+			Team:        "No team",
+			Platform:    "",
+		},
 	}))
 
 	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1451,6 +1459,21 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
 	assert.False(t, teamPolicies[1].CalendarEventsEnabled)
 
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
+	assert.Equal(t, "query4", noTeamPolicies[0].Name)
+	assert.Equal(t, "select 4;", noTeamPolicies[0].Query)
+	assert.Equal(t, "query4 desc", noTeamPolicies[0].Description)
+	require.NotNil(t, noTeamPolicies[0].AuthorID)
+	assert.Equal(t, user1.ID, *noTeamPolicies[0].AuthorID)
+	require.NotNil(t, noTeamPolicies[0].Resolution)
+	assert.Equal(t, "some other good resolution 2", *noTeamPolicies[0].Resolution)
+	assert.Equal(t, "", noTeamPolicies[0].Platform)
+	assert.False(t, noTeamPolicies[0].CalendarEventsEnabled)
+	assert.NotNil(t, noTeamPolicies[0].TeamID)
+	assert.Zero(t, *noTeamPolicies[0].TeamID)
+
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
@@ -1478,6 +1501,14 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:        "team1",
 			Platform:    "windows,linux",
 		},
+		{
+			Name:        "query4",
+			Query:       "select 4;",
+			Description: "query4 desc",
+			Resolution:  "some other good resolution 2",
+			Team:        "No team",
+			Platform:    "",
+		},
 	}))
 
 	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1486,6 +1517,9 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
+	noTeamPolicies, _, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
 
 	// Test policy updating.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4050,6 +4084,23 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer2, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer2ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer2.TitleID)
+	installer3ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello3",
+		PreInstallQuery:   "SELECT 3;",
+		PostInstallScript: "world3",
+		InstallerFile:     bytes.NewReader([]byte("hello3")),
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "1.0",
+		Source:            "rpm_packages",
+		UserID:            user1.ID,
+		TeamID:            nil,
+	})
+	require.NoError(t, err)
+	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer3.TitleID)
 
 	// Installers cannot be assigned to global policies.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4066,7 +4117,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, errSoftwareTitleIDOnGlobalPolicy)
 
-	// Apply two team policies associated to two installers.
+	// Apply two team policies associated to two installers and a "No team" policy associated to an installer.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4086,6 +4137,15 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Platform:        "linux",
 			SoftwareTitleID: installer2.TitleID,
 		},
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
+			Platform:        "linux",
+			SoftwareTitleID: installer3.TitleID,
+		},
 	})
 	require.NoError(t, err)
 	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
@@ -4098,6 +4158,11 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, team2Policies, 1)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer2.InstallerID, *team2Policies[0].SoftwareInstallerID)
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
+	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
+	require.Equal(t, installer3.InstallerID, *noTeamPolicies[0].SoftwareInstallerID)
 
 	// Unset software installer from "Team policy 1".
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4117,7 +4182,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, team1Policies, 1)
 	require.Nil(t, team1Policies[0].SoftwareInstallerID)
 
-	// Set software installer "Team policy 1" to a software installer on team2.
+	// Set "Team policy 1" to a software installer on team2.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4133,7 +4198,22 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	var notFoundErr *notFoundError
 	require.ErrorAs(t, err, &notFoundErr)
 
-	// Set software installer "Team policy 1" to a software title that doesn't exist.
+	// Set "No team policy 3" to a software installer on team2.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
+			Platform:        "darwin",
+			SoftwareTitleID: installer2.TitleID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Set "Team policy 1" to a software title that doesn't exist.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4141,6 +4221,21 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Description:     "Description 1",
 			Resolution:      "Resolution 1",
 			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: ptr.Uint(999_999),
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Set "No team policy 3" to a software title that doesn't exist.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
 			Platform:        "darwin",
 			SoftwareTitleID: ptr.Uint(999_999),
 		},
@@ -4167,7 +4262,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Nil(t, team2Policies[0].SoftwareInstallerID)
 
 	// Apply team policies associated to two installers (again, with two installers with the same title).
-	installer3ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer4ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello3",
 		PreInstallQuery:   "SELECT 3;",
 		PostInstallScript: "world3",
@@ -4181,7 +4276,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		TeamID:            &team2.ID,
 	})
 	require.NoError(t, err)
-	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
+	installer4, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer4ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer2.TitleID)
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4201,7 +4296,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Resolution:      "Resolution 2",
 			Team:            "team2",
 			Platform:        "linux",
-			SoftwareTitleID: installer3.TitleID,
+			SoftwareTitleID: installer4.TitleID,
 		},
 	})
 	require.NoError(t, err)
@@ -4214,7 +4309,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
-	require.Equal(t, installer3.InstallerID, *team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, installer4.InstallerID, *team2Policies[0].SoftwareInstallerID)
 }
 
 func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {

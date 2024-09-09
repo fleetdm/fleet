@@ -77,6 +77,25 @@ func gitopsCommand() *cli.Command {
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
 			}
+			logf := func(format string, a ...interface{}) {
+				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			// We need to extract the controls from no-team.yml to be able to apply them when applying the global app config.
+			var noTeamControls spec.Controls
+			for _, flFilename := range flFilenames.Value() {
+				if filepath.Base(flFilename) == "no-team.yml" {
+					baseDir := filepath.Dir(flFilename)
+					config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
+					if err != nil {
+						return err
+					}
+					if config.Controls.Set() {
+						noTeamControls = config.Controls
+					}
+					break
+				}
+			}
 
 			var originalABMConfig []any
 			var originalVPPConfig []any
@@ -92,7 +111,7 @@ func gitopsCommand() *cli.Command {
 			secrets := make(map[string]struct{})
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
 				if err != nil {
 					return err
 				}
@@ -107,6 +126,13 @@ func gitopsCommand() *cli.Command {
 						)
 					}
 					firstFileMustBeGlobal = ptr.Bool(false)
+				}
+
+				if isGlobalConfig {
+					if noTeamControls.Set() && config.Controls.Set() {
+						return fmt.Errorf("'controls' cannot be set on both global config and on no-team.yml")
+					}
+					config.Controls = noTeamControls
 				}
 
 				// Special handling for tokens is required because they link to teams (by
@@ -159,9 +185,6 @@ func gitopsCommand() *cli.Command {
 							}
 						}
 					}
-				}
-				logf := func(format string, a ...interface{}) {
-					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 				}
 				if flDryRun {
 					incomingSecrets := fleetClient.GetGitOpsSecrets(config)
