@@ -52,11 +52,12 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
 const generateActions = ({
   userHasSWWritePermission,
-  hostCanWriteSoftware,
+  // Commenting below in case there is a quick decision to use these conditions after all
+  // hostCanWriteSoftware,
+  // software_package,
   softwareIdActionPending,
   softwareId,
   status,
-  software_package,
   app_store_app,
 }: {
   userHasSWWritePermission: boolean;
@@ -91,45 +92,22 @@ const generateActions = ({
     actions.splice(indexUninstallAction, 1);
   } else {
     // user has software write permission for host
+    const pendingStatuses = ["pending_install", "pending_uninstall"];
 
-    // handle install option
-    const hasSoftwareToInstall = !!software_package || !!app_store_app;
-    // remove install if there is no package to install or if the software is already installed
-    if (!hasSoftwareToInstall || status === "installed") {
-      actions.splice(indexInstallAction, 1);
-    } else if (!hostCanWriteSoftware) {
-      // disable install option if not a fleetd, iPad, or iOS host
-      actions[indexInstallAction].disabled = true;
-      actions[indexInstallAction].tooltipContent =
-        "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
-    } else if (
+    if (
+      // if locally pending (waiting for API response) or pending install/uninstall, disable both
+      // install and uninstall
       softwareId === softwareIdActionPending ||
-      status === "pending_install"
+      pendingStatuses.includes(status || "")
     ) {
-      // disable install option if software is already installing
       actions[indexInstallAction].disabled = true;
-    }
-
-    // handle uninstall option
-    // TODO - confirm desired handling of this case. Assuming this way to match "Install" behavior.
-    if (!hostCanWriteSoftware) {
-      // disable uninstall option if not a fleetd, iPad, or iOS host
       actions[indexUninstallAction].disabled = true;
-      actions[indexUninstallAction].tooltipContent =
-        "To uninstall software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
     }
-    switch (status) {
-      case "installed":
-        // keep uninstall option
-        break;
-      case "pending_uninstall":
-        // disable the action
-        actions[indexUninstallAction].disabled = true;
-        break;
-      default:
-        // remove uninstall option
-        actions.splice(indexUninstallAction, 1);
-    }
+  }
+
+  if (app_store_app) {
+    // remove uninstall for VPP apps
+    actions.splice(indexUninstallAction, 1);
   }
   return actions;
 };
