@@ -1084,6 +1084,11 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Fleet-maintained apps
+
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows
 
