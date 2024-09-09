@@ -977,12 +977,3 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{},
 	}
 	return result, nil
 }
-
-// func SetupDEPWithDEPServer(ctx context.Context, t testing.TB, ds *Datastore, logger kitlog.Logger, depStorage storage.AllDEPStorage) {
-// 	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
-// 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(ctx))
-// 	mysql.CreateABMKeyCertIfNotExists(t, ds)
-// 	mysql.CreateAndSetABMToken(t, ds, "fleet")
-// 	err := s.depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: serverURL})
-// 	require.NoError(t, err)
-// }

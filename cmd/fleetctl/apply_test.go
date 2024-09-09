@@ -23,9 +23,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -1171,6 +1173,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
+	// Mock Apple DEP API
+	depStorage := SetupDEPStorageAndDEPServer(t)
+
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
@@ -1178,6 +1183,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		MDMStorage:  enqueuer,
 		MDMPusher:   mockPusher{},
 		FleetConfig: &fleetCfg,
+		DEPStorage:  depStorage,
 	})
 
 	gitOps := &fleet.User{
@@ -1294,6 +1300,20 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+
+	ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+		return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+	}
+	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+
+	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return []string{"foobar"}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: 1}}, nil
 	}
 
 	// Apply global config.
@@ -1632,6 +1652,34 @@ spec:
 	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }
 
+func SetupDEPStorageAndDEPServer(t *testing.T) *nanodep_mock.Storage {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/server/devices"):
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/session"):
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/profile"):
+			_, err := w.Write([]byte(`{"profile_uuid": "profile123"}`))
+			require.NoError(t, err)
+		}
+	}))
+	depStorage := &nanodep_mock.Storage{}
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{
+			BaseURL: ts.URL,
+		}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	t.Cleanup(func() { ts.Close() })
+
+	return depStorage
+}
+
 func TestApplyEnrollSecrets(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
@@ -1885,7 +1933,8 @@ func TestApplyMacosSetup(t *testing.T) {
 			tier = fleet.TierPremium
 		}
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
-		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+		depStorage := SetupDEPStorageAndDEPServer(t)
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
 		teamsByName := map[string]*fleet.Team{
@@ -2027,6 +2076,21 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 			return nil, nil
 		}
+
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+		}
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+
+		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+			return []string{"foobar"}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1}}, nil
+		}
+
 		return ds
 	}
 
