@@ -9836,6 +9836,26 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// Remove all vpp associations from team with no members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
+	// Incorrect type check
+	incorrectTypes := struct {
+		Apps []struct {
+			AppStoreID  int  `json:"app_store_id"`
+			SelfService bool `json:"self_service"`
+		} `json:"app_store_apps"`
+	}{
+		Apps: []struct {
+			AppStoreID  int  `json:"app_store_id"`
+			SelfService bool `json:"self_service"`
+		}{
+			{
+				AppStoreID: 1,
+			},
+		},
+	}
+	badTypeReq := s.Do("POST", batchURL, incorrectTypes, http.StatusBadRequest, "team_name", tmGood.Name)
+	badTypeBody := extractServerErrorText(badTypeReq.Body)
+	assert.Contains(t, badTypeBody, "must be a string")
+
 	// Associating an app we don't own
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "fake-app"}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 

@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/docker/go-units"
@@ -455,6 +458,17 @@ type batchAssociateAppStoreAppsRequest struct {
 	TeamName string                  `json:"-" query:"team_name"`
 	DryRun   bool                    `json:"-" query:"dry_run,optional"`
 	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
+}
+
+func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if err := json.NewDecoder(r).Decode(b); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) {
+			return ctxerr.Wrap(ctx, fleet.NewUserMessageError(fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value), http.StatusBadRequest))
+		}
+	}
+
+	return nil
 }
 
 type batchAssociateAppStoreAppsResponse struct {
