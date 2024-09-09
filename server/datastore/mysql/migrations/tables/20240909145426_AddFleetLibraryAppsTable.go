@@ -12,21 +12,24 @@ func init() {
 func Up_20240909145426(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE fleet_library_apps (
-	id               int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
-	name             varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	id                int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	name              varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	-- the "full_token" field from homebrew's JSON API response
 	-- see e.g. https://formulae.brew.sh/api/cask/1password.json
-	token            varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	version          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	platform         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	installer_url    varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	filename         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	token             varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	version           varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	platform          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	installer_url     varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	filename          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	-- hash of the binary downloaded from installer_url, allows us to validate we got the right bytes
 	-- before sending to S3 (and we store installers on S3 under that sha256 hash as identifier).
-	sha256           varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	sha256            varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	-- bundle_identifier is used to match the library app with a software title in the software_titles table,
+	-- it is expected to be provided by the hard-coded JSON list of apps in the Fleet library.
+	bundle_identifier varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 
-	created_at       timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
-	updated_at       timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+	created_at        timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+	updated_at        timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
 	-- foreign-key ids of the script_contents table.
 	install_script_content_id   int unsigned NOT NULL,
