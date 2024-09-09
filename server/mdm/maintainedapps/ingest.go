@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
@@ -124,33 +125,41 @@ type brewCask struct {
 // brew artifacts are objects that have one and only one of their fields set.
 type brewArtifact struct {
 	App []string `json:"app"`
-	// TODO: Pkg is a bit like Binary, it is an array with a string and an object as first two elements.
-	// The object has a choices field with an array of objects. See Microsoft Edge.
-	Pkg       []string         `json:"pkg"`
-	Uninstall []*brewUninstall `json:"uninstall"`
-	Zap       []*brewZap       `json:"zap"`
-	// TODO: Binary is a complex artifact - it can be provided multiple times
-	// (not in an array, as items in Artifacts) and its value is an array where
-	// the first element is a string - the binary artifact - and the second
-	// element is an object with a "target" key). See the "docker" and "firefox" casks. Not
-	// handling for now.
+	// Pkg is a bit like Binary, it is an array with a string and an object as
+	// first two elements. The object has a choices field with an array of
+	// objects. See Microsoft Edge.
+	Pkg       []optjson.StringOr[*brewPkgChoices] `json:"pkg"`
+	Uninstall []*brewUninstall                    `json:"uninstall"`
+	Zap       []*brewZap                          `json:"zap"`
+	// Binary is an array with a string and an object as first two elements. See
+	// the "docker" and "firefox" casks.
+	Binary []optjson.StringOr[*brewBinaryTarget] `json:"binary"`
+}
+
+type brewPkgChoices struct {
+	// At the moment we don't care about the "choices" field on the pkg.
+	Choices []any `json:"choices"`
+}
+
+type brewBinaryTarget struct {
+	Target string `json:"target"`
 }
 
 // unlike brewArtifact, a single brewUninstall can have many fields set.
 // All fields can have one or multiple strings (string or []string).
 type brewUninstall struct {
-	LaunchCtl []string `json:"launchctl"`
-	Quit      []string `json:"quit"`
-	PkgUtil   []string `json:"pkgutil"`
-	Script    []string `json:"script"`
+	LaunchCtl optjson.StringOr[[]string] `json:"launchctl"`
+	Quit      optjson.StringOr[[]string] `json:"quit"`
+	PkgUtil   optjson.StringOr[[]string] `json:"pkgutil"`
+	Script    optjson.StringOr[[]string] `json:"script"`
 	// format: [0]=signal, [1]=process name
-	Signal []string `json:"signal"`
-	Delete []string `json:"delete"`
-	RmDir  []string `json:"rmdir"`
+	Signal optjson.StringOr[[]string] `json:"signal"`
+	Delete optjson.StringOr[[]string] `json:"delete"`
+	RmDir  optjson.StringOr[[]string] `json:"rmdir"`
 }
 
 // same as brewUninstall, can be []string or string (see Microsoft Teams).
 type brewZap struct {
-	Trash []string `json:"trash"`
-	RmDir []string `json:"rmdir"`
+	Trash optjson.StringOr[[]string] `json:"trash"`
+	RmDir optjson.StringOr[[]string] `json:"rmdir"`
 }
