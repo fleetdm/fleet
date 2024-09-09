@@ -58,6 +58,21 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+## Tech stack admins
+
+| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
+|:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
+| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
+| CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ Admin | ❌ | ❌ |
+| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
+| BizOps Engineer | ✅ Super admin| ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
+| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
+| Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ Admin| ❌ | ❌ |
+| Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
+| Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin  | ❌ | ✅ Admin | ❌ |
 
 ### Docs
 
@@ -92,7 +107,7 @@ Any change to fleetdm.com follows the same process as [making changes](https://f
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
-The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.
+The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
 
 ## Marketing programs
@@ -133,11 +148,10 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers expect a timely follow-up from Fleet based on the conversations that they had at the event.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
-1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
-3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
+1. Once a list of badge scans is available, Fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
+2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
 
 
 ### Podcast
@@ -454,7 +468,7 @@ Any Fleetie can follow the process below to add a priority label to an issue.
 
 Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
 
-We use the following story points to estimate website tasks:
+We use the following story points to estimate tasks:
 
 | Story point | Time |
 |:---|:--------------|
@@ -464,6 +478,8 @@ We use the following story points to estimate website tasks:
 | 5  | 2 to 3 days   |
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
+
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
 
 
 ### Making a pull request
@@ -717,10 +733,10 @@ Before spending any money on an offsite, inviting people, booking travel, or oth
     - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
     - a detailed agenda of how time will be spent
   - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - **Iteration:** The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
+  - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
 
-After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
-  - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
+After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
+  - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
   - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
 
@@ -940,6 +956,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - make sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google Drive folder.
+- make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
 
 
 
@@ -1042,7 +1059,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 ### What would Mister Rogers say?
 
-[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
 Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
 
@@ -1116,20 +1133,49 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
-### Headings
+### Headings and titles
 
-Headings help readers quickly scan content to find what they need and guide readers through your writing. Organize page content using clear headings specific to the topic they describe. 
+Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
 
-While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document.
+#### Static headings
 
-Keep headings brief, organized, and in a logical order:
+Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+
+#### Task-based headings
+
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+
+#### Avoid _-ing_ verb forms in headings
+
+Avoid starting a heading with _-ing_ verb form, if possible.
+
+_-ing_ verb forms are more difficult for non-native English readers to understand, translate inconsistently, and increase character counts in limit spaces, such as in docs navigation.
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Configure a log destination” | “Configuring a log destination” |
+
+#### Avoid vague verbs in headings
+
+Were possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Log destinations” | “Understand log destinations.” |
+
+
+#### Avoid code in headings
+
+While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document. That aside, it doesn't render well on the website.
+
+#### Heading hierarchy 
+
+Use heading tags to structure your content hierarchically. Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
+
 - H1: Page title
 - H2: Main headings
 - H3: Subheadings
 - H4: Sub-subheadings
-
-Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
-
 
 #### Punctuation in headings
 
@@ -1217,6 +1263,7 @@ Sometimes numerals seem out of place. If an expression typically spells out the 
 - First impression
 - Third-party integration
 - All-in-one platform
+
 Numbers over 3 digits get commas:
 - 999
 - 1,000
@@ -1228,6 +1275,7 @@ Numbers over 3 digits get commas:
 Use numerals and am or pm without a space in between:
 - 7am
 - 7:30pm
+
 Use a hyphen between times to indicate a time period:
 - 7am–10:30pm
 
@@ -1307,6 +1355,33 @@ Markdown is a simple formatting syntax used to write content on the web. In orde
 
 ### Headings
 
+Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
+
+```
+...previous content.
+
+
+### New heading
+
+Related content... 
+```
+
+
+#### Nested headings
+
+Wherever possible, avoid creating nested headings. For example:
+
+```
+## Things
+
+### Thing 1
+
+Hi my name is Thing 1
+```
+
+
+#### Heading levels
+
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 | Markdown | Rendered heading |
 |:--------------------|:-----------------------------|
@@ -1367,8 +1442,6 @@ line two
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
 | <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
 
-Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item, as shown in the example below.
-
 **Markdown:**
 
 ```
@@ -1384,26 +1457,6 @@ Paragraph about item one
 1. Item one
 
 Paragraph about item one
-
-2. Item two
-
-To make sure that ordered lists increment correctly, you can indent the content nested within the list. For example, the same ordered list with indentation:
-
-**Markdown:**
-
-```
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-```
-
-**Rendered output:**
-
-1. Item one
-
-   Paragraph about item one
 
 2. Item two
 
@@ -1465,6 +1518,11 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Category one | Category two | Category three |
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
+
+> When using tables to document API endpoint parameters, we use the following conventions:
+> + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
+> + In the **Description** column for required parameters, begin the description with "**Required.**"
 
 
 ### Blockquotes
@@ -1617,7 +1675,7 @@ This glossary provides definitions to commonly used terms within our space.
 | **open source** | Software with intentionally public code for the sake of transparency. |
 | **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
 | **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
-| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **out-of-policy device** | A device that fails any security or vulnerability policy created in Fleet. |
 | **permissions** | Users have different abilities depending on the access level they have. |
 | **platform** | Any software or hardware for hosting an application, data, or service. |
 | **policies** | Yes or no questions you can ask using Fleet about your host devices. |

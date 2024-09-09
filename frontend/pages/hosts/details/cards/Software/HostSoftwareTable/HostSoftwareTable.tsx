@@ -6,7 +6,14 @@ import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { getNextLocationPath } from "utilities/helpers";
 import { QueryParams } from "utilities/url";
 
-import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import { IHostSoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+
+import {
+  ApplePlatform,
+  APPLE_PLATFORM_DISPLAY_NAMES,
+  HostPlatform,
+  isIPadOrIPhone,
+} from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -15,6 +22,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -45,6 +53,7 @@ export const DROPDOWN_OPTIONS = [
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  platform: HostPlatform;
   isLoading: boolean;
   router: InjectedRouter;
   sortHeader: string;
@@ -54,12 +63,13 @@ interface IHostSoftwareTableProps {
   pagePath: string;
   routeTemplate?: string;
   pathPrefix: string;
-  hostSoftwareFilter: ISoftwareDropdownFilterVal;
+  hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
 }
 
 const HostSoftwareTable = ({
   tableConfig,
   data,
+  platform,
   isLoading,
   router,
   sortHeader,
@@ -72,7 +82,7 @@ const HostSoftwareTable = ({
   hostSoftwareFilter,
 }: IHostSoftwareTableProps) => {
   const handleFilterDropdownChange = useCallback(
-    (val: ISoftwareDropdownFilterVal) => {
+    (val: IHostSoftwareDropdownFilterVal) => {
       const newParams: QueryParams = {
         query: searchQuery,
         order_key: sortHeader,
@@ -167,7 +177,7 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
-  const count = data?.count || data?.software.length || 0;
+  const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
 
   const memoizedSoftwareCount = useCallback(() => {
@@ -179,8 +189,16 @@ const HostSoftwareTable = ({
   }, [count, isSoftwareNotDetected]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
-  }, [searchQuery]);
+    const vulnFilterAndNotSupported =
+      isIPadOrIPhone(platform) && hostSoftwareFilter === "vulnerableSoftware";
+    return vulnFilterAndNotSupported ? (
+      <VulnsNotSupported
+        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
+      />
+    ) : (
+      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
+    );
+  }, [hostSoftwareFilter, platform, searchQuery]);
 
   return (
     <div className={baseClass}>

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -19,7 +20,7 @@ type SoftwareInstallerStore interface {
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
-	Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error)
+	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
@@ -39,7 +40,7 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 	return false, errors.New("software installer store not properly configured")
 }
 
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
 	// do not fail for the failing store's cleanup, as unlike the other store
 	// methods, this will be called even if software installers are otherwise not
 	// used (by the cron job).
@@ -73,11 +74,13 @@ type SoftwareInstaller struct {
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
-	TitleID *uint `json:"-" db:"title_id"`
+	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
 	// Version is the version of the software package.
 	Version string `json:"version" db:"version"`
+	// Platform can be "darwin" (for pkgs), "windows" (for exes/msis) or "linux" (for debs).
+	Platform string `json:"platform" db:"platform"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -101,6 +104,8 @@ type SoftwareInstaller struct {
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
 	SelfService bool `json:"self_service" db:"self_service"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -137,6 +142,14 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// HostLastInstallData contains data for the last installation of a package on a host.
+type HostLastInstallData struct {
+	// ExecutionID is the installation ID of the package on the host.
+	ExecutionID string `db:"execution_id"`
+	// Status is the status of the installation on the host.
+	Status *SoftwareInstallerStatus `db:"status"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
@@ -182,6 +195,12 @@ type HostSoftwareInstallerResult struct {
 	// HostDeletedAt indicates if the data is associated with a
 	// deleted host
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
+	// SoftwareInstallerUserID is the ID of the user that uploaded the software installer.
+	SoftwareInstallerUserID *uint `json:"-" db:"software_installer_user_id"`
+	// SoftwareInstallerUserID is the name of the user that uploaded the software installer.
+	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
+	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
+	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
 }
 
 const (
@@ -261,6 +280,8 @@ type UploadSoftwareInstallerPayload struct {
 	Platform          string
 	BundleIdentifier  string
 	SelfService       bool
+	UserID            uint
+	URL               string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -332,6 +353,20 @@ type SoftwarePackageOrApp struct {
 	SelfService *bool                `json:"self_service,omitempty"`
 	IconURL     *string              `json:"icon_url"`
 	LastInstall *HostSoftwareInstall `json:"last_install"`
+	PackageURL  *string              `json:"package_url"`
+}
+
+type SoftwarePackageSpec struct {
+	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+}
+
+type SoftwareSpec struct {
+	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
@@ -395,3 +430,11 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallerPending
 	}
 }
+
+// SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
+type SoftwareInstallerTokenMetadata struct {
+	TitleID uint `json:"title_id"`
+	TeamID  uint `json:"team_id"`
+}
+
+const SoftwareInstallerURLMaxLength = 255

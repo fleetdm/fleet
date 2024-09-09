@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -73,6 +74,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
+	l := strings.ToLower(*p.Name)
+	if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+		return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+	}
+	if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+		return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+	}
 	team.Name = *p.Name
 
 	if p.Description != nil {
@@ -128,6 +136,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Name != nil {
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+		}
+		l := strings.ToLower(*payload.Name)
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
 		}
 		team.Name = *payload.Name
 	}
@@ -612,7 +627,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	if len(hostIDs) > 0 {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 
@@ -860,6 +875,14 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		l := strings.ToLower(spec.Name)
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		}
+
 		var team *fleet.Team
 		// If filename is provided, try to find the team by filename first.
 		// This is needed in case user is trying to modify the team name.
@@ -868,7 +891,22 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, err
 			}
+			if team != nil && team.Name != spec.Name {
+				// If user is trying to change team name, check that the new name is not already taken.
+				_, err = svc.ds.TeamByName(ctx, spec.Name)
+				switch {
+				case err == nil:
+					return nil, fleet.NewInvalidArgumentError("name",
+						fmt.Sprintf("cannot change team name from '%s' (filename: %s) to '%s' because team name already exists", team.Name,
+							*spec.Filename, spec.Name))
+				case fleet.IsNotFound(err):
+					// OK
+				default:
+					return nil, err
+				}
+			}
 		}
+
 		var create bool
 		if team == nil {
 			team, err = svc.ds.TeamByName(ctx, spec.Name)
@@ -1246,7 +1284,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.Software != nil {
 		if team.Config.Software == nil {
-			team.Config.Software = &fleet.TeamSpecSoftware{}
+			team.Config.Software = &fleet.SoftwareSpec{}
 		}
 
 		if spec.Software.Packages.Set {

@@ -13,6 +13,7 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 
@@ -21,19 +22,42 @@ const DEFAULT_SORT_DIRECTION = "desc";
 
 const baseClass = "software-title-details-table";
 
-const NoVersionsDetected = (): JSX.Element => {
+const SoftwareLastUpdatedInfo = (lastUpdatedAt: string) => {
+  return (
+    <LastUpdatedText
+      lastUpdatedAt={lastUpdatedAt}
+      customTooltipText={
+        <>
+          The last time software data was <br />
+          updated, including vulnerabilities <br />
+          and host counts.
+        </>
+      }
+    />
+  );
+};
+
+const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
     <EmptyTable
-      header="No versions detected for this software item."
+      header={
+        isAvailableForInstall
+          ? "No versions detected."
+          : "No versions detected for this software item."
+      }
       info={
-        <>
-          Expecting to see versions?{" "}
-          <CustomLink
-            url={GITHUB_NEW_ISSUE_LINK}
-            text="File an issue on GitHub"
-            newTab
-          />
-        </>
+        isAvailableForInstall ? (
+          "Install this software on a host to see versions."
+        ) : (
+          <>
+            Expecting to see versions?{" "}
+            <CustomLink
+              url={GITHUB_NEW_ISSUE_LINK}
+              text="File an issue on GitHub"
+              newTab
+            />
+          </>
+        )
       }
     />
   );
@@ -45,6 +69,8 @@ interface ISoftwareTitleDetailsTableProps {
   isLoading: boolean;
   teamIdForApi?: number;
   isIPadOSOrIOSApp: boolean;
+  isAvailableForInstall?: boolean;
+  countsUpdatedAt?: string;
 }
 
 interface IRowProps extends Row {
@@ -59,6 +85,8 @@ const SoftwareTitleDetailsTable = ({
   isLoading,
   teamIdForApi,
   isIPadOSOrIOSApp,
+  isAvailableForInstall,
+  countsUpdatedAt,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -85,7 +113,10 @@ const SoftwareTitleDetailsTable = ({
   );
 
   const renderVersionsCount = () => (
-    <TableCount name="versions" count={data?.length} />
+    <>
+      <TableCount name="versions" count={data?.length} />
+      {countsUpdatedAt && SoftwareLastUpdatedInfo(countsUpdatedAt)}
+    </>
   );
 
   return (
@@ -94,7 +125,7 @@ const SoftwareTitleDetailsTable = ({
       columnConfigs={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
-      emptyComponent={NoVersionsDetected}
+      emptyComponent={() => NoVersionsDetected(isAvailableForInstall)}
       showMarkAllPages={false}
       isAllPagesSelected={false}
       defaultSortHeader={DEFAULT_SORT_HEADER}

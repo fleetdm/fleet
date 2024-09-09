@@ -64,13 +64,14 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
 
-		is                   fleet.InstallerStore
-		mdmStorage           fleet.MDMAppleStore
-		mdmPusher            nanomdm_push.Pusher
-		ssoStore             sso.SessionStore
-		profMatcher          fleet.ProfileMatcher
-		softwareInstallStore fleet.SoftwareInstallerStore
-		distributedLock      fleet.Lock
+		is                    fleet.InstallerStore
+		mdmStorage            fleet.MDMAppleStore
+		mdmPusher             nanomdm_push.Pusher
+		ssoStore              sso.SessionStore
+		profMatcher           fleet.ProfileMatcher
+		softwareInstallStore  fleet.SoftwareInstallerStore
+		bootstrapPackageStore fleet.MDMBootstrapPackageStore
+		distributedLock       fleet.Lock
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -114,6 +115,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].SoftwareInstallStore != nil {
 			softwareInstallStore = opts[0].SoftwareInstallStore
+		}
+		if opts[0].BootstrapPackageStore != nil {
+			bootstrapPackageStore = opts[0].BootstrapPackageStore
 		}
 
 		// allow to explicitly set installer store to nil
@@ -197,6 +201,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ssoStore,
 			profMatcher,
 			softwareInstallStore,
+			bootstrapPackageStore,
 			distributedLock,
 		)
 		if err != nil {
@@ -287,30 +292,31 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
-	Logger               kitlog.Logger
-	License              *fleet.LicenseInfo
-	SkipCreateTestUsers  bool
-	Rs                   fleet.QueryResultStore
-	Lq                   fleet.LiveQueryStore
-	Pool                 fleet.RedisPool
-	FailingPolicySet     fleet.FailingPolicySet
-	Clock                clock.Clock
-	Task                 *async.Task
-	EnrollHostLimiter    fleet.EnrollHostLimiter
-	Is                   fleet.InstallerStore
-	FleetConfig          *config.FleetConfig
-	MDMStorage           fleet.MDMAppleStore
-	DEPStorage           nanodep_storage.AllDEPStorage
-	SCEPStorage          scep_depot.Depot
-	MDMPusher            nanomdm_push.Pusher
-	HTTPServerConfig     *http.Server
-	StartCronSchedules   []TestNewScheduleFunc
-	UseMailService       bool
-	APNSTopic            string
-	ProfileMatcher       fleet.ProfileMatcher
-	EnableCachedDS       bool
-	NoCacheDatastore     bool
-	SoftwareInstallStore fleet.SoftwareInstallerStore
+	Logger                kitlog.Logger
+	License               *fleet.LicenseInfo
+	SkipCreateTestUsers   bool
+	Rs                    fleet.QueryResultStore
+	Lq                    fleet.LiveQueryStore
+	Pool                  fleet.RedisPool
+	FailingPolicySet      fleet.FailingPolicySet
+	Clock                 clock.Clock
+	Task                  *async.Task
+	EnrollHostLimiter     fleet.EnrollHostLimiter
+	Is                    fleet.InstallerStore
+	FleetConfig           *config.FleetConfig
+	MDMStorage            fleet.MDMAppleStore
+	DEPStorage            nanodep_storage.AllDEPStorage
+	SCEPStorage           scep_depot.Depot
+	MDMPusher             nanomdm_push.Pusher
+	HTTPServerConfig      *http.Server
+	StartCronSchedules    []TestNewScheduleFunc
+	UseMailService        bool
+	APNSTopic             string
+	ProfileMatcher        fleet.ProfileMatcher
+	EnableCachedDS        bool
+	NoCacheDatastore      bool
+	SoftwareInstallStore  fleet.SoftwareInstallerStore
+	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -626,7 +632,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},

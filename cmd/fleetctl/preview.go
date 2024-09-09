@@ -387,7 +387,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			_, err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplyClientSpecOptions{})
+			_, _, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{})
 			if err != nil {
 				return err
 			}

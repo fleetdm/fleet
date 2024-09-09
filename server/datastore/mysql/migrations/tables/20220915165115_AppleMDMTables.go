@@ -29,13 +29,13 @@ func Up_20220915165115(tx *sql.Tx) error {
 	// Apply MDM Core schema.
 	_, err = tx.Exec(nanoSchema)
 	if err != nil {
-		return fmt.Errorf("failed to apply nanomdm schema: %w", err)
+		return fmt.Errorf("failed to apply nanomdm core schema: %w", err)
 	}
 
 	// Apply MDM DEP schema.
 	_, err = tx.Exec(depSchema)
 	if err != nil {
-		return fmt.Errorf("failed to apply nanomdm schema: %w", err)
+		return fmt.Errorf("failed to apply nanomdm dep schema: %w", err)
 	}
 
 	// Add Fleet domain tables.

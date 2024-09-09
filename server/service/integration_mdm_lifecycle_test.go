@@ -227,7 +227,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 
 			t.Run("automatic enrollment", func(t *testing.T) {
 				device := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, "")
-				s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.enableABM(t.Name())
+				s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 					encoder := json.NewEncoder(w)
 					switch r.URL.Path {
@@ -591,10 +592,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
 	// ensure there's a token for automatic enrollments
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-	}))
+	s.enableABM(t.Name())
 	s.runDEPSchedule()
 
 	// add a device that's manually enrolled

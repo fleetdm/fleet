@@ -169,4 +169,5 @@ export interface IActivityDetails {
   self_service?: boolean;
   command_uuid?: string;
   app_store_id?: number;
+  location?: string; // name of location associated with VPP token
 }

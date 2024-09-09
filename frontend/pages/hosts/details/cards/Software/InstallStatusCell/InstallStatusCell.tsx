@@ -4,7 +4,6 @@ import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
 import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
-import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -14,6 +13,7 @@ const baseClass = "install-status-cell";
 type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
 interface TootipArgs {
   softwareName?: string | null;
+  // this field is used in My device > Self-service
   lastInstalledAt?: string;
   isAppStoreApp?: boolean;
 }
@@ -36,25 +36,23 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
-      <>
-        Fleet installed software on these hosts. (
-        {dateAgo(lastInstall as string)})
-      </>
-    ),
+    tooltip: () =>
+      "Software is installed (install script finished with exit code 0).",
   },
   pending: {
     iconName: "pending-outline",
     displayText: "Pending",
-    tooltip: () => "Fleet will install software when the host comes online.",
+    tooltip: () =>
+      "Fleet is installing or will install when the host comes online.",
   },
   failed: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
+    tooltip: () => (
       <>
-        Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
-        Select <b>Actions &gt; Software details</b> to see more.
+        The host failed to install software. To view errors, select
+        <br />
+        <b>Actions &gt; Show details</b>.
       </>
     ),
   },
@@ -95,10 +93,6 @@ const InstallStatusCell = ({
   app_store_app,
 }: IInstallStatusCellProps) => {
   // FIXME: Improve the way we handle polymophism of software_package and app_store_app
-  const lastInstalledAt =
-    software_package?.last_install?.installed_at ||
-    app_store_app?.last_install?.installed_at ||
-    "";
   const hasPackage = !!software_package;
   const hasAppStoreApp = !!app_store_app;
 
@@ -139,7 +133,6 @@ const InstallStatusCell = ({
         <span className={`${baseClass}__status-tooltip-text`}>
           {displayConfig.tooltip({
             softwareName,
-            lastInstalledAt,
             isAppStoreApp: hasAppStoreApp,
           })}
         </span>

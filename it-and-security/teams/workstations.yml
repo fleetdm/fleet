@@ -18,7 +18,6 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
       - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
       - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
@@ -44,8 +43,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-07-12"
-    minimum_version: "14.5"
+    deadline: "2024-08-23"
+    minimum_version: "14.6.1"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -76,7 +75,8 @@ queries:
     automations_enabled: false
     observer_can_run: true
 software:
-  - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
-    pre_install_query: 
-      path: ../lib/macos-check-if-apple-silicon.queries.yml
-    self_service: true
+  packages:
+    - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
+      pre_install_query:
+        path: ../lib/macos-check-if-apple-silicon.queries.yml
+      self_service: true

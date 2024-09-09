@@ -36,26 +36,35 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
-- jobTitle: 🐋 Solutions Consultant
-  department: Sales
-  hiringManagerName: Dave Herder
-  hiringManagerLinkedInUrl: https://linkedin.com/in/daveherder
-  hiringManagerGithubUsername: dherder
+      
+- jobTitle: 🐋 Account Executive
+  department: Customers
+  hiringManagerName: Alex Mitchell
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
+  hiringManagerGithubUsername: alexmitchelliii
   responsibilities: |
-      - ⏫ Work hand-in-hand with the Sales team by participating in calls with potential customers to show them a demonstration of Fleet in action.
-      - 📖 You’ll provide commentary, detailed technical explanations, examples from your experience, and answer customer questions based on your experience managing Apple, Windows, and Linux devices with MDM and other tools (osquery).
-      - 🏃‍♂️ Provide internal technical training, and participate in sales enablement activities to ensure our team is prepared to explain how Fleet works, where we fit in the Security and IT ecosystem, and how we can solve problems with our customers. 
+    - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate.
+    - 📈 Use available data to identify opportunities and trends with individual prospects.
+    - 📣 Actively promote FleetDM product and services on social media.
+    - 🖥️ Actively present and demonstrate the value of FleetDM products and services and upgrades targeting customer expansion opportunities.
+    - ❔ Appropriately use and follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
+    - 🤔 Anticipate market trends and identify new opportunities for growth.
+    - 🕴️ Utilize systems and tools such as salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
+    - 🚀 Work collaboratively with the product management, customer support, and engineering teams to facilitate feature development based on customer asks.
+    - 🧑‍💻 Collaborate with the marketing team to plan, execute and track impactful marketing campaigns, in order to meet and/or exceed quarterly pipeline and revenue targets.
+    - 🤝 Work with prospects to find win-win commercial agreements.
   experience: |
-      - 🦉 3+ years of experience in a technical sales role (Solutions Consultant, Sales Engineer, Solutions Architect, Technical Account Manager, etc) in the device management or cybersecurity space.
-      - 🧑‍🔬 Experience working with Enterprise customers to help resolve complex technical issues.
-      - 💭 Cybersecurity or IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc. in addition to EDR platforms like Crowdstrike, SentinelOne, CarbonBlack, etc. 
-      - ➕ Familiarity with GitOps workflows and steps to contribute code in open source projects.
-      - 🛠️ Has deployed infrastructure via some form of CI tooling to at least one of the big cloud platforms and lived to tell the tale.
-      - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using Terminal to execute commands or run scripts.
-      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our potential customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-      - 💡 Excellent communication and collaboration skills, with the ability to work closely with sales, engineering, and product teams.
-      - 🌐 Coordinate with our Customer Success team to assist with any technical questions during renewal discussions. You’ll be a resource for existing customers too.
-      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-      - 🤝 Collaboration: You work best in a participatory, team-based environment.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - 🦉 5+ years experience selling to enterprise customers.
+    - 📣 Have excellent communication and interpersonal skills.
+    - 🧑‍💻 Love technology and can explain how things work in detail.
+    - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+    - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to pivot to organizational changes easily.
+    - 🤝 Decisive with the ability to shift gears between thinking and doing.
+    - 📈 Ability to partner with various teams and stakeholders to drive sales.
+    - 👀 Strong understanding of the enterprise procurement process.
+    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+    - 💭 You know how to manage complex sales, difficult escalations, and challenging procurement processes with the utmost care and organization.
+    - 💖 You know how to manage your time and priorities between leads, opportunities other day-to-day responsibilities.
+    - ✍ You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss Fleet's value with them.
+    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+    - ➕ Bonus: You are comfortable with concepts like DevOps/GitOps, APIs, and security.

@@ -1,6 +1,8 @@
 import React from "react";
 import { getErrorReason } from "interfaces/errors";
+import { IMdmVppToken } from "interfaces/mdm";
 import { IVppApp } from "services/entities/mdm_apple";
+import { buildQueryStringFromParams } from "utilities/url";
 
 const ADD_SOFTWARE_ERROR_PREFIX = "Couldn’t add software.";
 const DEFAULT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
@@ -44,3 +46,45 @@ export const getErrorMessage = (e: unknown) => {
 
 export const getUniqueAppId = (app: IVppApp) =>
   `${app.app_store_id}_${app.platform}`;
+
+/**
+ * Generates the query params for the redirect to the software page. This
+ * will either generate query params to filter by available for install or
+ * self service.
+ */
+export const generateRedirectQueryParams = (
+  teamId: number,
+  isSelfService: boolean
+) => {
+  let queryParams = buildQueryStringFromParams({ team_id: teamId });
+  if (isSelfService) {
+    queryParams = `${queryParams}&self_service=true`;
+  } else {
+    queryParams = `${queryParams}&available_for_install=true`;
+  }
+  return queryParams;
+};
+
+/**
+ * Checks if the given team has an available VPP token (either a token
+ * that's associated with the team, or a token that's available to "All
+ * teams")
+ */
+export const teamHasVPPToken = (
+  currentTeamId: number,
+  tokens?: IMdmVppToken[]
+) => {
+  if (!tokens || tokens.length === 0) {
+    return false;
+  }
+
+  return tokens.some((token) => {
+    // if we've got a non-null, empty array it means the token is available for
+    // "All teams"
+    if (token.teams?.length === 0) {
+      return true;
+    }
+
+    return token.teams?.some((team) => team.team_id === currentTeamId);
+  });
+};

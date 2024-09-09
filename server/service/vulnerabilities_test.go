@@ -173,10 +173,10 @@ func TestVulnerabilitesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
-			_, err = svc.Vulnerability(ctx, "CVE-2019-1234", nil, false)
+			_, _, err = svc.Vulnerability(ctx, "CVE-2019-1234", nil, false)
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
-			_, err = svc.Vulnerability(ctx, "CVE-2019-1234", ptr.Uint(1), false)
+			_, _, err = svc.Vulnerability(ctx, "CVE-2019-1234", ptr.Uint(1), false)
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 		})
 	}

@@ -1,6 +1,8 @@
 package fleet
 
-import "time"
+import (
+	"time"
+)
 
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
@@ -9,11 +11,18 @@ type VPPAppID struct {
 	Platform AppleDevicePlatform `db:"platform" json:"platform"`
 }
 
+// VPPAppTeam contains extra metadata injected by fleet
+type VPPAppTeam struct {
+	VPPAppID
+
+	SelfService bool `db:"self_service" json:"self_service"`
+}
+
 // VPPApp represents a VPP (Volume Purchase Program) application,
 // this is used by Apple MDM to manage applications via Apple
 // Business Manager.
 type VPPApp struct {
-	VPPAppID
+	VPPAppTeam
 	// BundleIdentifier is the unique bundle identifier of the
 	// Application.
 	BundleIdentifier string `db:"bundle_identifier" json:"bundle_identifier"`
@@ -23,8 +32,11 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
-	TeamID        *uint  `db:"-" json:"-"`
-	TitleID       uint   `db:"title_id" json:"-"`
+	// TeamID is used for authorization, it must be json serialized to be available
+	// to the rego script. We don't set it outside authorization anyway, so it
+	// won't render otherwise.
+	TeamID  *uint `db:"-" json:"team_id,omitempty"`
+	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
 	UpdatedAt time.Time `db:"updated_at" json:"-"`
@@ -43,6 +55,7 @@ type VPPAppStoreApp struct {
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
 	IconURL       *string              `db:"icon_url" json:"icon_url"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
+	SelfService   bool                 `db:"self_service" json:"self_service"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

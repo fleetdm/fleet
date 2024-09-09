@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
@@ -37,7 +38,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -159,6 +159,7 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, config, vulnAutomationEnabled != "")
 
@@ -173,6 +174,7 @@ func scanVulnerabilities(
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
@@ -345,6 +347,11 @@ func checkOvalVulnerabilities(
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
+			level.Debug(logger).Log("msg", "oval-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
 		elapsed := time.Since(start)
 		level.Debug(logger).Log(
 			"msg", "oval-analysis-done",
@@ -354,6 +361,57 @@ func checkOvalVulnerabilities(
 		results = append(results, r...)
 		if err != nil {
 			errHandler(ctx, logger, "analyzing oval definitions", err)
+		}
+	}
+
+	return results
+}
+
+func checkGovalDictionaryVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	var results []fleet.SoftwareVulnerability
+
+	// Get Platforms
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for goval_dictionary pulls", err)
+		return nil
+	}
+
+	if !config.DisableDataSync {
+		// Sync on disk goval_dictionary sqlite with current OS Versions.
+		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
+		if err != nil {
+			errHandler(ctx, logger, "updating goval_dictionary databases", err)
+		}
+		for _, d := range downloaded {
+			level.Debug(logger).Log("goval_dictionary-sync-downloaded", d)
+		}
+	}
+
+	// Analyze all supported os versions using the synced goval_dictionary definitions.
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns, logger)
+		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
+			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+		elapsed := time.Since(start)
+		level.Debug(logger).Log(
+			"msg", "goval_dictionary-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(ctx, logger, "analyzing goval_dictionary definitions", err)
 		}
 	}
 
@@ -625,7 +683,11 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 		Commander: commander,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM)
+	dbMigrate := &worker.DBMigration{
+		Datastore: ds,
+		Log:       logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -735,6 +797,7 @@ func newCleanupsAndAggregationSchedule(
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -882,7 +945,19 @@ func newCleanupsAndAggregationSchedule(
 			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
-			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
+			// remove only those unused created more than a minute ago to avoid a
+			// race where we delete those created after the mysql query to get those
+			// in use.
+			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
+		}),
+		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
+			// remove only those unused created more than a minute ago to avoid a
+			// race where we delete those created after the mysql query to get those
+			// in use.
+			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
+		}),
+		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
+			return ds.CleanupHostMDMCommands(ctx)
 		}),
 	)
 
@@ -1050,29 +1125,57 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	var fleetSyncer *apple_mdm.DEPService
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving app config")
-			}
-
-			if !appCfg.MDM.AppleBMEnabledAndConfigured {
-				return nil
-			}
-
-			if fleetSyncer == nil {
-				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
-			}
-
-			return fleetSyncer.RunAssigner(ctx)
-		}),
+		schedule.WithJob("dep_syncer", appleMDMDEPSyncerJob(ds, depStorage, logger)),
 	)
 
 	return s, nil
+}
+
+func appleMDMDEPSyncerJob(
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+) func(context.Context) error {
+	var fleetSyncer *apple_mdm.DEPService
+	return func(ctx context.Context) error {
+		appCfg, err := ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving app config")
+		}
+
+		if !appCfg.MDM.AppleBMEnabledAndConfigured {
+			return nil
+		}
+
+		// As part of the DB migration of the single ABM token to the multi-ABM
+		// token world (where the token was migrated from mdm_config_assets to
+		// abm_tokens), we need to complete migration of the existing token as
+		// during the DB migration we didn't have the organization name, apple id
+		// and renewal date.
+		incompleteToken, err := ds.GetABMTokenByOrgName(ctx, "")
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
+		}
+		if incompleteToken != nil {
+			logger.Log("msg", "migrated ABM token found, updating its metadata")
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
+			}
+			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
+				return ctxerr.Wrap(ctx, err, "saving updated migrated ABM token")
+			}
+			logger.Log("msg", "completed migration of existing ABM token")
+		}
+
+		if fleetSyncer == nil {
+			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+		}
+
+		return fleetSyncer.RunAssigner(ctx)
+	}
 }
 
 func newMDMProfileManager(
@@ -1285,35 +1388,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "fetching app config")
-			}
-
-			if !appCfg.MDM.EnabledAndConfigured {
-				level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
-				return nil
-			}
-
-			start := time.Now()
-			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
-			}
-			if len(uuids) == 0 {
-				return nil
-			}
-			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
-			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
-			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
-			}
-			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			if err := commander.DeviceInformation(ctx, uuids, fleet.RefetchCommandUUIDPrefix+commandUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
-			}
-			return nil
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
 		}),
 	)
 

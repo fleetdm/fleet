@@ -4,10 +4,11 @@
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-medium;
-    margin-bottom: $pad-medium;
   }
 
   &__list {
+    max-height: 315px;
+    overflow-y: auto;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -52,10 +53,17 @@
   &__no-software-description {
     margin: 0;
     color: $ui-fleet-black-75;
+    text-align: center;
   }
 
   &__error {
     margin: $pad-xxlarge 0;
+  }
+
+  &__modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 
   &__enable-vpp {

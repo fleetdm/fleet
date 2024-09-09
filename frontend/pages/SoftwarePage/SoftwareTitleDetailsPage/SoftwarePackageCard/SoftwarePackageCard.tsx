@@ -4,7 +4,6 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-import FileSaver from "file-saver";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -25,12 +24,15 @@ import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+  downloadFile,
 } from "./helpers";
 
 const baseClass = "software-package-card";
@@ -41,10 +43,15 @@ function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
 
   useLayoutEffect(() => {
     const element = ref.current;
-    if (element) {
-      const { scrollWidth, clientWidth } = element;
-      setIsTruncated(scrollWidth > clientWidth);
+    function updateIsTruncated() {
+      if (element) {
+        const { scrollWidth, clientWidth } = element;
+        setIsTruncated(scrollWidth > clientWidth);
+      }
     }
+    window.addEventListener("resize", updateIsTruncated);
+    updateIsTruncated();
+    return () => window.removeEventListener("resize", updateIsTruncated);
   }, [ref]);
 
   return isTruncated;
@@ -76,7 +83,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
-  tooltip: string;
+  tooltip: React.ReactNode;
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
@@ -86,17 +93,31 @@ const STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     displayName: "Installed",
     iconName: "success",
-    tooltip: "Fleet installed software on these hosts.",
+    tooltip: (
+      <>
+        Software is installed on these hosts (install script finished
+        <br />
+        with exit code 0). Currently, if the software is uninstalled, the
+        <br />
+        &quot;installed&quot; status won&apos;t be updated.
+      </>
+    ),
   },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet will install software when these hosts come online.",
+    tooltip: "Fleet is installing or will install when the host comes online.",
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
-    tooltip: "Fleet failed to install software on these hosts.",
+    tooltip: (
+      <>
+        These hosts failed to install software. Click on a host to view
+        <br />
+        error(s).
+      </>
+    ),
   },
 };
 
@@ -121,16 +142,18 @@ const PackageStatusCount = ({
   })}`;
   return (
     <DataSet
+      className={`${baseClass}__status`}
       title={
         <TooltipWrapper
           position="top"
           tipContent={displayData.tooltip}
           underline={false}
           showArrow
+          tipOffset={10}
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
-            <span>{displayData.displayName}</span>
+            <div>{displayData.displayName}</div>
           </div>
         </TooltipWrapper>
       }
@@ -248,29 +271,20 @@ const SoftwarePackageCard = ({
 
   const onDownloadClick = useCallback(async () => {
     try {
-      const resp = await softwareAPI.downloadSoftwarePackage(
+      const resp = await softwareAPI.getSoftwarePackageToken(
         softwareId,
         teamId
       );
-      const contentLength = parseInt(resp.headers["content-length"], 10);
-      if (contentLength !== resp.data.size) {
-        throw new Error(
-          `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
-        );
+      if (!resp.token) {
+        throw new Error("No download token returned");
       }
-      const filename = name;
-      const file = new File([resp.data], filename, {
-        type: "application/octet-stream",
-      });
-      if (file.size === 0) {
-        throw new Error("Downloaded file is empty");
-      }
-      if (file.size !== resp.data.size) {
-        throw new Error(
-          `File size (${file.size}) does not match expected size (${resp.data.size})`
-        );
-      }
-      FileSaver.saveAs(file);
+      // Now that we received the download token, we construct the download URL.
+      const { origin } = global.window.location;
+      const url = `${origin}${URL_PREFIX}/api${endpoints.SOFTWARE_PACKAGE_TOKEN(
+        softwareId
+      )}/${resp.token}`;
+      // The download occurs without any additional authentication.
+      downloadFile(url, name);
     } catch (e) {
       renderFlash("error", "Couldn't download. Please try again.");
     }
@@ -305,7 +319,7 @@ const SoftwarePackageCard = ({
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__main-content`}>
+      <div className={`${baseClass}__row-1`}>
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
@@ -315,46 +329,46 @@ const SoftwarePackageCard = ({
             <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
-        <div className={`${baseClass}__package-statuses`}>
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="installed"
-            count={status.installed}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="pending"
-            count={status.pending}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="failed"
-            count={status.failed}
-            teamId={teamId}
-          />
+        <div className={`${baseClass}__actions-wrapper`}>
+          {isSelfService && (
+            <div className={`${baseClass}__self-service-badge`}>
+              <Icon
+                name="install-self-service"
+                size="small"
+                color="ui-fleet-black-75"
+              />
+              Self-service
+            </div>
+          )}
+          {showActions && (
+            <ActionsDropdown
+              isSoftwarePackage={!!softwarePackage}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              onAdvancedOptionsClick={onAdvancedOptionsClick}
+            />
+          )}
         </div>
       </div>
-      <div className={`${baseClass}__actions-wrapper`}>
-        {isSelfService && (
-          <div className={`${baseClass}__self-service-badge`}>
-            <Icon
-              name="install-self-service"
-              size="small"
-              color="ui-fleet-black-75"
-            />
-            Self-service
-          </div>
-        )}
-        {showActions && (
-          <ActionsDropdown
-            isSoftwarePackage={!!softwarePackage}
-            onDownloadClick={onDownloadClick}
-            onDeleteClick={onDeleteClick}
-            onAdvancedOptionsClick={onAdvancedOptionsClick}
-          />
-        )}
+      <div className={`${baseClass}__package-statuses`}>
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="installed"
+          count={status.installed}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="pending"
+          count={status.pending}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="failed"
+          count={status.failed}
+          teamId={teamId}
+        />
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal

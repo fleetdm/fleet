@@ -83,6 +83,7 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -199,8 +200,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
-		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-			return nil
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
 		}
 		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 		require.NoError(t, err)
@@ -208,13 +210,13 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-				fleet.MDMAssetABMCert:  {Name: fleet.MDMAssetABMCert, Value: certPEM},
-				fleet.MDMAssetABMKey:   {Name: fleet.MDMAssetABMKey, Value: keyPEM},
-				fleet.MDMAssetABMToken: {Name: fleet.MDMAssetABMToken, Value: tokenBytes},
-				fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
-				fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
-				fleet.MDMAssetCACert:   {Name: fleet.MDMAssetCACert, Value: certPEM},
-				fleet.MDMAssetCAKey:    {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+				fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+				fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+				fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+				fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+				fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
 			}, nil
 		}
 	}
@@ -318,11 +320,10 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		setupAsstByTeam := make(map[uint]*fleet.MDMAppleSetupAssistant)
 		globalSetupAsst := &fleet.MDMAppleSetupAssistant{
-			ID:          15,
-			TeamID:      nil,
-			Name:        "test asst",
-			Profile:     json.RawMessage(`{"foo": "bar"}`),
-			ProfileUUID: "abc-def",
+			ID:      15,
+			TeamID:  nil,
+			Name:    "test asst",
+			Profile: json.RawMessage(`{"foo": "bar"}`),
 		}
 		setupAsstByTeam[0] = globalSetupAsst
 		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
