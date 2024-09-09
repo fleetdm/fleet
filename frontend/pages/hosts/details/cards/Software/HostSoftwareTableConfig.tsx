@@ -111,8 +111,13 @@ const generateActions = ({
     }
 
     // handle uninstall option
-    // if status not installed nor uninstall pending, or if user doesn't have permission to modify,
-    // remove uninstall action
+    // TODO - confirm desired handling of this case. Assuming this way to match "Install" behavior.
+    if (!hostCanWriteSoftware) {
+      // disable uninstall option if not a fleetd, iPad, or iOS host
+      actions[indexUninstallAction].disabled = true;
+      actions[indexUninstallAction].tooltipContent =
+        "To uninstall software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
+    }
     switch (status) {
       case "installed":
         // keep uninstall option
@@ -125,13 +130,6 @@ const generateActions = ({
         // remove uninstall option
         actions.splice(indexUninstallAction, 1);
     }
-    // TODO - do we want to handle this case?
-    // } else if (!hostCanWriteSoftware) {
-    //   // disable uninstall option if not a fleetd, iPad, or iOS host
-    //   actions[indexUninstallAction].disabled = true;
-    //   actions[indexUninstallAction].tooltipContent =
-    //     "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
-  }
   return actions;
 };
 
