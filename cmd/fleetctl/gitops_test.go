@@ -1311,7 +1311,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages\" must be a bool, found string"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
