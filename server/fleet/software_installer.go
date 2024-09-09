@@ -121,10 +121,14 @@ func (s *SoftwareInstaller) AuthzType() string {
 type SoftwareInstallerStatusSummary struct {
 	// Installed is the number of hosts that have the software package installed.
 	Installed uint `json:"installed" db:"installed"`
-	// Pending is the number of hosts that have the software package pending installation.
-	Pending uint `json:"pending" db:"pending"`
-	// Failed is the number of hosts that have the software package installation failed.
-	Failed uint `json:"failed" db:"failed"`
+	// PendingInstall is the number of hosts that have the software package pending installation.
+	PendingInstall uint `json:"pending_install" db:"pending_install"`
+	// FailedInstall is the number of hosts that have the software package installation failed.
+	FailedInstall uint `json:"failed_install" db:"failed_install"`
+	// PendingUninstall is the number of hosts that have the software package pending installation.
+	PendingUninstall uint `json:"pending_uninstall" db:"pending_uninstall"`
+	// FailedInstall is the number of hosts that have the software package installation failed.
+	FailedUninstall uint `json:"failed_uninstall" db:"failed_uninstall"`
 }
 
 // SoftwareInstallerStatus represents the status of a software installer package on a host.

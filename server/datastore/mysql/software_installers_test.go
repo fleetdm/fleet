@@ -331,6 +331,10 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				return nil
 			})
 
+			// Uninstall request with unknown host
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID)
+			assert.ErrorContains(t, err, "Host")
+
 			userTeamFilter := fleet.TeamFilter{
 				User: &fleet.User{GlobalRole: ptr.String("admin")},
 			}
@@ -432,9 +436,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
 			require.NoError(t, err)
 			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-				Installed: 1,
-				Pending:   2,
-				Failed:    2,
+				Installed:        1,
+				PendingInstall:   1,
+				FailedInstall:    1,
+				PendingUninstall: 1,
+				FailedUninstall:  1,
 			}, *summary)
 		})
 	}

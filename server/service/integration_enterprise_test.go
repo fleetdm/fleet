@@ -11030,7 +11030,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	installUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 
 	gsirr := getSoftwareInstallResultsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusOK, &gsirr)
 	require.NoError(t, gsirr.Err)
 	require.NotNil(t, gsirr.Results)
 	results := gsirr.Results
@@ -11099,9 +11099,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
 	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.Status)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-		Installed: 1,
-		Pending:   2,
-		Failed:    1,
+		Installed:      1,
+		PendingInstall: 2,
+		FailedInstall:  1,
 	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
 
 	// status is reflected in list hosts responses and counts when filtering by software title and status
@@ -11234,6 +11234,22 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
+	details := make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &details))
+	assert.EqualValues(t, fleet.SoftwareUninstallPending, details["status"])
+
+	// Check that status is reflected in software title response
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id",
+		strconv.Itoa(int(*teamID)))
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	assert.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.Status)
+	assert.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		PendingInstall:   1,
+		FailedInstall:    1,
+		PendingUninstall: 1,
+	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
 
 	// Another install/uninstall cannot be send once an uninstall is pending
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusBadRequest, &resp)
@@ -11252,7 +11268,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	details := make(map[string]interface{}, 5)
+	details = make(map[string]interface{}, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &details))
 	assert.Equal(t, "uninstalled", details["status"])
 
@@ -11295,7 +11311,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NotNil(t, instResult.HostDeletedAt)
 
 	gsirr = getSoftwareInstallResultsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusOK, &gsirr)
 	require.NoError(t, gsirr.Err)
 	require.NotNil(t, gsirr.Results)
 	results = gsirr.Results
@@ -11455,7 +11471,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	}
 	checkResults := func(want result) {
 		var resp getSoftwareInstallResultsResponse
-		s.DoJSON("GET", "/api/v1/fleet/software/install/results/"+want.InstallUUID, nil, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/install/%s/results", want.InstallUUID), nil, http.StatusOK, &resp)
 
 		assert.Equal(t, want.HostID, resp.Results.HostID)
 		assert.Equal(t, want.InstallUUID, resp.Results.InstallUUID)
