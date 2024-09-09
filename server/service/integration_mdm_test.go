@@ -4498,6 +4498,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	mysql.CreateABMKeyCertIfNotExists(t, s.ds)
 	mysql.CreateAndSetABMToken(t, s.ds, "nurv")
 	err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
 	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &teamNoABM.ID,
 		Name:              "profile_name_missing",
