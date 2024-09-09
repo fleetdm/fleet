@@ -41,6 +41,12 @@ export interface IPolicy {
   updated_at: string;
   critical: boolean;
   calendar_events_enabled: boolean;
+  install_software?: IPolicySoftwareToInstall;
+}
+
+export interface IPolicySoftwareToInstall {
+  name: string;
+  software_title_id: number;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -94,6 +100,8 @@ export interface IPolicyFormData {
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
+  // undefined from GET/LIST when not set, null for PATCH to unset
+  software_title_id?: number | null;
 }
 
 export interface IPolicyNew {

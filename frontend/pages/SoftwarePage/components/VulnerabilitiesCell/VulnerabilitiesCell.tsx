@@ -12,15 +12,13 @@ const baseClass = "vulnerabilities-cell";
 const generateCell = (
   vulnerabilities: ISoftwareVulnerability[] | string[] | null
 ) => {
-  if (vulnerabilities === null) {
-    return <TextCell value="---" grey italic />;
+  if (vulnerabilities === null || vulnerabilities.length === 0) {
+    return <TextCell value="---" grey />;
   }
 
   let text = "";
   let italicize = true;
-  if (vulnerabilities.length === 0) {
-    text = "---";
-  } else if (vulnerabilities.length === 1) {
+  if (vulnerabilities.length === 1) {
     italicize = false;
     text =
       typeof vulnerabilities[0] === "string"
@@ -63,7 +61,7 @@ const generateTooltip = (
     return null;
   }
 
-  const condensedVulnerabilties = condenseVulnerabilities(vulnerabilities);
+  const condensedVulnerabilities = condenseVulnerabilities(vulnerabilities);
 
   return (
     <ReactTooltip
@@ -73,8 +71,10 @@ const generateTooltip = (
       data-html
     >
       <ul className={`${baseClass}__vulnerability-list`}>
-        {condensedVulnerabilties.map((vulnerability) => {
-          return <li>{vulnerability}</li>;
+        {condensedVulnerabilities.map((vulnerability) => {
+          const key =
+            typeof vulnerability === "string" ? vulnerability : uniqueId();
+          return <li key={key}>{vulnerability}</li>;
         })}
       </ul>
     </ReactTooltip>

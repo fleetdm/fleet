@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,13 @@ func TestMacosSetupAssistant(t *testing.T) {
 	// call TruncateTables immediately as some DB migrations may create jobs
 	mysql.TruncateTables(t, ds)
 
+	org1Name := "org1"
+	org2Name := "org2"
+
+	mysql.SetTestABMAssets(t, ds, "fleet")
+	tok := mysql.CreateAndSetABMToken(t, ds, org1Name)
+	tok2 := mysql.CreateAndSetABMToken(t, ds, org2Name)
+
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)
 	for i := 0; i < len(hosts); i++ {
@@ -40,10 +48,16 @@ func TestMacosSetupAssistant(t *testing.T) {
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
 		})
 		require.NoError(t, err)
-		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+
+		tokID := tok.ID
+		if i%2 == 0 {
+			tokID = tok2.ID
+		}
+
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tokID)
 		require.NoError(t, err)
 		hosts[i] = h
-		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)
+		t.Logf("host [%d]: %s - %s - %d", i, h.UUID, h.HardwareSerial, tokID)
 	}
 
 	// create teams
@@ -59,8 +73,6 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
-
-	mysql.SetTestABMAssets(t, ds)
 
 	logger := kitlog.NewNopLogger()
 	depStorage, err := ds.NewMDMAppleDEPStorage()
@@ -126,7 +138,11 @@ func TestMacosSetupAssistant(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	err = depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
+	err = depStorage.StoreConfig(ctx, org1Name, &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
+	err = depStorage.StoreConfig(ctx, org2Name, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
 	w := NewWorker(ds, logger)
@@ -160,12 +176,22 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, autoProf.Token)
 
-	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID), ptr.Uint(tm3.ID)}
+	getTeamID := func(tmID *uint) string {
+		if tmID == nil {
+			return "null"
+		}
+
+		return strconv.Itoa(int(*tmID))
+	}
+
+	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID)}
 	for _, tmID := range tmIDs {
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
-		require.NoError(t, err)
-		require.Equal(t, defaultProfileName, profUUID)
-		require.False(t, modTime.Before(start))
+		for _, org := range []string{org1Name, org2Name} {
+			profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, org)
+			require.NoError(t, err)
+			require.Equal(t, defaultProfileName, profUUID, "tmID", getTeamID(tmID))
+			require.False(t, modTime.Before(start))
+		}
 	}
 	require.Equal(t, map[string]string{
 		"serial-0": defaultProfileName,
@@ -190,16 +216,24 @@ func TestMacosSetupAssistant(t *testing.T) {
 
 	// default profile is unchanged
 	for _, tmID := range tmIDs {
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
-		require.NoError(t, err)
-		require.Equal(t, defaultProfileName, profUUID)
-		require.False(t, modTime.Before(start))
+		for _, org := range []string{org1Name, org2Name} {
+			profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, org)
+			require.NoError(t, err)
+			require.Equal(t, defaultProfileName, profUUID)
+			require.False(t, modTime.Before(start))
+		}
 	}
 
-	// team 1 setup assistant is registered
+	// team 1 setup assistant is registered for both tokens
 	tm1Asst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "team1", tm1Asst.ProfileUUID)
+	require.NotNil(t, tm1Asst)
+	for _, org := range []string{org1Name, org2Name} {
+		profUUID, modTime, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, &tm1.ID, org)
+		require.NoError(t, err)
+		require.Equal(t, "team1", profUUID)
+		require.False(t, modTime.Before(start))
+	}
 
 	require.Equal(t, map[string]string{
 		"serial-0": defaultProfileName,
@@ -323,20 +357,40 @@ func TestMacosSetupAssistant(t *testing.T) {
 		"serial-5": "no-team", // became a no-team host when team2 got deleted
 	}, serialsToProfile)
 
-	// check that profiles get re-generated
-	reset := time.Now().Truncate(time.Second)
-	time.Sleep(time.Second)
-
+	// check that profiles get re-generated (note that timestamps are not
+	// impacted as the content of the profiles did not change)
 	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
 	require.NoError(t, err)
 	runCheckDone()
 
 	// team 2 got deleted, update the list of team IDs
 	tmIDs = []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm3.ID)}
-	for _, tmID := range tmIDs {
-		_, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
-		require.NoError(t, err)
-		require.True(t, modTime.After(reset))
+	for i, tmID := range tmIDs {
+		for _, org := range []string{org1Name, org2Name} {
+			// no team and team 3 have a custom setup assistant
+			switch i {
+			case 0: // no team
+				// custom profile defined for both orgs
+				_, _, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, tmID, org)
+				require.NoError(t, err, "%v - %v", i, org)
+			case 1: // tm1
+				// team 1 uses the default setup assistant, and it is only defined for org1
+				_, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID, org)
+				if org == org1Name {
+					require.NoError(t, err, "%v - %v", i, org)
+				} else {
+					require.ErrorIs(t, err, sql.ErrNoRows, "%v - %v", i, org)
+				}
+			case 2: // tm3
+				_, _, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, tmID, org)
+				// custom setup assistant only defined for org2
+				if org == org2Name {
+					require.NoError(t, err, "%v - %v", i, org)
+				} else {
+					require.ErrorIs(t, err, sql.ErrNoRows, "%v - %v", i, org)
+				}
+			}
+		}
 	}
 
 	require.Equal(t, map[string]string{

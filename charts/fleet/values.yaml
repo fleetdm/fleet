@@ -3,7 +3,7 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.54.0 # Version of Fleet to deploy
+imageTag: v4.54.1 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -212,7 +212,7 @@ environments:
   # The following environment variable is required if you are using
   # Fleet's macOS MDM features.  In a production environment, it is recommended that
   # you store this private key in a secret and use envsFrom to reference the secret below.
-  # To more information: https://fleetdm.com/docs/using-fleet/fleet-server-configuration#server-private-key
+  # For more information, check out the docs: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key
   FLEET_SERVER_PRIVATE_KEY: ""
 
 ## Section: Environment Variables from Secrets/CMs

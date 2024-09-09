@@ -3,6 +3,7 @@ import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
+  IMdmCommandResult,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -67,11 +68,21 @@ export interface IAppleSetupEnrollmentProfileResponse {
   enrollment_profile: Record<string, unknown>;
 }
 
+export interface IMDMSSOParams {
+  dep_device_info: string;
+}
+
+export interface IMDMAppleEnrollmentProfileParams {
+  token: string;
+  ref?: string;
+  dep_device_info?: string;
+}
+
+export interface IGetMdmCommandResultsResponse {
+  results: IMdmCommandResult[];
+}
+
 const mdmService = {
-  resetEncryptionKey: (token: string) => {
-    const { DEVICE_USER_RESET_ENCRYPTION_KEY } = endpoints;
-    return sendRequest("POST", DEVICE_USER_RESET_ENCRYPTION_KEY(token));
-  },
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
     return sendRequest(
@@ -312,6 +323,13 @@ const mdmService = {
       { team_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
+  },
+  getCommandResults: (
+    command_uuid: string
+  ): Promise<IGetMdmCommandResultsResponse> => {
+    const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
+    const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
+    return sendRequest("GET", url);
   },
 };
 

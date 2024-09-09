@@ -146,7 +146,6 @@ org_settings:
                         "private_key": "google_calendar_private_key",
       }
   mdm:
-    apple_bm_default_team: $APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
       entity_id: ""
       idp_name: ""
@@ -187,3 +186,4 @@ org_settings:
   secrets: # These secrets are used to enroll hosts to the "All teams" team
     - secret: SampleSecret123
     - secret: ABC
+software:

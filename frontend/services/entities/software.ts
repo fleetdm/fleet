@@ -1,20 +1,17 @@
-import { AxiosResponse } from "axios";
-
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,
-  ISoftwareTitleWithPackageDetail,
-  ISoftwareTitleWithPackageName,
+  ISoftwareTitle,
+  ISoftwareTitleDetails,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-
-import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
+import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -23,7 +20,11 @@ export interface ISoftwareApiParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  max_cvss_score?: number;
+  min_cvss_score?: number;
+  exploit?: boolean;
   availableForInstall?: boolean;
+  packagesOnly?: boolean;
   selfService?: boolean;
   teamId?: number;
 }
@@ -31,7 +32,7 @@ export interface ISoftwareApiParams {
 export interface ISoftwareTitlesResponse {
   counts_updated_at: string | null;
   count: number;
-  software_titles: ISoftwareTitleWithPackageName[];
+  software_titles: ISoftwareTitle[];
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -49,7 +50,7 @@ export interface ISoftwareVersionsResponse {
 }
 
 export interface ISoftwareTitleResponse {
-  software_title: ISoftwareTitleWithPackageDetail;
+  software_title: ISoftwareTitleDetails;
 }
 
 export interface ISoftwareVersionResponse {
@@ -57,10 +58,14 @@ export interface ISoftwareVersionResponse {
 }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken?: string | null;
   scope: "software-titles";
 }
 
@@ -91,6 +96,10 @@ export interface IGetSoftwareVersionQueryParams {
 export interface IGetSoftwareVersionQueryKey
   extends IGetSoftwareVersionQueryParams {
   scope: "softwareVersion";
+}
+
+export interface ISoftwareInstallTokenResponse {
+  token: string;
 }
 
 const ORDER_KEY = "name";
@@ -169,7 +178,9 @@ export default {
     teamId,
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
-    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path =
+      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },
 
@@ -186,13 +197,15 @@ export default {
     teamId,
   }: IGetSoftwareVersionQueryParams) => {
     const endpoint = endpoints.SOFTWARE_VERSION(versionId);
-    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path =
+      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
 
   addSoftwarePackage: (
-    data: IAddSoftwareFormData,
+    data: IAddPackageFormData,
     teamId?: number,
     timeout?: number
   ) => {
@@ -206,8 +219,8 @@ export default {
     formData.append("software", data.software);
     formData.append("self_service", data.selfService.toString());
     data.installScript && formData.append("install_script", data.installScript);
-    data.preInstallCondition &&
-      formData.append("pre_install_query", data.preInstallCondition);
+    data.preInstallQuery &&
+      formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
@@ -223,28 +236,22 @@ export default {
   },
 
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
-    const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
+    const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
+    const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
+      softwareId
+    )}?team_id=${teamId}`;
     return sendRequest("DELETE", path);
   },
 
-  downloadSoftwarePackage: (
+  getSoftwarePackageToken: (
     softwareTitleId: number,
     teamId: number
-  ): Promise<AxiosResponse> => {
-    const path = `${endpoints.SOFTWARE_PACKAGE(
+  ): Promise<ISoftwareInstallTokenResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
     )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
-    return sendRequest(
-      "GET",
-      path,
-      undefined,
-      "blob",
-      undefined,
-      undefined,
-      true // return raw response
-    );
+    return sendRequest("POST", path);
   },
 
   getSoftwareInstallResult: (installUuid: string) => {

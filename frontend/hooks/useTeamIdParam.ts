@@ -395,6 +395,8 @@ export const useTeamIdParam = ({
     currentTeamName: currentTeam?.name,
     currentTeamSummary: currentTeam,
     isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
+    isAllTeamsSelected:
+      !isAnyTeamSelected(currentTeam?.id) && currentTeam?.id !== 0,
     isRouteOk,
     isTeamAdmin:
       !!currentTeam?.id && permissions.isTeamAdmin(currentUser, currentTeam.id),

@@ -66,16 +66,33 @@ module.exports = {
       throw 'invalidEmailDomain';
     }
 
-    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
-      `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
+    // await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+    //   text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
+    //   `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
+    // });
+
+    await sails.helpers.sendTemplateEmail.with({
+      to: sails.config.custom.fromEmailAddress,
+      replyTo: {
+        name: firstName + ' '+ lastName,
+        email: emailAddress,
+      },
+      subject: 'New contact form message',
+      layout: false,
+      template: 'email-contact-form',
+      templateData: {
+        emailAddress,
+        firstName,
+        lastName,
+        message,
+      },
     });
 
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: emailAddress,
       firstName: firstName,
       lastName: lastName,
-      leadSource: 'Website - Contact forms',
+      contactSource: 'Website - Contact forms',
       description: `Sent a contact form message: ${message}`,
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {

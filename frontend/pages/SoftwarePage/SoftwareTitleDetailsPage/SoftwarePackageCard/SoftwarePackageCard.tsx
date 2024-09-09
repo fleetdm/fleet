@@ -5,15 +5,10 @@ import React, {
   useState,
 } from "react";
 
-import FileSaver from "file-saver";
-
 import PATHS from "router/paths";
-
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-
 import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
-
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -22,15 +17,23 @@ import { uploadedFromNow } from "utilities/date_format";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
+
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
+import {
+  APP_STORE_APP_DROPDOWN_OPTIONS,
+  SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+  downloadFile,
+} from "./helpers";
 
 const baseClass = "software-package-card";
 
@@ -40,10 +43,15 @@ function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
 
   useLayoutEffect(() => {
     const element = ref.current;
-    if (element) {
-      const { scrollWidth, clientWidth } = element;
-      setIsTruncated(scrollWidth > clientWidth);
+    function updateIsTruncated() {
+      if (element) {
+        const { scrollWidth, clientWidth } = element;
+        setIsTruncated(scrollWidth > clientWidth);
+      }
     }
+    window.addEventListener("resize", updateIsTruncated);
+    updateIsTruncated();
+    return () => window.removeEventListener("resize", updateIsTruncated);
   }, [ref]);
 
   return isTruncated;
@@ -75,7 +83,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
-  tooltip: string;
+  tooltip: React.ReactNode;
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
@@ -85,17 +93,31 @@ const STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     displayName: "Installed",
     iconName: "success",
-    tooltip: "Fleet installed software on these hosts.",
+    tooltip: (
+      <>
+        Software is installed on these hosts (install script finished
+        <br />
+        with exit code 0). Currently, if the software is uninstalled, the
+        <br />
+        &quot;installed&quot; status won&apos;t be updated.
+      </>
+    ),
   },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet will install software when these hosts come online.",
+    tooltip: "Fleet is installing or will install when the host comes online.",
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
-    tooltip: "Fleet failed to install software on these hosts.",
+    tooltip: (
+      <>
+        These hosts failed to install software. Click on a host to view
+        <br />
+        error(s).
+      </>
+    ),
   },
 };
 
@@ -120,16 +142,18 @@ const PackageStatusCount = ({
   })}`;
   return (
     <DataSet
+      className={`${baseClass}__status`}
       title={
         <TooltipWrapper
           position="top"
           tipContent={displayData.tooltip}
           underline={false}
           showArrow
+          tipOffset={10}
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
-            <span>{displayData.displayName}</span>
+            <div>{displayData.displayName}</div>
           </div>
         </TooltipWrapper>
       }
@@ -142,30 +166,19 @@ const PackageStatusCount = ({
   );
 };
 
-const DROPDOWN_OPTIONS = [
-  {
-    label: "Download",
-    value: "download",
-  },
-  {
-    label: "Delete",
-    value: "delete",
-  },
-  {
-    label: "Advanced options",
-    value: "advanced",
-  },
-] as const;
-
-const ActionsDropdown = ({
-  onDownloadClick,
-  onDeleteClick,
-  onAdvancedOptionsClick,
-}: {
+interface IActionsDropdownProps {
+  isSoftwarePackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onAdvancedOptionsClick: () => void;
-}) => {
+}
+
+const ActionsDropdown = ({
+  isSoftwarePackage,
+  onDownloadClick,
+  onDeleteClick,
+  onAdvancedOptionsClick,
+}: IActionsDropdownProps) => {
   const onSelect = (value: string) => {
     switch (value) {
       case "download":
@@ -189,20 +202,42 @@ const ActionsDropdown = ({
         onChange={onSelect}
         placeholder="Actions"
         searchable={false}
-        options={DROPDOWN_OPTIONS}
+        options={
+          isSoftwarePackage
+            ? SOFTWARE_PACAKGE_DROPDOWN_OPTIONS
+            : APP_STORE_APP_DROPDOWN_OPTIONS
+        }
       />
     </div>
   );
 };
 
 interface ISoftwarePackageCardProps {
-  softwarePackage: ISoftwarePackage;
+  name: string;
+  version: string;
+  uploadedAt: string; // TODO: optional?
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+  isSelfService: boolean;
   softwareId: number;
   teamId: number;
+  // NOTE: we will only have this if we are working with a software package.
+  softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
 }
 
+// NOTE: This component is depeent on having either a software package
+// (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
+// of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
+  name,
+  version,
+  uploadedAt,
+  status,
+  isSelfService,
   softwarePackage,
   softwareId,
   teamId,
@@ -236,105 +271,110 @@ const SoftwarePackageCard = ({
 
   const onDownloadClick = useCallback(async () => {
     try {
-      const resp = await softwareAPI.downloadSoftwarePackage(
+      const resp = await softwareAPI.getSoftwarePackageToken(
         softwareId,
         teamId
       );
-      const contentLength = parseInt(resp.headers["content-length"], 10);
-      if (contentLength !== resp.data.size) {
-        throw new Error(
-          `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
-        );
+      if (!resp.token) {
+        throw new Error("No download token returned");
       }
-      const filename = softwarePackage.name;
-      const file = new File([resp.data], filename, {
-        type: "application/octet-stream",
-      });
-      if (file.size === 0) {
-        throw new Error("Downloaded file is empty");
-      }
-      if (file.size !== resp.data.size) {
-        throw new Error(
-          `File size (${file.size}) does not match expected size (${resp.data.size})`
-        );
-      }
-      FileSaver.saveAs(file);
+      // Now that we received the download token, we construct the download URL.
+      const { origin } = global.window.location;
+      const url = `${origin}${URL_PREFIX}/api${endpoints.SOFTWARE_PACKAGE_TOKEN(
+        softwareId
+      )}/${resp.token}`;
+      // The download occurs without any additional authentication.
+      downloadFile(url, name);
     } catch (e) {
-      console.log(e);
-      renderFlash("error", "Couldn’t download. Please try again.");
+      renderFlash("error", "Couldn't download. Please try again.");
     }
-  }, [renderFlash, softwareId, softwarePackage.name, teamId]);
+  }, [renderFlash, softwareId, name, teamId]);
+
+  const renderIcon = () => {
+    return softwarePackage ? (
+      <Graphic name="file-pkg" />
+    ) : (
+      <SoftwareIcon name="appStore" size="medium" />
+    );
+  };
+
+  const renderDetails = () => {
+    return !uploadedAt ? (
+      <span>Version {version}</span>
+    ) : (
+      <>
+        <span>Version {version} &bull; </span>
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(uploadedAt))}
+          underline={false}
+        >
+          {uploadedFromNow(uploadedAt)}
+        </TooltipWrapper>
+      </>
+    );
+  };
 
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__main-content`}>
+      <div className={`${baseClass}__row-1`}>
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
-          <Graphic name="file-pkg" />
+          {renderIcon()}
           <div className={`${baseClass}__info`}>
-            <SoftwareName name={softwarePackage.name} />
-            <span className={`${baseClass}__details`}>
-              <span>Version {softwarePackage.version} &bull; </span>
-              <TooltipWrapper
-                tipContent={internationalTimeFormat(
-                  new Date(softwarePackage.uploaded_at)
-                )}
-                underline={false}
-              >
-                {uploadedFromNow(softwarePackage.uploaded_at)}
-              </TooltipWrapper>
-            </span>
+            <SoftwareName name={name} />
+            <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
-        <div className={`${baseClass}__package-statuses`}>
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="installed"
-            count={softwarePackage.status.installed}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="pending"
-            count={softwarePackage.status.pending}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="failed"
-            count={softwarePackage.status.failed}
-            teamId={teamId}
-          />
+        <div className={`${baseClass}__actions-wrapper`}>
+          {isSelfService && (
+            <div className={`${baseClass}__self-service-badge`}>
+              <Icon
+                name="install-self-service"
+                size="small"
+                color="ui-fleet-black-75"
+              />
+              Self-service
+            </div>
+          )}
+          {showActions && (
+            <ActionsDropdown
+              isSoftwarePackage={!!softwarePackage}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              onAdvancedOptionsClick={onAdvancedOptionsClick}
+            />
+          )}
         </div>
       </div>
-      <div className={`${baseClass}__actions-wrapper`}>
-        {softwarePackage.self_service && (
-          <div className={`${baseClass}__self-service-badge`}>
-            <Icon
-              name="install-self-service"
-              size="small"
-              color="ui-fleet-black-75"
-            />
-            Self-service
-          </div>
-        )}
-        {showActions && (
-          <ActionsDropdown
-            onDownloadClick={onDownloadClick}
-            onDeleteClick={onDeleteClick}
-            onAdvancedOptionsClick={onAdvancedOptionsClick}
-          />
-        )}
+      <div className={`${baseClass}__package-statuses`}>
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="installed"
+          count={status.installed}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="pending"
+          count={status.pending}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="failed"
+          count={status.failed}
+          teamId={teamId}
+        />
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
-          installScript={softwarePackage.install_script}
-          preInstallQuery={softwarePackage.pre_install_query}
-          postInstallScript={softwarePackage.post_install_script}
+          installScript={softwarePackage?.install_script ?? ""}
+          preInstallQuery={softwarePackage?.pre_install_query}
+          postInstallScript={softwarePackage?.post_install_script}
           onExit={() => setShowAdvancedOptionsModal(false)}
         />
       )}

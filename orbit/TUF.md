@@ -5,20 +5,22 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 ## `stable`
 
-| Component\OS |    macOS     | Linux  | Windows |
-|--------------|--------------|--------|---------|
-| orbit        | 1.27.0       | 1.27.0 | 1.27.0  |
-| desktop      | 1.27.0       | 1.27.0 | 1.27.0  |
-| osqueryd     | 5.12.1       | 5.12.1 | 5.12.1  |
-| nudge        | 1.1.10.81462 | -      | -       |
-| swiftDialog  | 2.1.0        | -      | -       |
+| Component\OS |    macOS     | Linux  | Windows | Linux (arm64) |
+|--------------|--------------|--------|---------|---------------|
+| orbit        | 1.32.0       | 1.32.0 | 1.32.0  | 1.32.0        |
+| desktop      | 1.32.0       | 1.32.0 | 1.32.0  | 1.32.0        |
+| osqueryd     | 5.13.1       | 5.13.1 | 5.13.1  | 5.13.1        |
+| nudge        | 1.1.10.81462 | -      | -       | -             |
+| swiftDialog  | 2.1.0        | -      | -       | -             |
+| escrowBuddy  | 1.0.0        | -      | -       | -             |
 
 ## `edge`
 
-| Component\OS | macOS  | Linux  | Windows |
-|--------------|--------|--------|---------|
-| orbit        | 1.28.0 | 1.28.0 | 1.28.0  |
-| desktop      | 1.28.0 | 1.28.0 | 1.28.0  |
-| osqueryd     | 5.12.2 | 5.12.2 | 5.12.2  |
-| nudge        | -      | -      | -       |
-| swiftDialog  | -      | -      | -       |
+| Component\OS | macOS  | Linux  | Windows | Linux (arm64) |
+|--------------|--------|--------|---------|---------------|
+| orbit        | 1.32.0 | 1.32.0 | 1.32.0  | 1.32.0        |
+| desktop      | 1.32.0 | 1.32.0 | 1.32.0  | 1.32.0        |
+| osqueryd     | 5.13.1 | 5.13.1 | 5.13.1  | 5.13.1        |
+| nudge        | -      | -      | -       | -             |
+| swiftDialog  | -      | -      | -       | -             |
+| escrowBuddy  | -      | -      | -       | -             |

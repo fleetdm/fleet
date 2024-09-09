@@ -158,6 +158,18 @@ type MDMWindowsProfilePayload struct {
 	Retries       int                `db:"retries"`
 }
 
+func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return statusEqual &&
+		p.ProfileUUID == other.ProfileUUID &&
+		p.HostUUID == other.HostUUID &&
+		p.ProfileName == other.ProfileName &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.CommandUUID == other.CommandUUID &&
+		p.Retries == other.Retries
+}
+
 type MDMWindowsBulkUpsertHostProfilePayload struct {
 	ProfileUUID   string
 	ProfileName   string

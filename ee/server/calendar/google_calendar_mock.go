@@ -64,6 +64,15 @@ func (lowLevelAPI *GoogleCalendarMockAPI) CreateEvent(event *calendar.Event) (*c
 	return event, nil
 }
 
+func (lowLevelAPI *GoogleCalendarMockAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	time.Sleep(latency)
+	mu.Lock()
+	defer mu.Unlock()
+	lowLevelAPI.logger.Log("msg", "UpdateEvent", "id", event.Id, "start", event.Start.DateTime)
+	mockEvents[event.Id] = event
+	return event, nil
+}
+
 func (lowLevelAPI *GoogleCalendarMockAPI) GetEvent(id, _ string) (*calendar.Event, error) {
 	time.Sleep(latency)
 	mu.Lock()

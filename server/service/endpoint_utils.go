@@ -273,6 +273,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						return nil, badRequestErr("parsing uint from query", err)
 					}
 					field.SetUint(uint64(queryValUint))
+				case reflect.Float64:
+					queryValFloat, err := strconv.ParseFloat(queryVal, 64)
+					if err != nil {
+						return nil, badRequestErr("parsing float from query", err)
+					}
+					field.SetFloat(queryValFloat)
 				case reflect.Bool:
 					field.SetBool(queryVal == "1" || queryVal == "true")
 				case reflect.Int:
@@ -442,9 +448,12 @@ var pathReplacer = strings.NewReplacer(
 	"}", "_",
 )
 
-func getNameFromPathAndVerb(verb, path string) string {
-	return strings.ToLower(verb) + "_" +
-		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
+func getNameFromPathAndVerb(verb, path, startAt string) string {
+	prefix := strings.ToLower(verb) + "_"
+	if startAt != "" {
+		prefix += pathReplacer.Replace(startAt) + "_"
+	}
+	return prefix + pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
 func capabilitiesResponseFunc(capabilities fleet.CapabilityMap) kithttp.ServerOption {
@@ -554,14 +563,14 @@ func (e *authEndpointer) handlePathHandler(path string, pathHandler func(path st
 	}
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-	nameAndVerb := getNameFromPathAndVerb(verb, path)
+	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
 	if e.usePathPrefix {
 		e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 	} else {
 		e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 	}
 	for _, alias := range e.alternativePaths {
-		nameAndVerb := getNameFromPathAndVerb(verb, alias)
+		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 		if e.usePathPrefix {
 			e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)

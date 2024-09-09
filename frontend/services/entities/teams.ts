@@ -45,6 +45,14 @@ export interface IUpdateTeamFormData {
       minimum_version: string;
       deadline: string;
     };
+    ios_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
     windows_updates?: {
       deadline_days: number;
       grace_period_days: number;

@@ -18,7 +18,8 @@ spec:
     jira: null
     zendesk: null
   mdm:
-    apple_bm_default_team: ""
+    apple_business_manager:
+    volume_purchasing_program:
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
     enabled_and_configured: true
@@ -38,6 +39,12 @@ spec:
       macos_setup_assistant: %s
       enable_release_device_manually: false
     macos_updates:
+      deadline: null
+      minimum_version: null
+    ios_updates:
+      deadline: null
+      minimum_version: null
+    ipados_updates:
       deadline: null
       minimum_version: null
     windows_updates:

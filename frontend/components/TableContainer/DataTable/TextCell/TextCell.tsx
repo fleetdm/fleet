@@ -7,7 +7,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "text-cell";
 interface ITextCellProps {
-  value?: string | number | boolean | { timeString: string } | null;
+  value?: React.ReactNode | { timeString: string };
   formatter?: (val: any) => React.ReactNode; // string, number, or null
   grey?: boolean;
   italic?: boolean;
