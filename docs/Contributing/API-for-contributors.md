@@ -3098,6 +3098,30 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 }
 ```
 
+### Batch-apply app store apps
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/app_store_apps/batch`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                                                                            |
+|-----------------|---------|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_name       | integer | query | **Required**. The name of the team to add the app to.                                                                                                                                  |
+| dry_run         | bool    | query | If `true`, will validate the provided apps and return any validation errors, but will not apply the changes.                                                                           |
+| apps_store_apps | list    | body  | The list of objects containing `app_store_id`: a string representation of the app's App ID, `self_service`: a bool indicating if the app's installation can be initiated by end users. |
+
+> Note that this endpoint replaces all apps associated with a team.
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store_apps/batch`
+
+#### Default response
+
+`Status: 204`
+
 ### Get token to download package
 
 _Available in Fleet Premium._
