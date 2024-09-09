@@ -74,7 +74,7 @@ type SoftwareInstaller struct {
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
-	TitleID *uint `json:"-" db:"title_id"`
+	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
 	// Version is the version of the software package.
@@ -95,6 +95,8 @@ type SoftwareInstaller struct {
 	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
+	// UninstallScript is the script to run to uninstall the software package.
+	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
@@ -106,6 +108,8 @@ type SoftwareInstaller struct {
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
 	SelfService bool `json:"self_service" db:"self_service"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -117,10 +121,14 @@ func (s *SoftwareInstaller) AuthzType() string {
 type SoftwareInstallerStatusSummary struct {
 	// Installed is the number of hosts that have the software package installed.
 	Installed uint `json:"installed" db:"installed"`
-	// Pending is the number of hosts that have the software package pending installation.
-	Pending uint `json:"pending" db:"pending"`
-	// Failed is the number of hosts that have the software package installation failed.
-	Failed uint `json:"failed" db:"failed"`
+	// PendingInstall is the number of hosts that have the software package pending installation.
+	PendingInstall uint `json:"pending_install" db:"pending_install"`
+	// FailedInstall is the number of hosts that have the software package installation failed.
+	FailedInstall uint `json:"failed_install" db:"failed_install"`
+	// PendingUninstall is the number of hosts that have the software package pending installation.
+	PendingUninstall uint `json:"pending_uninstall" db:"pending_uninstall"`
+	// FailedInstall is the number of hosts that have the software package installation failed.
+	FailedUninstall uint `json:"failed_uninstall" db:"failed_uninstall"`
 }
 
 // SoftwareInstallerStatus represents the status of a software installer package on a host.
@@ -290,6 +298,7 @@ type UploadSoftwareInstallerPayload struct {
 	BundleIdentifier  string
 	SelfService       bool
 	UserID            uint
+	URL               string
 	PackageIDs        []string
 	UninstallScript   string
 	Extension         string
@@ -365,6 +374,7 @@ type SoftwarePackageOrApp struct {
 	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
+	PackageURL    *string                `json:"package_url"`
 }
 
 type SoftwarePackageSpec struct {
@@ -455,3 +465,5 @@ type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
 	TeamID  uint `json:"team_id"`
 }
+
+const SoftwareInstallerURLMaxLength = 255

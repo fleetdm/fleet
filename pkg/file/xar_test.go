@@ -53,6 +53,7 @@ func TestCheckPKGSignature(t *testing.T) {
 }
 
 func TestParseRealDistributionFiles(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		file               string
 		expectedName       string

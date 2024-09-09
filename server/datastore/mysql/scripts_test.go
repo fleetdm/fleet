@@ -37,6 +37,7 @@ func TestScripts(t *testing.T) {
 		{"TestLockUnlockManually", testLockUnlockManually},
 		{"TestInsertScriptContents", testInsertScriptContents},
 		{"TestCleanupUnusedScriptContents", testCleanupUnusedScriptContents},
+		{"TestGetAnyScriptContents", testGetAnyScriptContents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -263,6 +264,8 @@ func testScripts(t *testing.T, ds *Datastore) {
 	// get unknown script contents
 	_, err = ds.GetScriptContents(ctx, 123)
 	require.ErrorAs(t, err, &nfe)
+	_, err = ds.GetAnyScriptContents(ctx, 123)
+	require.ErrorAs(t, err, &nfe)
 
 	// create global scriptGlobal
 	scriptGlobal, err := ds.NewScript(ctx, &fleet.Script{
@@ -282,6 +285,9 @@ func testScripts(t *testing.T, ds *Datastore) {
 
 	// get the global script contents
 	contents, err := ds.GetScriptContents(ctx, scriptGlobal.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo", string(contents))
+	contents, err = ds.GetAnyScriptContents(ctx, scriptGlobal.ID)
 	require.NoError(t, err)
 	require.Equal(t, "echo", string(contents))
 
@@ -315,6 +321,9 @@ func testScripts(t *testing.T, ds *Datastore) {
 
 	// get the team script contents
 	contents, err = ds.GetScriptContents(ctx, scriptTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo 'team'", string(contents))
+	contents, err = ds.GetAnyScriptContents(ctx, scriptTeam.ID)
 	require.NoError(t, err)
 	require.Equal(t, "echo 'team'", string(contents))
 
@@ -1246,4 +1255,16 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, sc, 1)
 	require.Equal(t, md5ChecksumScriptContent(res.ScriptContents), sc[0].Checksum)
+}
+
+func testGetAnyScriptContents(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	contents := `echo foobar;`
+	res, err := insertScriptContents(ctx, ds.writer(ctx), contents)
+	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+
+	result, err := ds.GetAnyScriptContents(ctx, uint(id))
+	require.NoError(t, err)
+	require.Equal(t, contents, string(result))
 }

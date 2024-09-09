@@ -12,6 +12,9 @@ func init() {
 	MigrationClient.AddMigration(Up_20240905200000, Down_20240905200000)
 }
 
+const placeholderUninstallScript = "# This script will be automatically updated within the next hour\nexit 1"
+const placeholderUninstallScriptWindows = "# This script will be automatically updated within the next hour\nExit 1"
+
 func Up_20240905200000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 ALTER TABLE software_installers 
@@ -30,7 +33,7 @@ MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 		return fmt.Errorf("failed to check software installers for linux or darwin: %w", err)
 	}
 	if len(result) > 0 {
-		linuxScriptID, err := getOrInsertScript(txx, "# This script will be automatically updated within the next hour\nexit 1")
+		linuxScriptID, err := getOrInsertScript(txx, placeholderUninstallScript)
 		if err != nil {
 			return err
 		}
@@ -45,7 +48,7 @@ MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 		return fmt.Errorf("failed to check software installers for windows: %w", err)
 	}
 	if len(result) > 0 {
-		windowsScriptID, err := getOrInsertScript(txx, "# This script will be automatically updated within the next hour\nExit 1")
+		windowsScriptID, err := getOrInsertScript(txx, placeholderUninstallScriptWindows)
 		if err != nil {
 			return err
 		}

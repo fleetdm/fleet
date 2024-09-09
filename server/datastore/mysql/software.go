@@ -2219,7 +2219,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					GROUP_CONCAT(hsi_install_execution_id) as last_install_execution_id,
 					TIMESTAMP(GROUP_CONCAT(hsi_uninstalled_at)) as last_uninstalled_at,
 					GROUP_CONCAT(hsi_uninstall_execution_id) as last_uninstall_execution_id,
-					GROUP_CONCAT(hsi_status) as last_status
+					IF(GROUP_CONCAT(hsi_status) = '', NULL, GROUP_CONCAT(hsi_status)) as last_status
 				FROM (
 					-- get latest install/uninstall status
 					SELECT
@@ -2227,9 +2227,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
 						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
 						-- get the status of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, status)), 27) AS hsi_status
+					    SUBSTRING(MAX(CONCAT(created_at, COALESCE(status, ''))), 27) AS hsi_status
 					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 0
+					WHERE host_id = :host_id AND removed = 0
 					GROUP BY host_id, software_installer_id
 					UNION
 					-- get latest install attempt
