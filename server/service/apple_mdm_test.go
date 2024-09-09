@@ -80,6 +80,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
 			require.NoError(t, err)
 			return
+		case strings.Contains(r.URL.Path, "/profile"):
+			_, err := w.Write([]byte(`{"profile_uuid": "profile123"}`))
+			require.NoError(t, err)
 		}
 	}))
 
@@ -216,6 +219,13 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 			fleet.MDMAssetCACert:   {Value: certPEM},
 			fleet.MDMAssetCAKey:    {Value: keyPEM},
 		}, nil
+	}
+
+	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return []string{"foobar"}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: 1}}, nil
 	}
 
 	return svc, ctx, ds
@@ -2749,11 +2759,8 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 	ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 		return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
 	}
-	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
-		return []string{}, nil
-	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{}, nil
+	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
 	}
 
 	testCases := []struct {

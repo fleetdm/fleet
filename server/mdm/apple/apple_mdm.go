@@ -261,10 +261,6 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	return requestedTokenProfileUUID, requestedTokenModTime, nil
 }
 
-// Convert godep.Profile -> fleet.MDMAppleSetupAssistant
-
-// Send the profile to Apple for validation (wrap around depClient.DefineProfile)
-
 func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) error {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
