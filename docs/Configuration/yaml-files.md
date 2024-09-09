@@ -225,8 +225,11 @@ controls:
   windows_enabled_and_configured: true
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: "2023-06-13"
-    minimum_version: 13.4.1
+    deadline: "2024-09-01"
+    minimum_version: 14.6.1
+    labels_exclude_any:
+      - Executives
+      - QA engineers
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
@@ -256,11 +259,16 @@ controls:
 
 - `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
+- `labels_exclude_any` scope OS update enforcement only to hosts that don't have any of the specified labels.
+
+
 
 #### windows_updates
 
 - `deadline_days` (default: null)
 - `grace_period_days` (default: null)
+- `labels_exclude_any` scope OS update enforcement only to hosts that don't have any of the specified labels.
+
 
 #### macos_settings and windows_settings
 
