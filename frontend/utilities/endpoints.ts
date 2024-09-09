@@ -167,7 +167,7 @@ export default {
   SOFTWARE_PACKAGE_TOKEN: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
-    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
+    `/${API_VERSION}/fleet/software/install/${uuid}/results`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
   SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
