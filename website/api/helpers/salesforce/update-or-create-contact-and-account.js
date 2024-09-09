@@ -193,7 +193,7 @@ module.exports = {
           // Create a timestamp to use for the new account's assigned date.
           let today = new Date();
           let nowOn = today.toISOString().replace('Z', '+0000');
-
+          require('assert')(typeof enrichmentData.employer.numberOfEmployees === 'number');
           let newAccountRecord = await salesforceConnection.sobject('Account')
           .create({
             Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
@@ -204,7 +204,7 @@ module.exports = {
             Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
             Website: enrichmentData.employer.emailDomain,
             LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
-            NumberOfEmployees: Number(enrichmentData.employer.numberOfEmployees),
+            NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
             OwnerId: salesforceAccountOwnerId
           });
           salesforceAccountId = newAccountRecord.id;
