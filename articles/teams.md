@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can group hosts together in a "team" in Fleet. This way, you can apply queries, policies, scripts, and more that are tailored to the hosts' risk/compliance needs.
+In Fleet, you can group hosts together in a "team" in Fleet. This way, you can apply queries, policies, scripts, and more that are tailored to a host's risk/compliance needs.
 
 A host can only belong to one team. 
 
