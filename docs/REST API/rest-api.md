@@ -885,7 +885,17 @@ None.
     "enable_disk_encryption": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "labels_exclude_any": [
+        {
+          "id": 3,
+          "name": "Executives"
+        },
+        {
+          "id": 9,
+          "name": "QA Engineers"
+        }
+      ]
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -1178,7 +1188,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_disk_encryption": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
+      "deadline": "2022-01-01",
+      "labels_exclude_any": ["Executives","QA Engineers"]
     },
     "ios_updates": {
       "minimum_version": "17.0.1",
@@ -1718,6 +1729,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
+| labels_exclude_any                | string  | Scope OS update enforcement only to hosts that don't have any of the specified labels |
 
 <br/>
 
@@ -1731,6 +1743,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+| labels_exclude_any                | string  | Scope OS update enforcement only to hosts that don't have any of the specified labels |
 
 <br/>
 
@@ -1744,6 +1757,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+| labels_exclude_any                | string  | Scope OS update enforcement only to hosts that don't have any of the specified labels |
 
 <br/>
 
@@ -1757,6 +1771,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | deadline_days                     | integer | Hosts that belong to no team will have this number of days before updates are installed on Windows. |
 | grace_period_days                 | integer | Hosts that belong to no team will have this number of days before Windows restarts to install updates. |
+| labels_exclude_any                | string  | Scope OS update enforcement only to hosts that don't have any of the specified labels |
 
 <br/>
 
@@ -1817,6 +1832,8 @@ _Available in Fleet Premium._
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+      "labels_exclude_any": ["Executives", "QA Engineers"]
+
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -9864,15 +9881,19 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;labels_exclude_any              | string  | body | Scope OS update enforcement only to hosts that don't have any of the specified labels. |
 | &nbsp;&nbsp;ios_updates                               | object  | body | iOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;labels_exclude_any              | string  | body | Scope OS update enforcement only to hosts that don't have any of the specified labels. |
 | &nbsp;&nbsp;ipados_updates                               | object  | body | iPadOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;labels_exclude_any              | string  | body | Scope OS update enforcement only to hosts that don't have any of the specified labels. |
 | &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;labels_exclude_any              | string  | body | Scope OS update enforcement only to hosts that don't have any of the specified labels. 
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
