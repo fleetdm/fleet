@@ -130,6 +130,7 @@ const generateActions = ({
         // remove uninstall option
         actions.splice(indexUninstallAction, 1);
     }
+  }
   return actions;
 };
 
