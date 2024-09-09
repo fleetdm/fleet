@@ -1428,6 +1428,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
+| mdm.macos_updates.labels_exclude_any      | string  | body | Scope OS update enforcement only to hosts that don't have any of the specified labels. |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
@@ -1491,7 +1492,8 @@ If the `name` is not already associated with an existing team, this API route cr
       "mdm": {
         "macos_updates": {
           "minimum_version": "12.3.1",
-          "deadline": "2023-12-01"
+          "deadline": "2023-12-01",
+	  "labels_exclude_any": ["Executives", "QA Engineers"]
         },
         "macos_settings": {
           "custom_settings": [
