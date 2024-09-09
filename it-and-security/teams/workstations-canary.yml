@@ -65,7 +65,6 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
       - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
       - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
@@ -93,10 +92,13 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: ""
-    minimum_version: ""
+    deadline: "2024-08-23"
+    minimum_version: "14.6.1"
   windows_settings:
-    custom_settings: null
+    custom_settings:
+      - path: ../lib/configuration-profiles/windows-firewall.xml
+      - path: ../lib/configuration-profiles/windows-password.xml
+      - path: ../lib/configuration-profiles/windows-screen-lock.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -143,3 +145,4 @@ queries:
   - path: ../lib/collect-software-permissions-system.queries.yml
   - path: ../lib/collect-software-permissions-user.queries.yml
   - path: ../lib/collect-crowdstrike-info.queries.yml
+software:

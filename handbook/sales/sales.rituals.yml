@@ -1,12 +1,18 @@
 # https://github.com/fleetdm/fleet/pull/13084
 
 
-
+ -
+  task: "Close leads contacted ≥7 days ago"
+  startedOn: "2024-07-05"
+  frequency: "Daily"
+  description: "Close all of your leads in the 'Attempted to contact' stage and which have been there for 7 or more days.  If follow-up is appropriate, and won't be bothersome, it can be done after closing the lead.  (A new lead can always be opened for the contact later.)"
+  moreInfoUrl: ""
+  dri: "Every AE"
  -
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly" # must be supported by
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues

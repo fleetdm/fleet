@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -73,6 +74,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
+	l := strings.ToLower(*p.Name)
+	if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+		return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+	}
+	if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+		return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+	}
 	team.Name = *p.Name
 
 	if p.Description != nil {
@@ -129,6 +137,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
+		l := strings.ToLower(*payload.Name)
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		}
 		team.Name = *payload.Name
 	}
 	if payload.Description != nil {
@@ -144,7 +159,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	var macOSMinVersionUpdated, windowsUpdatesUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
+	var (
+		macOSMinVersionUpdated        bool
+		iOSMinVersionUpdated          bool
+		iPadOSMinVersionUpdated       bool
+		windowsUpdatesUpdated         bool
+		macOSDiskEncryptionUpdated    bool
+		macOSEnableEndUserAuthUpdated bool
+	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -154,6 +176,26 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
+			}
+		}
+		if payload.MDM.IOSUpdates != nil {
+			if err := payload.MDM.IOSUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
+			}
+			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
+				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
+					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
+				team.Config.MDM.IOSUpdates = *payload.MDM.IOSUpdates
+			}
+		}
+		if payload.MDM.IPadOSUpdates != nil {
+			if err := payload.MDM.IPadOSUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("ipados_updates", err.Error())
+			}
+			if payload.MDM.IPadOSUpdates.MinimumVersion.Set || payload.MDM.IPadOSUpdates.Deadline.Set {
+				iPadOSMinVersionUpdated = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != payload.MDM.IPadOSUpdates.MinimumVersion.Value ||
+					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value
+				team.Config.MDM.IPadOSUpdates = *payload.MDM.IPadOSUpdates
 			}
 		}
 
@@ -249,8 +291,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
+
 	if macOSMinVersionUpdated {
-		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
 		}
 
@@ -264,9 +307,46 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				Deadline:       team.Config.MDM.MacOSUpdates.Deadline.Value,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macOS min version edited")
 		}
 	}
+	if iOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IOS, team.Config.MDM.IOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on iOS updates change")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedIOSMinVersion{
+				TeamID:         &team.ID,
+				TeamName:       &team.Name,
+				MinimumVersion: team.Config.MDM.IOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.IOSUpdates.Deadline.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team iOS min version edited")
+		}
+	}
+	if iPadOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on iPadOS updates change")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedIPadOSMinVersion{
+				TeamID:         &team.ID,
+				TeamName:       &team.Name,
+				MinimumVersion: team.Config.MDM.IPadOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.IPadOSUpdates.Deadline.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team iPadOS min version edited")
+		}
+	}
+
 	if windowsUpdatesUpdated {
 		var deadline, grace *int
 		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
@@ -547,7 +627,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	if len(hostIDs) > 0 {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 
@@ -795,6 +875,14 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		l := strings.ToLower(spec.Name)
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		}
+
 		var team *fleet.Team
 		// If filename is provided, try to find the team by filename first.
 		// This is needed in case user is trying to modify the team name.
@@ -803,7 +891,22 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, err
 			}
+			if team != nil && team.Name != spec.Name {
+				// If user is trying to change team name, check that the new name is not already taken.
+				_, err = svc.ds.TeamByName(ctx, spec.Name)
+				switch {
+				case err == nil:
+					return nil, fleet.NewInvalidArgumentError("name",
+						fmt.Sprintf("cannot change team name from '%s' (filename: %s) to '%s' because team name already exists", team.Name,
+							*spec.Filename, spec.Name))
+				case fleet.IsNotFound(err):
+					// OK
+				default:
+					return nil, err
+				}
+			}
 		}
+
 		var create bool
 		if team == nil {
 			team, err = svc.ds.TeamByName(ctx, spec.Name)
@@ -1018,6 +1121,7 @@ func (svc *Service) createTeamFromSpec(
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar: spec.Integrations.GoogleCalendar,
 			},
+			Software: spec.Software,
 		},
 		Secrets: secrets,
 	})
@@ -1077,6 +1181,16 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 		mdmMacOSUpdatesEdited = true
+	}
+	var mdmIOSUpdatesEdited bool
+	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set {
+		team.Config.MDM.IOSUpdates = spec.MDM.IOSUpdates
+		mdmIOSUpdatesEdited = true
+	}
+	var mdmIPadOSUpdatesEdited bool
+	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set {
+		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
+		mdmIPadOSUpdatesEdited = true
 	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
@@ -1168,8 +1282,18 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Scripts = spec.Scripts
 	}
 
-	if spec.Software.Set {
-		team.Config.Software = spec.Software
+	if spec.Software != nil {
+		if team.Config.Software == nil {
+			team.Config.Software = &fleet.SoftwareSpec{}
+		}
+
+		if spec.Software.Packages.Set {
+			team.Config.Software.Packages = spec.Software.Packages
+		}
+
+		if spec.Software.AppStoreApps.Set {
+			team.Config.Software.AppStoreApps = spec.Software.AppStoreApps
+		}
 	}
 
 	if secrets != nil {
@@ -1281,7 +1405,17 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if mdmMacOSUpdatesEdited {
-		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
+			return err
+		}
+	}
+	if mdmIOSUpdatesEdited {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IOS, team.Config.MDM.IOSUpdates); err != nil {
+			return err
+		}
+	}
+	if mdmIPadOSUpdatesEdited {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
 		}
 	}

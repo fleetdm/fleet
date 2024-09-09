@@ -7,7 +7,11 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import {
+  GITHUB_NEW_ISSUE_LINK,
+  VULNERABILITIES_SEARCH_BOX_TOOLTIP,
+} from "utilities/constants";
+import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -17,12 +21,17 @@ import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
-import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
+import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
+
+import {
+  IVulnerabilitiesResponse,
+  IVulnerabilitiesEmptyStateReason,
+} from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
+import { getExploitedVulnerabilitiesDropdownOptions } from "./helpers";
 
 const baseClass = "software-vulnerabilities-table";
 
@@ -36,6 +45,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
   data?: IVulnerabilitiesResponse;
+  emptyStateReason?: IVulnerabilitiesEmptyStateReason;
   query?: string;
   perPage: number;
   orderDirection: "asc" | "desc";
@@ -51,6 +61,7 @@ const SoftwareVulnerabilitiesTable = ({
   router,
   isSoftwareEnabled,
   data,
+  emptyStateReason,
   query,
   perPage,
   orderDirection,
@@ -108,6 +119,11 @@ const SoftwareVulnerabilitiesTable = ({
 
   const onQueryChange = useCallback(
     (newTableQuery: ITableQueryData) => {
+      // We don't want to start searching until a user completes their quote query
+      if (isIncompleteQuoteQuery(newTableQuery.searchQuery)) {
+        return;
+      }
+
       // we want to determine which query param has changed in order to
       // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
@@ -181,11 +197,13 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const renderVulnerabilityCount = () => {
-    if (!data?.vulnerabilities || !data?.count) return null;
+    if (!data) return null;
+
+    const count = data?.count;
 
     return (
       <>
-        <TableCount name="items" count={data?.count} />
+        <TableCount name="items" count={count} />
         {data?.vulnerabilities && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
@@ -202,7 +220,7 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
-  const renderTableFooter = () => {
+  const renderTableHelpText = () => {
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
@@ -215,34 +233,13 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
-  const getExploitedVulnerabiltiesDropdownOptions = () => {
-    const disabledTooltipContent = "Available in Fleet Premium.";
-
-    return [
-      {
-        disabled: false,
-        label: "All vulnerabilities",
-        value: false,
-        helpText: "All vulnerabilities detected on your hosts.",
-      },
-      {
-        disabled: !isPremiumTier,
-        label: "Exploited vulnerabilities",
-        value: true,
-        helpText:
-          "Vulnerabilities that have been actively exploited in the wild.",
-        tooltipContent: !isPremiumTier && disabledTooltipContent,
-      },
-    ];
-  };
-
   // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <Dropdown
         value={showExploitedVulnerabilitiesOnly}
         className={`${baseClass}__exploited-vulnerabilities-dropdown`}
-        options={getExploitedVulnerabiltiesDropdownOptions()}
+        options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
         tableFilterDropdown
@@ -254,16 +251,19 @@ const SoftwareVulnerabilitiesTable = ({
     <div className={baseClass}>
       <TableContainer
         columnConfigs={vulnerabilitiesTableHeaders}
-        data={data?.vulnerabilities ?? []}
+        data={data?.vulnerabilities || []}
         isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
-          <EmptySoftwareTable
-            tableName="vulnerabilities"
+          <EmptyVulnerabilitiesTable
+            isPremiumTier={isPremiumTier}
+            teamId={teamId}
+            exploitedFilter={showExploitedVulnerabilitiesOnly}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware={query === ""}
+            emptyStateReason={emptyStateReason}
           />
         )}
+        defaultSearchQuery={query}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
         defaultPageIndex={currentPage}
@@ -275,12 +275,13 @@ const SoftwareVulnerabilitiesTable = ({
         searchable={searchable}
         searchQueryColumn="vulnerability"
         inputPlaceHolder="Search by CVE"
+        searchToolTipText={VULNERABILITIES_SEARCH_BOX_TOOLTIP}
         onQueryChange={onQueryChange}
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
         renderCount={renderVulnerabilityCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         resetPageIndex={resetPageIndex}

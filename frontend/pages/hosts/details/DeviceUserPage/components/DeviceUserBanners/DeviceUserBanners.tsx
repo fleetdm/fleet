@@ -15,7 +15,6 @@ interface IDeviceUserBannersProps {
   diskEncryptionStatus: DiskEncryptionStatus | null;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
-  onResetKey: () => void;
 }
 
 const DeviceUserBanners = ({
@@ -26,7 +25,6 @@ const DeviceUserBanners = ({
   diskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
-  onResetKey,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -36,11 +34,6 @@ const DeviceUserBanners = ({
 
   const showTurnOnMdmBanner =
     hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
-
-  const showDiskEncryptionLogoutRestart =
-    diskEncryptionBannersEnabled &&
-    diskEncryptionStatus === "action_required" &&
-    diskEncryptionActionRequired === "log_out";
 
   const showDiskEncryptionKeyResetRequired =
     diskEncryptionBannersEnabled &&
@@ -53,34 +46,24 @@ const DeviceUserBanners = ({
     </Button>
   );
 
-  const resetKeyButton = (
-    <Button variant="unstyled" onClick={onResetKey}>
-      <b>Reset key</b>
-    </Button>
-  );
-
   const renderBanner = () => {
     if (showTurnOnMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
           Mobile device management (MDM) is off. MDM allows your organization to
-          change settings and install software. This lets your organization keep
-          your device up to date so you don&apos;t have to.
+          enforce settings, OS updates, disk encryption, and more. This lets
+          your organization keep your device up to date so you don&apos;t have
+          to.
         </InfoBanner>
       );
-    } else if (showDiskEncryptionLogoutRestart) {
+    }
+
+    if (showDiskEncryptionKeyResetRequired) {
       return (
         <InfoBanner color="yellow">
-          Disk encryption: Log out of your device or restart to turn on disk
-          encryption. Then, select <strong>Refetch</strong>. This prevents
-          unauthorized access to the information on your device.
-        </InfoBanner>
-      );
-    } else if (showDiskEncryptionKeyResetRequired) {
-      return (
-        <InfoBanner color="yellow" cta={resetKeyButton}>
-          Disk encryption: Reset your disk encryption key. This lets your
-          organization help you unlock your device if you forget your password.
+          Disk encryption: Log out of your device or restart it to safeguard
+          your data in case your device is lost or stolen. After, select{" "}
+          <strong>Refetch</strong> to clear this banner.
         </InfoBanner>
       );
     }

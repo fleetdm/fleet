@@ -82,6 +82,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
@@ -158,6 +160,22 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		ds.stmtCache[query] = stmt
 	}
 	return stmt
+}
+
+func (ds *Datastore) deleteCachedStmt(query string) {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+	stmt, ok := ds.stmtCache[query]
+	if ok {
+		if err := stmt.Close(); err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to close prepared statement before deleting it",
+				"query", query,
+				"err", err,
+			)
+		}
+		delete(ds.stmtCache, query)
+	}
 }
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
@@ -901,7 +919,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
-	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
 }
@@ -1224,21 +1242,7 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 	return processList, nil
 }
 
-func insertOnDuplicateDidInsert(res sql.Result) bool {
-	// Note that connection string sets CLIENT_FOUND_ROWS (see
-	// generateMysqlConnectionString in this package), so LastInsertId is 0
-	// and RowsAffected 1 when a row is set to its current values.
-	//
-	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
-	// below for more details
-	//
-	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
-	lastID, _ := res.LastInsertId()
-	affected, _ := res.RowsAffected()
-	return lastID != 0 && affected == 1
-}
-
-func insertOnDuplicateDidUpdate(res sql.Result) bool {
+func insertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
 	// From mysql's documentation:
 	//
 	// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
@@ -1248,7 +1252,10 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// connecting to mysqld, the affected-rows value is 1 (not 0) if an
 	// existing row is set to its current values.
 	//
-	// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	// If a table contains an AUTO_INCREMENT column and INSERT ... ON DUPLICATE KEY UPDATE
+	// inserts or updates a row, the LAST_INSERT_ID() function returns the AUTO_INCREMENT value.
+	//
+	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
 	//
 	// Note that connection string sets CLIENT_FOUND_ROWS (see
 	// generateMysqlConnectionString in this package), so it does return 1 when
@@ -1263,7 +1270,8 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()
-	return lastID == 0 || aff != 1
+	// something was updated (lastID != 0) AND row was found (aff == 1 or higher if more rows were found)
+	return lastID != 0 && aff > 0
 }
 
 type parameterizedStmt struct {
@@ -1282,6 +1290,13 @@ type parameterizedStmt struct {
 //
 // The read statement must only SELECT the id column.
 func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insertStmt *parameterizedStmt) (id uint, err error) {
+	return ds.optimisticGetOrInsertWithWriter(ctx, ds.writer(ctx), readStmt, insertStmt)
+}
+
+// optimisticGetOrInsertWithWriter is the same as optimisticGetOrInsert but it
+// uses the provided writer to perform the insert or second read operations.
+// This makes it possible to use this from inside a transaction.
+func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer sqlx.ExtContext, readStmt, insertStmt *parameterizedStmt) (id uint, err error) { //nolint: gocritic // it's ok in this case to use ds.reader even if we receive an ExtContext
 	readID := func(q sqlx.QueryerContext) (uint, error) {
 		var id uint
 		err := sqlx.GetContext(ctx, q, &id, readStmt.Statement, readStmt.Args...)
@@ -1293,12 +1308,12 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// this does not exist yet, try to insert it
-			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			res, err := writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
 				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
-					id, err := readID(ds.writer(ctx))
+					id, err := readID(writer)
 					if err != nil {
 						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
 					}

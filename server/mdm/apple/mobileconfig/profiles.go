@@ -1,6 +1,15 @@
 package mobileconfig
 
-import "text/template"
+import (
+	"encoding/xml"
+	"fmt"
+	"strings"
+	"text/template"
+)
+
+var funcMap = map[string]any{
+	"xml": XMLEscapeString,
+}
 
 // FleetdProfileOptions are the keys required to execute a
 // FleetdProfileTemplate.
@@ -20,7 +29,7 @@ type FleetdProfileOptions struct {
 //
 // Internally, this is used by Fleet MDM to configure the installer delivered
 // to hosts during DEP enrollment.
-var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+var FleetdProfileTemplate = template.Must(template.New("").Funcs(funcMap).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
@@ -28,7 +37,7 @@ var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=er
     <array>
       <dict>
         <key>EnrollSecret</key>
-        <string>{{ .EnrollSecret }}</string>
+        <string>{{ .EnrollSecret | xml }}</string>
         <key>FleetURL</key>
         <string>{{ .ServerURL }}</string>
         <key>EnableScripts</key>
@@ -109,3 +118,40 @@ var FleetCARootTemplate = template.Must(template.New("").Option("missingkey=erro
   </dict>
 </plist>
 `))
+
+var OTAMobileConfigTemplate = template.Must(template.New("").Funcs(template.FuncMap{"xml": func(v string) (string, error) {
+	var escaped strings.Builder
+	if err := xml.EscapeText(&escaped, []byte(v)); err != nil {
+		return "", fmt.Errorf("XML escaping in OTA profile: %w", err)
+	}
+	return escaped.String(), nil
+}}).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>{{ .URL }}</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	    <string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>{{ xml .Organization }}</string>
+    <key>PayloadDisplayName</key>
+    <string>{{ xml .Organization }} enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>`))

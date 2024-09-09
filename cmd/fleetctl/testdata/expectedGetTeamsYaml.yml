@@ -16,6 +16,12 @@ spec:
       macos_updates:
         minimum_version: null
         deadline: null
+      ios_updates:
+        minimum_version: null
+        deadline: null
+      ipados_updates:
+        minimum_version: null
+        deadline: null
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -30,7 +36,6 @@ spec:
         macos_setup_assistant:
     scripts: null
     secrets: null
-    software: null
     webhook_settings:
       host_status_webhook: null
     name: team1
@@ -61,6 +66,12 @@ spec:
       macos_updates:
         minimum_version: "12.3.1"
         deadline: "2021-12-14"
+      ios_updates:
+        minimum_version: "17.5"
+        deadline: "2022-11-15"
+      macos_updates:
+        minimum_version: "18.0"
+        deadline: "2023-01-01"
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
@@ -74,7 +85,6 @@ spec:
         enable_release_device_manually: false
         macos_setup_assistant:
     scripts: null
-    software: null
     webhook_settings:
       host_status_webhook: null
     name: team2

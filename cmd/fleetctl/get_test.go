@@ -166,9 +166,17 @@ func TestGetTeams(t *testing.T) {
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
-								MacOSUpdates: fleet.MacOSUpdates{
+								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
+								},
+								IOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("17.5"),
+									Deadline:       optjson.SetString("2022-11-15"),
+								},
+								IPadOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("18.0"),
+									Deadline:       optjson.SetString("2023-01-01"),
 								},
 								WindowsUpdates: fleet.WindowsUpdates{
 									DeadlineDays:    optjson.SetInt(7),
@@ -684,10 +692,10 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- hosts_count: 2
+- app_store_app: null
+  hosts_count: 2
   id: 0
   name: foo
-  self_service: false
   software_package: null
   source: chrome_extensions
   versions:
@@ -705,10 +713,10 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- hosts_count: 0
+- app_store_app: null
+  hosts_count: 0
   id: 0
   name: bar
-  self_service: false
   software_package: null
   source: deb_packages
   versions:
@@ -753,8 +761,8 @@ spec:
           ]
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     },
     {
       "id": 0,
@@ -766,11 +774,11 @@ spec:
         {
           "id": 0,
           "version": "0.0.3",
-		  "vulnerabilities": null
+      "vulnerabilities": null
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     }
   ]
 }
@@ -2052,8 +2060,13 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, err.Error(), expected)
 	})
 
-	t.Run("premium license", func(t *testing.T) {
-		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+	t.Run("premium license, single token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+			}, nil
+		}
 
 		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
 		assert.Contains(t, out, "Apple ID:")
@@ -2061,6 +2074,29 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
 		assert.Contains(t, out, "Default team:")
+	})
+
+	t.Run("premium license, no token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return nil, nil
+		}
+
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "No Apple Business Manager server token found.")
+	})
+
+	t.Run("premium license, multiple tokens", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+				{ID: 2},
+			}, nil
+		}
+
+		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint")
 	})
 }
 
@@ -2225,7 +2261,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				AdditionalQueries: &additionalQueries,
 			},
 			MDM: fleet.TeamMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
 				},
@@ -2261,11 +2297,14 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
 		return nil
@@ -2281,8 +2320,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+		return nil, nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

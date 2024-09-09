@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -161,6 +163,32 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
+func (svc *MDMAppleCommander) InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagementFlags</key>
+        <integer>0</integer>
+        <key>Options</key>
+        <dict>
+            <key>PurchaseMethod</key>
+            <integer>1</integer>
+        </dict>
+        <key>RequestType</key>
+        <string>InstallApplication</string>
+        <key>iTunesStoreID</key>
+        <integer>%s</integer>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, adamID, uuid)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
 func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -273,6 +301,59 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
 }
 
+func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>Queries</key>
+        <array>
+            <string>DeviceName</string>
+            <string>DeviceCapacity</string>
+            <string>AvailableDeviceCapacity</string>
+            <string>OSVersion</string>
+            <string>WiFiMAC</string>
+            <string>ProductName</string>
+        </array>
+        <key>RequestType</key>
+        <string>DeviceInformation</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, cmdUUID)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManagedAppsOnly</key>
+            <false/>
+            <key>RequestType</key>
+            <string>InstalledApplicationList</string>
+            <key>Items</key>
+            <array>
+                <string>Name</string>
+                <string>ShortVersion</string>
+                <string>Identifier</string>
+            </array>
+        </dict>
+        <key>CommandUUID</key>
+        <string>%s</string>
+    </dict>
+</plist>`, cmdUUID)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //
@@ -304,14 +385,15 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 
 	// Even if we didn't get an error, some of the APNs
 	// responses might have failed, signal that to the caller.
-	var failed []string
+	failed := map[string]error{}
 	for uuid, response := range apnsResponses {
 		if response.Err != nil {
-			failed = append(failed, uuid)
+			failed[uuid] = response.Err
 		}
 	}
+
 	if len(failed) > 0 {
-		return &APNSDeliveryError{FailedUUIDs: failed, Err: err}
+		return &APNSDeliveryError{errorsByUUID: failed}
 	}
 
 	return nil
@@ -320,14 +402,38 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
 type APNSDeliveryError struct {
-	FailedUUIDs []string
-	Err         error
+	errorsByUUID map[string]error
 }
 
 func (e *APNSDeliveryError) Error() string {
-	return fmt.Sprintf("APNS delivery failed with: %s, for UUIDs: %v", e.Err, e.FailedUUIDs)
+	var uuids []string
+	for uuid := range e.errorsByUUID {
+		uuids = append(uuids, uuid)
+	}
+
+	// sort UUIDs alphabetically for deterministic output
+	sort.Strings(uuids)
+
+	var errStrings []string
+	for _, uuid := range uuids {
+		errStrings = append(errStrings, fmt.Sprintf("UUID: %s, Error: %v", uuid, e.errorsByUUID[uuid]))
+	}
+
+	return fmt.Sprintf(
+		"APNS delivery failed with the following errors:\n%s",
+		strings.Join(errStrings, "\n"),
+	)
 }
 
-func (e *APNSDeliveryError) Unwrap() error { return e.Err }
+func (e *APNSDeliveryError) FailedUUIDs() []string {
+	var uuids []string
+	for uuid := range e.errorsByUUID {
+		uuids = append(uuids, uuid)
+	}
+
+	// sort UUIDs alphabetically for deterministic output
+	sort.Strings(uuids)
+	return uuids
+}
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }

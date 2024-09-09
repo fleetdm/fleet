@@ -43,7 +43,7 @@ parasails.registerPage('basic-documentation', {
       return _.startsWith(page.url, '/docs');
     });
     this.pagesBySectionSlug = (() => {
-      const DOCS_SLUGS = ['get-started', 'deploy', 'using-fleet', 'configuration', 'rest-api'];
+      const DOCS_SLUGS = ['get-started', 'deploy', 'configuration', 'rest-api'];
       let sectionSlugs = _.uniq(this.pages.map((page) => page.url.split(/\//).slice(-2)[0]));
       let pagesBySectionSlug = {};
 
@@ -129,13 +129,11 @@ parasails.registerPage('basic-documentation', {
     // console.log(subtopics);
 
     this.subtopics = (() => {
-      let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
-      subtopics = $.makeArray(subtopics).map((title) => {
-        // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
-        let kebabCaseFriendlyTitle = title.replace(/[\’\']/g, '');
+      let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el);
+      subtopics = $.makeArray(subtopics).map((subheading) => {
         return {
-          title,
-          url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
+          title: subheading.innerText,
+          url: $(subheading).find('a.markdown-link').attr('href'),
         };
       });
       return subtopics;
@@ -229,6 +227,9 @@ parasails.registerPage('basic-documentation', {
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
       }
+      if(typeof analytics !== 'undefined'){
+        analytics.track('fleet_website__swag_request');
+      }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
     },
 
@@ -255,22 +256,23 @@ parasails.registerPage('basic-documentation', {
       return this.pagesBySectionSlug[slug];
     },
 
-    findAndSortNavSectionsByUrl: function (url='') {
-      let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
-        'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
-      };
-      let slug = _.last(url.split(/\//));
-      //
-      if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
-        let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
-        let sortedSection = {};
-        orderForThisSection.map((section)=>{
-          sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
-        });
-        this.navSectionsByDocsSectionSlug[slug] = sortedSection;
-      }
-      return this.navSectionsByDocsSectionSlug[slug];
-    },
+    // FUTURE: remove this function if we do not add subsections to docs sections.
+    // findAndSortNavSectionsByUrl: function (url='') {
+    //   let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
+    //     'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
+    //   };
+    //   let slug = _.last(url.split(/\//));
+    //   //
+    //   if(NAV_SECTION_ORDER_BY_DOCS_SLUG[slug]) {
+    //     let orderForThisSection = NAV_SECTION_ORDER_BY_DOCS_SLUG[slug];
+    //     let sortedSection = {};
+    //     orderForThisSection.map((section)=>{
+    //       sortedSection[section] = this.navSectionsByDocsSectionSlug[slug][section];
+    //     });
+    //     this.navSectionsByDocsSectionSlug[slug] = sortedSection;
+    //   }
+    //   return this.navSectionsByDocsSectionSlug[slug];
+    // },
 
     getActiveSubtopicClass: function (currentLocation, url) {
       return _.last(currentLocation.split(/#/)) === _.last(url.split(/#/)) ? 'active' : '';

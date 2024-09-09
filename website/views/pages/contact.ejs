@@ -81,10 +81,10 @@
             <div class="selectbox">
             <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation">
               <option disabled hidden value="undefined">Choose an option</option>
-              <option value="eo-security">Endpoint operations for security engineering</option>
-              <option value="eo-it">Endpoint ops for identity engineers and IT admins</option>
               <option value="mdm">Device management (MDM)</option>
-              <option value="vm">Vulnerability management</option>
+              <option value="eo-it">IT engineering</option>
+              <option value="eo-security">Security engineering</option>
+              <!-- <option value="vm">Vulnerability management</option> -->
             </select>
             </div>
             <div class="d-block invalid-feedback" v-if="formErrors.topic">Please select an option.</div>
@@ -145,17 +145,17 @@
         </div>
       </div>
       <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-it'">
-        <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/logo-deputy-118x28@2x.png"></div>
+        <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
         <p purpose="quote-text">
-          When we look at vendors, we look for ones that are very receptive to feedback, where you’re just part of the family, I guess. Fleet’s really good at that.
+          Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
         </p>
         <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
           <div purpose="profile-picture">
-            <img alt="Harrison Ravazzolo" src="/images/testimonial-author-harrison-ravazzolo-48x48@2x.png">
+            <img alt="Wes Whetstone" src="/images/testimonial-author-wes-whetstone-48x48@2x.png">
           </div>
           <div class="d-flex flex-column align-self-top">
-            <p purpose="name" class="font-weight-bold m-0">Harrison Ravazzolo</p>
-            <p purpose="job-title" class="m-0">Lead platform and identity engineer</p>
+            <p purpose="name" class="font-weight-bold m-0">Wes Whetstone</p>
+            <p purpose="job-title" class="m-0">Staff CPE</p>
           </div>
         </div>
       </div>

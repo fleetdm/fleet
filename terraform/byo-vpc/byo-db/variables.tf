@@ -77,7 +77,7 @@ variable "fleet_config" {
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
     pid_mode                     = optional(string, null)
-    image                        = optional(string, "fleetdm/fleet:v4.54.0")
+    image                        = optional(string, "fleetdm/fleet:v4.54.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -87,7 +87,6 @@ variable "fleet_config" {
     extra_iam_policies           = optional(list(string), [])
     extra_execution_iam_policies = optional(list(string), [])
     extra_secrets                = optional(map(string), {})
-    security_groups              = optional(list(string), null)
     security_group_name          = optional(string, "fleet")
     iam_role_arn                 = optional(string, null)
     repository_credentials       = optional(string, "")
@@ -206,7 +205,7 @@ variable "fleet_config" {
     mem                          = 512
     cpu                          = 256
     pid_mode                     = null
-    image                        = "fleetdm/fleet:v4.54.0"
+    image                        = "fleetdm/fleet:v4.54.1"
     family                       = "fleet"
     sidecars                     = []
     depends_on                   = []
