@@ -955,7 +955,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1232,20 +1232,94 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
-	hostID uint,
+	host *fleet.Host,
 	results *fleet.OsqueryDistributedQueryResults,
 	statuses *map[string]fleet.OsqueryStatus,
 	messages *map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
+	//
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
-		preProcessSoftwareExtraResults(fullQueryName, hostID, results, statuses, messages, query, logger)
+		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
+
+	// Filter out python packages that are also deb packages on ubuntu
+	pythonPackageFilter(host.Platform, results, statuses)
+}
+
+func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+	if platform != "ubuntu" {
+		return
+	}
+
+	sw, ok := (*results)[hostDetailQueryPrefix+"software_linux"]
+	if !ok {
+		return
+	}
+
+	if status, ok := (*statuses)[hostDetailQueryPrefix+"software_linux"]; ok && status != fleet.StatusOK {
+		return
+	}
+
+	var pythonPackages []string
+	var debPackages []string
+
+	for _, row := range sw {
+		if row["source"] == "python_packages" {
+			pythonPackages = append(pythonPackages, row["name"])
+		}
+		if row["source"] == "deb_packages" {
+			debPackages = append(debPackages, row["name"])
+		}
+	}
+
+	if len(pythonPackages) == 0 {
+		return
+	}
+
+	var toDelete []string
+	var toUpdate []string
+	// Filter out python packages that are also deb packages
+	for _, name := range pythonPackages {
+		convertedName := fmt.Sprintf("%s-%s", "python3", name)
+		for _, row := range sw {
+			if row["source"] == "deb_packages" && row["name"] == convertedName {
+				toDelete = append(toDelete, name)
+				break
+			}
+		}
+		toUpdate = append(toUpdate, name)
+	}
+
+	if len(toDelete) > 0 {
+		sw = slices.DeleteFunc(sw, func(row map[string]string) bool {
+			for _, name := range toDelete {
+				if row["name"] == name && row["source"] == "python_packages" {
+					return true
+				}
+			}
+			return false
+		})
+	}
+
+	if len(toUpdate) > 0 {
+		for _, p := range toUpdate {
+			for _, row := range sw {
+				if row["name"] == p && row["source"] == "python_packages" {
+					row["name"] = fmt.Sprintf("%s-%s", "python3", row["name"])
+				}
+			}
+		}
+	}
+
+	(*results)[hostDetailQueryPrefix+"software_linux"] = sw
+
+	return
 }
 
 func preProcessSoftwareExtraResults(

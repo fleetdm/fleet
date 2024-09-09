@@ -3678,8 +3678,8 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name string
-
+		name       string
+		host       *fleet.Host
 		resultsIn  fleet.OsqueryDistributedQueryResults
 		statusesIn map[string]fleet.OsqueryStatus
 		messagesIn map[string]string
@@ -3898,10 +3898,119 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ubuntu dpkg installed python packages are filtered out",
+			host: &fleet.Host{ID: 1, Platform: "ubuntu"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "twisted", // duplicate of python3-twisted
+						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "pillow",
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "deb_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-pillow", // renamed from pillow
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "deb_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "non-ubuntu installed python packages are NOT filtered out",
+			host: &fleet.Host{ID: 1, Platform: "rhel"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "rpm_packages",
+					},
+					{
+						"name":    "twisted", // duplicate of python3-twisted
+						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "pillow",
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "rpm_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "rpm_packages",
+					},
+					{
+						"name":    "twisted", // duplicate of python3-twisted
+						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "pillow",
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "rpm_packages",
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
+			host := &fleet.Host{ID: 1}
+			if tc.host != nil {
+				host = tc.host
+			}
+			preProcessSoftwareResults(host, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
 	}
