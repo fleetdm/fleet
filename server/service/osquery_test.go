@@ -4052,3 +4052,47 @@ func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
 		findPackDelimiterString(input)
 	}
 }
+
+func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
+	results := &fleet.OsqueryDistributedQueryResults{
+		hostDetailQueryPrefix + "software_linux": make([]map[string]string, 0),
+	}
+
+	// Adding 40 python packages with matching deb packages
+	// Adding 2 python packages without matching deb packages
+	for i := 1; i <= 42; i++ {
+		pythonPkg := fmt.Sprintf("package%d", i)
+		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+			"source": "python_packages",
+			"name":   pythonPkg,
+		})
+	}
+
+	// Adding 1500 deb packages, with the first 40 matching python packages
+	for i := 1; i <= 1500; i++ {
+		var debPkg string
+		if i <= 38 { // Match first 38 python packages
+			debPkg = fmt.Sprintf("python3-package%d", i)
+		} else { // Non-python packages
+			debPkg = fmt.Sprintf("unrelated_package%d", i)
+		}
+		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+			"source": "deb_packages",
+			"name":   debPkg,
+		})
+	}
+
+	return results
+}
+
+func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
+	platform := "ubuntu"
+	results := mockUbuntuResults()
+	statuses := &map[string]fleet.OsqueryStatus{
+		hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+	}
+
+	for i := 0; i < b.N; i++ {
+		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
+	}
+}

@@ -1252,74 +1252,85 @@ func preProcessSoftwareResults(
 	pythonPackageFilter(host.Platform, results, statuses)
 }
 
+// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu.
+// python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
 func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+	// Return early if platform is not Ubuntu
 	if platform != "ubuntu" {
 		return
 	}
 
+	// Check if the 'software_linux' result is available
 	sw, ok := (*results)[hostDetailQueryPrefix+"software_linux"]
 	if !ok {
 		return
 	}
 
-	if status, ok := (*statuses)[hostDetailQueryPrefix+"software_linux"]; ok && status != fleet.StatusOK {
+	// Check if the status is OK for 'software_linux'
+	if status, ok := (*statuses)[hostDetailQueryPrefix+"software_linux"]; !ok || status != fleet.StatusOK {
 		return
 	}
 
-	var pythonPackages []string
-	var debPackages []string
-
+	// Collect Python and Debian packages
+	var pythonPackages, debPackages []string
 	for _, row := range sw {
-		if row["source"] == "python_packages" {
+		switch row["source"] {
+		case "python_packages":
 			pythonPackages = append(pythonPackages, row["name"])
-		}
-		if row["source"] == "deb_packages" {
+		case "deb_packages":
 			debPackages = append(debPackages, row["name"])
 		}
 	}
 
+	// Return early if there are no Python packages to process
 	if len(pythonPackages) == 0 {
 		return
 	}
 
-	var toDelete []string
-	var toUpdate []string
-	// Filter out python packages that are also deb packages
+	// Prepare lists of Python packages to delete and update
+	var toDelete, toUpdate []string
 	for _, name := range pythonPackages {
-		convertedName := fmt.Sprintf("%s-%s", "python3", name)
-		for _, row := range sw {
-			if row["source"] == "deb_packages" && row["name"] == convertedName {
+		convertedName := fmt.Sprintf("python3-%s", name)
+		foundInDeb := false
+		for _, debPackage := range debPackages {
+			if debPackage == convertedName {
 				toDelete = append(toDelete, name)
+				foundInDeb = true
 				break
 			}
 		}
-		toUpdate = append(toUpdate, name)
+		if !foundInDeb {
+			toUpdate = append(toUpdate, name)
+		}
 	}
 
+	// Delete Python packages that have a corresponding Debian package
 	if len(toDelete) > 0 {
 		sw = slices.DeleteFunc(sw, func(row map[string]string) bool {
-			for _, name := range toDelete {
-				if row["name"] == name && row["source"] == "python_packages" {
-					return true
+			if row["source"] == "python_packages" {
+				for _, name := range toDelete {
+					if row["name"] == name {
+						return true
+					}
 				}
 			}
 			return false
 		})
 	}
 
+	// Update Python package names to "python3-{name}" to match OVAL definitions
 	if len(toUpdate) > 0 {
 		for _, p := range toUpdate {
 			for _, row := range sw {
-				if row["name"] == p && row["source"] == "python_packages" {
-					row["name"] = fmt.Sprintf("%s-%s", "python3", row["name"])
+				if row["source"] == "python_packages" && row["name"] == p {
+					row["name"] = fmt.Sprintf("python3-%s", p)
 				}
 			}
 		}
 	}
 
+	// Store the updated software result back in the results map
 	(*results)[hostDetailQueryPrefix+"software_linux"] = sw
-
-	return
 }
 
 func preProcessSoftwareExtraResults(
