@@ -117,7 +117,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareTitle, error) {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -153,14 +153,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		}
 	}
 
-	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil {
-		return software, nil // no payload, noop
-	}
-
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
+	}
+
+	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
+		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil {
+		return installer, nil // no payload, noop
 	}
 
 	dirty := false
@@ -320,7 +320,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 	}
 
-	return svc.SoftwareTitleByID(ctx, titleID, payload.TeamID)
+	return svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {

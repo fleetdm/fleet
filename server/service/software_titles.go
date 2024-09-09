@@ -112,22 +112,22 @@ type getSoftwareTitleRequest struct {
 	TeamID *uint `query:"team_id,optional"`
 }
 
-type GetSoftwareTitleResponse struct {
+type getSoftwareTitleResponse struct {
 	SoftwareTitle *fleet.SoftwareTitle `json:"software_title,omitempty"`
 	Err           error                `json:"error,omitempty"`
 }
 
-func (r GetSoftwareTitleResponse) error() error { return r.Err }
+func (r getSoftwareTitleResponse) error() error { return r.Err }
 
 func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareTitleRequest)
 
 	software, err := svc.SoftwareTitleByID(ctx, req.ID, req.TeamID)
 	if err != nil {
-		return GetSoftwareTitleResponse{Err: err}, nil
+		return getSoftwareTitleResponse{Err: err}, nil
 	}
 
-	return GetSoftwareTitleResponse{SoftwareTitle: software}, nil
+	return getSoftwareTitleResponse{SoftwareTitle: software}, nil
 }
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {

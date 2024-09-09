@@ -152,15 +152,15 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		payload.Filename = req.File.Filename
 	}
 
-	software, err := svc.UpdateSoftwareInstaller(ctx, req.ID, payload)
+	installer, err := svc.UpdateSoftwareInstaller(ctx, req.ID, payload)
 	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
 
-	return GetSoftwareTitleResponse{SoftwareTitle: software}, nil
+	return getSoftwareInstallerResponse{SoftwareInstaller: installer}, nil
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareTitle, error) {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -390,6 +390,13 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, _ bool, _ 
 
 	return nil, fleet.ErrMissingLicense
 }
+
+type getSoftwareInstallerResponse struct {
+	SoftwareInstaller *fleet.SoftwareInstaller `json:"software_installer,omitempty"`
+	Err               error                    `json:"error,omitempty"`
+}
+
+func (r getSoftwareInstallerResponse) error() error { return r.Err }
 
 type getSoftwareInstallerTokenResponse struct {
 	Err   error  `json:"error,omitempty"`
