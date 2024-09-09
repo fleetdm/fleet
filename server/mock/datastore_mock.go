@@ -1034,6 +1034,8 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
+type CancelPendingInstallsForInstallerIDFunc func(ctx context.Context, id uint) error
+
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
@@ -2600,6 +2602,9 @@ type DataStore struct {
 
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
+
+	CancelPendingInstallsForInstallerIDFunc        CancelPendingInstallsForInstallerIDFunc
+	CancelPendingInstallsForInstallerIDFuncInvoked bool
 
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
@@ -6226,6 +6231,13 @@ func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint
 	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
+}
+
+func (s *DataStore) CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.CancelPendingInstallsForInstallerIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelPendingInstallsForInstallerIDFunc(ctx, id)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {

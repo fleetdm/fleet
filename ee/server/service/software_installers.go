@@ -306,7 +306,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 	}
 
 	if cancelPendingInstalls == true {
-		// TODO cancel pending installs
+		if err := svc.ds.CancelPendingInstallsForInstallerID(ctx, installer.InstallerID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "canceling pending installs")
+		}
 	}
 
 	if resetInstallCounts == true {
