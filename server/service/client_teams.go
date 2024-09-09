@@ -93,12 +93,26 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
 }
 
-func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwareInstaller, error) {
 	verb, path := "POST", "/api/latest/fleet/software/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return nil, err
+	}
+	query.Add("team_name", tmName)
+	var resp batchSetSoftwareInstallersResponse
+	if err := c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, &resp, query.Encode()); err != nil {
+		return nil, err
+	}
+	return resp.Installers, nil
+}
+
+func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return err
 	}
 	query.Add("team_name", tmName)
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, nil, query.Encode())
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, nil, query.Encode())
 }

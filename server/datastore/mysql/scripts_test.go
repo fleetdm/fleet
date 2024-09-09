@@ -1102,14 +1102,14 @@ type scriptContents struct {
 func testInsertScriptContents(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	contents := `echo foobar;`
-	res, err := insertScriptContents(ctx, contents, ds.writer(ctx))
+	res, err := insertScriptContents(ctx, ds.writer(ctx), contents)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	require.Equal(t, int64(1), id)
 	expectedCS := md5ChecksumScriptContent(contents)
 
 	// insert same contents again, verify that the checksum and ID stayed the same
-	res, err = insertScriptContents(ctx, contents, ds.writer(ctx))
+	res, err = insertScriptContents(ctx, ds.writer(ctx), contents)
 	require.NoError(t, err)
 	id, _ = res.LastInsertId()
 	require.Equal(t, int64(1), id)
@@ -1138,6 +1138,8 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	s, err := ds.NewScript(ctx, s)
 	require.NoError(t, err)
 
+	user1 := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
 	// create a sync script execution
 	res, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{ScriptContents: "echo something_else", SyncRequest: true})
 	require.NoError(t, err)
@@ -1153,6 +1155,7 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 		Title:             "file1",
 		Version:           "1.0",
 		Source:            "apps",
+		UserID:            user1.ID,
 	})
 	require.NoError(t, err)
 
@@ -1207,6 +1210,7 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 		Title:           "file1",
 		Version:         "1.0",
 		Source:          "apps",
+		UserID:          user1.ID,
 	})
 	require.NoError(t, err)
 

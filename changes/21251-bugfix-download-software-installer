@@ -1,0 +1,1 @@
+* Fixed a bug where the wrong API path was used to download a software installer.

@@ -1,8 +1,14 @@
 import React from "react";
-import { find, lowerCase, noop } from "lodash";
+import { find, lowerCase, noop, trimEnd } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  AppleDisplayPlatform,
+  PLATFORM_DISPLAY_NAMES,
+} from "interfaces/platform";
+
 import {
   addGravatarUrlToResource,
   formatScriptNameForActivityItem,
@@ -16,7 +22,6 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -307,7 +312,10 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedMacosMinVersion: (activity: IActivity) => {
+  editedAppleosMinVersion: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -331,7 +339,7 @@ const TAGGED_TEMPLATES = {
 
     return (
       <>
-        {editedActivity} the minimum macOS version {versionSection}{" "}
+        {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
         {deadlineSection} on hosts assigned to {teamSection}.
       </>
     );
@@ -834,7 +842,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software to{" "}
+        {activity.details?.software_package}) to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -851,7 +859,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software from{" "}
+        {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -876,24 +884,98 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
-      install_uuid,
     } = details;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
 
     return (
       <>
         {" "}
-        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
-          }
+          onClick={() => onDetailsClick?.(activity.type, details)}
         >
           Show details{" "}
           <Icon className={`${baseClass}__show-query-icon`} name="eye" />
         </Button>
+      </>
+    );
+  },
+  enabledVpp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        enabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
+      </>
+    );
+  },
+  disabledVpp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        disabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
+      </>
+    );
+  },
+  addedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        added <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        deleted <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
       </>
     );
   },
@@ -963,7 +1045,13 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("macOS", activity);
+    }
+    case ActivityType.EditedIosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("iOS", activity);
+    }
+    case ActivityType.EditedIpadosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
     }
 
     case ActivityType.ReadHostDiskEncryptionKey: {
@@ -1080,6 +1168,21 @@ const getDetail = (
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
     }
+    case ActivityType.AddedAppStoreApp: {
+      return TAGGED_TEMPLATES.addedAppStoreApp(activity);
+    }
+    case ActivityType.DeletedAppStoreApp: {
+      return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
+    }
+    case ActivityType.InstalledAppStoreApp: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.EnabledVpp: {
+      return TAGGED_TEMPLATES.enabledVpp(activity);
+    }
+    case ActivityType.DisabledVpp: {
+      return TAGGED_TEMPLATES.disabledVpp(activity);
+    }
 
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1131,6 +1234,7 @@ const ActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.InstalledSoftware:
+      case ActivityType.InstalledAppStoreApp:
         return activity.details?.self_service ? (
           <span>An end user</span>
         ) : (

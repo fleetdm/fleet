@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -364,7 +365,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	}`), http.StatusOK)
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
 				Deadline:       optjson.SetString("1992-01-01"),
 				MinimumVersion: optjson.SetString("13.1.1"),
 			},
@@ -949,6 +950,9 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	ctx := context.Background()
 	t := s.T()
 
+	// before we switch to a gitops token, ensure ABM is setup
+	s.enableABM(t.Name())
+
 	// Use a gitops user for all Puppet actions
 	u := &fleet.User{
 		Name:       "GitOps",
@@ -982,7 +986,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// create a setup assistant for no team, for this we need to:
 	// 1. mock the ABM API, as it gets called to set the profile
 	// 2. run the DEP schedule, as this registers the default profile
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 	}))
@@ -2865,28 +2869,33 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
-		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil,
+		{
+			ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil,
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
 		},
-		{ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil,
+		{
+			ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil,
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
 		},
-		{ProfileUUID: uuidWindowsWithLabel, Platform: "windows", Name: "win-profile-with-labels", TeamID: nil,
+		{
+			ProfileUUID: uuidWindowsWithLabel, Platform: "windows", Name: "win-profile-with-labels", TeamID: nil,
 			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelBar.ID, LabelName: labelBar.Name},
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
 		},
-		{ProfileUUID: uuidAppleDDMTeamWithLabel, Platform: "darwin", Name: "apple-team-decl-with-labels", Identifier: "ident-team-decl-with-labels", TeamID: &testTeam.ID,
+		{
+			ProfileUUID: uuidAppleDDMTeamWithLabel, Platform: "darwin", Name: "apple-team-decl-with-labels", Identifier: "ident-team-decl-with-labels", TeamID: &testTeam.ID,
 			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
 		},
-		{ProfileUUID: uuidWindowsTeamWithLabel, Platform: "windows", Name: "win-team-profile-with-labels", TeamID: &testTeam.ID,
+		{
+			ProfileUUID: uuidWindowsTeamWithLabel, Platform: "windows", Name: "win-team-profile-with-labels", TeamID: &testTeam.ID,
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelBar.ID, LabelName: labelBar.Name},
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
@@ -3774,17 +3783,18 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(
+	// Nothing changed, so no activity items
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
@@ -4054,12 +4064,13 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(
+	// Nothing changed, so no activity
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
@@ -4282,7 +4293,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 					DeadlineDays:    optjson.SetInt(4),
 					GracePeriodDays: optjson.SetInt(1),
 				},
-				MacOSUpdates: &fleet.MacOSUpdates{
+				MacOSUpdates: &fleet.AppleOSUpdateSettings{
 					Deadline:       optjson.SetString("2023-12-31"),
 					MinimumVersion: optjson.SetString("13.3.8"),
 				},
@@ -4804,4 +4815,37 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 		},
 	})
+}
+
+func (s *integrationMDMTestSuite) TestOTAProfile() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Getting profile for non-existent secret it's ok
+	s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", "not-real")
+
+	// Create an enroll secret; has some special characters that should be escaped in the profile
+	globalEnrollSec := "global_enroll+_/sec"
+	escSec := url.QueryEscape(globalEnrollSec)
+	s.Do("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalEnrollSec}},
+		},
+	}, http.StatusOK)
+
+	cfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	// Get profile with that enroll secret
+	resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
+	require.NotZero(t, resp.ContentLength)
+	require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, resp.ContentLength, int64(len(b)))
+	require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
+	require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
+	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 }
