@@ -179,6 +179,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		SelfService:   installer.SelfService,
 	}
 
+	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload = nil
 	if payload.InstallerFile != nil || payload.PreInstallQuery != nil ||
 		payload.InstallScript != nil || payload.PostInstallScript != nil || payload.UninstallScript != nil {
 
@@ -204,35 +205,38 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 			return nil, ctxerr.Wrap(ctx, err, "extracting existing installer metadata")
 		}
 
-		var newInstallerFileMeta *file.InstallerMetadata = nil
 		if payload.InstallerFile != nil {
-			payloadForInstallerFile := &fleet.UploadSoftwareInstallerPayload{
+			payloadForNewInstallerFile = &fleet.UploadSoftwareInstallerPayload{
 				InstallerFile: payload.InstallerFile,
 				Filename:      payload.Filename,
 			}
 
-			newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForInstallerFile)
+			newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForNewInstallerFile)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 			}
 
-			if newInstallerExtension != existingInstallerFileMeta.Extension {
+			if newInstallerExtension != existingInstallerFileMeta.Extension || payloadForNewInstallerFile.Source != software.Source {
 				return nil, &fleet.BadRequestError{
-					Message:     "You must upload an installer of the same type as the currently uploaded installer. To switch installer types, delete and re-add.",
+					Message:     fmt.Sprintf("This installer must be replaced with another installer with the same extension: %s", existingInstallerFileMeta.Extension),
 					InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
 				}
 			}
 
-			// TODO check if installer file is for a different software title (if so, fail; this will implicitly fail on source mismatch)
+			if payloadForNewInstallerFile.Title != software.Name {
+				return nil, &fleet.BadRequestError{
+					Message:     "The installer you uploaded does not correspond to this software title. Please edit the correct software title or add this as a new installer.",
+					InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
+				}
+			}
 
-			// noop if uploaded installer is identical to previous installer
-			if payloadForInstallerFile.StorageID != hex.EncodeToString(existingInstallerFileMeta.SHASum) {
+			if payloadForNewInstallerFile.StorageID != hex.EncodeToString(existingInstallerFileMeta.SHASum) {
 				activity.SoftwarePackage = &payload.Filename
 				dirty = true
 				cancelPendingInstalls = true
 				resetInstallCounts = true
-
-				// TODO store software
+			} else { // noop if uploaded installer is identical to previous installer
+				payloadForNewInstallerFile = nil
 			}
 		}
 
@@ -267,7 +271,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 		if payload.UninstallScript != nil {
 			uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
-			if uninstallScript == "" {
+			if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 				uninstallScript = file.GetUninstallScript(existingInstallerFileMeta.Extension)
 			}
 
@@ -276,8 +280,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 				UninstallScript: uninstallScript,
 				PackageIDs:      existingInstallerFileMeta.PackageIDs,
 			}
-			if newInstallerFileMeta != nil {
-				payloadForUninstallScript.PackageIDs = newInstallerFileMeta.PackageIDs
+			if payloadForNewInstallerFile != nil {
+				payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
 			}
 
 			preProcessUninstallScript(payloadForUninstallScript)
@@ -286,6 +290,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 				cancelPendingInstalls = true
 				installer.UninstallScript = payloadForUninstallScript.UninstallScript
 			}
+		}
+	}
+
+	// persist changes starting here, now that we've done all the validation/diffing we can
+
+	if payloadForNewInstallerFile != nil {
+		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
 		}
 	}
 
