@@ -33,5 +33,65 @@
 		"identifier": "figma",
 		"bundle_identifier": "com.figma.Desktop",
 		"installer_format": "zip:app"
+	},
+	{
+		"identifier": "firefox",
+		"bundle_identifier": "org.mozilla.firefox",
+		"installer_format": "dmg:app"
+	},
+	{
+		"identifier": "google-chrome",
+		"bundle_identifier": "com.google.Chrome",
+		"installer_format": "dmg:app"
+	},
+	{
+		"identifier": "microsoft-edge",
+		"bundle_identifier": "com.microsoft.edgemac",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "microsoft-excel",
+		"bundle_identifier": "com.microsoft.Excel",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "microsoft-teams",
+		"bundle_identifier": "com.microsoft.teams",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "microsoft-word",
+		"bundle_identifier": "com.microsoft.Word",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "notion",
+		"bundle_identifier": "notion.id",
+		"installer_format": "dmg:app"
+	},
+	{
+		"identifier": "slack",
+		"bundle_identifier": "com.tinyspeck.slackmacgap",
+		"installer_format": "dmg:app"
+	},
+	{
+		"identifier": "teamviewer",
+		"bundle_identifier": "???",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "visual-studio-code",
+		"bundle_identifier": "com.microsoft.VSCode",
+		"installer_format": "zip:app"
+	},
+	{
+		"identifier": "whatsapp",
+		"bundle_identifier": "desktop.WhatsApp",
+		"installer_format": "zip:app"
+	},
+	{
+		"identifier": "zoom",
+		"bundle_identifier": "us.zoom.xos",
+		"installer_format": "pkg"
 	}
 ]

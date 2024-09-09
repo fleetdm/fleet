@@ -93,7 +93,7 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	case http.StatusOK:
 		// success, go on
 	case http.StatusNotFound:
-		// delete the existing entry? do nothing and succeed?
+		// TODO: delete the existing entry? do nothing and succeed? doing the latter for now.
 		return nil
 	default:
 		if len(body) > 512 {
@@ -123,15 +123,17 @@ type brewCask struct {
 
 // brew artifacts are objects that have one and only one of their fields set.
 type brewArtifact struct {
-	App       []string         `json:"app"`
+	App []string `json:"app"`
+	// TODO: Pkg is a bit like Binary, it is an array with a string and an object as first two elements.
+	// The object has a choices field with an array of objects. See Microsoft Edge.
 	Pkg       []string         `json:"pkg"`
 	Uninstall []*brewUninstall `json:"uninstall"`
 	Zap       []*brewZap       `json:"zap"`
-	// Binary is a complex artifact - it can be provided multiple times
-	// (not in an array, as items in Artifacts) and its value is an array
-	// where the first element is a string - the binary artifact - and the
-	// second element is an object with a "target" key). See the docker
-	// cask.
+	// TODO: Binary is a complex artifact - it can be provided multiple times
+	// (not in an array, as items in Artifacts) and its value is an array where
+	// the first element is a string - the binary artifact - and the second
+	// element is an object with a "target" key). See the "docker" and "firefox" casks. Not
+	// handling for now.
 }
 
 // unlike brewArtifact, a single brewUninstall can have many fields set.
@@ -141,10 +143,14 @@ type brewUninstall struct {
 	Quit      []string `json:"quit"`
 	PkgUtil   []string `json:"pkgutil"`
 	Script    []string `json:"script"`
-	Delete    []string `json:"delete"`
-	RmDir     []string `json:"rmdir"`
+	// format: [0]=signal, [1]=process name
+	Signal []string `json:"signal"`
+	Delete []string `json:"delete"`
+	RmDir  []string `json:"rmdir"`
 }
 
+// same as brewUninstall, can be []string or string (see Microsoft Teams).
 type brewZap struct {
 	Trash []string `json:"trash"`
+	RmDir []string `json:"rmdir"`
 }
