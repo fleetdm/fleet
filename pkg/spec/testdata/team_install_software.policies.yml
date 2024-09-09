@@ -1,0 +1,5 @@
+- name: Microsoft Teams on macOS installed and up to date
+  platform: darwin
+  query: SELECT 1 FROM apps WHERE name = 'Microsoft Teams.app' AND version_compare(bundle_short_version, '24193.1707.3028.4282') >= 0;
+  install_software:
+    package_path: ./microsoft-teams.pkg.software.yml

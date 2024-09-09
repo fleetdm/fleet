@@ -701,6 +701,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	// Preprocess specs and group them by team
 	teamNameToID := make(map[string]uint, 1)
 	teamIDToPolicies := make(map[uint][]*fleet.PolicySpec, 1)
+	softwareInstallerIDs := make(map[uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
 
 	// Get the team IDs
 	for _, spec := range specs {
@@ -722,6 +723,30 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			teamNameToID[spec.Team] = teamID
 		}
 		teamIDToPolicies[teamID] = append(teamIDToPolicies[teamID], spec)
+	}
+
+	// Get software installer ids from software title ids.
+	for _, spec := range specs {
+		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
+			continue
+		}
+		if spec.Team == "" {
+			return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "create policy from spec")
+		}
+		var softwareInstallerID uint
+		err := sqlx.GetContext(ctx, queryerContext, &softwareInstallerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ?`,
+			teamNameToID[spec.Team], spec.SoftwareTitleID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("SoftwareInstaller").WithID(*spec.SoftwareTitleID), "get software installer id")
+			}
+			return ctxerr.Wrap(ctx, err, "get software installer id")
+		}
+		if len(softwareInstallerIDs[teamNameToID[spec.Team]]) == 0 {
+			softwareInstallerIDs[teamNameToID[spec.Team]] = make(map[uint]*uint)
+		}
+		softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID] = &softwareInstallerID
 	}
 
 	// Get the query and platforms of the current policies so that we can check if query or platform changed later, if needed
@@ -774,8 +799,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			platforms,
 			critical,
 			calendar_events_enabled,
+			software_installer_id,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -783,7 +809,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			resolution = VALUES(resolution),
 			platforms = VALUES(platforms),
 			critical = VALUES(critical),
-			calendar_events_enabled = VALUES(calendar_events_enabled)
+			calendar_events_enabled = VALUES(calendar_events_enabled),
+			software_installer_id = VALUES(software_installer_id)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -792,11 +819,14 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				teamIDPtr = &teamID
 			}
 			for _, spec := range teamPolicySpecs {
-
+				var softwareInstallerID *uint
+				if spec.SoftwareTitleID != nil {
+					softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+				}
 				res, err := tx.ExecContext(
 					ctx,
 					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamIDPtr, spec.Platform, spec.Critical,
-					spec.CalendarEventsEnabled,
+					spec.CalendarEventsEnabled, softwareInstallerID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
