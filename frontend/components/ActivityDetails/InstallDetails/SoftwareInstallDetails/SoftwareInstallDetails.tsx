@@ -53,9 +53,12 @@ const StatusMessage = ({
         ({software_package}) on {formattedHost}
         {status === "pending_install" ? " when it comes online" : ""}
         {status === "failed_install" && updated_at
-          ? `${formatDistanceToNow(new Date(updated_at))}`
+          ? ` (${formatDistanceToNow(new Date(updated_at), {
+              includeSeconds: true,
+              addSuffix: true,
+            })})`
           : ""}
-        .{" "}
+        .
       </span>
     </div>
   );
