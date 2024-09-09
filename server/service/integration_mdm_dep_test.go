@@ -144,7 +144,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 		case "/account":
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
 		case "/profile":
-			w.WriteHeader(http.StatusOK)
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		}
 	}))
