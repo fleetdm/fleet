@@ -22,3 +22,6 @@ flag_management:
     - name: frontend
       paths:
         - frontend/
+
+ignore:
+  - "server/mock"

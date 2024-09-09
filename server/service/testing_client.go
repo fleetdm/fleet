@@ -198,6 +198,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results`)
 		return err
 	})
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {

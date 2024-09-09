@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -73,6 +74,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
+	l := strings.ToLower(*p.Name)
+	if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+		return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+	}
+	if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+		return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+	}
 	team.Name = *p.Name
 
 	if p.Description != nil {
@@ -128,6 +136,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Name != nil {
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+		}
+		l := strings.ToLower(*payload.Name)
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
 		}
 		team.Name = *payload.Name
 	}
@@ -860,6 +875,14 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		l := strings.ToLower(spec.Name)
+		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
+			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
+		}
+		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		}
+
 		var team *fleet.Team
 		// If filename is provided, try to find the team by filename first.
 		// This is needed in case user is trying to modify the team name.
@@ -883,6 +906,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				}
 			}
 		}
+
 		var create bool
 		if team == nil {
 			team, err = svc.ds.TeamByName(ctx, spec.Name)

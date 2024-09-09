@@ -190,9 +190,14 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
+	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID); err != nil {
+			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
 		}
@@ -208,7 +213,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
 			return err
@@ -220,14 +230,14 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		if err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID); err != nil {
+		if err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppToken.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam")
 	}
 
 	return app, nil
@@ -288,12 +298,12 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint) error {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform, self_service)
+	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id)
 VALUES
-	(?, ?, ?, ?, ?)
+	(?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 	`
 
@@ -306,7 +316,7 @@ ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID)
 	if IsDuplicate(err) {
 		err = &existsError{
 			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
@@ -385,7 +395,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		},
 	)
 	if err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "optimistic get or insert VPP app")
 	}
 
 	return titleID, nil
@@ -779,6 +789,9 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			null_team_type
 	) VALUES `
 	stmtValues := `(?, ?, ?)`
+	// Delete all apps associated with a token if we change its team
+	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`
+	deleteArgs := []any{id}
 
 	var values string
 	var args []any
@@ -823,12 +836,20 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			return ctxerr.Wrap(ctx, err, "vpp token null team check")
 		}
 
+		if _, err := tx.ExecContext(ctx, stmtDeleteApps, deleteArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
+		}
+
 		if _, err := tx.ExecContext(ctx, stmtRemove, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing old vpp team associations")
 		}
 
 		if len(args) > 0 {
 			if _, err := tx.ExecContext(ctx, stmtInsertFull, args...); err != nil {
+				if isChildForeignKeyError(err) {
+					return foreignKey("team", fmt.Sprintf("(team_id)=(%v)", values))
+				}
+
 				return ctxerr.Wrap(ctx, err, "updating vpp token team")
 			}
 		}
@@ -1077,6 +1098,37 @@ TEAMLOOP:
 
 func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
 	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
+	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL`
+
+	if nullTeam == fleet.NullTeamAllTeams {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
+		}
+
+		if len(ids) > 0 {
+			if len(ids) > 1 {
+				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
+			}
+			if currentID == nil || ids[0] != *currentID {
+				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
+			}
+		}
+	}
+
+	var id uint
+	allTeamsFound := true
+	if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, fleet.NullTeamAllTeams); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			allTeamsFound = false
+		} else {
+			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
+		}
+	}
+
+	if allTeamsFound && currentID != nil && *currentID != id {
+		return ctxerr.Wrap(ctx, errors.New("All teams token already exists"))
+	}
 
 	if nullTeam != fleet.NullTeamNone {
 		var id uint

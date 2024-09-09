@@ -691,9 +691,11 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
 
-func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
+func (svc *Service) BatchSetSoftwareInstallers(
+	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
+) ([]fleet.SoftwareInstaller, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return err
+		return nil, err
 	}
 
 	var teamID *uint
@@ -702,20 +704,29 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 		if err != nil {
 			// If this is a dry run, the team may not have been created yet
 			if dryRun && fleet.IsNotFound(err) {
-				return nil
+				return nil, nil
 			}
-			return err
+			return nil, err
 		}
 		teamID = &tm.ID
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err, "validating authorization")
+		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	for _, payload := range payloads {
+		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
+			return nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				"software URL is too long, must be less than 256 characters",
+			)
+		}
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return fleet.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 
 	g, workerCtx := errgroup.WithContext(ctx)
@@ -724,8 +735,6 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
 
-	client := fleethttp.NewClient()
-	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
 	for i, p := range payloads {
 		i, p := i, p
 
@@ -738,6 +747,8 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 					fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", p.URL),
 				)
 			}
+			client := fleethttp.NewClient()
+			client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
 
 			req, err := http.NewRequestWithContext(workerCtx, http.MethodGet, p.URL, nil)
 			if err != nil {
@@ -795,6 +806,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				InstallerFile:     bytes.NewReader(bodyBytes),
 				SelfService:       p.SelfService,
 				UserID:            vc.UserID(),
+				URL:               p.URL,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
@@ -836,27 +848,28 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	if err := g.Wait(); err != nil {
 		// NOTE: intentionally not wrapping to avoid polluting user
 		// errors.
-		return err
+		return nil, err
 	}
 
 	if dryRun {
-		return nil
+		return nil, nil
 	}
 
 	for _, payload := range installers {
 		if err := svc.storeSoftware(ctx, payload); err != nil {
-			return ctxerr.Wrap(ctx, err, "storing software installer")
+			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
 		}
 	}
 
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers); err != nil {
-		return ctxerr.Wrap(ctx, err, "batch set software installers")
+	insertedSoftwareInstallers, err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch set software installers")
 	}
 
 	// Note: per @noahtalerman we don't want activity items for CLI actions
 	// anymore, so that's intentionally skipped.
 
-	return nil
+	return insertedSoftwareInstallers, nil
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {

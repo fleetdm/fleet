@@ -640,9 +640,9 @@ type Service interface {
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 
-	// BatchSetSoftwareInstallers replaces the software installers for a
-	// specified team
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
+	// BatchSetSoftwareInstallers replaces the software installers for a specified team.
+	// Returns the metadata of inserted software installers.
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) ([]SoftwareInstaller, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -929,6 +929,9 @@ type Service interface {
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
+	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
+	GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

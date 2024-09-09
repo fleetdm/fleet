@@ -588,6 +588,14 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "oracle" && cpeItem.Product == "virtualbox" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "vm_virtualbox"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
 	return cpeItems
 }
 
