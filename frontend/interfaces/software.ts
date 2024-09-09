@@ -291,12 +291,12 @@ const INSTALL_STATUS_PREDICATES: Record<
   SoftwareInstallStatus | "pending",
   string
 > = {
-  pending: "pending", // TODO - confirm this, current is to allow successful build while WIP
+  pending: "pending",
   installed: "installed",
-  pending_install: "told Fleet to install", // TODO - confirm
-  failed_install: "failed to install", // TODO - confirm
-  pending_uninstall: "told Fleet to uninstall", // TODO - confirm
-  failed_uninstall: "failed to uninstall", // TODO - confirm
+  pending_install: "told Fleet to install",
+  failed_install: "failed to install",
+  pending_uninstall: "told Fleet to uninstall",
+  failed_uninstall: "failed to uninstall",
 } as const;
 
 export const getInstallStatusPredicate = (status: string | undefined) => {
@@ -310,7 +310,7 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
 };
 
 export const INSTALL_STATUS_ICONS: Record<
-  SoftwareInstallStatus | "pending" | "failed", // TODO - confirm this, current is to allow successful build while WIP
+  SoftwareInstallStatus | "pending" | "failed",
   IconNames
 > = {
   pending: "pending-outline",

@@ -146,7 +146,7 @@ const PackageStatusCount = ({
   const displayData = STATUS_DISPLAY_OPTIONS[status];
   const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     software_title_id: softwareId,
-    software_status: status, // TODO - update host page filters for both pending_install and pending_uninstall?
+    software_status: status,
     team_id: teamId,
   })}`;
   return (

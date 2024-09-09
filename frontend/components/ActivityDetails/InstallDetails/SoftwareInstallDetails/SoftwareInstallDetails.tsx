@@ -118,7 +118,6 @@ export const SoftwareInstallDetails = ({
             result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
           }
         />
-        {/* TODO confirm - put this for build while WIP */}
         {!["pending_install", "pending_uninstall"].includes(result.status) && (
           <>
             {result.pre_install_query_output && (
