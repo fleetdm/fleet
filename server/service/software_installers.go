@@ -94,6 +94,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.InstallScript = val[0]
 	}
 
+	val, ok = r.MultipartForm.Value["uninstall_script"]
+	if ok && len(val) > 0 {
+		decoded.UninstallScript = val[0]
+	}
+
 	val, ok = r.MultipartForm.Value["pre_install_query"]
 	if ok && len(val) > 0 {
 		decoded.PreInstallQuery = val[0]

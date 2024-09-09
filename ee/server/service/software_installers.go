@@ -47,6 +47,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// shebang when the file is directly executed.
 	payload.InstallScript = file.Dos2UnixNewlines(payload.InstallScript)
 	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
+	payload.UninstallScript = file.Dos2UnixNewlines(payload.UninstallScript)
 
 	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
