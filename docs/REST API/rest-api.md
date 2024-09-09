@@ -8486,8 +8486,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
-- [Get Fleet maintained app](#get-fleet-maintained-app)
-- [Add Fleet maintained app](#add-fleet-maintained-app)
+- [Get Fleet-maintained app](#get-fleet-maintained-app)
+- [Add Fleet-maintained app](#add-fleet-maintained-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -9141,11 +9141,11 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
-### List Fleet maintained apps
+### List Fleet-maintained apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-List available Fleet maintained apps.
+List available Fleet-maintained apps.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps`
 
@@ -9153,7 +9153,7 @@ List available Fleet maintained apps.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | query | **Required**. The team ID. Filters Fleet maintained apps to only include apps available for the specified team.  |
+| team_id       | integer | query | **Required**. The team ID. Filters Fleet-maintained apps to only include apps available for the specified team.  |
 
 #### Example
 
@@ -9193,11 +9193,11 @@ List available Fleet maintained apps.
 }
 ```
 
-### Get Fleet maintained app
+### Get Fleet-maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Returns information about the specified Fleet maintained app.
+Returns information about the specified Fleet-maintained app.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps/:id`
 
@@ -9205,7 +9205,7 @@ Returns information about the specified Fleet maintained app.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The Fleet maintained app's ID. |
+| id   | integer | path | **Required.** The Fleet-maintained app's ID. |
 
 
 #### Example
@@ -9230,13 +9230,13 @@ Returns information about the specified Fleet maintained app.
 }
 ```
 
-### Add Fleet maintained app
+### Add Fleet-maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Add Fleet maintained app so it's available for install.
+Add Fleet-maintained app so it's available for install.
 
 `POST /api/v1/fleet/software/fleet_maintained`
 
@@ -9244,9 +9244,9 @@ Add Fleet maintained app so it's available for install.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| fleet_maintained_app_id   | string | body | **Required.** The ID of Fleet maintained app. |
-| team_id       | integer | body | **Required**. The team ID. Adds Fleet maintained app to the specified team.  |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs default install command for each maintained app. |
+| fleet_maintained_app_id   | string | body | **Required.** The ID of Fleet-maintained app. |
+| team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
