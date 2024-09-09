@@ -1,0 +1,37 @@
+[
+	{
+		"identifier": "1password",
+		"bundle_identifier": "com.1password.1password",
+		"installer_format": "zip:app"
+	},
+	{
+		"identifier": "adobe-acrobat-reader",
+		"bundle_identifier": "com.adobe.Reader",
+		"installer_format": "dmg:pkg"
+	},
+	{
+		"identifier": "box-drive",
+		"bundle_identifier": "???",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "brave-browser",
+		"bundle_identifier": "com.brave.Browser",
+		"installer_format": "dmg:app"
+	},
+	{
+		"identifier": "cloudflare-warp",
+		"bundle_identifier": "com.cloudflare.1dot1dot1dot1.macos",
+		"installer_format": "pkg"
+	},
+	{
+		"identifier": "docker",
+		"bundle_identifier": "com.electron.dockerdesktop",
+		"installer_format": "dmg:app"
+	},
+	{
+		"identifier": "figma",
+		"bundle_identifier": "com.figma.Desktop",
+		"installer_format": "zip:app"
+	}
+]
