@@ -497,7 +497,8 @@ for pagination. For a comprehensive list of activity types and detailed informat
         "host_id": 1,
         "host_display_name": "Marko's MacBook Pro",
         "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb"
+        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
+        "status": "failed"
       }
     },
     {
@@ -4580,13 +4581,12 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_gravatar": "",
       "actor_email": "",
       "type": "uninstalled_software",
-      "fleet_initiated_activity": false,
       "details": {
         "host_id": 1,
         "host_display_name": "Marko’s MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "failed",
+        "status": "failed"
       }
     }, 
     // uninstalled_software uninstalled
@@ -4598,13 +4598,12 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_gravatar": "",
       "actor_email": "",
       "type": "uninstalled_software",
-      "fleet_initiated_activity": false,
       "details": {
         "host_id": 1,
         "host_display_name": "Marko’s MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "uninstalled",
+        "status": "uninstalled"
       }
     },
     {
@@ -4686,7 +4685,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "host_display_name": "Marko's MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "pending",
+        "status": "pending_uninstall",
       }
     },
     {
