@@ -107,6 +107,8 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	if err := json.Unmarshal(body, &cask); err != nil {
 		return ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Identifier)
 	}
+
+	//i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{})
 	panic("unimplemented")
 }
 
