@@ -133,6 +133,20 @@ module.exports = {
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
       }
+      // Check the existing contact record's psychologicalStage.
+      if(psychologicalStage){
+        let recordsCurrentPsyStage = existingContactRecord.Stage__c;
+        // Get the first character in the record's current psychological stage and the new psychological stage to make comparison easier.
+        let psyStageStageNumberToChangeTo = Number(psychologicalStage[0]);
+        let recordsCurrentPsyStageNumber = Number(recordsCurrentPsyStage[0]);
+        if(psyStageStageNumberToChangeTo < recordsCurrentPsyStageNumber) {
+          // If a psychological stage regression is caused by anything other than the start flow, remove the updated value.
+          // This is done to prevent automated psyStage regressions caused by users taking other action on the website. (e.g, Booking a meeting or requesting Fleet swag.)
+          if(psychologicalStageChangeReason && psychologicalStageChangeReason !== 'Website - Organic start flow') {
+            delete valuesToSet.Psystage_change_reason__c;
+          }
+        }
+      }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
       salesforceContactId = existingContactRecord.Id;
