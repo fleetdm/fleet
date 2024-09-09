@@ -11341,12 +11341,12 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
 
 	// cannot self-install if software installer does not allow it
-	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/%d/install", token, titleIDNoSS), nil, http.StatusBadRequest)
+	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDNoSS), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Software title is not available through self-service")
 
 	// request self-install of software that allows it
-	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/%d/install", token, titleIDSS), nil, http.StatusAccepted)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDSS), nil, http.StatusAccepted)
 
 	// it shows up as "self-installed" in the upcoming activities of the host
 	var listUpcomingAct listHostUpcomingActivitiesResponse
@@ -13036,7 +13036,8 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	}, &team.ID)
 	require.NoError(t, err)
 
-	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, app.TitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", orbitHost.ID, app.TitleID), &installSoftwareRequest{},
+		http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps.")
 }
 
@@ -13399,7 +13400,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 	// Request a manual installation on the host for the same installer, which should fail.
 	var installResp installSoftwareResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d",
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
 		host1Team1.ID, dummyInstallerPkgTitleID), nil, http.StatusBadRequest, &installResp)
 
 	// Submit same results as before, which should not trigger a installation because the policy is already failing.

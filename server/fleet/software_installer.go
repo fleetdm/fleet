@@ -370,7 +370,7 @@ type SoftwarePackageOrApp struct {
 	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
-	PackageURL  *string              `json:"package_url"`
+	PackageURL    *string                `json:"package_url"`
 }
 
 type SoftwarePackageSpec struct {
