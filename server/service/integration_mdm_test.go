@@ -663,6 +663,8 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 	t := s.T()
 	srv := httptest.NewServer(handler)
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		srv.Close()
@@ -4196,8 +4198,10 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 }
 `
 
+	// Associate the token with the team
+	s.enableABM(t.Name())
 	// start a server that will mock the Apple DEP API
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
 		case "/session":
@@ -4240,8 +4244,6 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 			}
 		}
 	}))
-	t.Cleanup(srv.Close)
-	s.depSetup(ctx, srv.URL)
 
 	// get for no team returns 404
 	var getResp getMDMAppleSetupAssistantResponse
@@ -4495,9 +4497,23 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// Adding another, unrelated token to the DB means that this team (which has no hosts and is not
 	// a default team for any token) will not have any relevant tokens and thus we don't know which
 	// token to use to hit the Apple APIs.
-	mysql.CreateABMKeyCertIfNotExists(t, s.ds)
-	mysql.CreateAndSetABMToken(t, s.ds, "nurv")
-	err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
+	otherOrg := t.Name() + "some_other_org"
+	s.enableABM(otherOrg)
+	// mysql.CreateABMKeyCertIfNotExists(t, s.ds)
+	// mysql.CreateAndSetABMToken(t, s.ds, "nurv")
+	// err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
+	s.mockDEPResponse(otherOrg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
 	require.NoError(t, err)
 	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &teamNoABM.ID,

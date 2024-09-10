@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"sort"
 	"strconv"
@@ -1239,7 +1238,8 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	s.runWorker()
 
 	// Set up a mock Apple DEP API
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
 		case "/session":
@@ -1251,8 +1251,6 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		}
 	}))
-	t.Cleanup(srv.Close)
-	s.depSetup(ctx, srv.URL)
 
 	// Use a gitops user for all Puppet actions
 	u := &fleet.User{

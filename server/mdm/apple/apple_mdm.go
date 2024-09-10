@@ -140,6 +140,7 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 	return nil
 }
 
+// CreateDefaultAutomaticProfile creates the default automatic enrollment profile in the DB.
 func (d *DEPService) CreateDefaultAutomaticProfile(ctx context.Context) error {
 	return d.createDefaultAutomaticProfile(ctx)
 }

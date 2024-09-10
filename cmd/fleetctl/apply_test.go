@@ -1174,7 +1174,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
 	// Mock Apple DEP API
-	depStorage := SetupDEPStorageAndDEPServer(t)
+	depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
@@ -1652,7 +1652,7 @@ spec:
 	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }
 
-func SetupDEPStorageAndDEPServer(t *testing.T) *nanodep_mock.Storage {
+func SetupMockDEPStorageAndMockDEPServer(t *testing.T) *nanodep_mock.Storage {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/server/devices"):
@@ -1933,7 +1933,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			tier = fleet.TierPremium
 		}
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
-		depStorage := SetupDEPStorageAndDEPServer(t)
+		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1"}

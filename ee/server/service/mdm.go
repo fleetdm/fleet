@@ -548,11 +548,6 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
-	// if profUUID == "" && modTime.IsZero() {
-	// 	// Then we skipped this one
-	// 	return nil, fleet.NewInvalidArgumentError("profile", "no relevant ABM token found")
-	// }
-
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
 	// uploaded).
