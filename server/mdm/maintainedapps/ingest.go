@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -61,6 +62,10 @@ type ingester struct {
 
 func (i ingester) ingest(ctx context.Context, apps []maintainedApp) error {
 	var g errgroup.Group
+
+	if !strings.HasSuffix(i.baseURL, "/") {
+		i.baseURL += "/"
+	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
