@@ -1266,20 +1266,20 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		return
 	}
 
-	// Check if the 'software_linux' result is available
+	// Check if the 'software_linux' result and status
 	sw, ok := (*results)[linuxSoftware]
 	if !ok {
 		return
 	}
 
-	// Check if the status is OK for 'software_linux'
 	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
 	// Extract the Python and Debian packages from the software list for filtering
-	pythonPackages := make([]string, 0, 50)
-	debPackages := make(map[string]struct{}, 50) // Use map for O(1) lookups
+	// allocating space for 40 packages based on state of fresh ubuntu 24.04 install
+	pythonPackages := make([]string, 0, 40)
+	debPackages := make(map[string]struct{}, 40)
 	for _, row := range sw {
 		switch row["source"] {
 		case pythonSource:
@@ -1287,7 +1287,7 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 			pythonPackages = append(pythonPackages, loweredName)
 			row["name"] = loweredName
 		case debSource:
-			// Only consider Python3 packages
+			// Only append python3 deb packages
 			if strings.HasPrefix(row["name"], pythonPrefix) {
 				debPackages[row["name"]] = struct{}{}
 			}
@@ -1310,7 +1310,7 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 				continue
 			}
 
-			// Update the Python package name to match OVAL definitions
+			// Update remaining Python package names to match OVAL definitions
 			row["name"] = convertedName
 		}
 		filteredSW = append(filteredSW, row)
