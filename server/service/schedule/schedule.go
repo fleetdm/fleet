@@ -30,7 +30,7 @@ type Schedule struct {
 	instanceID string
 	logger     log.Logger
 
-	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule, time.Now if not set
+	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule if none exists, time.Now if not set
 
 	mu                sync.Mutex // protects schedInterval and intervalStartedAt
 	schedInterval     time.Duration
