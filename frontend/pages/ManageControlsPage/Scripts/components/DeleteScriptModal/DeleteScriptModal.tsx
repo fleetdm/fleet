@@ -42,9 +42,10 @@ const DeleteScriptModal = ({
     >
       <>
         <p>
-          This action will cancel script{" "}
-          <span className={`${baseClass}__script-name`}>{scriptName}</span> from
-          running on macOS hosts on which the script hasn&apos;t run yet.
+          The script{" "}
+          <span className={`${baseClass}__script-name`}>{scriptName}</span> will
+          run on pending hosts. After the scripts runs, it&apos;s output and
+          exit code will appear in the activity feed.
         </p>
         <div className="modal-cta-wrap">
           <Button

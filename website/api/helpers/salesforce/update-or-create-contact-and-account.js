@@ -133,6 +133,21 @@ module.exports = {
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
       }
+      // Check the existing contact record's psychologicalStage.
+      if(psychologicalStage) {
+        let recordsCurrentPsyStage = existingContactRecord.Stage__c;
+        // Because each psychological stage starts with a number, we'll get the first character in the record's current psychological stage and the new psychological stage to make comparison easier.
+        let psyStageStageNumberToChangeTo = Number(psychologicalStage[0]);
+        let recordsCurrentPsyStageNumber = Number(recordsCurrentPsyStage[0]);
+        if(psyStageStageNumberToChangeTo < recordsCurrentPsyStageNumber) {
+          // If a psychological stage regression is caused by anything other than the start flow, remove the updated value.
+          // This is done to prevent automated psyStage regressions caused by users taking other action on the website. (e.g, Booking a meeting or requesting Fleet swag.)
+          if(psychologicalStageChangeReason && psychologicalStageChangeReason !== 'Website - Organic start flow') {
+            delete valuesToSet.Stage__c;
+            delete valuesToSet.Psystage_change_reason__c;
+          }
+        }
+      }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
       salesforceContactId = existingContactRecord.Id;
@@ -193,7 +208,7 @@ module.exports = {
           // Create a timestamp to use for the new account's assigned date.
           let today = new Date();
           let nowOn = today.toISOString().replace('Z', '+0000');
-
+          require('assert')(typeof enrichmentData.employer.numberOfEmployees === 'number');
           let newAccountRecord = await salesforceConnection.sobject('Account')
           .create({
             Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
@@ -204,7 +219,7 @@ module.exports = {
             Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
             Website: enrichmentData.employer.emailDomain,
             LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
-            NumberOfEmployees: Number(enrichmentData.employer.numberOfEmployees),
+            NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
             OwnerId: salesforceAccountOwnerId
           });
           salesforceAccountId = newAccountRecord.id;

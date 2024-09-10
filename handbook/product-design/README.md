@@ -67,7 +67,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 ### Ensure story drafting is complete
 
-Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer is responsible for moving the user story to the "Ready to spec" column, assigning the appropriate Engineering Manager (EM), and changing the status on the cover page of the relevant Figma file to "Approved".
+Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer is responsible for moving the user story to the "Ready to spec" column, assigning the appropriate Engineering Manager (EM), adding a product group label, and changing the status on the cover page of the relevant Figma file to "Approved".
 
 The EM is responsible for moving the user story to the "Specified" and "Estimated" columns.
 
