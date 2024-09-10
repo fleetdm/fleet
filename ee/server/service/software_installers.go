@@ -129,8 +129,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 	}
 	payload.UserID = vc.UserID()
 
+	if payload.TeamID == nil {
+		return nil, &fleet.BadRequestError{Message: "team_id is required; enter 0 for no team"}
+	}
+
 	var teamName *string
-	if payload.TeamID != nil && *payload.TeamID != 0 {
+	if *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
 		if err != nil {
 			return nil, err
