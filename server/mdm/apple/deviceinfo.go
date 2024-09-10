@@ -63,7 +63,7 @@ var appleIphoneDeviceCACert []byte
 var appleIphoneDeviceCA = newAppleCert(appleIphoneDeviceCACert)
 
 func newAppleCert(crt []byte) *x509.Certificate {
-	cert, err := x509.ParseCertificate(appleRootCert)
+	cert, err := x509.ParseCertificate(crt)
 	if err != nil {
 		panic(fmt.Errorf("could not parse cert: %w", err))
 	}
