@@ -36,6 +36,7 @@ const StatusMessage = ({
     software_title,
     status,
     updated_at,
+    created_at,
   },
 }: {
   result: ISoftwareInstallResult;
@@ -45,6 +46,17 @@ const StatusMessage = ({
   ) : (
     "the host"
   );
+
+  // TODO - confirm okay to fall back to created_at
+  const timeStamp = updated_at || created_at;
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    status || ""
+  )
+    ? ` (${formatDistanceToNow(new Date(timeStamp), {
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
+    : "";
   return (
     <div className={`${baseClass}__status-message`}>
       <Icon name={INSTALL_DETAILS_STATUS_ICONS[status]} />
@@ -52,13 +64,7 @@ const StatusMessage = ({
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
         ({software_package}) on {formattedHost}
         {status === "pending_install" ? " when it comes online" : ""}
-        {status === "failed_install" && updated_at
-          ? ` (${formatDistanceToNow(new Date(updated_at), {
-              includeSeconds: true,
-              addSuffix: true,
-            })})`
-          : ""}
-        .
+        {displayTimeStamp}.
       </span>
     </div>
   );
