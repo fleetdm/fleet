@@ -271,6 +271,8 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	return requestedTokenProfileUUID, requestedTokenModTime, nil
 }
 
+// ValidateSetupAssistant validates the setup assistant by sending the profile to the DefineProfile
+// Apple API.
 func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) error {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
