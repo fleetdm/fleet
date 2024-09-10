@@ -311,7 +311,7 @@ func (ts *withServer) getTestAdminToken() string {
 	return ts.cachedAdminToken
 }
 
-// getCachedUserToken returns thenil cached auth token for the given test user email.
+// getCachedUserToken returns the cached auth token for the given test user email.
 // If it's not found, then a login request is performed and the token cached.
 func (ts *withServer) getCachedUserToken(email, password string) string {
 	ts.cachedTokensMu.Lock()

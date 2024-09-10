@@ -59,7 +59,7 @@ var appleRootCA = newAppleCert(appleRootCert)
 //go:embed AppleIphoneDeviceCA.cer
 var appleIphoneDeviceCACert []byte
 
-// appleRootCA is Apple's Root CA parsed to an *x509.Certificate
+// appleIphoneDeviceCA is Apple's Iphone Device CA parsed to an *x509.Certificate
 var appleIphoneDeviceCA = newAppleCert(appleIphoneDeviceCACert)
 
 func newAppleCert(crt []byte) *x509.Certificate {
