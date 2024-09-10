@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -137,7 +138,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		teamName = &t.Name
 	}
 
-	// get software by id, fail if it does not exist or does not have an installer
+	// get software by ID, fail if it does not exist or does not have an installer
 	software, err := svc.ds.SoftwareTitleByID(ctx, titleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
@@ -163,13 +164,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		return installer, nil // no payload, noop
 	}
 
-	dirty := false
-	cancelPendingInstalls := false
-	resetInstallCounts := false
+	payload.InstallerID = installer.InstallerID
+	var dirty []string
 
 	if payload.SelfService != nil && *payload.SelfService != installer.SelfService {
-		dirty = true
-		installer.SelfService = *payload.SelfService
+		dirty = append(dirty, "SelfService")
 	}
 
 	activity := fleet.ActivityTypeEditedSoftware{
@@ -218,33 +217,41 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 			if newInstallerExtension != existingInstallerFileMeta.Extension || payloadForNewInstallerFile.Source != software.Source {
 				return nil, &fleet.BadRequestError{
-					Message:     fmt.Sprintf("This installer must be replaced with another installer with the same extension: %s", existingInstallerFileMeta.Extension),
+					Message:     "The selected package is for a different file type.",
 					InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
 				}
 			}
 
 			if payloadForNewInstallerFile.Title != software.Name {
 				return nil, &fleet.BadRequestError{
-					Message:     "The installer you uploaded does not correspond to this software title. Please edit the correct software title or add this as a new installer.",
+					Message:     "The selected package is for different software.",
 					InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
 				}
 			}
 
-			if payloadForNewInstallerFile.StorageID != hex.EncodeToString(existingInstallerFileMeta.SHASum) {
+			if payloadForNewInstallerFile.StorageID != installer.StorageID {
 				activity.SoftwarePackage = &payload.Filename
-				dirty = true
-				cancelPendingInstalls = true
-				resetInstallCounts = true
+				payload.StorageID = payloadForNewInstallerFile.StorageID
+				payload.Filename = payloadForNewInstallerFile.Filename
+				payload.Version = payloadForNewInstallerFile.Version
+				payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
+
+				dirty = append(dirty, "Package")
 			} else { // noop if uploaded installer is identical to previous installer
 				payloadForNewInstallerFile = nil
 			}
 		}
 
+		if payloadForNewInstallerFile == nil { // fill in existing installer data to payload
+			payload.StorageID = installer.StorageID
+			payload.Filename = existingInstallerFileMeta.Name
+			payload.Version = existingInstallerFileMeta.Version
+			payload.PackageIDs = existingInstallerFileMeta.PackageIDs
+		}
+
 		// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
 		if payload.PreInstallQuery != nil && *payload.PreInstallQuery != installer.PreInstallQuery {
-			dirty = true
-			cancelPendingInstalls = true
-			installer.PreInstallQuery = *payload.PreInstallQuery
+			dirty = append(dirty, "PreInstallQuery")
 		}
 
 		if payload.InstallScript != nil {
@@ -254,18 +261,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 			}
 
 			if installScript != installer.InstallScript {
-				dirty = true
-				cancelPendingInstalls = true
-				installer.InstallScript = installScript
+				dirty = append(dirty, "InstallScript")
+				payload.InstallScript = &installScript
 			}
 		}
 
 		if payload.PostInstallScript != nil {
 			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
 			if postInstallScript != installer.PostInstallScript {
-				dirty = true
-				cancelPendingInstalls = true
-				installer.PostInstallScript = postInstallScript
+				dirty = append(dirty, "PostInstallScript")
+				payload.PostInstallScript = &postInstallScript
 			}
 		}
 
@@ -286,43 +291,67 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 			preProcessUninstallScript(payloadForUninstallScript)
 			if payloadForUninstallScript.UninstallScript != installer.UninstallScript {
-				dirty = true
-				cancelPendingInstalls = true
-				installer.UninstallScript = payloadForUninstallScript.UninstallScript
+				uninstallScript = payloadForUninstallScript.UninstallScript
+				dirty = append(dirty, "UninstallScript")
+				payload.UninstallScript = &uninstallScript
 			}
 		}
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
+	if len(dirty) > 0 {
+		if slices.Equal(dirty, []string{"SelfService"}) { // only self-service changed; use lighter update function
+			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, installer.InstallerID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
+			}
+		} else {
+			if payloadForNewInstallerFile != nil {
+				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "storing software installer")
+				}
+			}
 
-	if payloadForNewInstallerFile != nil {
-		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
+			// fill in values from existing installer if they weren't supplied
+			if payload.InstallScript == nil {
+				payload.InstallScript = &installer.InstallScript
+			}
+			if payload.UninstallScript == nil {
+				payload.UninstallScript = &installer.UninstallScript
+			}
+			if payload.PostInstallScript == nil && slices.Contains(dirty, "PostInstallScript") == false {
+				payload.PostInstallScript = &installer.PostInstallScript
+			}
+			if payload.PreInstallQuery == nil {
+				payload.PreInstallQuery = &installer.PreInstallQuery
+			}
+			if payload.SelfService == nil {
+				payload.SelfService = &installer.SelfService
+			}
+
+			// TODO add back non-updated fields
+			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
+			}
+
+			// if we're updating anything other than self-service, we cancel pending install executions
+			// do this first before resetting counts; resetting install counts (setting removed = TRUE) nulls out install statuses
+			if err := svc.ds.CancelPendingInstallsForInstallerID(ctx, installer.InstallerID); err != nil {
+				return nil, err
+			}
+
+			if slices.Contains(dirty, "Package") {
+				if err := svc.ds.HideExistingInstallCountsForInstallerID(ctx, installer.InstallerID); err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 		}
 	}
 
-	if dirty == true {
-		// TODO run update query, including setting author
-	}
-
-	// do this first before resetting counts; resetting install counts (setting removed = TRUE) nulls out install statuses
-	if cancelPendingInstalls == true {
-		if err := svc.ds.CancelPendingInstallsForInstallerID(ctx, installer.InstallerID); err != nil {
-			return nil, err
-		}
-	}
-
-	if resetInstallCounts == true {
-		if err := svc.ds.HideExistingInstallCountsForInstallerID(ctx, installer.InstallerID); err != nil {
-			return nil, err
-		}
-	}
-
-	// Create activity
-	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
-	}
-
+	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later
 	installer, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
@@ -332,7 +361,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
 	}
-
 	installer.Status = statuses
 
 	return installer, nil

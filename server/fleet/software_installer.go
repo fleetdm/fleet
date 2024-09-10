@@ -321,7 +321,9 @@ type UpdateSoftwareInstallerPayload struct {
 	Source            string
 	Platform          string
 	BundleIdentifier  string
+	PackageIDs        []string
 	UserID            uint
+	InstallerID       uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

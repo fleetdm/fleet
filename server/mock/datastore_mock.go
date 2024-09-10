@@ -1038,6 +1038,10 @@ type CancelPendingInstallsForInstallerIDFunc func(ctx context.Context, id uint) 
 
 type HideExistingInstallCountsForInstallerIDFunc func(ctx context.Context, id uint) error
 
+type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
+
+type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
+
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
@@ -2610,6 +2614,12 @@ type DataStore struct {
 
 	HideExistingInstallCountsForInstallerIDFunc        HideExistingInstallCountsForInstallerIDFunc
 	HideExistingInstallCountsForInstallerIDFuncInvoked bool
+
+	UpdateInstallerSelfServiceFlagFunc        UpdateInstallerSelfServiceFlagFunc
+	UpdateInstallerSelfServiceFlagFuncInvoked bool
+
+	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
+	SaveInstallerUpdatesFuncInvoked bool
 
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
@@ -6250,6 +6260,20 @@ func (s *DataStore) HideExistingInstallCountsForInstallerID(ctx context.Context,
 	s.HideExistingInstallCountsForInstallerIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.HideExistingInstallCountsForInstallerIDFunc(ctx, id)
+}
+
+func (s *DataStore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
+	s.mu.Lock()
+	s.UpdateInstallerSelfServiceFlagFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateInstallerSelfServiceFlagFunc(ctx, selfService, id)
+}
+
+func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	s.mu.Lock()
+	s.SaveInstallerUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveInstallerUpdatesFunc(ctx, payload)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {

@@ -532,8 +532,6 @@ type Datastore interface {
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error)
-	CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error
-	HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
@@ -1669,6 +1667,11 @@ type Datastore interface {
 
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
+
+	CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error
+	HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error
+	SaveInstallerUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
+	UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error
 
 	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPApp, error)
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the

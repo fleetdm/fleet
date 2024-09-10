@@ -212,6 +212,74 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
+func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE software_installers SET self_service = ? WHERE id = ?`, selfService, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installer")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.InstallScript) // TODO default
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
+	}
+
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.UninstallScript) // TODO default
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+
+	var postInstallScriptID *uint
+	if payload.PostInstallScript != nil && *payload.PostInstallScript != "" { // pointer because optional
+		sid, err := ds.getOrGenerateScriptContentsID(ctx, *payload.PostInstallScript) // TODO default
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get or generate post-install script contents ID")
+		}
+		postInstallScriptID = &sid
+	}
+
+	stmt := `UPDATE software_installers SET
+	storage_id = ?,
+	filename = ?,
+	version = ?,
+	package_ids = ?,
+	install_script_content_id = ?,
+	pre_install_query = ?,
+	post_install_script_content_id = ?,
+    uninstall_script_content_id = ?,
+    self_service = ?,
+	user_id = ?,
+	user_name = (SELECT name FROM users WHERE id = ?),
+	user_emai = (SELECT email FROM users WHERE id = ?)
+	WHERE id = ?`
+
+	args := []interface{}{
+		payload.StorageID,
+		payload.Filename,
+		payload.Version,
+		strings.Join(payload.PackageIDs, ","),
+		installScriptID,
+		*payload.PreInstallQuery,
+		postInstallScriptID,
+		uninstallScriptID,
+		*payload.SelfService,
+		payload.UserID,
+		payload.UserID,
+		payload.UserID,
+		payload.InstallerID,
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installer")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
 	query := `
     SELECT 1
