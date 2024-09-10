@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -398,16 +399,15 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
-	// reserved team name; should error in both dry run and real
+	// Invalid name for "No team" file (dry and real).
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
-
+	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", tmpFile.Name()))
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
+	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", tmpFile.Name()))
 
 	t.Setenv("TEST_TEAM_NAME", "All teams")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
@@ -1628,8 +1628,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 
 	cases := []struct {
-		file    string
-		wantErr string
+		noTeamFile string
+		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
 		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
@@ -1643,11 +1643,18 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
 	}
 	for _, c := range cases {
-		t.Run(filepath.Base(c.file), func(t *testing.T) {
+		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
 			setupFullGitOpsPremiumServer(t)
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
-			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			globalFile := "./testdata/gitops/global_config_no_paths.yml"
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			t.Cleanup(func() {
+				os.Remove(dstPath)
+			})
+			err := file.Copy(c.noTeamFile, dstPath, 0o755)
+			require.NoError(t, err)
+			_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {

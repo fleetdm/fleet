@@ -133,7 +133,9 @@ func gitopsCommand() *cli.Command {
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						return fmt.Errorf("'controls' must be set on global config or no-team.yml")
 					}
-					config.Controls = noTeamControls
+					if !config.Controls.Set() {
+						config.Controls = noTeamControls
+					}
 				}
 
 				// Special handling for tokens is required because they link to teams (by
