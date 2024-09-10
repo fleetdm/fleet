@@ -3999,7 +3999,19 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.SoftwareInstallerID)
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
-	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{})
+	// Policy p4 in "No team" with associated installer.
+	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p4",
+		Query:               "SELECT 4;",
+		SoftwareInstallerID: ptr.Uint(installerID),
+	})
+	require.NoError(t, err)
+	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithInstallers, 1)
+	require.Equal(t, p4.ID, policiesWithInstallers[0].ID)
+
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithInstallers)
 

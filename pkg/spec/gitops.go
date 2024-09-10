@@ -37,6 +37,8 @@ type Controls struct {
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 
 	Scripts []BaseItem `json:"scripts"`
+
+	Defined bool
 }
 
 func (c Controls) Set() bool {
@@ -141,10 +143,10 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseName(teamRaw, result, multiError)
 		if result.IsNoTeam() {
 			if teamSettingsOk {
-				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file", filePath))
+				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file: %q", filePath))
 			}
 			if filepath.Base(filePath) != "no-team.yml" {
-				multiError = multierror.Append(multiError, fmt.Errorf("file %s for 'No team' must be named 'no-team.yml'", filePath))
+				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
 			}
 		} else {
 			if !teamSettingsOk {
@@ -358,7 +360,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 		if ok {
 			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.")
 		}
-		return nil
+		return multiError
 	} else if !ok {
 		return multierror.Append(multiError, errors.New("'agent_options' is required"))
 	}
@@ -409,12 +411,14 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
-		return multierror.Append(multiError, errors.New("'controls' is required"))
+		// Nothing to do, return.
+		return multiError
 	}
 	var controlsTop Controls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
+	controlsTop.Defined = true
 	if controlsTop.Path == nil {
 		result.Controls = controlsTop
 	} else {
@@ -565,7 +569,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		if ok {
 			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.")
 		}
-		return nil
+		return multiError
 	} else if !ok {
 		return multierror.Append(multiError, errors.New("'queries' key is required"))
 	}

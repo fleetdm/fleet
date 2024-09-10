@@ -53,6 +53,16 @@ func createTempFile(t *testing.T, pattern, contents string) (filePath string, ba
 	return tmpFile.Name(), filepath.Dir(tmpFile.Name())
 }
 
+func createNamedFileOnTempDir(t *testing.T, name string, contents string) (filePath string, baseDir string) {
+	tmpFilePath := filepath.Join(t.TempDir(), name)
+	tmpFile, err := os.Create(tmpFilePath)
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(contents)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+	return tmpFile.Name(), filepath.Dir(tmpFile.Name())
+}
+
 func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 	path, basePath := createTempFile(t, "", s)
 	return GitOpsFromFile(path, basePath, nil, nopLogf)
@@ -446,14 +456,44 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
+					// Missing team_settings.
+					config = getConfig([]string{"team_settings"})
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "'team_settings' is required when 'name' is provided")
+
+					// team_settings set on a "no-team.yml".
+					config = getConfig([]string{"name"})
+					config += "name: No team\n"
+					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("cannot set 'team_settings' on 'No team' file: %q", noTeamPath1))
+
+					// 'No team' file with invalid name.
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\n"
+					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
+					_, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath2))
+
 					// Missing secrets
 					config = getConfig([]string{"team_settings"})
 					config += "team_settings:\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'team_settings.secrets' is required")
 				} else {
+					// 'software' is not allowed in global config
+					config := getConfig(nil)
+					config += "software:\n  packages:\n    - url: https://example.com\n"
+					path1, basePath1 := createTempFile(t, "", config)
+					appConfig := fleet.EnrichedAppConfig{}
+					appConfig.License = &fleet.LicenseInfo{
+						Tier: fleet.TierPremium,
+					}
+					_, err = GitOpsFromFile(path1, basePath1, &appConfig, nopLogf)
+					assert.ErrorContains(t, err, "'software' cannot be set on global file")
+
 					// Invalid org_settings
-					config := getConfig([]string{"org_settings"})
+					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "failed to unmarshal org_settings")
