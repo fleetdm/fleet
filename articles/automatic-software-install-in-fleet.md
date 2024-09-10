@@ -1,6 +1,6 @@
 # Automatic policy-based installation of software on hosts
 
-TODO: Add general image here
+![Top Image](../website/assets/images/articles/automatic-software-install-top-image.png)
 
 Fleet has the ability to automatically and remotly install software on hosts upon a specific policy failure, programmed in advance. 
 This guide will walk you through the process of configuring fleet for automatic installation of
