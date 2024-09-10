@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -29,6 +31,8 @@ type maintainedApp struct {
 
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
 
+// Refresh fetches the latest information about maintained apps from the brew
+// API and updates the Fleet database with the new information.
 func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	var apps []maintainedApp
 	if err := json.Unmarshal(appsJSON, &apps); err != nil {
@@ -60,7 +64,7 @@ func (i ingester) ingest(ctx context.Context, apps []maintainedApp) error {
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-	// run at most 3 concurrent requests
+	// run at most 3 concurrent requests to avoid overwhelming the brew API
 	g.SetLimit(3)
 	for _, app := range apps {
 		app := app // capture loop variable, not required in Go 1.23+
@@ -108,8 +112,52 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		return ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Identifier)
 	}
 
-	//i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{})
-	panic("unimplemented")
+	// validate required fields
+	if len(cask.Name) == 0 || cask.Name[0] == "" {
+		return ctxerr.Errorf(ctx, "missing name for cask %s", app.Identifier)
+	}
+	if cask.Token == "" {
+		return ctxerr.Errorf(ctx, "missing token for cask %s", app.Identifier)
+	}
+	if cask.Version == "" {
+		return ctxerr.Errorf(ctx, "missing version for cask %s", app.Identifier)
+	}
+	if cask.URL == "" {
+		return ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
+	}
+	parsedURL, err := url.Parse(cask.URL)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
+	}
+	filename := path.Base(parsedURL.Path)
+
+	installScript := installScriptForApp(app, &cask)
+	uninstallScript := uninstallScriptForApp(app, &cask)
+
+	err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:    cask.Name[0],
+		Token:   cask.Token,
+		Version: cask.Version,
+		// for now, maintained apps are always macOS (darwin)
+		Platform:         fleet.MacOSPlatform,
+		InstallerURL:     cask.URL,
+		Filename:         filename,
+		SHA256:           cask.SHA256,
+		BundleIdentifier: app.BundleIdentifier,
+		InstallScript:    installScript,
+		UninstallScript:  uninstallScript,
+	})
+	return ctxerr.Wrap(ctx, err, "upsert maintained app")
+}
+
+func installScriptForApp(app maintainedApp, cask *brewCask) string {
+	// TODO: implement install script based on cask and app installer format
+	return "install"
+}
+
+func uninstallScriptForApp(app maintainedApp, cask *brewCask) string {
+	// TODO: implement uninstall script based on cask and app installer format
+	return "uninstall"
 }
 
 type brewCask struct {
