@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -103,7 +103,9 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	case http.StatusOK:
 		// success, go on
 	case http.StatusNotFound:
-		// TODO: delete the existing entry? do nothing and succeed? doing the latter for now.
+		// nothing to do, either it currently exists in the DB and it keeps on
+		// existing, or it doesn't and keeps on being missing.
+		level.Warn(i.logger).Log("msg", "maintained app missing in brew API", "identifier", app.Identifier)
 		return nil
 	default:
 		if len(body) > 512 {
@@ -130,11 +132,10 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	if cask.URL == "" {
 		return ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
 	}
-	parsedURL, err := url.Parse(cask.URL)
+	_, err = url.Parse(cask.URL)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
 	}
-	filename := path.Base(parsedURL.Path)
 
 	installScript := installScriptForApp(app, &cask)
 	uninstallScript := uninstallScriptForApp(app, &cask)
@@ -146,7 +147,6 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		// for now, maintained apps are always macOS (darwin)
 		Platform:         fleet.MacOSPlatform,
 		InstallerURL:     cask.URL,
-		Filename:         filename,
 		SHA256:           cask.SHA256,
 		BundleIdentifier: app.BundleIdentifier,
 		InstallScript:    installScript,

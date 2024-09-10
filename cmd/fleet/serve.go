@@ -899,6 +899,12 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+					initFatal(err, "failed to register maintained apps schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {

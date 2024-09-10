@@ -20,7 +20,6 @@ CREATE TABLE fleet_library_apps (
 	version           varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	platform          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	installer_url     varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	filename          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	-- hash of the binary downloaded from installer_url, allows us to validate we got the right bytes
 	-- before sending to S3 (and we store installers on S3 under that sha256 hash as identifier).
 	sha256            varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
