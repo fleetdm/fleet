@@ -592,7 +592,7 @@ org_settings:
       ipados_team: "🔳🏢 Company-owned iPads"
 ```
 
-Can only be configured for all teams (`org_settings`).
+> Apple Business Manager settings can only be configured for all teams (`org_settings`).
 
 ##### volume_purchasing_program
 
