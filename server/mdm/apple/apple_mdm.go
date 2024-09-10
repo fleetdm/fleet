@@ -145,6 +145,44 @@ func (d *DEPService) CreateDefaultAutomaticProfile(ctx context.Context) error {
 	return d.createDefaultAutomaticProfile(ctx)
 }
 
+func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.RawMessage, appCfg *fleet.AppConfig, team *fleet.Team, enrollURL string) (*godep.Profile, error) {
+	var jsonProf godep.Profile
+	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
+	if err := json.Unmarshal(setupAsstJSON, &jsonProf); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	}
+
+	// if configuration_web_url is set, this setting is completely managed by the
+	// IT admin.
+	if jsonProf.ConfigurationWebURL == "" {
+		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+		// flow, otherwise use Fleet's enroll URL.
+		//
+		// Even though the DEP profile supports an `url` attribute, we should
+		// always still set configuration_web_url, otherwise the request method
+		// coming from Apple changes from GET to POST, and we want to preserve
+		// backwards compatibility.
+		jsonProf.ConfigurationWebURL = enrollURL
+		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		if team != nil {
+			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+		}
+		if endUserAuthEnabled {
+			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
+		}
+	}
+
+	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
+	// to get a token without SSO enabled
+	jsonProf.URL = jsonProf.ConfigurationWebURL
+	// always set await_device_configured to true - it will be released either
+	// automatically by Fleet or manually by the user if
+	// enable_release_device_manually is true.
+	jsonProf.AwaitDeviceConfigured = true
+
+	return &jsonProf, nil
+}
+
 // RegisterProfileWithAppleDEPServer registers the enrollment profile in
 // Apple's servers via the DEP API, so it can be used for assignment. If
 // setupAsst is nil, the default profile is registered. It assigns the
@@ -231,44 +269,6 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		}
 	}
 	return requestedTokenProfileUUID, requestedTokenModTime, nil
-}
-
-func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.RawMessage, appCfg *fleet.AppConfig, team *fleet.Team, enrollURL string) (*godep.Profile, error) {
-	var jsonProf godep.Profile
-	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
-	if err := json.Unmarshal(setupAsstJSON, &jsonProf); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
-	}
-
-	// if configuration_web_url is set, this setting is completely managed by the
-	// IT admin.
-	if jsonProf.ConfigurationWebURL == "" {
-		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
-		// flow, otherwise use Fleet's enroll URL.
-		//
-		// Even though the DEP profile supports an `url` attribute, we should
-		// always still set configuration_web_url, otherwise the request method
-		// coming from Apple changes from GET to POST, and we want to preserve
-		// backwards compatibility.
-		jsonProf.ConfigurationWebURL = enrollURL
-		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-		if team != nil {
-			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
-		}
-		if endUserAuthEnabled {
-			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
-		}
-	}
-
-	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
-	// to get a token without SSO enabled
-	jsonProf.URL = jsonProf.ConfigurationWebURL
-	// always set await_device_configured to true - it will be released either
-	// automatically by Fleet or manually by the user if
-	// enable_release_device_manually is true.
-	jsonProf.AwaitDeviceConfigured = true
-
-	return &jsonProf, nil
 }
 
 func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) error {
