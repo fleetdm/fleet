@@ -796,7 +796,6 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
-	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 	}
