@@ -328,7 +328,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 				payload.SelfService = &installer.SelfService
 			}
 
-			// TODO add back non-updated fields
 			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 			}

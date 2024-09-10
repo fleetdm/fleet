@@ -222,19 +222,19 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 }
 
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
-	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.InstallScript) // TODO default
+	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.InstallScript)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
 	}
 
-	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.UninstallScript) // TODO default
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.UninstallScript)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
 	}
 
 	var postInstallScriptID *uint
 	if payload.PostInstallScript != nil && *payload.PostInstallScript != "" { // pointer because optional
-		sid, err := ds.getOrGenerateScriptContentsID(ctx, *payload.PostInstallScript) // TODO default
+		sid, err := ds.getOrGenerateScriptContentsID(ctx, *payload.PostInstallScript)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get or generate post-install script contents ID")
 		}
