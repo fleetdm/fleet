@@ -2,10 +2,12 @@ package mysql
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -18,6 +20,7 @@ func TestMaintainedApps(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
+		{"IngestWithBrew", testIngestWithBrew},
 	}
 
 	for _, c := range cases {
@@ -64,4 +67,21 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.Equal(t, expectedApps, listSavedApps())
+}
+
+func testIngestWithBrew(t *testing.T, ds *Datastore) {
+	if os.Getenv("NETWORK_TEST") == "" {
+		t.Skip("set environment variable NETWORK_TEST=1 to run")
+	}
+
+	ctx := context.Background()
+	err := maintainedapps.Refresh(ctx, ds, log.NewNopLogger())
+	require.NoError(t, err)
+
+	expectedTokens := maintainedapps.ExpectedAppTokens(t)
+	var actualTokens []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")
+	})
+	require.ElementsMatch(t, expectedTokens, actualTokens)
 }
