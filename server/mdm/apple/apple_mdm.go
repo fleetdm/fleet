@@ -188,10 +188,89 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		requestedTokenModTime = setupAsst.UploadedAt
 	}
 
+	jsonProf, err := d.buildJSONProfile(ctx, rawJSON, appCfg, team, enrollURL)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "building json profile")
+	}
+	// var jsonProf godep.Profile
+	// jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
+	// if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
+	// 	return "", time.Time{}, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	// }
+
+	// // if configuration_web_url is set, this setting is completely managed by the
+	// // IT admin.
+	// if jsonProf.ConfigurationWebURL == "" {
+	// 	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+	// 	// flow, otherwise use Fleet's enroll URL.
+	// 	//
+	// 	// Even though the DEP profile supports an `url` attribute, we should
+	// 	// always still set configuration_web_url, otherwise the request method
+	// 	// coming from Apple changes from GET to POST, and we want to preserve
+	// 	// backwards compatibility.
+	// 	jsonProf.ConfigurationWebURL = enrollURL
+	// 	endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+	// 	if team != nil {
+	// 		endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	// 	}
+	// 	if endUserAuthEnabled {
+	// 		jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
+	// 	}
+	// }
+
+	// // ensure `url` is the same as `configuration_web_url`, to not leak the URL
+	// // to get a token without SSO enabled
+	// jsonProf.URL = jsonProf.ConfigurationWebURL
+	// // always set await_device_configured to true - it will be released either
+	// // automatically by Fleet or manually by the user if
+	// // enable_release_device_manually is true.
+	// jsonProf.AwaitDeviceConfigured = true
+
+	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
+	// Get all relevant org names
+	var tmID *uint
+	if team != nil {
+		tmID = &team.ID
+	}
+
+	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
+	}
+
+	if len(orgNames) == 0 {
+		d.logger.Log("msg", "skipping defining profile for team with no relevant ABM token")
+		return "", time.Time{}, nil
+	}
+
+	var requestedTokenProfileUUID string
+	for _, orgName := range orgNames {
+		res, err := depClient.DefineProfile(ctx, orgName, jsonProf)
+		if err != nil {
+			return "", time.Time{}, ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
+		}
+
+		if setupAsst != nil {
+			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID, orgName); err != nil {
+				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
+			}
+		} else {
+			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID, orgName); err != nil {
+				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
+			}
+		}
+		if orgName == abmTokenOrgName {
+			requestedTokenProfileUUID = res.ProfileUUID
+		}
+	}
+	return requestedTokenProfileUUID, requestedTokenModTime, nil
+}
+
+func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.RawMessage, appCfg *fleet.AppConfig, team *fleet.Team, enrollURL string) (*godep.Profile, error) {
 	var jsonProf godep.Profile
 	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
-	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	if err := json.Unmarshal(setupAsstJSON, &jsonProf); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
 
 	// if configuration_web_url is set, this setting is completely managed by the
@@ -222,44 +301,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	// enable_release_device_manually is true.
 	jsonProf.AwaitDeviceConfigured = true
 
-	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	// Get all relevant org names
-	var tmID *uint
-	if team != nil {
-		tmID = &team.ID
-	}
-
-	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
-	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
-	}
-
-	if len(orgNames) == 0 {
-		d.logger.Log("msg", "skipping defining profile for team with no relevant ABM token")
-		return "", time.Time{}, nil
-	}
-
-	var requestedTokenProfileUUID string
-	for _, orgName := range orgNames {
-		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
-		if err != nil {
-			return "", time.Time{}, ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
-		}
-
-		if setupAsst != nil {
-			if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID, orgName); err != nil {
-				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
-			}
-		} else {
-			if err := d.ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, tmID, res.ProfileUUID, orgName); err != nil {
-				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
-			}
-		}
-		if orgName == abmTokenOrgName {
-			requestedTokenProfileUUID = res.ProfileUUID
-		}
-	}
-	return requestedTokenProfileUUID, requestedTokenModTime, nil
+	return &jsonProf, nil
 }
 
 func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) error {
@@ -282,39 +324,10 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 
 	rawJSON := setupAsst.Profile
 
-	var jsonProf godep.Profile
-	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
-	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	jsonProf, err := d.buildJSONProfile(ctx, rawJSON, appCfg, team, enrollURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building json profile")
 	}
-
-	// if configuration_web_url is set, this setting is completely managed by the
-	// IT admin.
-	if jsonProf.ConfigurationWebURL == "" {
-		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
-		// flow, otherwise use Fleet's enroll URL.
-		//
-		// Even though the DEP profile supports an `url` attribute, we should
-		// always still set configuration_web_url, otherwise the request method
-		// coming from Apple changes from GET to POST, and we want to preserve
-		// backwards compatibility.
-		jsonProf.ConfigurationWebURL = enrollURL
-		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-		if team != nil {
-			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
-		}
-		if endUserAuthEnabled {
-			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
-		}
-	}
-
-	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
-	// to get a token without SSO enabled
-	jsonProf.URL = jsonProf.ConfigurationWebURL
-	// always set await_device_configured to true - it will be released either
-	// automatically by Fleet or manually by the user if
-	// enable_release_device_manually is true.
-	jsonProf.AwaitDeviceConfigured = true
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	// Get all relevant org names
@@ -344,7 +357,7 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 	}
 
 	for _, orgName := range orgNames {
-		_, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+		_, err := depClient.DefineProfile(ctx, orgName, jsonProf)
 		if err != nil {
 			var httpErr *godep.HTTPError
 			if errors.As(err, &httpErr) {
