@@ -3912,8 +3912,18 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"source":  "deb_packages",
 					},
 					{
-						"name":    "twisted", // duplicate of python3-twisted
+						"name":    "Twisted", // duplicate of python3-twisted
 						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-setuptools",
+						"version": "50.3.2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "setuptools",
+						"version": "50.3.2",
 						"source":  "python_packages",
 					},
 					{
@@ -3933,6 +3943,11 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					{
 						"name":    "python3-twisted",
 						"version": "20.3.0-2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-setuptools",
+						"version": "50.3.2",
 						"source":  "deb_packages",
 					},
 					{

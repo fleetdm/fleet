@@ -1272,7 +1272,8 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Collect Python and Debian packages
-	var pythonPackages, debPackages []string
+	pythonPackages := make([]string, 0, 50)
+	debPackages := make([]string, 0, 1500)
 	for _, row := range sw {
 		switch row["source"] {
 		case "python_packages":
@@ -1288,49 +1289,40 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Prepare lists of Python packages to delete and update
-	var toDelete, toUpdate []string
+	toDelete := make(map[string]struct{})
+	var toUpdate []string
 	for _, name := range pythonPackages {
-		convertedName := fmt.Sprintf("python3-%s", name)
-		foundInDeb := false
+		convertedName := "python3-" + strings.ToLower(name)
+		found := false
 		for _, debPackage := range debPackages {
 			if debPackage == convertedName {
-				toDelete = append(toDelete, name)
-				foundInDeb = true
+				found = true
+				toDelete[name] = struct{}{}
 				break
 			}
 		}
-		if !foundInDeb {
+		if !found {
 			toUpdate = append(toUpdate, name)
 		}
 	}
 
+	filteredSW := make([]map[string]string, 0, len(sw))
 	// Delete Python packages that have a corresponding Debian package
-	if len(toDelete) > 0 {
-		sw = slices.DeleteFunc(sw, func(row map[string]string) bool {
+	if len(toDelete) > 0 || len(toUpdate) > 0 {
+		for _, row := range sw {
 			if row["source"] == "python_packages" {
-				for _, name := range toDelete {
-					if row["name"] == name {
-						return true
-					}
+				if _, ok := toDelete[row["name"]]; ok {
+					continue
 				}
+				row["name"] = "python3-" + strings.ToLower(row["name"])
+				filteredSW = append(filteredSW, row)
+				continue
 			}
-			return false
-		})
-	}
-
-	// Update Python package names to "python3-{name}" to match OVAL definitions
-	if len(toUpdate) > 0 {
-		for _, p := range toUpdate {
-			for _, row := range sw {
-				if row["source"] == "python_packages" && row["name"] == p {
-					row["name"] = fmt.Sprintf("python3-%s", p)
-				}
-			}
+			filteredSW = append(filteredSW, row)
 		}
 	}
-
 	// Store the updated software result back in the results map
-	(*results)[hostDetailQueryPrefix+"software_linux"] = sw
+	(*results)[hostDetailQueryPrefix+"software_linux"] = filteredSW
 }
 
 func preProcessSoftwareExtraResults(
