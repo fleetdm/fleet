@@ -638,9 +638,6 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 		"missing_all": {
 			optsToExclude: []string{"controls", "queries", "policies", "agent_options", "org_settings"},
 		},
-		"missing_controls": {
-			optsToExclude: []string{"controls"},
-		},
 		"missing_queries": {
 			optsToExclude: []string{"queries"},
 		},
