@@ -9072,6 +9072,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 
+> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 #### Example
 
 `PATCH /api/v1/fleet/software/titles/1/package`
