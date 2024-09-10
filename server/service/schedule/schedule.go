@@ -30,6 +30,8 @@ type Schedule struct {
 	instanceID string
 	logger     log.Logger
 
+	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule, time.Now if not set
+
 	mu                sync.Mutex // protects schedInterval and intervalStartedAt
 	schedInterval     time.Duration
 	intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
@@ -120,6 +122,17 @@ func WithJob(id string, fn JobFn) Option {
 	}
 }
 
+// WithDefaultPrevRunCreatedAt sets the default time to use for the previous
+// run of the schedule if it never ran yet. If not specified, the current time
+// is used. This affects when the schedule starts running after Fleet is
+// started, e.g. if the schedule has an interval of 1h and has no previous run
+// recorded, by default its first run after Fleet starts will be in 1h.
+func WithDefaultPrevRunCreatedAt(tm time.Time) Option {
+	return func(s *Schedule) {
+		s.defaultPrevRunCreatedAt = tm
+	}
+}
+
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
@@ -168,10 +181,14 @@ func (s *Schedule) Start() {
 		ctxerr.Handle(s.ctx, err)
 	}
 
-	// if there is no previous run, set the start time to the current time.
+	// if there is no previous run, set the start time to the specified default
+	// time, falling back to current time.
 	startedAt := prevScheduledRun.CreatedAt
 	if startedAt.IsZero() {
-		startedAt = time.Now()
+		startedAt = s.defaultPrevRunCreatedAt
+		if startedAt.IsZero() {
+			startedAt = time.Now()
+		}
 	}
 	s.setIntervalStartedAt(startedAt)
 

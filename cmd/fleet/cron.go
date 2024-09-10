@@ -1405,12 +1405,15 @@ func newMaintainedAppSchedule(
 	const (
 		name            = string(fleet.CronMaintainedApps)
 		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
 
 	logger = kitlog.With(logger, "cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintainedapps.Refresh(ctx, ds, logger)
 		}),
