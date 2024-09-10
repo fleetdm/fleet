@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -130,11 +129,10 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	if cask.URL == "" {
 		return ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
 	}
-	parsedURL, err := url.Parse(cask.URL)
+	_, err = url.Parse(cask.URL)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
 	}
-	filename := path.Base(parsedURL.Path)
 
 	installScript := installScriptForApp(app, &cask)
 	uninstallScript := uninstallScriptForApp(app, &cask)
@@ -146,7 +144,6 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		// for now, maintained apps are always macOS (darwin)
 		Platform:         fleet.MacOSPlatform,
 		InstallerURL:     cask.URL,
-		Filename:         filename,
 		SHA256:           cask.SHA256,
 		BundleIdentifier: app.BundleIdentifier,
 		InstallScript:    installScript,

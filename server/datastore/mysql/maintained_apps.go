@@ -10,20 +10,19 @@ import (
 
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) error {
 	const upsertStmt = `
-INSERT INTO 
+INSERT INTO
 	fleet_library_apps (
-		name, token, version, platform, installer_url, filename, 
+		name, token, version, platform, installer_url,
 		sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id
 	)
-VALUES 
-	( ?, ?, ?, ?, ?, ?,
+VALUES
+	( ?, ?, ?, ?, ?,
 	  ?, ?, ?, ? )
 ON DUPLICATE KEY UPDATE
 	name = VALUES(name),
 	version = VALUES(version),
 	platform = VALUES(platform),
 	installer_url = VALUES(installer_url),
-	filename = VALUES(filename),
 	sha256 = VALUES(sha256),
 	bundle_identifier = VALUES(bundle_identifier),
 	install_script_content_id = VALUES(install_script_content_id),
@@ -48,7 +47,7 @@ ON DUPLICATE KEY UPDATE
 		uninstallScriptID, _ := uninstallRes.LastInsertId()
 
 		// upsert the maintained app
-		_, err = tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL, app.Filename,
+		_, err = tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
 			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
 		return ctxerr.Wrap(ctx, err, "upsert maintained app")
 	})
