@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -102,7 +103,9 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	case http.StatusOK:
 		// success, go on
 	case http.StatusNotFound:
-		// TODO: delete the existing entry? do nothing and succeed? doing the latter for now.
+		// nothing to do, either it currently exists in the DB and it keeps on
+		// existing, or it doesn't and keeps on being missing.
+		level.Warn(i.logger).Log("msg", "maintained app missing in brew API", "identifier", app.Identifier)
 		return nil
 	default:
 		if len(body) > 512 {
