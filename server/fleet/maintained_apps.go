@@ -5,7 +5,7 @@ package fleet
 type MaintainedApp struct {
 	ID               uint                `json:"id" db:"id"`
 	Name             string              `json:"name" db:"name"`
-	Token            string              `json:"-" db:"name"`
+	Token            string              `json:"-" db:"token"`
 	Version          string              `json:"version" db:"version"`
 	Platform         AppleDevicePlatform `json:"platform" db:"platform"`
 	InstallerURL     string              `json:"-" db:"installer_url"`

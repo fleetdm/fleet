@@ -53,3 +53,32 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "upsert maintained app")
 	})
 }
+
+func (ds *Datastore) GetMaintainedAppById(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	const stmt = `
+SELECT
+	fla.id,
+	fla.name, 
+	fla.token, 
+	fla.version, 
+	fla.platform, 
+	fla.installer_url, 
+	fla.filename, 
+	fla.sha256, 
+	fla.bundle_identifier, 
+	sc1.contents AS install_script, 
+	sc2.contents AS uninstall_script
+FROM fleet_library_apps fla
+JOIN script_contents sc1 ON sc1.id = fla.install_script_content_id
+JOIN script_contents sc2 ON sc2.id = fla.uninstall_script_content_id
+WHERE
+	fla.id = ?
+	`
+
+	var app fleet.MaintainedApp
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, appID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting maintained app by id")
+	}
+
+	return &app, nil
+}
