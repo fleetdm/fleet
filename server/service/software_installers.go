@@ -39,6 +39,7 @@ type updateSoftwareInstallerRequest struct {
 	InstallScript     *string
 	PreInstallQuery   *string
 	PostInstallScript *string
+	UninstallScript   *string
 	SelfService       *bool
 }
 
@@ -120,6 +121,11 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.PostInstallScript = &val[0]
 	}
 
+	val, ok = r.MultipartForm.Value["uninstall_script"]
+	if ok && len(val) > 0 {
+		decoded.UninstallScript = &val[0]
+	}
+
 	val, ok = r.MultipartForm.Value["self_service"]
 	if ok && len(val) > 0 && val[0] != "" {
 		parsed, err := strconv.ParseBool(val[0])
@@ -140,6 +146,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
 		PostInstallScript: req.PostInstallScript,
+		UninstallScript:   req.UninstallScript,
 		SelfService:       req.SelfService,
 	}
 	if req.File != nil {
