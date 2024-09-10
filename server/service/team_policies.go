@@ -559,10 +559,6 @@ func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, te
 		})
 	}
 
-	//
-	// TODO(lucas): Support "No team" (softwareTitle.SoftwarePackage.TeamID == nil).
-	//
-
 	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
 	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil
