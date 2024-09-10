@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +27,7 @@ func TestGetLatest(t *testing.T) {
 	t.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
 
 	// test the function
-	d := apple_mdm.MachineInfo{
+	d := fleet.MDMAppleMachineInfo{
 		MDMCanRequestSoftwareUpdate: true,
 		OSVersion:                   "14.4.1",
 		Product:                     "Mac15,7",
@@ -53,14 +53,14 @@ func TestGetLatest(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		machineInfo     apple_mdm.MachineInfo
+		machineInfo     fleet.MDMAppleMachineInfo
 		expectedVersion string
 		expectedBuild   string
 		expectError     bool
 	}{
 		{
 			name: "macOS matching software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "14.4.1",
 				Product:                  "Mac15,7",
 				Serial:                   "TESTSERIAL",
@@ -76,7 +76,7 @@ func TestGetLatest(t *testing.T) {
 		{
 			// macOS generally relies on the SoftwareUpdateDeviceID field and not the Product field
 			name: "macOS non-matching software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "14.4.1",
 				Product:                  "Mac15,7",
 				Serial:                   "TESTSERIAL",
@@ -93,7 +93,7 @@ func TestGetLatest(t *testing.T) {
 			// this should never happen in practice, but by default we still check macOS assets to
 			// match the software update device ID
 			name: "non-matching product but matching software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "14.4.1",
 				Product:                  "INVALID",
 				Serial:                   "TESTSERIAL",
@@ -108,7 +108,7 @@ func TestGetLatest(t *testing.T) {
 		},
 		{
 			name: "non-matching product and software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "14.4.1",
 				Product:                  "INVALID",
 				Serial:                   "TESTSERIAL",
@@ -125,7 +125,7 @@ func TestGetLatest(t *testing.T) {
 			// missing other fields is not an error, this function always returns the latest
 			// version and only depends on the Product and SoftwareUpdateDeviceID fields
 			name: "missing other fields",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:              "",
 				Product:                "Mac15,7",
 				SoftwareUpdateDeviceID: "J516sAP",
@@ -136,7 +136,7 @@ func TestGetLatest(t *testing.T) {
 		},
 		{
 			name: "iphone matching product and software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "17.5.1",
 				Product:                  "iPhone14,6",
 				Serial:                   "TESTSERIAL",
@@ -153,7 +153,7 @@ func TestGetLatest(t *testing.T) {
 			// iOS generally relies on the Product field and not the SoftwareUpdateDeviceID field so
 			// this won't error even though the SoftwareUpdateDeviceID is invalid
 			name: "iphone non-matching software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "17.5.1",
 				Product:                  "iPhone14,6",
 				Serial:                   "TESTSERIAL",
@@ -170,7 +170,7 @@ func TestGetLatest(t *testing.T) {
 			// this should never happen in practice, but we'll still try to match iOS assets if the
 			// software update device ID starts with "iPhone" or "iPad"
 			name: "missing product but valid iphone software update device ID",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "17.5.1",
 				Product:                  "",
 				Serial:                   "TESTSERIAL",
@@ -187,7 +187,7 @@ func TestGetLatest(t *testing.T) {
 			// we don't support other Apple products yet, so this should always error
 			// because we we default to the macOS asset set and we won't find a matching asset there
 			name: "unsupported product",
-			machineInfo: apple_mdm.MachineInfo{
+			machineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion:                "8.8.1",
 				Product:                  "Watch3,1",
 				Serial:                   "TESTSERIAL",
@@ -230,7 +230,7 @@ func TestRetries(t *testing.T) {
 		os.Unsetenv("FLEET_DEV_GDMF_URL")
 	})
 
-	latest, err := GetLatestOSVersion(apple_mdm.MachineInfo{
+	latest, err := GetLatestOSVersion(fleet.MDMAppleMachineInfo{
 		OSVersion:                "14.4.1",
 		Product:                  "Mac15,7",
 		Serial:                   "TESTSERIAL",
