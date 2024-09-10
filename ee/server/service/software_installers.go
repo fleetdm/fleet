@@ -94,7 +94,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil
 }
 
-var packageIDRegex = regexp.MustCompile(`((\$PACKAGE_ID)|(\${PACKAGE_ID}))(\W|$)`)
+var packageIDRawRegex = regexp.MustCompile(`(("\$PACKAGE_ID")|(\$PACKAGE_ID))(\W|$)`)
+var packageIDBracketRegex = regexp.MustCompile(`(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// We assume that we already validated that payload.PackageIDs is not empty.
@@ -112,7 +113,9 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	default:
 		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
 	}
-	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s$4", packageID))
+
+	payload.UninstallScript = packageIDRawRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s$4", packageID))
+	payload.UninstallScript = packageIDBracketRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s$4", packageID))
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
