@@ -49,9 +49,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 type nopProfileMatcher struct{}

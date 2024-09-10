@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 func TestPKCS7ParseTagLengthError(t *testing.T) {
