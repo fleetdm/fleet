@@ -231,15 +231,12 @@ VALUES
     )
 ON DUPLICATE KEY
 UPDATE
-    serial_number = VALUES(serial_number),
-    authenticate = VALUES(authenticate),
-    authenticate_at = CURRENT_TIMESTAMP,
-    token_update = VALUES(token_update),
-    token_update_at = CURRENT_TIMESTAMP,
-    bootstrap_token_b64 = VALUES(bootstrap_token_b64),
-    bootstrap_token_at = CURRENT_TIMESTAMP,
-    identity_cert = VALUES(identity_cert);
+    serial_number = serial_number;
 		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken, certPEM))
+			// NOTE: above ^ ON DUPLICATE KEY UPDATE statement sets
+			// serial_number to its current value, this is equivalent to
+			// ignoring the insert if there's a duplicate record (better
+			// than INSER IGNORE which would ignore all errors)
 
 			sb.WriteString(fmt.Sprintf(`
 INSERT INTO nano_enrollments
@@ -271,15 +268,7 @@ VALUES
 	)
 ON DUPLICATE KEY
 UPDATE
-    device_id = VALUES(device_id),
-    user_id = VALUES(user_id),
-    type = VALUES(type),
-    topic = VALUES(topic),
-    push_magic = VALUES(push_magic),
-    token_hex = VALUES(token_hex),
-    enabled = VALUES(enabled),
-    last_seen_at = CURRENT_TIMESTAMP,
-    token_update_tally = nano_enrollments.token_update_tally + 1;`,
+    device_id = device_id;`,
 				device.UDID,
 				device.UDID,
 				tokenUpdate.Topic,
@@ -287,6 +276,10 @@ UPDATE
 				hex.EncodeToString(tokenUpdate.Token),
 				device.Enrolled,
 			))
+			// NOTE: above ^ ON DUPLICATE KEY UPDATE statement sets
+			// device_id to its current value, this is equivalent to
+			// ignoring the insert if there's a duplicate record (better
+			// than INSER IGNORE which would ignore all errors)
 
 			sb.WriteString(fmt.Sprintf(`
 INSERT INTO nano_cert_auth_associations
@@ -294,10 +287,13 @@ INSERT INTO nano_cert_auth_associations
 VALUES
     ('%s', '%s', NULLIF('%s', ''))
 ON DUPLICATE KEY UPDATE
-  id = VALUES(id),
-  sha256 = VALUES(sha256),
-  cert_not_valid_after = VALUES(cert_not_valid_after);
+  id = id;
 	    `, device.UDID, hex.EncodeToString(certHash[:]), certExpiration))
+			// NOTE: above ^ ON DUPLICATE KEY UPDATE statement sets
+			// id to its current value, this is equivalent to
+			// ignoring the insert if there's a duplicate record
+			// (better than INSER IGNORE which would ignore all
+			// errors)
 		}
 
 		sb.WriteString("\n")
