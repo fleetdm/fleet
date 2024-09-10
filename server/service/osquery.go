@@ -1255,34 +1255,40 @@ func preProcessSoftwareResults(
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
 func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+	const pythonPrefix = "python3-"
+	const pythonSource = "python_packages"
+	const debSource = "deb_packages"
+	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
+
 	// Return early if platform is not Ubuntu
+	// We may need to add more platforms in the future
 	if platform != "ubuntu" {
 		return
 	}
 
 	// Check if the 'software_linux' result is available
-	sw, ok := (*results)[hostDetailQueryPrefix+"software_linux"]
+	sw, ok := (*results)[linuxSoftware]
 	if !ok {
 		return
 	}
 
 	// Check if the status is OK for 'software_linux'
-	if status, ok := (*statuses)[hostDetailQueryPrefix+"software_linux"]; !ok || status != fleet.StatusOK {
+	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
-	// Use a map for faster lookups
+	// Extract the Python and Debian packages from the software list for filtering
 	pythonPackages := make([]string, 0, 50)
 	debPackages := make(map[string]struct{}, 50) // Use map for O(1) lookups
 	for _, row := range sw {
 		switch row["source"] {
-		case "python_packages":
-			// Convert once and store in the slice
+		case pythonSource:
 			loweredName := strings.ToLower(row["name"])
 			pythonPackages = append(pythonPackages, loweredName)
-			row["name"] = loweredName // Update the name in place
-		case "deb_packages":
-			if strings.HasPrefix(row["name"], "python3-") {
+			row["name"] = loweredName
+		case debSource:
+			// Only consider Python3 packages
+			if strings.HasPrefix(row["name"], pythonPrefix) {
 				debPackages[row["name"]] = struct{}{}
 			}
 		}
@@ -1293,25 +1299,25 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		return
 	}
 
-	// Prepare the final filtered software list in one pass
+	// Prepare the final filtered software list
 	filteredSW := make([]map[string]string, 0, len(sw))
 	for _, row := range sw {
-		if row["source"] == "python_packages" {
-			convertedName := "python3-" + row["name"]
+		if row["source"] == pythonSource {
+			convertedName := pythonPrefix + row["name"]
 
-			// Check if this python package exists in debPackages
+			// Filter out Python packages that are also Debian packages
 			if _, found := debPackages[convertedName]; found {
-				continue // Skip if found in debPackages
+				continue
 			}
 
-			// Update the Python package name
+			// Update the Python package name to match OVAL definitions
 			row["name"] = convertedName
 		}
 		filteredSW = append(filteredSW, row)
 	}
 
 	// Store the updated software result back in the results map
-	(*results)[hostDetailQueryPrefix+"software_linux"] = filteredSW
+	(*results)[linuxSoftware] = filteredSW
 }
 
 func preProcessSoftwareExtraResults(
