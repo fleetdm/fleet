@@ -1273,13 +1273,18 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 
 	// Use a map for faster lookups
 	pythonPackages := make([]string, 0, 50)
-	debPackages := make(map[string]struct{}, 1500) // Use map for O(1) lookups
+	debPackages := make(map[string]struct{}, 50) // Use map for O(1) lookups
 	for _, row := range sw {
 		switch row["source"] {
 		case "python_packages":
-			pythonPackages = append(pythonPackages, strings.ToLower(row["name"]))
+			// Convert once and store in the slice
+			loweredName := strings.ToLower(row["name"])
+			pythonPackages = append(pythonPackages, loweredName)
+			row["name"] = loweredName // Update the name in place
 		case "deb_packages":
-			debPackages[row["name"]] = struct{}{}
+			if strings.HasPrefix(row["name"], "python3-") {
+				debPackages[row["name"]] = struct{}{}
+			}
 		}
 	}
 
@@ -1292,10 +1297,9 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	filteredSW := make([]map[string]string, 0, len(sw))
 	for _, row := range sw {
 		if row["source"] == "python_packages" {
-			loweredName := strings.ToLower(row["name"])
-			convertedName := "python3-" + loweredName
+			convertedName := "python3-" + row["name"]
 
-			// Check if this python package exists in debPackages (using map for fast lookup)
+			// Check if this python package exists in debPackages
 			if _, found := debPackages[convertedName]; found {
 				continue // Skip if found in debPackages
 			}
