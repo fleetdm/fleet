@@ -389,7 +389,17 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 func (ds *Datastore) CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE software_installer_id = ? AND status = "pending_install"`, id)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending installs")
+		return ctxerr.Wrap(ctx, err, "cancel pending installs")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_software_installs SET removed = TRUE
+	  	WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "hide existing install counts")
 	}
 
 	return nil

@@ -1036,6 +1036,8 @@ type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]s
 
 type CancelPendingInstallsForInstallerIDFunc func(ctx context.Context, id uint) error
 
+type HideExistingInstallCountsForInstallerIDFunc func(ctx context.Context, id uint) error
+
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
@@ -2605,6 +2607,9 @@ type DataStore struct {
 
 	CancelPendingInstallsForInstallerIDFunc        CancelPendingInstallsForInstallerIDFunc
 	CancelPendingInstallsForInstallerIDFuncInvoked bool
+
+	HideExistingInstallCountsForInstallerIDFunc        HideExistingInstallCountsForInstallerIDFunc
+	HideExistingInstallCountsForInstallerIDFuncInvoked bool
 
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
@@ -6238,6 +6243,13 @@ func (s *DataStore) CancelPendingInstallsForInstallerID(ctx context.Context, id 
 	s.CancelPendingInstallsForInstallerIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelPendingInstallsForInstallerIDFunc(ctx, id)
+}
+
+func (s *DataStore) HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.HideExistingInstallCountsForInstallerIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.HideExistingInstallCountsForInstallerIDFunc(ctx, id)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {

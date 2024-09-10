@@ -305,14 +305,17 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		// TODO run update query, including setting author
 	}
 
+	// do this first before resetting counts; resetting install counts (setting removed = TRUE) nulls out install statuses
 	if cancelPendingInstalls == true {
 		if err := svc.ds.CancelPendingInstallsForInstallerID(ctx, installer.InstallerID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "canceling pending installs")
+			return nil, err
 		}
 	}
 
 	if resetInstallCounts == true {
-		// TODO reset counts
+		if err := svc.ds.HideExistingInstallCountsForInstallerID(ctx, installer.InstallerID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Create activity

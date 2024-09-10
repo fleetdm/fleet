@@ -533,6 +533,7 @@ type Datastore interface {
 	// uuid.
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error)
 	CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error
+	HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
