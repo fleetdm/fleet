@@ -1,4 +1,4 @@
-import React = require("react");
+import React from "react";
 
 import { ISupportedGraphicNames } from "components/FileUploader/FileUploader";
 import Graphic from "components/Graphic";

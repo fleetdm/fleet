@@ -178,7 +178,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		SelfService:   installer.SelfService,
 	}
 
-	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload = nil
+	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
 	if payload.InstallerFile != nil || payload.PreInstallQuery != nil ||
 		payload.InstallScript != nil || payload.PostInstallScript != nil || payload.UninstallScript != nil {
 
