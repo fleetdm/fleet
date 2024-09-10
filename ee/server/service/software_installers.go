@@ -992,6 +992,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				InstallScript:     p.InstallScript,
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
+				UninstallScript:   p.UninstallScript,
 				InstallerFile:     bytes.NewReader(bodyBytes),
 				SelfService:       p.SelfService,
 				UserID:            vc.UserID(),
