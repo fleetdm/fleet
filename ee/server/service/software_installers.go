@@ -320,7 +320,19 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 	}
 
-	return svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
+	installer, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
+	}
+
+	statuses, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, installer.InstallerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
+	}
+
+	installer.Status = statuses
+
+	return installer, nil
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
