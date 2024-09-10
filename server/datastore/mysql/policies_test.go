@@ -4364,6 +4364,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policy0NoTeam.TeamID)
 	require.Equal(t, fleet.PolicyNoTeamID, *policy0NoTeam.TeamID)
 	tp, err := ds.TeamPolicy(ctx, fleet.PolicyNoTeamID, policy0NoTeam.ID)
+	require.NoError(t, err)
 	require.Equal(t, tp, policy0NoTeam)
 
 	policy1Team1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
@@ -4445,6 +4446,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 
 	// Tests on global domain.
 	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
 	require.Len(t, globalPolicies, 2)
 	require.Equal(t, globalPolicy1.ID, globalPolicies[0].ID)
 	require.Equal(t, uint(2), globalPolicies[0].FailingHostCount)
