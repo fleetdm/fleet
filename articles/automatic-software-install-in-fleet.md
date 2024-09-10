@@ -102,10 +102,8 @@ To manage self-service software packages using Fleet's best practice GitOps, che
 
 ## Conclusion
 
-Software deployment can be time consumng and risky if not done the proper way.
-This guide presents Fleet's ability to mass deploy software to your fleet in a way that is both
-simple and safe. Starting with uploading a trusted installer and ending with deploying it to the
-proper set of machines answering the exact policy defined by you.
+Software deployment can be time consumng and risky. This guide presents Fleet's ability to mass deploy software to your fleet in a simple and safe way. 
+Starting with uploading a trusted installer and ending with deploying it to the proper set of machines answering the exact policy defined by you.
 
 Leveraging Fleet’s ability to install and upgrade software on your hosts, you can streamline the
 process of controlling your hosts, replacing old versions of software and having the up-to-date info
