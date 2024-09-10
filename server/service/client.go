@@ -676,7 +676,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying %d software installers for team %s\n", len(software), tmName)
+				logfn("[+] applying %d software packages for team %s\n", len(software), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -1501,16 +1501,16 @@ func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, app
 		if err != nil {
 			return nil, fmt.Errorf("applying software installers: %w", err)
 		}
-		logFn("[+] applying %d software installers for 'No team'\n", len(payload))
+		logFn("[+] applying %d software packages for 'No team'\n", len(payload))
 		softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun})
 		if err != nil {
 			return nil, fmt.Errorf("applying software installers: %w", err)
 		}
 
 		if dryRun {
-			logFn("[+] would've applied 'No Team' software installers\n")
+			logFn("[+] would've applied 'No Team' software packages\n")
 		} else {
-			logFn("[+] applied 'No Team' software installers\n")
+			logFn("[+] applied 'No Team' software packages\n")
 		}
 	}
 	return softwareInstallers, nil
@@ -1616,7 +1616,16 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					end = len(policiesToDelete)
 				}
 				totalDeleted += end - i
-				if err := c.DeletePolicies(config.TeamID, policiesToDelete[i:end]); err != nil {
+				var teamID *uint
+				switch {
+				case config.TeamID != nil: // Team policies
+					teamID = config.TeamID
+				case config.IsNoTeam(): // No team policies
+					teamID = ptr.Uint(fleet.PolicyNoTeamID)
+				default: // Global policies
+					teamID = nil
+				}
+				if err := c.DeletePolicies(teamID, policiesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting policies: %w", err)
 				}
 				logFn("[-] deleted %d policies\n", totalDeleted)
