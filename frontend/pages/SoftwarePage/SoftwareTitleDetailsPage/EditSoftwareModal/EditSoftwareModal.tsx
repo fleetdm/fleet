@@ -58,6 +58,11 @@ const EditSoftwareModal = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState<IAddPackageFormData>({
+    software: null,
+    installScript: "",
+    selfService: false,
+  });
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
@@ -90,8 +95,9 @@ const EditSoftwareModal = ({
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.editSoftwarePackage(
-        softwareId,
         formData,
+        softwareId,
+        teamId,
         UPLOAD_TIMEOUT
       );
 
@@ -117,6 +123,7 @@ const EditSoftwareModal = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
+      console.log("Error: ", e);
       const reason = getErrorReason(e);
       if (
         reason.includes(
@@ -150,15 +157,23 @@ const EditSoftwareModal = ({
       selfService: software.self_service || false,
     });
 
+    setPendingUpdates(updates);
+
     const onlySelfServiceUpdated =
       Object.keys(updates).length === 1 && "selfService" in updates;
     if (!onlySelfServiceUpdated) {
+      console.log("non-self-service updates: ", updates);
       // Open the confirm save changes modal
       setShowConfirmSaveChangesModal(true);
     } else {
       // Proceed with saving changes (API expects only changes)
       onSaveSoftwareChanges(updates);
     }
+  };
+
+  const onConfirmSoftwareChanges = () => {
+    onSaveSoftwareChanges(pendingUpdates);
+    console.log("saving updates: ", pendingUpdates);
   };
 
   return (
@@ -185,7 +200,7 @@ const EditSoftwareModal = ({
         <ConfirmSaveChangesModal
           onClose={toggleConfirmSaveChangesModal}
           softwarePackageName={software?.name}
-          onSaveChanges={onSaveSoftwareChanges}
+          onSaveChanges={onConfirmSoftwareChanges}
         />
       )}
     </>

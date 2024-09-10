@@ -253,7 +253,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
     self_service = ?,
 	user_id = ?,
 	user_name = (SELECT name FROM users WHERE id = ?),
-	user_emai = (SELECT email FROM users WHERE id = ?)
+	user_email = (SELECT email FROM users WHERE id = ?)
 	WHERE id = ?`
 
 	args := []interface{}{

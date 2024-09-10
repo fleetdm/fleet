@@ -238,19 +238,21 @@ export default {
   },
   // TODO: Only send data that is changing and test E2E
   editSoftwarePackage: (
-    softwareId: number,
     data: IAddPackageFormData,
+    softwareId: number,
+    teamId: number,
     timeout?: number
   ) => {
-    const { SOFTWARE_TITLE } = endpoints;
+    const { EDIT_SOFTWARE_PACKAGE } = endpoints;
 
-    if (!data.software) {
-      throw new Error("Software package is required");
-    }
+    console.log("editing software package with data: ", data);
+    console.log("Targeted team id: ", teamId);
 
     const formData = new FormData();
-    formData.append("software", data.software);
-    formData.append("self_service", data.selfService.toString());
+    formData.append("team_id", teamId.toString());
+    data.software && formData.append("software", data.software);
+    data.selfService &&
+      formData.append("self_service", data.selfService.toString());
     data.installScript && formData.append("install_script", data.installScript);
     data.preInstallQuery &&
       formData.append("pre_install_query", data.preInstallQuery);
@@ -260,9 +262,11 @@ export default {
     // data.uninstallScript &&
     //   formData.append("uninstall_script", data.uninstallScript);
 
+    console.log("formdata: ", formData);
+
     return sendRequest(
       "PATCH",
-      SOFTWARE_TITLE(softwareId),
+      EDIT_SOFTWARE_PACKAGE(softwareId),
       formData,
       undefined,
       timeout,

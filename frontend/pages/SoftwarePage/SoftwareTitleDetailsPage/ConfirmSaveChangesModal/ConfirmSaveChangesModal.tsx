@@ -8,7 +8,7 @@ import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageFor
 const baseClass = "save-changes-modal";
 
 export interface IConfirmSaveChangesModalProps {
-  onSaveChanges: (formData: IAddPackageFormData) => Promise<void>;
+  onSaveChanges: () => void;
   softwarePackageName?: string;
   onClose: () => void;
 }
