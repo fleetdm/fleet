@@ -14,7 +14,6 @@ export interface IEmptySoftwareTableProps {
   tableName?: string;
   isSoftwareDisabled?: boolean;
   noSearchQuery?: boolean;
-  isCollectingSoftware?: boolean;
   installableSoftwareExists?: boolean;
 }
 
@@ -38,7 +37,6 @@ const EmptySoftwareTable = ({
   tableName = "software",
   isSoftwareDisabled,
   noSearchQuery,
-  isCollectingSoftware,
   installableSoftwareExists,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(
@@ -80,13 +78,10 @@ const EmptySoftwareTable = ({
             info: "Install software on your hosts to see versions.",
           };
         }
-        if (isCollectingSoftware) {
-          return {
-            header: `No ${tableName} detected`,
-            info: `Expecting to see ${softwareTypeText}? Check back later.`,
-          };
-        }
-        return { header: `No ${tableName} detected`, info: "" };
+        return {
+          header: `No ${tableName} detected`,
+          info: `Expecting to see ${softwareTypeText}? Check back later.`,
+        };
       }
     }
 

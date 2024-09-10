@@ -489,7 +489,9 @@ FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
 secret from the `fleetctl package` command used to build the installers.
 
-MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.
+MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`. When starting the
+Fleet server up with `--dev` the server will look for installers in the `software-installers-dev` MinIO bucket. You can
+create this bucket via the MinIO web UI (it is *not* created by default when setting up the docker-compose environment).
 
 ## Telemetry
 

@@ -416,8 +416,8 @@ const OtherWorkflowsModal = ({
                       const { isChecked, name, id } = policyItem;
                       return (
                         <div
-                          className="checkbox-row"
-                          id={`checkbox-row--${id}`}
+                          className="policy-row"
+                          id={`policy-row--${id}`}
                           key={id}
                         >
                           <Checkbox

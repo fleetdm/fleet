@@ -16,15 +16,17 @@ By integrating VPP with Fleet, organizations can seamlessly add apps to their so
 
 ## Prerequisites
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
-* **Teams**: Apps can only be added to a specific Team. You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**. (Note: Apps can also be added to the 'No Team' team, which contains hosts not assigned to any other team.)
+* **Teams**: Apps can only be added to a specific Team. You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**. (Note: Apps can also be added to the 'No Team' team, which contains hosts not assigned to any other team.) You can control which team uses which VPP token by assigning teams to the VPP token. Each token may have multiple teams assigned to it, but each team may be assigned to only 1 token.
 
 > As of Fleet 4.55.0, there is a [known issue](https://github.com/fleetdm/fleet/issues/20686) that uninstalled or deleted VPP apps will continue to show a status of `installed`.
 
 ## Accessing the VPP configuration
 
-1. **Navigate to the VPP integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Volume Purchasing Program (VPP)."**
+1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"**
 
-2. **Add your VPP token**: Follow the directions on that page to get your VPP token from Apple Business Manager, and then click the "Upload" button at the bottom to upload it to Fleet.
+2. **Add your VPP token**: Scroll to the "Volume Purchasing Program (VPP)" section. Click "Add VPP", and then click "Add VPP" again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then click the "Upload" button at the bottom to upload it to Fleet.
+
+3. **Edit the team assignment for the new token**: Find the token in the table of VPP tokens. Click the "Actions" dropdown, and then click "Edit teams". Use the picker to select which team(s) this VPP token should be assigned to.
 
 ## Purchasing apps
 
@@ -76,15 +78,20 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 ## Renewing an expired or expiring VPP token
 
-When your uploaded VPP token has expired or is within 30 days of expiring, you will see a warning
+When one of your uploaded VPP tokens has expired or is within 30 days of expiring, you will see a warning
 banner at the top of page reminding you to renew your token. You can do this with the following steps:
 
-1. **Navigate to the VPP integration details page**: Click your avatar on the far right of the main
-   navigation menu, and then **Settings > Integrations > "Volume Purchasing Program (VPP)."** Then
-   click on the **Edit** button to go to the VPP integration details page.
+1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"** Scroll to the "Volume Purchasing Program (VPP)" section, and click "Edit".
 
-2. **Upload a new VPP token:** Click on the **Renew token** button and follow the instructions to
-   upload a new .vpptoken file. Click the **Renew token** button when you have selected the new token.
+2. **Renew the token**: Find the VPP token that you want to renew in the table. Token status is indicated in the "Renew date" column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Click the "Actions" dropdown for the token and then click "Renew". Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
+
+## Deleting a VPP token
+
+To remove VPP tokens from Fleet:
+
+1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"** Scroll to the "Volume Purchasing Program (VPP)" section, and click "Edit". 
+
+2. **Delete the token**: Find the VPP token that you want to delete in the table. Click the "Actions" dropdown for that token, and then click "Delete". Click "Delete" in the confirmation modal to finish deleting the token.
 
 ## Managing apps with GitOps
 
@@ -92,7 +99,7 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `soft
 
 ## REST API
 
-Fleet also provides a REST API for managing apps programmatically. You can add, install, and delete apps via this API and manage your organization’s VPP token. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+Fleet also provides a REST API for managing apps programmatically. You can add, install, and delete apps via this API and manage your organization’s VPP tokens. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
 ## Conclusion
 

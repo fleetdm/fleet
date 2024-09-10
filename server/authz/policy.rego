@@ -733,11 +733,11 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write MDM apple information.
+# Global admins can read, write, and list MDM apple information.
 allow {
   object.type == "mdm_apple"
   subject.global_role == admin
-  action == [read, write][_]
+  action == [read, write, list][_]
 }
 
 # Global admins can read and write Apple MDM enrollments.

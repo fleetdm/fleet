@@ -65,7 +65,7 @@ const RenewCertModal = ({
   const onDownloadError = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (e: unknown) => {
-      renderFlash("error", "Something’s gone wrong. Please try again.");
+      renderFlash("error", "Something's gone wrong. Please try again.");
     },
     [renderFlash]
   );

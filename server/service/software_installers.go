@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/docker/go-units"
@@ -235,7 +238,8 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, _ string
 }
 
 func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, _ string, _ uint) (*fleet.SoftwareInstallerTokenMetadata,
-	error) {
+	error,
+) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -283,7 +287,8 @@ func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, _ bool, _ string, _ uint,
 	_ *uint) (*fleet.DownloadSoftwareInstallerPayload,
-	error) {
+	error,
+) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -368,27 +373,27 @@ type batchSetSoftwareInstallersRequest struct {
 }
 
 type batchSetSoftwareInstallersResponse struct {
-	Err error `json:"error,omitempty"`
+	Installers []fleet.SoftwareInstaller `json:"installers"`
+	Err        error                     `json:"error,omitempty"`
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
 
-func (r batchSetSoftwareInstallersResponse) Status() int { return http.StatusNoContent }
-
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)
-	if err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun); err != nil {
+	installers, err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun)
+	if err != nil {
 		return batchSetSoftwareInstallersResponse{Err: err}, nil
 	}
-	return batchSetSoftwareInstallersResponse{}, nil
+	return batchSetSoftwareInstallersResponse{Installers: installers}, nil
 }
 
-func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) ([]fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -453,6 +458,17 @@ type batchAssociateAppStoreAppsRequest struct {
 	TeamName string                  `json:"-" query:"team_name"`
 	DryRun   bool                    `json:"-" query:"dry_run,optional"`
 	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
+}
+
+func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if err := json.NewDecoder(r).Decode(b); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) {
+			return ctxerr.Wrap(ctx, fleet.NewUserMessageError(fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value), http.StatusBadRequest))
+		}
+	}
+
+	return nil
 }
 
 type batchAssociateAppStoreAppsResponse struct {

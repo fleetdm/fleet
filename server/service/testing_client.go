@@ -118,12 +118,6 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
-	// clean up any software installers
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM software_installers`)
-		return err
-	})
-
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, lbl := range lbls {
@@ -161,6 +155,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		return err
+	})
+
 	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
@@ -196,6 +196,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// delete orphaned host_script_results
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results`)
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
 }
@@ -273,6 +278,21 @@ func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, exp
 func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
 	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.NewDecoder(resp.Body).Decode(v)
+	require.NoError(ts.s.T(), err)
+	if e, ok := v.(errorer); ok {
+		require.NoError(ts.s.T(), e.error())
+	}
+}
+
+func (ts *withServer) DoJSONWithoutAuth(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+	t := ts.s.T()
+	rawBytes, err := json.Marshal(params)
+	require.NoError(t, err)
+	resp := ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, map[string]string{}, queryParams...)
+	t.Cleanup(func() {
+		resp.Body.Close()
+	})
+	err = json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
 	if e, ok := v.(errorer); ok {
 		require.NoError(ts.s.T(), e.error())
@@ -479,4 +499,25 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 
 	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
 	return 0
+}
+
+func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
+	t := ts.s.T()
+
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			if details != "" {
+				require.NotNil(t, act.Details)
+				assert.NotEqual(t, details, string(*act.Details))
+			}
+			if id > 0 {
+				assert.NotEqual(t, id, act.ID)
+			}
+		}
+	}
 }

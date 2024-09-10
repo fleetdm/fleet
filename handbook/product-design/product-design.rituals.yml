@@ -30,7 +30,7 @@
   task: "🦢🗣 Design review"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
+  description: "On Mondays, contributors present wireframes in 'Feedback' mode and anyone can give feedback. 'Final review' mode during all other days and only Head of Product Design + CTO + Product Designers give feedback." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
@@ -67,10 +67,3 @@
   frequency: "Triweekly"
   description: "Discuss what stories weren't completed in the previous sprint. Record the number of stories in KPIs. Align on priorities for upcoming sprint."
   dri: "noahtalerman"
--
-  task: "🦢🗣 Apple MDM maturity review"
-  startedOn: "2024-07-29" 
-  frequency: "Weekly" 
-  description: "Review stories in the “In review“ column on the drafting board with the “~apple-mdm-maturity“ label. Would this be usable for an IT admin and how does it compare to Jamf?" 
-  moreInfoUrl: 
-  dri: "lukeheath"

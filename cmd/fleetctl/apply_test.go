@@ -167,12 +167,15 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	ds.NewActivityFunc = func(
@@ -586,6 +589,10 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -623,8 +630,9 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -639,6 +647,12 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
+	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{Name: "team1", ID: 1}}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -659,8 +673,8 @@ spec:
 `)
 
 	newMDMSettings := fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
@@ -714,8 +728,8 @@ spec:
 `)
 
 	newMDMSettings = fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
@@ -1240,11 +1254,14 @@ func TestApplyAsGitOps(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 		return nil, &notFoundError{}
@@ -2599,6 +2616,7 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 

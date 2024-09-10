@@ -36,10 +36,10 @@ import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal"
 import AddSoftwareModal from "./components/AddSoftwareModal";
 import {
   buildSoftwareFilterQueryParams,
-  getSoftwareFilterFromQueryParams,
   buildSoftwareVulnFiltersQueryParams,
+  getSoftwareFilterFromQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
-  ISoftwareVulnFilters,
+  ISoftwareVulnFiltersParams,
 } from "./SoftwareTitles/SoftwareTable/helpers";
 import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
 
@@ -309,7 +309,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [handleTeamChange]
   );
 
-  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFilters) => {
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams: ISoftwareApiParams = {
       query,
       teamId: currentTeamId,
@@ -317,7 +317,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       orderKey: sortHeader,
       page: 0, // resets page index
       ...buildSoftwareFilterQueryParams(softwareFilter),
-      ...vulnFilters,
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
     router.replace(
@@ -485,6 +485,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             onExit={toggleSoftwareFiltersModal}
             onSubmit={onApplyVulnFilters}
             vulnFilters={softwareVulnFilters}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </div>

@@ -58,6 +58,21 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+## Tech stack admins
+
+| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
+|:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
+| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
+| CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ Admin | ❌ | ❌ |
+| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
+| BizOps Engineer | ✅ Super admin| ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
+| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
+| Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ Admin| ❌ | ❌ |
+| Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
+| Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin  | ❌ | ✅ Admin | ❌ |
 
 ### Docs
 
@@ -1503,6 +1518,11 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Category one | Category two | Category three |
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
+
+> When using tables to document API endpoint parameters, we use the following conventions:
+> + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
+> + In the **Description** column for required parameters, begin the description with "**Required.**"
 
 
 ### Blockquotes

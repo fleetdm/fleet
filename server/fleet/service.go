@@ -640,9 +640,9 @@ type Service interface {
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 
-	// BatchSetSoftwareInstallers replaces the software installers for a
-	// specified team
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
+	// BatchSetSoftwareInstallers replaces the software installers for a specified team.
+	// Returns the metadata of inserted software installers.
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) ([]SoftwareInstaller, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -654,6 +654,32 @@ type Service interface {
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
+
+	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
+	//
+	// Per the [spec][1] OTA enrollment is composed of two phases, each
+	// phase is a request sent by the host to the same endpoint, but it
+	// must be handled differently depending on the signatures of the
+	// request body:
+	//
+	// 1. First request has a certificate signed by Apple's CA as the root
+	// certificate. The server must return a SCEP payload that the device
+	// will use to get a keypair. Note that this keypair is _different_
+	// from the "SCEP identity certificate" that will be generated during
+	// MDM enrollment, and only used for OTA.
+	//
+	// 2. Second request has the SCEP certificate generated in `1` as the
+	// root certificate, the server responds with a "classic" enrollment
+	// profile and the device starts the regular enrollment process from there.
+	//
+	// The extra steps allows us to grab device information like the serial
+	// number and hardware uuid to perform operations before the host even
+	// enrolls in MDM. Currently, this method creates a host records and
+	// assigns a pre-defined team (based on the enrollSecret provided) to
+	// the host.
+	//
+	// [1]: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1
+	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -672,7 +698,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, p NewTeamPolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
@@ -710,9 +736,12 @@ type Service interface {
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
-	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
-	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
-	DeleteMDMAppleVPPToken(ctx context.Context) error
+	UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*VPPTokenDB, error)
+	UpdateVPPToken(ctx context.Context, id uint, token io.ReadSeeker) (*VPPTokenDB, error)
+	UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) (*VPPTokenDB, error)
+	GetVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
+	DeleteVPPToken(ctx context.Context, tokenID uint) error
+
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
@@ -794,9 +823,6 @@ type Service interface {
 	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
-	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
-	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
-
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
 	//
 	// Deprecated: NewMDMAppleDEPKeyPair exists only to support a deprecated endpoint.
@@ -806,12 +832,21 @@ type Service interface {
 	// private keys to use in ABM to generate an encrypted auth token.
 	GenerateABMKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// SaveABMToken reads and validates if the provided token can be
+	// UploadABMToken reads and validates if the provided token can be
 	// decrypted using the keys stored in the database, then saves the token.
-	SaveABMToken(ctx context.Context, token io.Reader) error
+	UploadABMToken(ctx context.Context, token io.Reader) (*ABMToken, error)
 
-	// DisableABM disables ABM by soft-deleting the relevant assets
-	DisableABM(ctx context.Context) error
+	// ListABMTokens lists all the ABM tokens in Fleet.
+	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
+	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
+
+	// DeleteABMToken deletes the given ABM token.
+	DeleteABMToken(ctx context.Context, tokenID uint) error
+
+	// RenewABMToken replaces the contents of the given ABM token with the given bytes.
+	RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*ABMToken, error)
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.
@@ -920,6 +955,9 @@ type Service interface {
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
+	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
+	GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

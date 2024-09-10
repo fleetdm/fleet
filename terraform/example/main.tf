@@ -50,7 +50,7 @@ locals {
 }
 
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.10.0"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.11.1"
   certificate_arn = module.acm.acm_certificate_arn
 
   vpc = {
@@ -91,6 +91,8 @@ module "fleet" {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
     }
+    # Uncomment to specify the RDS engine version
+    # engine_version = "8.0.mysql_aurora.3.07.1"
   }
   redis_config = {
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for instance types.

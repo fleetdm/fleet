@@ -4,8 +4,8 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import {
-  createMockSoftwareTitlesReponse,
-  createMockSoftwareVersionsReponse,
+  createMockSoftwareTitlesResponse,
+  createMockSoftwareVersionsResponse,
 } from "__mocks__/softwareMock";
 import { noop } from "lodash";
 
@@ -25,7 +25,7 @@ const mockRouter = {
 };
 
 describe("Software table", () => {
-  it("Renders the page-wide disabled state when software inventory is disabled", async () => {
+  it("Renders the page-wide disabled state when software inventory is disabled", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -40,7 +40,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled={false} // Set to false
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}
@@ -68,7 +68,7 @@ describe("Software table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when no software are present", async () => {
+  it("Renders the page-wide empty state when no software are present", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -83,7 +83,8 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
+          count: 0,
           counts_updated_at: null,
           software_titles: [],
         })}
@@ -111,11 +112,12 @@ describe("Software table", () => {
     expect(
       screen.getByText("Expecting to see software? Check back later.")
     ).toBeInTheDocument();
+    expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
     expect(screen.queryByText("Updated")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when search query does not exist but versions toggle is applied", async () => {
+  it("Renders the page-wide empty state when search query does not exist but versions toggle is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -130,7 +132,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions // Versions toggle applied
-        data={createMockSoftwareVersionsReponse({
+        data={createMockSoftwareVersionsResponse({
           counts_updated_at: null,
           software: [],
         })}
@@ -160,7 +162,7 @@ describe("Software table", () => {
     ).toBeInTheDocument();
   });
 
-  it("Renders the empty search state when search query does not exist but dropdown is applied", async () => {
+  it("Renders the empty search state when search query does not exist but dropdown is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -175,7 +177,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}
@@ -209,7 +211,7 @@ describe("Software table", () => {
     ).toBeInTheDocument();
   });
 
-  it("Renders the empty search state when search query does not exist but vulnerability filter is applied", async () => {
+  it("Renders the empty search state when search query does not exist but vulnerability filter is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -224,7 +226,7 @@ describe("Software table", () => {
         router={mockRouter}
         isSoftwareEnabled
         showVersions={false}
-        data={createMockSoftwareTitlesReponse({
+        data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}

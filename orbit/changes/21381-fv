@@ -1,1 +1,0 @@
-* Fixed an issue that would display a disk encryption modal with MDM configured and FileVault enabled if the user hadn't escrowed the key in the past.

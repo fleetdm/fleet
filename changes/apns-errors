@@ -1,0 +1,1 @@
+* Fixed logic to properly catch and log APNs errors.

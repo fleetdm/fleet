@@ -54,9 +54,14 @@ interface ISetEnrollSecretAction {
   enrollSecret: IEnrollSecret[];
 }
 
+interface IAbmExpiry {
+  earliestExpiry: string;
+  needsAbmTermsRenewal: boolean;
+}
+
 interface ISetABMExpiryAction {
   type: ACTIONS.SET_ABM_EXPIRY;
-  abmExpiry: string;
+  abmExpiry: IAbmExpiry;
 }
 
 interface ISetAPNsExpiryAction {
@@ -148,10 +153,11 @@ type InitialStateType = {
   isAppleBmExpired: boolean;
   isApplePnsExpired: boolean;
   isVppExpired: boolean;
+  needsAbmTermsRenewal: boolean;
   willAppleBmExpire: boolean;
   willApplePnsExpire: boolean;
   willVppExpire: boolean;
-  abmExpiry?: string;
+  abmExpiry?: IAbmExpiry;
   apnsExpiry?: string;
   vppExpiry?: string;
   sandboxExpiry?: string;
@@ -170,7 +176,7 @@ type InitialStateType = {
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setAPNsExpiry: (apnsExpiry: string) => void;
-  setABMExpiry: (abmExpiry: string) => void;
+  setABMExpiry: (abmExpiry: IAbmExpiry) => void;
   setVppExpiry: (vppExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
@@ -216,6 +222,7 @@ export const initialState = {
   isAppleBmExpired: false,
   isApplePnsExpired: false,
   isVppExpired: false,
+  needsAbmTermsRenewal: false,
   willAppleBmExpire: false,
   willApplePnsExpire: false,
   willVppExpire: false,
@@ -349,11 +356,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_ABM_EXPIRY: {
       const { abmExpiry } = action;
+      const { earliestExpiry, needsAbmTermsRenewal } = abmExpiry;
       return {
         ...state,
         abmExpiry,
-        isAppleBmExpired: hasLicenseExpired(abmExpiry),
-        willAppleBmExpire: willExpireWithinXDays(abmExpiry, 30),
+        isAppleBmExpired: hasLicenseExpired(earliestExpiry),
+        willAppleBmExpire: willExpireWithinXDays(earliestExpiry, 30),
+        needsAbmTermsRenewal,
       };
     }
     case ACTIONS.SET_APNS_EXPIRY: {
@@ -440,6 +449,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isAppleBmExpired: state.isAppleBmExpired,
     isApplePnsExpired: state.isApplePnsExpired,
     isVppExpired: state.isVppExpired,
+    needsAbmTermsRenewal: state.needsAbmTermsRenewal,
     willAppleBmExpire: state.willAppleBmExpire,
     willApplePnsExpire: state.willApplePnsExpire,
     willVppExpire: state.willVppExpire,
@@ -488,7 +498,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
       dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
     },
-    setABMExpiry: (abmExpiry: string) => {
+    setABMExpiry: (abmExpiry: IAbmExpiry) => {
       dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
     },
     setAPNsExpiry: (apnsExpiry: string) => {

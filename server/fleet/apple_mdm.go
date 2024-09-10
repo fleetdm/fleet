@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
@@ -204,6 +205,13 @@ type MDMAppleConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
+// MDMProfilesUpdates flags updates that were done during batch processing of profiles.
+type MDMProfilesUpdates struct {
+	AppleConfigProfile   bool
+	WindowsConfigProfile bool
+	AppleDeclaration     bool
+}
+
 // ConfigurationProfileLabel represents the many-to-many relationship between
 // profiles and labels.
 //
@@ -307,6 +315,20 @@ type MDMAppleProfilePayload struct {
 // therefore is not, as far as Fleet knows, currently on the host).
 func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
 	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
+}
+
+func (p MDMAppleProfilePayload) Equal(other MDMAppleProfilePayload) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return p.ProfileUUID == other.ProfileUUID &&
+		p.ProfileIdentifier == other.ProfileIdentifier &&
+		p.ProfileName == other.ProfileName &&
+		p.HostUUID == other.HostUUID &&
+		p.HostPlatform == other.HostPlatform &&
+		bytes.Equal(p.Checksum, other.Checksum) &&
+		statusEqual &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.CommandUUID == other.CommandUUID
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -435,6 +457,8 @@ type HostDEPAssignment struct {
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
 	// MDM server in Apple Busines Manager (ABM).
 	DeletedAt *time.Time `db:"deleted_at"`
+	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
+	ABMTokenID *uint `db:"abm_token_id"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -497,12 +521,11 @@ type MDMAppleCommand struct {
 // MDMAppleSetupAssistant represents the setup assistant set for a given team
 // or no team.
 type MDMAppleSetupAssistant struct {
-	ID          uint            `json:"-" db:"id"`
-	TeamID      *uint           `json:"team_id" db:"team_id"`
-	Name        string          `json:"name" db:"name"`
-	Profile     json.RawMessage `json:"enrollment_profile" db:"profile"`
-	ProfileUUID string          `json:"-" db:"profile_uuid"`
-	UploadedAt  time.Time       `json:"uploaded_at" db:"uploaded_at"`
+	ID         uint            `json:"-" db:"id"`
+	TeamID     *uint           `json:"team_id" db:"team_id"`
+	Name       string          `json:"name" db:"name"`
+	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
+	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -657,6 +680,18 @@ type MDMAppleHostDeclaration struct {
 	// Checksum contains the MD5 checksum of the declaration JSON uploaded
 	// by the IT admin. Fleet uses this value as the ServerToken.
 	Checksum string `db:"checksum" json:"-"`
+}
+
+func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return statusEqual &&
+		p.HostUUID == other.HostUUID &&
+		p.DeclarationUUID == other.DeclarationUUID &&
+		p.Name == other.Name &&
+		p.Identifier == other.Identifier &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.Checksum == other.Checksum
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {

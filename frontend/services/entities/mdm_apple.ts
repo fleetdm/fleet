@@ -1,3 +1,4 @@
+import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -29,6 +30,16 @@ export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
 
+export interface IGetVppTokensResponse {
+  vpp_tokens: IMdmVppToken[];
+}
+
+export interface IUploadVppTokenReponse {
+  vpp_token: IMdmVppToken;
+}
+
+export type IRenewVppTokenResponse = IUploadVppTokenReponse;
+
 export default {
   getAppleAPNInfo: () => {
     const { MDM_APPLE_PNS } = endpoints;
@@ -51,18 +62,6 @@ export default {
   requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
     return sendRequest("GET", MDM_REQUEST_CSR);
-  },
-
-  getVppInfo: (): Promise<IGetVppInfoResponse> => {
-    const { MDM_APPLE_VPP } = endpoints;
-    return sendRequest("GET", MDM_APPLE_VPP);
-  },
-
-  uploadVppToken: (token: File) => {
-    const { MDM_APPLE_VPP_TOKEN } = endpoints;
-    const formData = new FormData();
-    formData.append("token", token);
-    return sendRequest("POST", MDM_APPLE_VPP_TOKEN, formData);
   },
 
   disableVpp: () => {
@@ -94,5 +93,40 @@ export default {
     }
 
     return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
+  },
+
+  getVppTokens: (): Promise<IGetVppTokensResponse> => {
+    const { MDM_VPP_TOKENS } = endpoints;
+    return sendRequest("GET", MDM_VPP_TOKENS);
+  },
+
+  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+    const { MDM_VPP_TOKENS } = endpoints;
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("POST", MDM_VPP_TOKENS, formData);
+  },
+
+  renewVppToken(id: number, token: File): Promise<IRenewVppTokenResponse> {
+    const { MDM_VPP_TOKENS_RENEW } = endpoints;
+    const path = MDM_VPP_TOKENS_RENEW(id);
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("PATCH", path, formData);
+  },
+
+  deleteVppToken: (id: number): Promise<void> => {
+    const { MDM_VPP_TOKEN } = endpoints;
+    const path = MDM_VPP_TOKEN(id);
+    return sendRequest("DELETE", path);
+  },
+
+  editVppTeams: async (params: {
+    tokenId: number;
+    teamIds: number[] | null;
+  }) => {
+    const { MDM_VPP_TOKEN_TEAMS } = endpoints;
+    const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
+    return sendRequest("PATCH", path, { teams: params.teamIds });
   },
 };

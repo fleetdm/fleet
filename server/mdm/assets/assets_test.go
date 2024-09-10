@@ -18,8 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 // generateTestCert generates a test certificate and key.
@@ -185,22 +185,31 @@ func TestABMToken(t *testing.T) {
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
 	assets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-		fleet.MDMAssetABMCert:  {Value: certPEM},
-		fleet.MDMAssetABMKey:   {Value: keyPEM},
-		fleet.MDMAssetABMToken: {Value: []byte(tokenBytes)},
+		fleet.MDMAssetABMCert: {Value: certPEM},
+		fleet.MDMAssetABMKey:  {Value: keyPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{
 			fleet.MDMAssetABMCert,
 			fleet.MDMAssetABMKey,
-			fleet.MDMAssetABMToken,
 		}, assetNames)
 		return assets, nil
 	}
+	const testOrgName = "test-org"
 
-	tokens, err := ABMToken(ctx, ds)
+	ds.GetABMTokenByOrgNameFunc = func(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+		require.Equal(t, testOrgName, orgName)
+		return &fleet.ABMToken{
+			ID:               1,
+			OrganizationName: testOrgName,
+			EncryptedToken:   []byte(tokenBytes),
+		}, nil
+	}
+
+	tokens, err := ABMToken(ctx, ds, testOrgName)
 	require.NoError(t, err)
 	require.NotNil(t, tokens)
 	require.Equal(t, "test_access_secret", tokens.AccessSecret)
 	require.True(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
+	require.True(t, ds.GetABMTokenByOrgNameFuncInvoked)
 }

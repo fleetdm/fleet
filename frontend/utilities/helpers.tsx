@@ -723,13 +723,17 @@ export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
-export const willExpireWithinXDays = (
-  expiration: string,
-  x: number
-): boolean => {
+/**
+ * determines if a date will expire within "x" number of days. If the date has
+ * has already expired, this function will return false.
+ */
+export const willExpireWithinXDays = (expiration: string, x: number) => {
   const xDaysFromNow = addDays(new Date(), x);
 
-  return isAfter(xDaysFromNow, new Date(expiration));
+  return (
+    !hasLicenseExpired(expiration) &&
+    isAfter(xDaysFromNow, new Date(expiration))
+  );
 };
 
 export const readableDate = (date: string) => {

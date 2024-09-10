@@ -79,9 +79,26 @@ export const strToBool = (str?: string | null) => {
   return str ? JSON.parse(str) : false;
 };
 
+export const stripQuotes = (string: string) => {
+  // Regular expression to match quotes at the start and end of the string
+  const quoteRegex = /^([''""])([\s\S]*?)(\1)$/;
+
+  // If the string matches the regex, return the content between the quotes
+  // Otherwise, return the original string
+  const match = string.match(quoteRegex);
+  return match ? match[2] : string;
+};
+
+export const isIncompleteQuoteQuery = (str: string) => {
+  const pattern = /^(['"])(?!.*\1$)/;
+  return pattern.test(str);
+};
+
 export default {
   capitalize,
   capitalizeRole,
   pluralize,
   strToBool,
+  stripQuotes,
+  isIncompleteQuoteQuery,
 };

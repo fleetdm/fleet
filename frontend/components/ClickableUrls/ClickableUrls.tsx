@@ -20,21 +20,19 @@ const ClickableUrls = ({ text, className }: IClickableUrls): JSX.Element => {
   const clickableUrlClasses = classnames(baseClass, className);
 
   // Regex to find case insensitive URLs and replace with link
-  const replacedLinks = text.replaceAll(
+  const textWithLinks = text.replaceAll(
     /(((https?)?(:\/\/))|((https?)?(:\/\/)?(www\.)))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g,
     urlReplacer
   );
-  const sanitizedResolutionContent = DOMPurify.sanitize(replacedLinks, {
+  const sanitizedTextWithLinks = DOMPurify.sanitize(textWithLinks, {
     ADD_ATTR: ["target"], // Allows opening in a new tab
   });
 
-  const textWithLinks = (
+  return (
     <div
       className={clickableUrlClasses}
-      dangerouslySetInnerHTML={{ __html: sanitizedResolutionContent }}
+      dangerouslySetInnerHTML={{ __html: sanitizedTextWithLinks }}
     />
   );
-
-  return textWithLinks;
 };
 export default ClickableUrls;

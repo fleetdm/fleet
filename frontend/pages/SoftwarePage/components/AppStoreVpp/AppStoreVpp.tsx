@@ -5,13 +5,11 @@ import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import mdmAppleAPI, {
-  IGetVppInfoResponse,
+  IGetVppTokensResponse,
   IVppApp,
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
@@ -27,6 +25,7 @@ import {
   generateRedirectQueryParams,
   getErrorMessage,
   getUniqueAppId,
+  teamHasVPPToken,
 } from "./helpers";
 
 const baseClass = "app-store-vpp";
@@ -36,14 +35,14 @@ const EnableVppCard = () => {
     <Card borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
+          <b>No Volume Purchasing Program (VPP) token assigned</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first enable VPP.
+          To add App Store apps, assign a VPP token to this team.
         </p>
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Enable VPP"
+          text="Edit VPP"
           className={`${baseClass}__enable-vpp-link`}
         />
       </div>
@@ -58,9 +57,8 @@ const NoVppAppsCard = () => (
         You don&apos;t have any App Store apps
       </p>
       <p className={`${baseClass}__no-software-description`}>
-        Add apps in{" "}
-        <CustomLink url="https://business.apple.com" text="ABM" newTab /> Apps
-        that are already added to this team are not listed.
+        You must purchase apps in ABM. App Store apps that are already added to
+        this team are not listed.
       </p>
     </div>
   </Card>
@@ -153,9 +151,9 @@ const AppStoreVpp = ({
     data: vppInfo,
     isLoading: isLoadingVppInfo,
     error: errorVppInfo,
-  } = useQuery<IGetVppInfoResponse, AxiosError>(
+  } = useQuery<IGetVppTokensResponse, AxiosError>(
     ["vppInfo"],
-    () => mdmAppleAPI.getVppInfo(),
+    () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 30000,
@@ -163,13 +161,15 @@ const AppStoreVpp = ({
     }
   );
 
+  const hasVPPToken = teamHasVPPToken(teamId, vppInfo?.vpp_tokens);
+
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
     error: errorVppApps,
   } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: !!vppInfo,
+    enabled: hasVPPToken,
     staleTime: 30000,
     select: (res) => res.app_store_apps,
   });
@@ -214,10 +214,7 @@ const AppStoreVpp = ({
       return <Spinner />;
     }
 
-    if (
-      errorVppInfo &&
-      getErrorReason(errorVppInfo).includes("MDMConfigAsset was not found")
-    ) {
+    if (!hasVPPToken) {
       return <EnableVppCard />;
     }
 

@@ -269,7 +269,7 @@ const SoftwareTable = ({
   };
 
   const renderSoftwareCount = () => {
-    if (!tableData || !data?.count) return null;
+    if (!tableData || !data) return null;
 
     return (
       <>
@@ -356,7 +356,6 @@ const SoftwareTable = ({
             vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
-            isCollectingSoftware={data?.counts_updated_at === null}
             installableSoftwareExists={installableSoftwareExists}
           />
         )}

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/tls"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -398,7 +398,7 @@ func TestUpdateStats(t *testing.T) {
 	testUpdateStats(t, ds, false)
 }
 
-func TestUpdateStatsOnReplica(t *testing.T) {
+func TestIntegrationsUpdateStatsOnReplica(t *testing.T) {
 	ds := mysql.CreateMySQLDSWithReplica(t, nil)
 	defer mysql.TruncateTables(t, ds)
 	testUpdateStats(t, ds, true)

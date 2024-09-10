@@ -40,6 +40,8 @@ export interface ISoftware {
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
+  browser?: string;
+  vendor?: string;
 }
 
 export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
@@ -107,6 +109,7 @@ export interface ISoftwareTitleDetails {
   source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  versions_updated_at?: string;
   bundle_identifier?: string;
   browser?: string;
   versions_count?: number;

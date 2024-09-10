@@ -166,7 +166,7 @@ describe("SelfService", () => {
     ).toHaveTextContent("Install");
   });
 
-  it("renders no action button with 'Install in progress...' status", async () => {
+  it("renders no action button with 'Pending' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -186,7 +186,7 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("self-service-item__status--test")
-    ).toHaveTextContent("Install in progress...");
+    ).toHaveTextContent("Pending");
 
     expect(
       screen.queryByTestId("self-service-item__item-action-button--test")

@@ -75,15 +75,16 @@ module.exports = {
     }
 
     if(numberOfHosts >= 700){
-      sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
         organization: organization,
-        numberOfHosts: numberOfHosts,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         contactSource: 'Website - Contact forms',
-        leadDescription: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        psychologicalStage: '4 - Has use case',
+        psychologicalStageChangeReason: 'Website - Contact forms'
       }).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);

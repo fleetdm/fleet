@@ -1656,24 +1656,34 @@ func LogRoleChangeActivities(
 	return nil
 }
 
-type ActivityEnabledVPP struct{}
+type ActivityEnabledVPP struct {
+	Location string `json:"location"`
+}
 
 func (a ActivityEnabledVPP) ActivityName() string {
 	return "enabled_vpp"
 }
 
 func (a ActivityEnabledVPP) Documentation() (activity string, details string, detailsExample string) {
-	return "Generated when the VPP feature is enabled in Fleet.", "", ""
+	return "Generated when VPP features are enabled in Fleet.", `This activity contains the following fields:
+- "location": Location associated with the VPP content token for the enabled VPP features.`, `{
+  "location": "Acme Inc."
+}`
 }
 
-type ActivityDisabledVPP struct{}
+type ActivityDisabledVPP struct {
+	Location string `json:"location"`
+}
 
 func (a ActivityDisabledVPP) ActivityName() string {
 	return "disabled_vpp"
 }
 
 func (a ActivityDisabledVPP) Documentation() (activity string, details string, detailsExample string) {
-	return "Generated when the VPP feature is disabled in Fleet.", "", ""
+	return "Generated when VPP features are disabled in Fleet.", `This activity contains the following fields:
+- "location": Location associated with the VPP content token for the disabled VPP features.`, `{
+  "location": "Acme Inc."
+}`
 }
 
 type ActivityAddedAppStoreApp struct {
