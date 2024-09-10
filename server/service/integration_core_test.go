@@ -11595,6 +11595,9 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	t := s.T()
 	ctx := context.Background()
 
+	adminUser, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+	require.NoError(t, err)
+
 	// there is already a datastore-layer test that verifies that correct values
 	// are returned for users, saved scripts, etc. so this is more focused on
 	// verifying that the service layer passes the proper options and the
@@ -11639,6 +11642,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		Title:         "foo",
 		Source:        "apps",
 		Version:       "0.0.1",
+		UserID:        adminUser.ID,
 	})
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)

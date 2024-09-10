@@ -38,6 +38,7 @@ const AdvancedOptionsModal = ({
             helpText="Fleet will run this command on hosts to install software."
             label="Install script"
             labelTooltip="For security agents, add the script provided by the vendor."
+            isFormField
           />
           {preInstallQuery && (
             <div className={`${baseClass}__input-field`}>
@@ -72,6 +73,7 @@ const AdvancedOptionsModal = ({
                 maxLines={10}
                 value={postInstallScript}
                 helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+                isFormField
               />
             </div>
           )}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -14,12 +15,23 @@ import (
 )
 
 func TestVPPAuth(t *testing.T) {
-	t.Skip()
 	ds := new(mock.Store)
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license})
+
+	// use a custom implementation of checkAuthErr as the service call will fail
+	// with a different error for in case of authorization success and the
+	// package-wide checkAuthErr requires no error.
+	checkAuthErr := func(t *testing.T, shouldFail bool, err error) {
+		if shouldFail {
+			require.Error(t, err)
+			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+		} else if err != nil {
+			require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
+		}
+	}
 
 	testCases := []struct {
 		name            string
@@ -64,13 +76,14 @@ func TestVPPAuth(t *testing.T) {
 			ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return false, nil
 			}
-
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
-
 			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 				return &fleet.Team{ID: 1}, nil
+			}
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{ID: 1, OrgName: "org", Teams: []fleet.TeamTuple{{ID: 1}}}, nil
 			}
 
 			// Note: these calls always return an error because they're attempting to unmarshal a
@@ -79,18 +92,14 @@ func TestVPPAuth(t *testing.T) {
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
-				if tt.shouldFailRead {
-					checkAuthErr(t, true, err)
-				}
+				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
 			err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
-				if tt.shouldFailWrite {
-					checkAuthErr(t, true, err)
-				}
+				checkAuthErr(t, tt.shouldFailWrite, err)
 			}
 		})
 	}

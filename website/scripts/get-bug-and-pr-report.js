@@ -33,8 +33,10 @@ module.exports = {
     let daysSinceReleasedBugsWereOpened = [];
     let allBugsWithUnreleasedLabel = [];
     let allBugsWithReleasedLabel = [];
+    let allBugs32DaysOrOlder = [];
     let allBugsCreatedInPastWeek = [];
     let allBugsClosedInPastWeek = [];
+    let allBugsReportedByCustomersInPastWeek = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -44,7 +46,7 @@ module.exports = {
     let allNonPublicOpenPrs = [];
     let nonPublicPrsClosedInThePastThreeWeeks = [];
 
-    // Product group KPIS
+
 
     // Endpoint operations
     let allBugsCreatedInPastWeekEndpointOps = [];
@@ -103,8 +105,16 @@ module.exports = {
           let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeOpenInDays >= 32) {
+            allBugs32DaysOrOlder.push(issue);
+          }
           if (timeOpenInDays <= 7) {
+            // All bugs in past week
             allBugsCreatedInPastWeek.push(issue);
+            // Customer-reported bugs
+            if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+              allBugsReportedByCustomersInPastWeek.push(issue);
+            }
             // Get Endpoint Ops KPIs
             if (issue.labels.some(label => label.name === '#g-endpoint-ops')) {
               allBugsCreatedInPastWeekEndpointOps.push(issue);
@@ -132,6 +142,7 @@ module.exports = {
               }
             }
           }
+
           daysSinceBugsWereOpened.push(timeOpenInDays);
           // Send to released or unreleased bugs array
           if (issue.labels.some(label => label.name === '~unreleased bug')) {
@@ -316,8 +327,8 @@ module.exports = {
       //
       async()=>{
 
-        // Fetch confidential and classified PRs (current open, and recent closed)
-        for (let repoName of ['classified', 'confidential']) {
+        // Fetch confidential PRs (current open, and recent closed)
+        for (let repoName of ['confidential']) {
           // [?] https://docs.github.com/en/free-pro-team@latest/rest/pulls/pulls#list-pull-requests
           let openPrs = await sails.helpers.http.get(`https://api.github.com/repos/fleetdm/${encodeURIComponent(repoName)}/pulls`, {
             state: 'open',
@@ -380,25 +391,12 @@ module.exports = {
     // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
     kpiResults.push(
       averageDaysContributorPullRequestsAreOpenFor,
-      daysSinceContributorPullRequestsWereOpened.length,
-      averageDaysPullRequestsAreOpenFor,
-      daysSincePullRequestsWereOpened.length,
+      allBugs32DaysOrOlder.length,
+      allBugsReportedByCustomersInPastWeek.length,
       averageNumberOfDaysReleasedBugsAreOpenFor,
       averageNumberOfDaysUnreleasedBugsAreOpenFor,
-      allBugsClosedInPastWeek.length,
-      averageNumberOfDaysBugsAreOpenFor,
       allBugsCreatedInPastWeek.length,
-      allBugsCreatedInPastWeekEndpointOps.length,
-      allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length,
-      allBugsCreatedInPastWeekEndpointOpsReleased.length,
-      allBugsCreatedInPastWeekEndpointOpsUnreleased.length,
-      allBugsCreatedInPastWeekMobileDeviceManagement.length,
-      allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length,
-      allBugsCreatedInPastWeekMobileDeviceManagementReleased.length,
-      allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length,
-      daysSinceBugsWereOpened.length,
-      allBugsWithReleasedLabel.length,
-      allBugsWithUnreleasedLabel.length);
+      allBugsClosedInPastWeek.length,);
 
     // Log the results
     sails.log(`
@@ -407,17 +405,19 @@ module.exports = {
     ---------------------------
     ${kpiResults.join(',')}
 
-    Note: Copy the values above, then in Google sheets paste them into a cell and select "Split text to columns" to paste the values into separate cells.
+    Note: Copy the values above, then paste into Google KPI sheet and select "Split text to columns" to split the values into separate columns.
 
     Pull requests:
     ---------------------------
     Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
+
     Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
 
     Average open time (all PRs): ${averageDaysPullRequestsAreOpenFor} days.
+
     Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
 
-    Bugs (part 1):
+    Bugs:
     ---------------------------
     Average open time (released bugs): ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
 
@@ -428,6 +428,12 @@ module.exports = {
     Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
 
     Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
+
+    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
+
+    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
+
+    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
 
     Endpoint Operations:
     ---------------------------
@@ -449,17 +455,10 @@ module.exports = {
 
     Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
 
-    Bugs (part 2):
-    ---------------------------
-    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
-
-    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
-
-    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
-
     Pull requests requiring CEO review
     ---------------------------------------
     Number of open ~ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
+
     Average open time (~ceo PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
     `);
 

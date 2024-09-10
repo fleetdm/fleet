@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -88,7 +89,7 @@ INSERT INTO
 			cp.LabelsExcludeAny[i].Exclude = true
 			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "darwin"); err != nil {
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
@@ -1135,7 +1136,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, server
 	}
 
 	var mdmID int64
-	if insertOnDuplicateDidInsert(result) {
+	if insertOnDuplicateDidInsertOrUpdate(result) {
 		mdmID, _ = result.LastInsertId()
 	} else {
 		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
@@ -1444,7 +1445,8 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
+		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
+		return err
 	})
 }
 
@@ -1454,7 +1456,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAppleConfigProfile,
-) error {
+) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
   identifier,
@@ -1516,13 +1518,13 @@ ON DUPLICATE KEY UPDATE
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
+			return false, ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrap(ctx, err, "load existing profiles")
+			return false, ctxerr.Wrap(ctx, err, "load existing profiles")
 		}
 	}
 
@@ -1543,31 +1545,37 @@ ON DUPLICATE KEY UPDATE
 	var (
 		stmt string
 		args []interface{}
-		err  error
 	)
 	// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
+	var result sql.Result
 	stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
 	if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "indelete") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
+		return false, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
+	if result, err = tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+		return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+	}
+	if result != nil {
+		rows, _ := result.RowsAffected()
+		updatedDB = rows > 0
 	}
 
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
-		if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Mobileconfig); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
+		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name,
+			p.Mobileconfig); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
+			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
+		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
 	}
 
 	// build a list of labels so the associations can be batch-set all at once
@@ -1583,19 +1591,19 @@ ON DUPLICATE KEY UPDATE
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
+			return false, ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "reselect") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
+			return false, ctxerr.Wrap(ctx, err, "load newly inserted profiles")
 		}
 
 		for _, newlyInsertedProf := range newlyInsertedProfs {
 			incomingProf, ok := incomingProfs[newlyInsertedProf.Identifier]
 			if !ok {
-				return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
+				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
 			}
 
 			for _, label := range incomingProf.LabelsIncludeAll {
@@ -1611,13 +1619,15 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// insert label associations
-	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
+	var updatedLabels bool
+	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,
+		"darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
+		return false, ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
 	}
-	return nil
+	return updatedDB || updatedLabels, nil
 }
 
 func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMAppleProfilePayload) error {
@@ -1682,9 +1692,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	uuids []string,
-) error {
+) (updatedDB bool, err error) {
 	if len(uuids) == 0 {
-		return nil
+		return false, nil
 	}
 
 	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
@@ -1752,13 +1762,14 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+			return false, ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i,
+				selectProfilesTotalBatches)
 		}
 
 		var partialResult []*fleet.MDMAppleProfilePayload
 		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+			return false, ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
 		}
 
 		wantedProfiles = append(wantedProfiles, partialResult...)
@@ -1810,19 +1821,19 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
+			return false, ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 		}
 		var partialResult []*fleet.MDMAppleProfilePayload
 		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+			return false, ctxerr.Wrap(ctx, err, "fetching profiles to remove")
 		}
 
 		currentProfiles = append(currentProfiles, partialResult...)
 	}
 
 	if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
-		return nil
+		return false, nil
 	}
 
 	// delete all host profiles to start from a clean slate, new entries will be added next
@@ -1831,8 +1842,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	//
 	// TODO part II(roberto): we found this call to be a major bottleneck during load testing
 	// https://github.com/fleetdm/fleet/issues/21338
-	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk delete all profiles")
+	if len(wantedProfiles) > 0 {
+		if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "bulk delete all profiles")
+		}
+		updatedDB = true
 	}
 
 	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
@@ -1853,11 +1867,57 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			hostProfilesToClean = append(hostProfilesToClean, p)
 		}
 	}
-	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk delete profiles to clean")
+	if len(hostProfilesToClean) > 0 {
+		if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "bulk delete profiles to clean")
+		}
+		updatedDB = true
 	}
 
+	profilesToInsert := make(map[string]*fleet.MDMAppleProfilePayload)
+
 	executeUpsertBatch := func(valuePart string, args []any) error {
+		// Check if the update needs to be done at all.
+		selectStmt := fmt.Sprintf(`
+			SELECT 
+				host_uuid,
+				profile_uuid,
+				profile_identifier,
+				status,
+				COALESCE(operation_type, '') AS operation_type,
+				COALESCE(detail, '') AS detail,
+				command_uuid,
+				profile_name,
+				checksum,
+				profile_uuid
+			FROM host_mdm_apple_profiles WHERE (host_uuid, profile_uuid) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
+		var selectArgs []any
+		for _, p := range profilesToInsert {
+			selectArgs = append(selectArgs, p.HostUUID, p.ProfileUUID)
+		}
+		var existingProfiles []fleet.MDMAppleProfilePayload
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending profile status select existing")
+		}
+		var updateNeeded bool
+		if len(existingProfiles) == len(profilesToInsert) {
+			for _, exist := range existingProfiles {
+				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.HostUUID, exist.ProfileUUID)]
+				if !ok || !exist.Equal(*insert) {
+					updateNeeded = true
+					break
+				}
+			}
+		} else {
+			updateNeeded = true
+		}
+		if !updateNeeded {
+			// All profiles are already in the database, no need to update.
+			return nil
+		}
+
+		updatedDB = true
 		baseStmt := fmt.Sprintf(`
 				INSERT INTO host_mdm_apple_profiles (
 					profile_uuid,
@@ -1897,6 +1957,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	resetBatch := func() {
 		batchCount = 0
+		clear(profilesToInsert)
 		pargs = pargs[:0]
 		psb.Reset()
 	}
@@ -1904,6 +1965,18 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	for _, p := range wantedProfiles {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+				profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
+					ProfileUUID:       p.ProfileUUID,
+					ProfileIdentifier: p.ProfileIdentifier,
+					ProfileName:       p.ProfileName,
+					HostUUID:          p.HostUUID,
+					HostPlatform:      p.HostPlatform,
+					Checksum:          p.Checksum,
+					Status:            pp.Status,
+					OperationType:     pp.OperationType,
+					Detail:            pp.Detail,
+					CommandUUID:       pp.CommandUUID,
+				}
 				pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
 					pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail)
 				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
@@ -1911,7 +1984,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 				if batchCount >= batchSize {
 					if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-						return err
+						return false, err
 					}
 					resetBatch()
 				}
@@ -1919,6 +1992,18 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			}
 		}
 
+		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
+			ProfileUUID:       p.ProfileUUID,
+			ProfileIdentifier: p.ProfileIdentifier,
+			ProfileName:       p.ProfileName,
+			HostUUID:          p.HostUUID,
+			HostPlatform:      p.HostPlatform,
+			Checksum:          p.Checksum,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            nil,
+			CommandUUID:       "",
+			Detail:            "",
+		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
 			fleet.MDMOperationTypeInstall, nil, "", "")
 		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
@@ -1926,7 +2011,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 		if batchCount >= batchSize {
 			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-				return err
+				return false, err
 			}
 			resetBatch()
 		}
@@ -1943,6 +2028,18 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		if p.FailedToInstallOnHost() {
 			continue
 		}
+		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
+			ProfileUUID:       p.ProfileUUID,
+			ProfileIdentifier: p.ProfileIdentifier,
+			ProfileName:       p.ProfileName,
+			HostUUID:          p.HostUUID,
+			HostPlatform:      p.HostPlatform,
+			Checksum:          p.Checksum,
+			OperationType:     fleet.MDMOperationTypeRemove,
+			Status:            nil,
+			CommandUUID:       "",
+			Detail:            "",
+		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
 			fleet.MDMOperationTypeRemove, nil, "", "")
 		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
@@ -1950,7 +2047,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 		if batchCount >= batchSize {
 			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-				return err
+				return false, err
 			}
 			resetBatch()
 		}
@@ -1958,10 +2055,10 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	if batchCount > 0 {
 		if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-			return err
+			return false, err
 		}
 	}
-	return nil
+	return updatedDB, nil
 }
 
 // mdmEntityTypeToDynamicNames tracks what names should be used in the
@@ -3405,7 +3502,7 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 	// because the updated_at update condition is too complex?), so at the moment
 	// this clears the profile uuids at all times, even if the profile did not
 	// change.
-	if insertOnDuplicateDidUpdate(res) {
+	if insertOnDuplicateDidInsertOrUpdate(res) {
 		// profile was updated, need to clear the profile uuids
 		if err := ds.SetMDMAppleSetupAssistantProfileUUID(ctx, asst.TeamID, "", ""); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "clear mdm apple setup assistant profiles")
@@ -3758,9 +3855,9 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
-		return skipSerials, serialsByOrgName, nil
+		return skipSerialsByOrgName, serialsByOrgName, nil
 	}
 
 	stmt := `
@@ -3795,19 +3892,20 @@ WHERE
 	}
 
 	serialsByOrgName = make(map[string][]string)
+	skipSerialsByOrgName = make(map[string][]string)
 
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
 			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
-			skipSerials = append(skipSerials, r.HardwareSerial)
+			skipSerialsByOrgName[r.ABMOrgName] = append(skipSerialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		default:
 			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
 		}
 	}
 
-	return skipSerials, serialsByOrgName, nil
+	return skipSerialsByOrgName, serialsByOrgName, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
@@ -3954,7 +4052,9 @@ WHERE h.uuid = ?
 	return nil
 }
 
-func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, incomingDeclarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint,
+	incomingDeclarations []*fleet.MDMAppleDeclaration,
+) (declarations []*fleet.MDMAppleDeclaration, updatedDB bool, err error) {
 	const insertStmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -4021,13 +4121,13 @@ WHERE
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
+			return nil, false, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &existingDecls, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return nil, ctxerr.Wrap(ctx, err, "load existing declarations")
+			return nil, false, ctxerr.Wrap(ctx, err, "load existing declarations")
 		}
 	}
 
@@ -4050,23 +4150,29 @@ WHERE
 		// delete the obsolete declarations (all those that are not in keepNames)
 		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
+			return nil, false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
 		}
 		delStmt = stmt
 		delArgs = args
 	}
 
-	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
+	var result sql.Result
+	if result, err = tx.ExecContext(ctx, delStmt, delArgs...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
+		"delete") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
+		return nil, false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
+	}
+	if result != nil {
+		rows, _ := result.RowsAffected()
+		updatedDB = rows > 0
 	}
 
 	for _, d := range incomingDeclarations {
 		checksum := md5ChecksumScriptContent(string(d.RawJSON))
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-		if _, err := tx.ExecContext(ctx, insertStmt,
+		if result, err = tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
 			d.Name,
@@ -4076,8 +4182,9 @@ WHERE
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return nil, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
+			return nil, false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
+		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
 	}
 
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
@@ -4092,16 +4199,16 @@ WHERE
 		// optimization for a later iteration.
 		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
+			return nil, false, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedDecls, stmt, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
+			return nil, false, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
 		}
 
 		for _, newlyInsertedDecl := range newlyInsertedDecls {
 			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Name]
 			if !ok {
-				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Name)
+				return nil, false, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Name)
 			}
 
 			for _, label := range incomingDecl.LabelsIncludeAll {
@@ -4116,14 +4223,16 @@ WHERE
 		}
 	}
 
-	if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, incomingLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
+	var updatedLabels bool
+	if updatedLabels, err = batchSetDeclarationLabelAssociationsDB(ctx, tx,
+		incomingLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
+		return nil, false, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
 	}
 
-	return incomingDeclarations, nil
+	return incomingDeclarations, updatedDB || updatedLabels, nil
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -4220,7 +4329,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			declaration.LabelsExcludeAny[i].Exclude = true
 			labels = append(labels, declaration.LabelsExcludeAny[i])
 		}
-		if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels); err != nil {
+		if _, err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting mdm declaration label associations")
 		}
 
@@ -4234,9 +4343,10 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 	return declaration, nil
 }
 
-func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.ConfigurationProfileLabel) error {
+func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
+	declarationLabels []fleet.ConfigurationProfileLabel) (updatedDB bool, err error) {
 	if len(declarationLabels) == 0 {
-		return nil
+		return false, nil
 	}
 
 	// delete any profile+label tuple that is NOT in the list of provided tuples
@@ -4258,38 +4368,72 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
               exclude = VALUES(exclude)
 	`
 
+	selectStmt := `
+		SELECT apple_declaration_uuid as profile_uuid, label_name, label_id, exclude FROM mdm_declaration_labels
+		WHERE (apple_declaration_uuid, label_name) IN (%s)
+	`
+
 	var (
-		insertBuilder strings.Builder
-		deleteBuilder strings.Builder
-		insertParams  []any
-		deleteParams  []any
+		insertBuilder         strings.Builder
+		selectOrDeleteBuilder strings.Builder
+		selectParams          []any
+		insertParams          []any
+		deleteParams          []any
 
 		setProfileUUIDs = make(map[string]struct{})
+		labelsToInsert  = make(map[string]*fleet.ConfigurationProfileLabel, len(declarationLabels))
 	)
 	for i, pl := range declarationLabels {
+		labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &declarationLabels[i]
 		if i > 0 {
 			insertBuilder.WriteString(",")
-			deleteBuilder.WriteString(",")
+			selectOrDeleteBuilder.WriteString(",")
 		}
 		insertBuilder.WriteString("(?, ?, ?, ?)")
-		deleteBuilder.WriteString("(?, ?)")
+		selectOrDeleteBuilder.WriteString("(?, ?)")
+		selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
 		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
 	}
 
-	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, insertBuilder.String()), insertParams...)
+	// Determine if we need to update the database
+	var existingProfileLabels []fleet.ConfigurationProfileLabel
+	err = sqlx.SelectContext(ctx, tx, &existingProfileLabels,
+		fmt.Sprintf(selectStmt, selectOrDeleteBuilder.String()), selectParams...)
 	if err != nil {
-		if isChildForeignKeyError(err) {
-			// one of the provided labels doesn't exist
-			return foreignKey("mdm_declaration_labels", fmt.Sprintf("(declaration, label)=(%v)", insertParams))
-		}
-
-		return ctxerr.Wrap(ctx, err, "setting label associations for declarations")
+		return false, ctxerr.Wrap(ctx, err, "selecting existing profile labels")
 	}
 
-	deleteStmt = fmt.Sprintf(deleteStmt, deleteBuilder.String())
+	updateNeeded := false
+	if len(existingProfileLabels) == len(labelsToInsert) {
+		for _, existing := range existingProfileLabels {
+			toInsert, ok := labelsToInsert[fmt.Sprintf("%s\n%s", existing.ProfileUUID, existing.LabelName)]
+			// The fleet.ConfigurationProfileLabel struct has no pointers, so we can use standard cmp.Equal
+			if !ok || !cmp.Equal(existing, *toInsert) {
+				updateNeeded = true
+				break
+			}
+		}
+	} else {
+		updateNeeded = true
+	}
+
+	if updateNeeded {
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, insertBuilder.String()), insertParams...)
+		if err != nil {
+			if isChildForeignKeyError(err) {
+				// one of the provided labels doesn't exist
+				return false, foreignKey("mdm_declaration_labels", fmt.Sprintf("(declaration, label)=(%v)", insertParams))
+			}
+
+			return false, ctxerr.Wrap(ctx, err, "setting label associations for declarations")
+		}
+		updatedDB = true
+	}
+
+	deleteStmt = fmt.Sprintf(deleteStmt, selectOrDeleteBuilder.String())
 
 	profUUIDs := make([]string, 0, len(setProfileUUIDs))
 	for k := range setProfileUUIDs {
@@ -4299,13 +4443,21 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 
 	deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In delete labels for declarations")
+		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for declarations")
 	}
-	if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting labels for declarations")
+	var result sql.Result
+	if result, err = tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting labels for declarations")
+	}
+	if result != nil {
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "count rows affected by insert")
+		}
+		updatedDB = updatedDB || rows > 0
 	}
 
-	return nil
+	return updatedDB, nil
 }
 
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
@@ -4392,23 +4544,24 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		uuids, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
+		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
 		return err
 	})
 
 	return uuids, ctxerr.Wrap(ctx, err, "upserting host declaration state")
 }
 
-func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int, status *fleet.MDMDeliveryStatus) ([]string, error) {
+func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int,
+	status *fleet.MDMDeliveryStatus) ([]string, bool, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
 	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
+		return nil, false, ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
 	}
 
 	if len(changedDeclarations) == 0 {
-		return []string{}, nil
+		return []string{}, false, nil
 	}
 
 	// a host might have more than one declaration to sync, we do this to
@@ -4430,11 +4583,12 @@ func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtCont
 	// - support the DDM endpoints, which use data from the
 	//   `host_mdm_apple_declarations` table to compute which declarations to
 	//   serve
-	if err := mdmAppleBatchSetPendingHostDeclarationsDB(ctx, tx, batchSize, changedDeclarations, status); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
+	var updatedDB bool
+	if updatedDB, err = mdmAppleBatchSetPendingHostDeclarationsDB(ctx, tx, batchSize, changedDeclarations, status); err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
 	}
 
-	return uuids, nil
+	return uuids, updatedDB, nil
 }
 
 // mdmAppleBatchSetPendingHostDeclarationsDB tracks the current status of all
@@ -4445,7 +4599,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	batchSize int,
 	changedDeclarations []*fleet.MDMAppleHostDeclaration,
 	status *fleet.MDMDeliveryStatus,
-) error {
+) (updatedDB bool, err error) {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
 	    (host_uuid, status, operation_type, checksum, declaration_uuid, declaration_identifier, declaration_name)
@@ -4457,7 +4611,50 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	    checksum = VALUES(checksum)
 	  `
 
+	profilesToInsert := make(map[string]*fleet.MDMAppleHostDeclaration)
+
 	executeUpsertBatch := func(valuePart string, args []any) error {
+		// Check if the update needs to be done at all.
+		selectStmt := fmt.Sprintf(`
+			SELECT 
+				host_uuid,
+				declaration_uuid,
+				status,
+				COALESCE(operation_type, '') AS operation_type,
+				COALESCE(detail, '') AS detail,
+				checksum,
+				declaration_uuid,
+				declaration_identifier,
+				declaration_name
+			FROM host_mdm_apple_declarations WHERE (host_uuid, declaration_uuid) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
+		var selectArgs []any
+		for _, p := range profilesToInsert {
+			selectArgs = append(selectArgs, p.HostUUID, p.DeclarationUUID)
+		}
+		var existingProfiles []fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending declarations select existing")
+		}
+		var updateNeeded bool
+		if len(existingProfiles) == len(profilesToInsert) {
+			for _, exist := range existingProfiles {
+				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.HostUUID, exist.DeclarationUUID)]
+				if !ok || !exist.Equal(*insert) {
+					updateNeeded = true
+					break
+				}
+			}
+		} else {
+			updateNeeded = true
+		}
+		clear(profilesToInsert)
+		if !updateNeeded {
+			// All profiles are already in the database, no need to update.
+			return nil
+		}
+
+		updatedDB = true
 		_, err := tx.ExecContext(
 			ctx,
 			fmt.Sprintf(baseStmt, strings.TrimSuffix(valuePart, ",")),
@@ -4467,13 +4664,23 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	}
 
 	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
+		profilesToInsert[fmt.Sprintf("%s\n%s", d.HostUUID, d.DeclarationUUID)] = &fleet.MDMAppleHostDeclaration{
+			HostUUID:        d.HostUUID,
+			DeclarationUUID: d.DeclarationUUID,
+			Name:            d.Name,
+			Identifier:      d.Identifier,
+			Status:          status,
+			OperationType:   d.OperationType,
+			Detail:          d.Detail,
+			Checksum:        d.Checksum,
+		}
 		valuePart := "(?, ?, ?, ?, ?, ?, ?),"
 		args := []any{d.HostUUID, status, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name}
 		return valuePart, args
 	}
 
-	err := batchProcessDB(changedDeclarations, batchSize, generateValueArgs, executeUpsertBatch)
-	return ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
+	err = batchProcessDB(changedDeclarations, batchSize, generateValueArgs, executeUpsertBatch)
+	return updatedDB, ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
 }
 
 // mdmAppleGetHostsWithChangedDeclarationsDB returns a
@@ -4971,6 +5178,7 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.renew_at,
+	abt.token,
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
@@ -5027,6 +5235,15 @@ LEFT OUTER JOIN
 		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
 		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
 
+		// decrypt the token with the serverPrivateKey, the resulting value will be
+		// the token still encrypted, but just with the ABM cert and key (it is that
+		// encrypted value that is stored with another layer of encryption with the
+		// serverPrivateKey).
+		decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+		}
+		tok.EncryptedToken = decrypted
 	}
 
 	return tokens, nil

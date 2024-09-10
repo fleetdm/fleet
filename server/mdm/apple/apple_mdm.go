@@ -153,7 +153,7 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 //
 // On success, it returns the profile uuid and timestamp for the specific token
 // of interest to the caller (identified by its organization name).
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokeOrgName string) (string, time.Time, error) {
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching app config")
@@ -249,7 +249,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}
 		}
-		if orgName == abmTokeOrgName {
+		if orgName == abmTokenOrgName {
 			requestedTokenProfileUUID = res.ProfileUUID
 		}
 	}
@@ -403,7 +403,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			}
 
 			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName, "team", team.Name)
+				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName)
 				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
 					result = multierror.Append(result, err)
 					continue
@@ -624,7 +624,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
-		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
 
 		skipSerials, assignSerials, err := d.ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
@@ -643,12 +642,14 @@ func (d *DEPService) processDeviceResponse(
 		for orgName, serials := range assignSerials {
 			apiResp, err := d.depClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
+				// only log the error so the failure can be recorded
+				// below in UpdateHostDEPAssignProfileResponses and
+				// the proper cooldowns are applied
 				level.Error(logger).Log(
 					"msg", "assign profile",
 					"devices", len(assignSerials),
 					"err", err,
 				)
-				return fmt.Errorf("assign profile: %w", err)
 			}
 
 			logs := []interface{}{
@@ -1040,4 +1041,37 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return ctxerr.Wrap(ctx, err, "add host mdm commands")
 	}
 	return nil
+}
+
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
+	if err != nil {
+		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
+	}
+
+	enrollURL, err := url.Parse(path)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ota enrollment url: %w", err)
+	}
+
+	q := enrollURL.Query()
+	q.Set("enroll_secret", enrollSecret)
+	enrollURL.RawQuery = q.Encode()
+
+	var profileBuf bytes.Buffer
+	tmplArgs := struct {
+		Organization string
+		URL          string
+		EnrollSecret string
+	}{
+		Organization: orgName,
+		URL:          enrollURL.String(),
+	}
+
+	err = mobileconfig.OTAMobileConfigTemplate.Execute(&profileBuf, tmplArgs)
+	if err != nil {
+		return nil, fmt.Errorf("executing ota profile template: %w", err)
+	}
+
+	return profileBuf.Bytes(), nil
 }

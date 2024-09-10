@@ -73,17 +73,28 @@ module.exports = {
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
-
+    // Set a default psychological stage and change reason.
+    let psyStageAndChangeReason = {
+      psychologicalStage: '4 - Has use case',
+      psychologicalStageChangeReason: 'Website - Contact forms'
+    };
+    if(this.req.me){
+      // If this user is logged in, check their current psychological stage, and if it is higher than 4, we won't set a psystage.
+      // This way, if a user has a psytage >4, we won't regress their psystage because they submitted this form.
+      if(['4 - Has use case', '5 - Personally confident', '6 - Has team buy-in'].includes(this.req.me.psychologicalStage)) {
+        psyStageAndChangeReason = {};
+      }
+    }
     if(numberOfHosts >= 700){
-      sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
         organization: organization,
-        numberOfHosts: numberOfHosts,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         contactSource: 'Website - Contact forms',
-        leadDescription: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        ...psyStageAndChangeReason// Only (potentially) set psystage and change reason for >700 hosts.
       }).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);

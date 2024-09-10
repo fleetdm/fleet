@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,11 +22,10 @@ import (
 )
 
 func TestDEPService_RunAssigner(t *testing.T) {
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
 
+	const abmTokenOrgName = "test_org"
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 
@@ -35,10 +35,10 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		t.Cleanup(srv.Close)
 		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
 
-		err = depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL})
+		err = depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
 		require.NoError(t, err)
 
-		mysql.SetTestABMAssets(t, ds, "fleet")
+		mysql.SetTestABMAssets(t, ds, abmTokenOrgName)
 
 		logger := log.NewNopLogger()
 		return apple_mdm.NewDEPService(ds, depStorage, logger)
@@ -54,7 +54,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			case "/session":
 				_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 			case "/account":
-				_, _ = w.Write([]byte(`{"admin_id": "admin123", "org_name": "test_org"}`))
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
 			case "/profile":
 				err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"})
 				require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NotEmpty(t, defProf.Token)
 
 		// a profile UUID was assigned for no-team
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, abmTokenOrgName)
 		require.NoError(t, err)
 		require.Equal(t, "profile123", profUUID)
 		require.False(t, modTime.Before(start))
@@ -87,6 +87,11 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		appCfg, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
 		require.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+		abmTok, err := ds.GetABMTokenByOrgName(ctx, abmTokenOrgName)
+		require.NoError(t, err)
+		require.Nil(t, abmTok.MacOSDefaultTeamID)
+		require.Nil(t, abmTok.IPadOSDefaultTeamID)
+		require.Nil(t, abmTok.IOSDefaultTeamID)
 
 		// no teams, so no team-specific custom setup assistants
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
@@ -120,7 +125,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			case "/session":
 				_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 			case "/account":
-				_, _ = w.Write([]byte(`{"admin_id": "admin123", "org_name": "test_org"}`))
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
 			case "/profile":
 				err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"})
 				require.NoError(t, err)
@@ -158,7 +163,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NotEmpty(t, defProf.Token)
 
 		// a profile UUID was assigned to no-team
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, abmTokenOrgName)
 		require.NoError(t, err)
 		require.Equal(t, "profile123", profUUID)
 		require.False(t, modTime.Before(start))
@@ -192,7 +197,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			case "/session":
 				_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 			case "/account":
-				_, _ = w.Write([]byte(`{"admin_id": "admin123", "org_name": "test_org"}`))
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
 			case "/profile":
 				reqBody, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -236,12 +241,11 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test_team"})
 		require.NoError(t, err)
 
-		appCfg, err := ds.AppConfig(ctx)
+		// set that team as default assignment for new macOS devices
+		tok, err := ds.GetABMTokenByOrgName(ctx, abmTokenOrgName)
 		require.NoError(t, err)
-
-		// set that team as default assignment for new devices
-		appCfg.MDM.DeprecatedAppleBMDefaultTeam = tm.Name
-		err = ds.SaveAppConfig(ctx, appCfg)
+		tok.MacOSDefaultTeamID = &tm.ID
+		err = ds.SaveABMToken(ctx, tok)
 		require.NoError(t, err)
 
 		// create a custom setup assistant for that team
@@ -264,7 +268,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NotEmpty(t, defProf.Token)
 
 		// a profile UUID was assigned to the team
-		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, "")
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID, abmTokenOrgName)
 		require.NoError(t, err)
 		require.Equal(t, "profile123", profUUID)
 		require.False(t, modTime.Before(start))
@@ -272,8 +276,11 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		// the team-specific custom profile was registered
 		tmAsst, err = ds.GetMDMAppleSetupAssistant(ctx, tmAsst.TeamID)
 		require.NoError(t, err)
-		//require.Equal(t, "profile456", tmAsst.ProfileUUID)
 		require.False(t, tmAsst.UploadedAt.Before(start))
+		profileUUID, modTime, err := ds.GetMDMAppleSetupAssistantProfileForABMToken(ctx, &tm.ID, abmTokenOrgName)
+		require.NoError(t, err)
+		require.Equal(t, "profile456", profileUUID)
+		require.True(t, tmAsst.UploadedAt.Equal(modTime))
 
 		// a couple hosts were created and assigned to the team (except the op_type ignored)
 		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})

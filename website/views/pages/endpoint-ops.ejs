@@ -3,22 +3,22 @@
     <div purpose="page-content" class="mx-auto">
     <div purpose="hero">
       <div purpose="page-headline">
-        <h4>Endpoint operations <%= ['eo-security', 'vm'].includes(primaryBuyingSituation) ? 'for security' : ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'for IT' : '' %></h4>
-        <h1><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h1>
+        <h4>Endpoint operations <%= ['eo-security', 'vm'].includes(pagePersonalization) ? 'for security' : ['eo-it', 'mdm'].includes(pagePersonalization) ? 'for IT' : '' %></h4>
+        <h1><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h1>
       </div>
       <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
         <div purpose="hero-image">
           <img alt="A device verifying compliance for every endpoint" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="hero-text">
-          <% if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) { %>
+          <% if(['eo-it', 'mdm'].includes(pagePersonalization)) { %>
             <strong>Automate anything</strong>
             <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
             <strong>Pulse check anything</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
             <strong>Ship data to any platform</strong>
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-          <% } else if(['eo-security', 'vm'].includes(primaryBuyingSituation)) { %>
+          <% } else if(['eo-security', 'vm'].includes(pagePersonalization)) { %>
             <strong>Osquery on easy mode</strong>
             <p>Build the agent in "read-only" mode or enable remote scripting to automatically mitigate misconfigurations and vulnerabilities.</p>
             <strong>Pulse check anything</strong>
@@ -41,7 +41,7 @@
       </div>
     </div>
     <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-      <% if (['eo-security'].includes(primaryBuyingSituation)) { %>
+      <% if (['eo-security'].includes(pagePersonalization)) { %>
         <div purpose="testimonial-quote">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
@@ -57,7 +57,7 @@
           </div>
             </a>
         </div>
-      <% } else if (['vm'].includes(primaryBuyingSituation)) { %>
+      <% } else if (['vm'].includes(pagePersonalization)) { %>
         <div purpose="testimonial-quote">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
@@ -91,15 +91,15 @@
         </div>
       <% } %>
       <div purpose="testimonial-videos" class="d-flex">
-        <%if(['eo-security'].includes(primaryBuyingSituation)) {%>
+        <%if(['eo-security'].includes(pagePersonalization)) {%>
         <div purpose="testimonial-video" class="charles-zaffery mx-auto" @click="clickOpenVideoModal('charles-zaffery')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-        <%} else if(['vm'].includes(primaryBuyingSituation)){%>
+        <%} else if(['vm'].includes(pagePersonalization)){%>
         <div purpose="testimonial-video" class="austin-anderson mx-auto" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-        <%} else if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) {%>
+        <%} else if(['eo-it', 'mdm'].includes(pagePersonalization)) {%>
         <div purpose="testimonial-video" class="nick-fohs mx-auto" @click="clickOpenVideoModal('nick-fohs')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
@@ -116,7 +116,7 @@
     <logo-carousel></logo-carousel>
 
 
-    <% if(!primaryBuyingSituation || ['mdm', 'eo-it'].includes(primaryBuyingSituation)){%>
+    <% if(!pagePersonalization || ['mdm', 'eo-it'].includes(pagePersonalization)){%>
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Automate anything</h3>
@@ -225,7 +225,7 @@
       </div>
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Osquery on easy mode</h3>
-        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your <%= ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'endpoints' : 'devices' %>.</p>
+        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your <%= ['vm', 'eo-security'].includes(pagePersonalization) ? 'endpoints' : 'devices' %>.</p>
         <div purpose="checklist" class="flex-column d-flex">
           <p>Remotely disable/enable agent features, choose plugins, and keep osquery up to date.</p>
           <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
@@ -235,7 +235,7 @@
       </div>
     </div>
 
-    <% if(!primaryBuyingSituation || ['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
+    <% if(!pagePersonalization || ['vm', 'eo-security'].includes(pagePersonalization)) {%>
     <div purpose="feature-headline" class="mr-auto">
       <h3>Open security tooling</h3>
       <p>Consolidate your security tooling on top of open data standards like YAML, SQL, and JSON.</p>
@@ -289,7 +289,7 @@
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
         <h4>Who else uses Fleet?</h4>
-        <h3>Empowering <%= ['mdm'].includes(primaryBuyingSituation) ? 'IT and corporate engineering' : ['eo-it'].includes(primaryBuyingSituation) ? 'IT and client platform' : ['eo-security'].includes(primaryBuyingSituation) ? 'security and platform' : ['vm'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT and security' %> teams, globally</h3>
+        <h3>Empowering <%= ['mdm'].includes(pagePersonalization) ? 'IT and corporate engineering' : ['eo-it'].includes(pagePersonalization) ? 'IT and client platform' : ['eo-security'].includes(pagePersonalization) ? 'security and platform' : ['vm'].includes(pagePersonalization) ? 'security and IT' : 'IT and security' %> teams, globally</h3>
       </div>
     </div>
 
@@ -298,7 +298,7 @@
 
       <div purpose="section-heading" class="text-center">
         <h4>Endpoint operations</h4>
-        <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
+        <h3><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
           <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>

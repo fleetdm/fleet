@@ -200,8 +200,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
-		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-			return nil
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
 		}
 		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 		require.NoError(t, err)

@@ -380,7 +380,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -470,7 +470,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
 
@@ -773,7 +773,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -853,7 +853,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1570,47 +1570,17 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID, info.Platform)
-}
-
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string, platform string) error {
-	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
-	ticker := time.NewTicker(300 * time.Millisecond)
-	defer func() {
-		ticker.Stop()
-		cancelFn()
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			// time out after 5 seconds
-			return fleet.MDMAppleCommandTimeoutError{}
-		case <-ticker.C:
-			nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, deviceID)
-			if err != nil {
-				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
-				return err
-			}
-			if nanoEnroll != nil && nanoEnroll.Enabled {
-				// check again on the next tick
-				continue
-			}
-			// success, mdm enrollment is no longer enabled for the device
-			level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
-
-			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
-			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
-				Action:   mdmlifecycle.HostActionTurnOff,
-				Platform: platform,
-				UUID:     deviceID,
-			})
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+		Action:   mdmlifecycle.HostActionTurnOff,
+		Platform: info.Platform,
+		UUID:     h.UUID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "running turn off action in mdm lifecycle")
 	}
+
+	return nil
 }
 
 type mdmAppleGetInstallerRequest struct {
@@ -1978,7 +1948,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -3149,7 +3119,7 @@ func SendPushesToPendingDevices(
 	if err := commander.SendNotifications(ctx, uuids); err != nil {
 		var apnsErr *apple_mdm.APNSDeliveryError
 		if errors.As(err, &apnsErr) {
-			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "host_uuids", apnsErr.FailedUUIDs)
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
 			return nil
 		}
 
@@ -4176,4 +4146,46 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /enrollment_profiles/ota
+////////////////////////////////////////////////////////////////////////////////
+
+type getOTAProfileRequest struct {
+	EnrollSecret string `query:"enroll_secret"`
+}
+
+func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOTAProfileRequest)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
+	if err != nil {
+		return &getMDMAppleConfigProfileResponse{Err: err}, err
+	}
+
+	reader := bytes.NewReader(profile)
+	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
+}
+
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
+	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
+	// by the enroll secret verification below
+	svc.authz.SkipAuthorization(ctx)
+
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
+	}
+
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
+	}
+
+	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
 }

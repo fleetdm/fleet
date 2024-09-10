@@ -25,7 +25,7 @@ const AppleAutomaticEnrollmentCard = ({
       "Add an Apple Business Manager (ABM) connection to automatically enroll newly " +
       "purchased Apple hosts when they're first unboxed and set up by your end users.";
   } else if (isAppleMdmOn && configured) {
-    msg = "Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts enabled.";
+    msg = "Automatic enrollment for Apple (macOS, iOS, iPadOS) is enabled.";
     icon = "success";
   }
 

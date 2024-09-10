@@ -24,7 +24,7 @@ const mockRouter = {
 };
 
 describe("Software Vulnerabilities table", () => {
-  it("Renders the page-wide disabled state when software inventory is disabled", async () => {
+  it("Renders the page-wide disabled state when software inventory is disabled", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -62,7 +62,7 @@ describe("Software Vulnerabilities table", () => {
   });
 
   // TODO: Reinstate collecting software view
-  it("Renders the page-wide empty state when no software vulnerabilities are present", async () => {
+  it("Renders the page-wide empty state when no software vulnerabilities are present", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -97,13 +97,14 @@ describe("Software Vulnerabilities table", () => {
     );
 
     expect(screen.getByText("No vulnerabilities detected")).toBeInTheDocument();
+    expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(
       screen.getByText("Expecting to see vulnerabilities? Check back later.")
     ).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the empty search state when search query does not exist but exploited vulnerabilities dropdown is applied", async () => {
+  it("Renders the empty search state when search query does not exist but exploited vulnerabilities dropdown is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -145,7 +146,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the invalid CVE empty search state when search query wrapped in quotes is invalid with no results", async () => {
+  it("Renders the invalid CVE empty search state when search query wrapped in quotes is invalid with no results", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -188,7 +189,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the valid known CVE empty search state when search query wrapped in quotes is valid known CVE with no results", async () => {
+  it("Renders the valid known CVE empty search state when search query wrapped in quotes is valid known CVE with no results", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -233,7 +234,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders the valid unknown CVE empty search state when search query wrapped in quotes is not a valid known CVE with no results", async () => {
+  it("Renders the valid unknown CVE empty search state when search query wrapped in quotes is not a valid known CVE with no results", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -276,7 +277,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
-  it("Renders premium columns", async () => {
+  it("Renders premium columns", () => {
     const render = createCustomRenderer({
       context: {
         app: {

@@ -109,6 +109,7 @@ export interface ISoftwareTitleDetails {
   source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  versions_updated_at?: string;
   bundle_identifier?: string;
   browser?: string;
   versions_count?: number;

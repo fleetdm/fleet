@@ -20,7 +20,7 @@ export const getErrorMessage = (err: unknown) => {
     reasonIncludes: "Duplicate entry",
   });
   const invalidTokenReason = getErrorReason(err, {
-    reasonIncludes: "invalid",
+    reasonIncludes: "Invalid token",
   });
 
   if (duplicateEntryReason) {
@@ -28,7 +28,7 @@ export const getErrorMessage = (err: unknown) => {
   }
 
   if (invalidTokenReason) {
-    return "Invalid token. Please provide a valid token from Apple Business Manager.";
+    return invalidTokenReason;
   }
 
   return DEFAULT_ERROR_MESSAGE;

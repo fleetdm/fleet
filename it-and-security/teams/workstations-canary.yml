@@ -65,7 +65,6 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
       - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
       - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
@@ -132,7 +131,7 @@ policies:
     platform: darwin
     calendar_events_enabled: false
   - name: macOS - System maintenance complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Drew’s MacBook Pro','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
     critical: false
     description: Determines if the device has completed system maintenance.
     resolution: We will perform system maintenance on your device.

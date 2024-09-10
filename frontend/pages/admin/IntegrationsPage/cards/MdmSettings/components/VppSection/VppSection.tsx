@@ -46,7 +46,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
       <p>
         <span>
           <Icon name="success" />
-          Volume Purchasing Program (VPP) enabled.
+          Volume Purchasing Program (VPP) is enabled.
         </span>
       </p>
       <Button onClick={navigateToVppSetup} variant="text-icon">

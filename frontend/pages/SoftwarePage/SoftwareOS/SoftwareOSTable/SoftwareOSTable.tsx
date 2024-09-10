@@ -129,7 +129,7 @@ const SoftwareOSTable = ({
   };
 
   const renderSoftwareCount = () => {
-    if (!data?.os_versions || !data?.count) return null;
+    if (!data) return null;
 
     return (
       <>

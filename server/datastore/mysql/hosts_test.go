@@ -6751,6 +6751,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		InstallScript:   "",
 		PreInstallQuery: "",
 		Title:           "ChocolateRain",
+		UserID:          user1.ID,
 	})
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false)

@@ -6,7 +6,6 @@ import getInstallScript from "utilities/software_install_scripts";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import Editor from "components/Editor";
 import {
   FileUploader,
   FileDetails,
@@ -14,25 +13,25 @@ import {
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions";
+import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
 
 import { generateFormValidation } from "./helpers";
 
-export const baseClass = "add-software-form";
+export const baseClass = "add-package-form";
 
 const UploadingSoftware = () => {
   return (
     <div className={`${baseClass}__uploading-message`}>
       <Spinner centered={false} />
-      <p>Uploading. It may take a few minutes to finish.</p>
+      <p>Adding software. This may take a few minutes to finish.</p>
     </div>
   );
 };
 
-export interface IAddSoftwareFormData {
+export interface IAddPackageFormData {
   software: File | null;
   installScript: string;
-  preInstallCondition?: string;
+  preInstallQuery?: string;
   postInstallScript?: string;
   selfService: boolean;
 }
@@ -40,30 +39,28 @@ export interface IAddSoftwareFormData {
 export interface IFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
-  preInstallCondition?: { isValid: boolean; message?: string };
+  preInstallQuery?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
 }
 
-interface IAddSoftwareFormProps {
+interface IAddPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
-  onSubmit: (formData: IAddSoftwareFormData) => void;
+  onSubmit: (formData: IAddPackageFormData) => void;
 }
 
-const AddSoftwareForm = ({
+const AddPackageForm = ({
   isUploading,
   onCancel,
   onSubmit,
-}: IAddSoftwareFormProps) => {
+}: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
-  const [showPostInstallScript, setShowPostInstallScript] = useState(false);
-  const [formData, setFormData] = useState<IAddSoftwareFormData>({
+  const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
-    preInstallCondition: undefined,
+    preInstallQuery: undefined,
     postInstallScript: undefined,
     selfService: false,
   });
@@ -90,13 +87,7 @@ const AddSoftwareForm = ({
         installScript,
       };
       setFormData(newData);
-      setFormValidation(
-        generateFormValidation(
-          newData,
-          showPreInstallCondition,
-          showPostInstallScript
-        )
-      );
+      setFormValidation(generateFormValidation(newData));
     }
   };
 
@@ -105,62 +96,26 @@ const AddSoftwareForm = ({
     onSubmit(formData);
   };
 
-  const onTogglePreInstallConditionCheckbox = (value: boolean) => {
-    const newData = { ...formData, preInstallCondition: undefined };
-    setShowPreInstallCondition(value);
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(newData, value, showPostInstallScript)
-    );
-  };
-
-  const onTogglePostInstallScriptCheckbox = (value: boolean) => {
-    const newData = { ...formData, postInstallScript: undefined };
-    setShowPostInstallScript(value);
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(newData, showPreInstallCondition, value)
-    );
-  };
-
   const onChangeInstallScript = (value: string) => {
     setFormData({ ...formData, installScript: value });
   };
 
-  const onChangePreInstallCondition = (value?: string) => {
-    const newData = { ...formData, preInstallCondition: value };
+  const onChangePreInstallQuery = (value?: string) => {
+    const newData = { ...formData, preInstallQuery: value };
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onChangePostInstallScript = (value?: string) => {
     const newData = { ...formData, postInstallScript: value };
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
+    setFormValidation(generateFormValidation(newData));
   };
 
   const isSubmitDisabled = !formValidation.isValid;
@@ -185,25 +140,6 @@ const AddSoftwareForm = ({
               )
             }
           />
-          {formData.software && (
-            <Editor
-              wrapEnabled
-              maxLines={10}
-              name="install-script"
-              onChange={onChangeInstallScript}
-              value={formData.installScript}
-              helpText="Fleet will run this command on hosts to install software."
-              label="Install script"
-              labelTooltip={
-                <>
-                  For security agents, add the script provided by the vendor.
-                  <br />
-                  In custom scripts, you can use the $INSTALLER_PATH variable to
-                  point to the installer.
-                </>
-              }
-            />
-          )}
           <Checkbox
             value={formData.selfService}
             onChange={onToggleSelfServiceCheckbox}
@@ -219,19 +155,17 @@ const AddSoftwareForm = ({
               Self-service
             </TooltipWrapper>
           </Checkbox>
-          <AddSoftwareAdvancedOptions
+          <AddPackageAdvancedOptions
             errors={{
-              preInstallCondition: formValidation.preInstallCondition?.message,
+              preInstallQuery: formValidation.preInstallQuery?.message,
               postInstallScript: formValidation.postInstallScript?.message,
             }}
-            showPreInstallCondition={showPreInstallCondition}
-            showPostInstallScript={showPostInstallScript}
-            preInstallCondition={formData.preInstallCondition}
+            preInstallQuery={formData.preInstallQuery}
             postInstallScript={formData.postInstallScript}
-            onTogglePreInstallCondition={onTogglePreInstallConditionCheckbox}
-            onTogglePostInstallScript={onTogglePostInstallScriptCheckbox}
-            onChangePreInstallCondition={onChangePreInstallCondition}
+            onChangePreInstallQuery={onChangePreInstallQuery}
+            onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
+            installScript={formData.installScript}
           />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
@@ -247,4 +181,4 @@ const AddSoftwareForm = ({
   );
 };
 
-export default AddSoftwareForm;
+export default AddPackageForm;
