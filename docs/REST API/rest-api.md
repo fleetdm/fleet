@@ -9059,8 +9059,7 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
-
-`PATCH /api/v1/fleet/software/titles/:title_id`
+`PATCH /api/v1/fleet/software/titles/:title_id/package`
 
 #### Parameters
 
@@ -9073,9 +9072,10 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 
+> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/1`
+`PATCH /api/v1/fleet/software/titles/1/package`
 
 ##### Request header
 
@@ -9115,50 +9115,21 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "software_title": {
-    "id": 12,
-    "name": "Firefox.app",
-    "bundle_identifier": "org.mozilla.firefox",
-    "software_package": {
-      "name": "FalconSensor-6.44.pkg",
-      "version": "6.44",
-      "installer_id": 23,
-      "team_id": 3,
-      "uploaded_at": "2024-04-01T14:22:58Z",
-      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-      "self_service": true,
-      "status": {
-        "installed": 3,
-        "pending": 1,
-        "failed": 2,
-      }
-    },
-    "app_store_app": null,
-    "source": "apps",
-    "browser": "",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "117.0",
-        "vulnerabilities": ["CVE-2023-1234"],
-        "hosts_count": 37
-      },
-      {
-        "id": 124,
-        "version": "116.0",
-        "vulnerabilities": ["CVE-2023-4321"],
-        "hosts_count": 7
-      },
-      {
-        "id": 127,
-        "version": "115.5",
-        "vulnerabilities": ["CVE-2023-7654"],
-        "hosts_count": 4
-      }
-    ]
+  "software_package": {
+    "name": "FalconSensor-6.44.pkg",
+    "version": "6.44",
+    "installer_id": 23,
+    "team_id": 3,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+    "self_service": true,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
   }
 }
 ```
