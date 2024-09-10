@@ -187,6 +187,13 @@
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
+-
+  task: "Change password of \"Integrations admin\" Salesforce account" 
+  startedOn: "2024-09-10" 
+  frequency: "Quarterly"
+  description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce." 
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
+  dri: "eashaw"
 
 
 
