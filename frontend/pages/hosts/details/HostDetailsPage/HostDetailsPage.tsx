@@ -68,6 +68,7 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+// import { SoftwareUninstallDetailsModal } from "components/ActivityDetails/UninstallDetails/SoftwareUninstallDetails/SoftwareUninstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -180,6 +181,10 @@ const HostDetailsPage = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
@@ -598,6 +603,13 @@ const HostDetailsPage = ({
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
             // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case "uninstalled_software":
+          setPackageUninstallDetails({
+            ...details,
             host_display_name:
               host?.display_name || details?.host_display_name || "",
           });
@@ -1063,6 +1075,12 @@ const HostDetailsPage = ({
             onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}
+        {/* {!!packageUninstallDetails && (
+          <SoftwareUninstallDetailsModal
+            details={packageUninstallDetails}
+            onCancel={onCancelSoftwareUninstallDetailsModal}
+          />
+        )} */}
         {!!appInstallDetails && (
           <AppInstallDetailsModal
             details={appInstallDetails}

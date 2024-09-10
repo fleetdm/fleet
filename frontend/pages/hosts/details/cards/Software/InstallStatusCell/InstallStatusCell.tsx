@@ -30,7 +30,7 @@ export type IStatusDisplayConfig = {
 };
 
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  IStatusValue | "selfService",
+  Exclude<IStatusValue, "uninstalled"> | "selfService",
   IStatusDisplayConfig
 > = {
   installed: {

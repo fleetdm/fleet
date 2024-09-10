@@ -907,6 +907,42 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  uninstalledSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    const {
+      host_display_name: hostName,
+      software_title: title,
+      status,
+    } = details;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
+
+    return (
+      <>
+        {" "}
+        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} from{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() => onDetailsClick?.(activity.type, details)}
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -1167,6 +1203,9 @@ const getDetail = (
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.UninstalledSoftware: {
+      return TAGGED_TEMPLATES.uninstalledSoftware(activity, onDetailsClick);
     }
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);

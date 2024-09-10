@@ -196,6 +196,7 @@ export const formatSoftwareType = ({
  */
 export const SOFTWARE_INSTALL_STATUSES = [
   "installed",
+  "uninstalled",
   "pending_install",
   "failed_install",
   "pending_uninstall",
@@ -281,7 +282,7 @@ export interface IHostSoftware {
   app_store_app: IHostAppStoreApp | null;
   source: string;
   bundle_identifier?: string;
-  status: SoftwareInstallStatus | null;
+  status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
@@ -293,6 +294,7 @@ const INSTALL_STATUS_PREDICATES: Record<
 > = {
   pending: "pending",
   installed: "installed",
+  uninstalled: "uninstalled",
   pending_install: "told Fleet to install",
   failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
@@ -300,6 +302,10 @@ const INSTALL_STATUS_PREDICATES: Record<
 } as const;
 
 export const getInstallStatusPredicate = (status: string | undefined) => {
+  // TODO(jacob) – failed uninstall activities currently have a status of "failed", not an expected
+  // possiblity here, and so this method returns the default "pending". This proposed API update
+  // should bring those into alignment, however, past "failed" uninstall activities are currently
+  // buggy: https://github.com/fleetdm/fleet/pull/21548/files#r1751092913
   if (!status) {
     return INSTALL_STATUS_PREDICATES.pending;
   }
@@ -316,6 +322,7 @@ export const INSTALL_STATUS_ICONS: Record<
   pending: "pending-outline",
   pending_install: "pending-outline",
   installed: "success-outline",
+  uninstalled: "success-outline",
   failed: "error-outline",
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",

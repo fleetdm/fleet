@@ -22,7 +22,10 @@ import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell"
 const baseClass = "self-service-item";
 
 const STATUS_CONFIG: Record<
-  Exclude<SoftwareInstallStatus, "pending_uninstall" | "failed_uninstall">,
+  Exclude<
+    SoftwareInstallStatus,
+    "pending_uninstall" | "failed_uninstall" | "uninstalled"
+  >,
   IStatusDisplayConfig
 > = {
   installed: {
