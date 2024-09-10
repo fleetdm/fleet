@@ -32,7 +32,7 @@ Coming soon:
 
 ```
 
-SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20143') >= 0;
+SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 
 ```
 
