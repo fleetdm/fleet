@@ -2,7 +2,7 @@
 
 ![Top Image](../website/assets/images/articles/automatic-software-install-top-image.png)
 
-Fleet has the ability to automatically and remotly install software on hosts upon a specific policy failure, programmed in advance. 
+Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduced the ability to automatically and remotly install software on hosts upon a specific policy failure, programmed in advance. 
 This guide will walk you through the process of configuring fleet for automatic installation of
 software on hosts using pre uploded installation images and based on pre programmed policies. 
 You'll learn how to configure and use this feature, as well as understand how the underlying
@@ -24,7 +24,7 @@ See step by step section below.
 
 ## Step-by-Step Instructions
 
-1. Add any software to be available for installation. Follow this document with instruction how to
+1. Add any software to be available for installation. Follow this document with instructions how to
    do it.
    Note that all steps of the software installation as set here will be respected regardless to the
    policy that may trigger this software installations.
@@ -48,7 +48,7 @@ Coming soon:
 
 2. In Fleet, add a policy that failure to pass it will trigger the required installation.
   Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy"
-  --> Save --> Fill details in the Save modal and Save.
+  --> Save --> Fill in details in the Save modal and Save.
 
 ![Add New Policy](../website/assets/images/articles/automatic-software-install-add-new-policy.png)
 
@@ -56,7 +56,7 @@ Coming soon:
 
 ![Plocies Manage](../website/assets/images/articles/automatic-software-install-policies-manage.png)
 
-4. Select (click th echeck box of) your newly created policy. To the right of it select from the
+4. Select (click the check box of) your newly created policy. To the right of it select from the
    drop-down list the software you would like to be installed upon failure of this policy.
 
 ![Install Software Modal](../website/assets/images/articles/automatic-software-install-install-software.png)
@@ -70,7 +70,9 @@ Upon failure of the select policy, the selected software installation will be tr
 ## How does it work?
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
-* TODO Sharon: Describe the workflow 
+* The policy check mechanism runs on a typical 1 hour cadence on all online hosts. 
+* Hosts that fail a policy with an attached installation automation will start the process of
+  installation as described in the following flowchart
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
@@ -86,7 +88,7 @@ Upon failure of the select policy, the selected software installation will be tr
 
 ## Additional Information
 
-* TODO: Add link to software install document
+* [Software installation viahere](https://fleetdm.com/guides/deploy-security-agents). TODO: Add link to software install document
 * TODO: Add other docs
 
 
