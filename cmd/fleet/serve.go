@@ -518,6 +518,10 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 				}
 
+				if len(config.Server.PrivateKey) == 0 {
+					initFatal(errors.New("inserting MDM APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+				}
+
 				// parse the APNs and SCEP assets from the config
 				_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
 				if err != nil {
@@ -576,6 +580,10 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
 				}
 
+				if len(config.Server.PrivateKey) == 0 {
+					initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+				}
+
 				appleBM, err := config.MDM.AppleBM()
 				if err != nil {
 					initFatal(err, "parse Apple BM token, certificate and key from config")
@@ -594,9 +602,6 @@ the way that the Fleet server works.
 				}
 
 				if len(toInsert) > 0 {
-					if len(config.Server.PrivateKey) == 0 {
-						initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-					}
 					err := ds.InsertMDMConfigAssets(context.Background(), toInsert)
 					switch {
 					case err != nil && mysql.IsDuplicate(err):
