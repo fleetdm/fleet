@@ -1271,15 +1271,15 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		return
 	}
 
-	// Collect Python and Debian packages
+	// Use a map for faster lookups
 	pythonPackages := make([]string, 0, 50)
-	debPackages := make([]string, 0, 1500)
+	debPackages := make(map[string]struct{}, 1500) // Use map for O(1) lookups
 	for _, row := range sw {
 		switch row["source"] {
 		case "python_packages":
-			pythonPackages = append(pythonPackages, row["name"])
+			pythonPackages = append(pythonPackages, strings.ToLower(row["name"]))
 		case "deb_packages":
-			debPackages = append(debPackages, row["name"])
+			debPackages[row["name"]] = struct{}{}
 		}
 	}
 
@@ -1288,39 +1288,24 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		return
 	}
 
-	// Prepare lists of Python packages to delete and update
-	toDelete := make(map[string]struct{})
-	var toUpdate []string
-	for _, name := range pythonPackages {
-		convertedName := "python3-" + strings.ToLower(name)
-		found := false
-		for _, debPackage := range debPackages {
-			if debPackage == convertedName {
-				found = true
-				toDelete[name] = struct{}{}
-				break
+	// Prepare the final filtered software list in one pass
+	filteredSW := make([]map[string]string, 0, len(sw))
+	for _, row := range sw {
+		if row["source"] == "python_packages" {
+			loweredName := strings.ToLower(row["name"])
+			convertedName := "python3-" + loweredName
+
+			// Check if this python package exists in debPackages (using map for fast lookup)
+			if _, found := debPackages[convertedName]; found {
+				continue // Skip if found in debPackages
 			}
+
+			// Update the Python package name
+			row["name"] = convertedName
 		}
-		if !found {
-			toUpdate = append(toUpdate, name)
-		}
+		filteredSW = append(filteredSW, row)
 	}
 
-	filteredSW := make([]map[string]string, 0, len(sw))
-	// Delete Python packages that have a corresponding Debian package
-	if len(toDelete) > 0 || len(toUpdate) > 0 {
-		for _, row := range sw {
-			if row["source"] == "python_packages" {
-				if _, ok := toDelete[row["name"]]; ok {
-					continue
-				}
-				row["name"] = "python3-" + strings.ToLower(row["name"])
-				filteredSW = append(filteredSW, row)
-				continue
-			}
-			filteredSW = append(filteredSW, row)
-		}
-	}
 	// Store the updated software result back in the results map
 	(*results)[hostDetailQueryPrefix+"software_linux"] = filteredSW
 }
