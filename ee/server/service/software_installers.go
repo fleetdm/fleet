@@ -248,8 +248,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 		if payloadForNewInstallerFile == nil { // fill in existing installer data to payload
 			payload.StorageID = installer.StorageID
-			payload.Filename = existingInstallerFileMeta.Name
-			payload.Version = existingInstallerFileMeta.Version
+			payload.Filename = installer.Name
+			payload.Version = installer.Version
 			payload.PackageIDs = existingInstallerFileMeta.PackageIDs
 		}
 
