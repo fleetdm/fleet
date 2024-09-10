@@ -1,0 +1,2 @@
+- Deleted iOS/iPadOS host will continue to report to Fleet as long as host is in Apple Business Manager (ABM).
+- Refetching an offline iOS/iPadOS host will not add new MDM commands to the queue if previous refetch has not completed yet.

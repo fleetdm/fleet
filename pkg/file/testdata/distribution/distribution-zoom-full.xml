@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+  <pkg-ref id="us.zoom.pkg.videomeeting"/>
+  <title>Zoom Workplace</title>
+  <options hostArchitectures="x86_64,arm64"/>
+  <options customize="never"/>
+  <domains enable_currentUserHome="true" enable_localSystem="true"/>
+  <options customLocation="Applications" customLocationAllowAlternateVolumes="true"/>
+  <options allow-external-scripts="false"/>
+  <welcome file="Welcome.rtf"/>
+  <!--    
+    <readme file="ReadMe.rtf"/>
+-->
+  <background file="background.png" scaling="proportional" alignment="bottomleft"/>
+  <allowed-os-versions>
+    <os-version min="10.13"/>
+  </allowed-os-versions>
+  <pkg-ref id="us.zoom.pkg.videomeeting">
+    <must-close>
+      <app id="us.zoom.xos"/>
+    </must-close>
+    <bundle-version/>
+  </pkg-ref>
+  <choices-outline>
+    <line choice="default">
+      <line choice="us.zoom.pkg.videomeeting"/>
+    </line>
+  </choices-outline>
+  <choice id="default"/>
+  <choice id="us.zoom.pkg.videomeeting" visible="false">
+    <pkg-ref id="us.zoom.pkg.videomeeting"/>
+  </choice>
+  <pkg-ref id="us.zoom.pkg.videomeeting" version="6.1.1.36333" onConclusion="none" installKBytes="308054">#zoomus.pkg</pkg-ref>
+  <product version="6.1.1.36333"/>
+</installer-gui-script>

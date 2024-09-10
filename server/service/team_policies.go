@@ -29,6 +29,7 @@ type teamPolicyRequest struct {
 	Platform              string `json:"platform"`
 	Critical              bool   `json:"critical" premium:"true"`
 	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint  `json:"software_title_id"`
 }
 
 type teamPolicyResponse struct {
@@ -40,7 +41,7 @@ func (r teamPolicyResponse) error() error { return r.Err }
 
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamPolicyRequest)
-	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.PolicyPayload{
+	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
 		QueryID:               req.QueryID,
 		Name:                  req.Name,
 		Query:                 req.Query,
@@ -49,6 +50,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Platform:              req.Platform,
 		Critical:              req.Critical,
 		CalendarEventsEnabled: req.CalendarEventsEnabled,
+		SoftwareTitleID:       req.SoftwareTitleID,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -56,7 +58,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return teamPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.PolicyPayload) (*fleet.Policy, error) {
+func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewTeamPolicyPayload) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -70,6 +72,11 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 		return nil, errors.New("user must be authenticated to create team policies")
 	}
 
+	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
@@ -78,6 +85,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
+	}
+
+	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
 
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
@@ -93,6 +104,39 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
 	}
 	return policy, nil
+}
+
+func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.Policy) error {
+	if p.SoftwareInstallerID == nil {
+		return nil
+	}
+	installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *p.SoftwareInstallerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+	}
+	p.InstallSoftware = &fleet.PolicySoftwareTitle{
+		SoftwareTitleID: *installerMetadata.TitleID,
+		Name:            installerMetadata.SoftwareTitle,
+	}
+	return nil
+}
+
+func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
+	softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, &teamID, p.SoftwareTitleID)
+	if err != nil {
+		return fleet.PolicyPayload{}, err
+	}
+	return fleet.PolicyPayload{
+		QueryID:               p.QueryID,
+		Name:                  p.Name,
+		Query:                 p.Query,
+		Critical:              p.Critical,
+		Description:           p.Description,
+		Resolution:            p.Resolution,
+		Platform:              p.Platform,
+		CalendarEventsEnabled: p.CalendarEventsEnabled,
+		SoftwareInstallerID:   softwareInstallerID,
+	}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -148,11 +192,27 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if mergeInherited {
-		p, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts)
-		return p, nil, err
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts)
+		for i := range policies {
+			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
+				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
+			}
+		}
+		return policies, nil, err
 	}
 
-	return svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for i := range teamPolicies {
+		if err := svc.populatePolicyInstallSoftware(ctx, teamPolicies[i]); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", teamPolicies[i].ID)
+		}
+	}
+
+	return teamPolicies, inheritedPolicies, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -238,6 +298,10 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 	teamPolicy, err := svc.ds.TeamPolicy(ctx, teamID, policyID)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := svc.populatePolicyInstallSoftware(ctx, teamPolicy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
 
 	return teamPolicy, nil
@@ -418,11 +482,23 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
 	}
+	if p.SoftwareTitleID != nil {
+		softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, teamID, p.SoftwareTitleID)
+		if err != nil {
+			return nil, err
+		}
+		policy.SoftwareInstallerID = softwareInstallerID
+	}
+
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
 	err = svc.ds.SavePolicy(ctx, policy, removeAllMemberships, removeStats)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
+	}
+
+	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
 
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
@@ -439,4 +515,49 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	return policy, nil
+}
+
+func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, teamID *uint, softwareTitleID *uint) (*uint, error) {
+	if softwareTitleID == nil {
+		return nil, nil
+	}
+
+	// If *p.SoftwareTitleID with value 0 is used to unset the current installer from the policy.
+	if *softwareTitleID == 0 {
+		return nil, nil
+	}
+
+	if teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "software_title_id cannot be set on global policies",
+		})
+	}
+
+	softwareTitle, err := svc.SoftwareTitleByID(ctx, *softwareTitleID, teamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("software_title_id %d on team_id %d not found", *softwareTitleID, *teamID),
+			})
+		}
+		return nil, ctxerr.Wrap(ctx, err, "software title by id")
+	}
+	if softwareTitle.AppStoreApp != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("software_title_id %d on team_id %d is assocated to a VPP app, only software installers are supported", *softwareTitleID, *teamID),
+		})
+	}
+	if softwareTitle.SoftwarePackage == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("software_title_id %d on team_id %d does not have associated package", *softwareTitleID, *teamID),
+		})
+	}
+
+	//
+	// TODO(lucas): Support "No team" (softwareTitle.SoftwarePackage.TeamID == nil).
+	//
+
+	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
+	// because SoftwareTitleByID above receives the teamID.
+	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil
 }

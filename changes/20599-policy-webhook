@@ -1,0 +1,1 @@
+- In policy webhook, made sure the failing_host_count is never 0. This count is normally updated once an hour during cleanups_then_aggregation cron job.

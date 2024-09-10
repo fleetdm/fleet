@@ -108,6 +108,7 @@
 
         .manage-hosts__filter-dropdowns {
           display: flex;
+          flex-direction: row;
           margin-left: $pad-medium;
 
           // Dropdown height matches search bar height
@@ -166,10 +167,12 @@
         }
 
         .controls {
-          order: 1;
-          margin-bottom: $pad-medium;
+          order: -2;
+          margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
+            display: flex;
+            flex-direction: row;
             flex: 1;
 
             .form-field--dropdown,

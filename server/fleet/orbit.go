@@ -39,10 +39,11 @@ type OrbitConfigNotifications struct {
 }
 
 type OrbitConfig struct {
-	Flags         json.RawMessage          `json:"command_line_startup_flags,omitempty"`
-	Extensions    json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
-	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
+	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
+	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
+	Extensions       json.RawMessage          `json:"extensions,omitempty"`
+	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
+	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
 	// UpdateChannels contains the TUF channels to use on fleetd components.
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.

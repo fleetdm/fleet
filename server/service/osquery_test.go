@@ -1600,7 +1600,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "ABCDEFGH",
+      "hardware_serial": "NEW_HW_SERIAL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1667,6 +1667,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	assert.Equal(t, "NEW_HW_SERIAL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1711,8 +1712,9 @@ func TestDetailQueries(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "linux",
+		ID:             1,
+		Platform:       "linux",
+		HardwareSerial: "HW_SERIAL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1835,7 +1837,7 @@ func TestDetailQueries(t *testing.T) {
         "cpu_subtype": "Intel x86-64h Haswell",
         "cpu_type": "x86_64h",
         "hardware_model": "MacBookPro11,4",
-        "hardware_serial": "ABCDEFGH",
+        "hardware_serial": "-1",
         "hardware_vendor": "Apple Inc.",
         "hardware_version": "1.0",
         "hostname": "computer.local",
@@ -1975,6 +1977,8 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
+	assert.Equal(t, "HW_SERIAL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)

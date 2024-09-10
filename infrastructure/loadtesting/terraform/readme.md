@@ -97,8 +97,8 @@ There are a few main places of interest to monitor the load and resource usage:
 
 You can deploy new code changes to an environment the following way:
 
-1. Push the code changes to the `BRANCH_NAME` and wait for the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) action to complete.
-2. Find the docker image ID corresponding to your branch:
+1. Push the code changes to the `BRANCH_NAME`, trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch) and wait for it to complete.
+2. Find the docker image IDs corresponding to your branch:
 ```sh
 docker images | grep 'BRANCH_NAME' | awk '{print $3}'
 ```

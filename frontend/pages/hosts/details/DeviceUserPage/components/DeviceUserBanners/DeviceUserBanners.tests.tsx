@@ -6,8 +6,7 @@ import DeviceUserBanners from "./DeviceUserBanners";
 
 describe("Device User Banners", () => {
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
-  const logoutDiskEncryptExpectedText = /Disk encryption: Log out of your device or restart to turn on disk encryption\./;
-  const resetKeyDiskEncryptExpcetedText = /Disk encryption: Reset your disk encryption key\./;
+  const resetKeyDiskEncryptExpcetedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
 
   it("renders the turn on mdm banner correctly", () => {
     render(
@@ -19,26 +18,9 @@ describe("Device User Banners", () => {
         diskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
-        onResetKey={noop}
       />
     );
     expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
-  });
-
-  it("renders the logout for disk encrpytion banner correctly", () => {
-    render(
-      <DeviceUserBanners
-        hostPlatform="darwin"
-        mdmEnrollmentStatus="On (automatic)"
-        mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus="action_required"
-        diskEncryptionActionRequired="log_out"
-        onTurnOnMdm={noop}
-        onResetKey={noop}
-      />
-    );
-    expect(screen.getByText(logoutDiskEncryptExpectedText)).toBeInTheDocument();
   });
 
   it("renders the reset key for disk encryption banner correctly", () => {
@@ -51,34 +33,11 @@ describe("Device User Banners", () => {
         diskEncryptionStatus="action_required"
         diskEncryptionActionRequired="rotate_key"
         onTurnOnMdm={noop}
-        onResetKey={noop}
       />
     );
     expect(
       screen.getByText(resetKeyDiskEncryptExpcetedText)
     ).toBeInTheDocument();
-  });
-
-  it("renders only one banner in a priority order", () => {
-    // set up to render logout disk encryption banner, which is 2nd in priority
-    render(
-      <DeviceUserBanners
-        hostPlatform="darwin"
-        mdmEnrollmentStatus="On (automatic)"
-        mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus="action_required"
-        diskEncryptionActionRequired="log_out"
-        onTurnOnMdm={noop}
-        onResetKey={noop}
-      />
-    );
-
-    expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
-    expect(screen.getByText(logoutDiskEncryptExpectedText)).toBeInTheDocument();
-    expect(
-      screen.queryByText(resetKeyDiskEncryptExpcetedText)
-    ).not.toBeInTheDocument();
   });
 
   it("renders no banner correctly", () => {
@@ -92,13 +51,12 @@ describe("Device User Banners", () => {
         diskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
-        onResetKey={noop}
       />
     );
 
     expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
     expect(
-      screen.queryByText(logoutDiskEncryptExpectedText)
+      screen.queryByText(resetKeyDiskEncryptExpcetedText)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(resetKeyDiskEncryptExpcetedText)

@@ -57,6 +57,6 @@ fleetctl debug connection \
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-09">
+<meta name="publishedOn" value="2024-07-09">
 <meta name="articleImageUrl" value="../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing-1600x900@2x.png">
 <meta name="description" value="TLS certificates in fleetd">

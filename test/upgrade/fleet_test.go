@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -197,7 +197,7 @@ func (f *Fleet) getPublicPort(serviceName string, privatePort uint16) (uint16, e
 
 	// get the random fleet host port assigned by docker
 	argsName := filters.Arg("name", containerName)
-	containers, err := f.dockerClient.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(argsName), All: true})
+	containers, err := f.dockerClient.ContainerList(context.TODO(), container.ListOptions{Filters: filters.NewArgs(argsName), All: true})
 	if err != nil {
 		return 0, err
 	}
@@ -217,7 +217,7 @@ func (f *Fleet) waitFleet(slot string) error {
 
 	// get the random fleet host port assigned by docker
 	argsName := filters.Arg("name", containerName)
-	containers, err := f.dockerClient.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(argsName), All: true})
+	containers, err := f.dockerClient.ContainerList(context.TODO(), container.ListOptions{Filters: filters.NewArgs(argsName), All: true})
 	if err != nil {
 		return err
 	}

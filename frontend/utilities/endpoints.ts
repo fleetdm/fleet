@@ -31,9 +31,6 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
-  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
-  },
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -74,16 +71,38 @@ export default {
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
-  // MDM endpoints
+  /**
+   * MDM endpoints
+   */
+
+  MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-  MDM_APPLE_ABM_TOKEN: `/${API_VERSION}/fleet/mdm/apple/abm_token`,
+
+  // Apple Business Manager (ABM) endpoints
+  MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
+  MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
+  MDM_ABM_TOKEN_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
+  MDM_ABM_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/abm_tokens/${id}/teams`,
   MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
-  MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
+
+  // Apple VPP endpoints
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`, // TODO: Deprecated?
+  MDM_VPP_TOKENS: `/${API_VERSION}/fleet/vpp_tokens`,
+  MDM_VPP_TOKEN: (id: number) => `/${API_VERSION}/fleet/vpp_tokens/${id}`,
+  MDM_VPP_TOKENS_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/renew`,
+  MDM_VPP_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/teams`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
@@ -143,12 +162,14 @@ export default {
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
-  SOFTWARE_PACKAGE: (id: number) =>
-    `/${API_VERSION}/fleet/software/${id}/package`,
+  SOFTWARE_PACKAGE_TOKEN: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
     `/${API_VERSION}/fleet/software/install/results/${uuid}`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
@@ -199,4 +220,6 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
+
+  COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 };

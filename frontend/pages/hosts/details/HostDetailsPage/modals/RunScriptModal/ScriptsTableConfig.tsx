@@ -1,8 +1,4 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { noop } from "lodash";
-
-import { COLORS } from "styles/var/colors";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";
@@ -42,6 +38,7 @@ const generateActionDropdownOptions = (
   teamId: number | null,
   { last_execution }: IHostScript
 ): IDropdownOption[] => {
+  const isPending = last_execution?.status === "pending";
   const hasRunPermission =
     !!currentUser &&
     (isGlobalAdmin(currentUser) ||
@@ -58,14 +55,15 @@ const generateActionDropdownOptions = (
       disabled: last_execution === null,
       value: "showDetails",
     },
-    {
-      label: "Run",
-      disabled: last_execution?.status === "pending",
-      value: "run",
-      tooltipContent: "Script is already running.",
-    },
   ];
-  return hasRunPermission ? options : options.slice(0, 1);
+  hasRunPermission &&
+    options.push({
+      label: "Run",
+      disabled: isPending,
+      value: "run",
+      tooltipContent: isPending ? "Script is already running." : undefined,
+    });
+  return options;
 };
 
 // eslint-disable-next-line import/prefer-default-export

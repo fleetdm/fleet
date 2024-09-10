@@ -1,8 +1,14 @@
 import React from "react";
-import { find, lowerCase, noop } from "lodash";
+import { find, lowerCase, noop, trimEnd } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  AppleDisplayPlatform,
+  PLATFORM_DISPLAY_NAMES,
+} from "interfaces/platform";
+
 import {
   addGravatarUrlToResource,
   formatScriptNameForActivityItem,
@@ -16,7 +22,6 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -36,10 +41,11 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "darwin" | "windows",
+  platform: "apple" | "windows",
   teamName?: string | null
 ) => {
-  const platformDisplayName = platform === "darwin" ? "macOS" : "Windows";
+  const platformDisplayName =
+    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -306,7 +312,10 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedMacosMinVersion: (activity: IActivity) => {
+  editedAppleosMinVersion: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -330,7 +339,7 @@ const TAGGED_TEMPLATES = {
 
     return (
       <>
-        {editedActivity} the minimum macOS version {versionSection}{" "}
+        {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
         {deadlineSection} on hosts assigned to {teamSection}.
       </>
     );
@@ -345,7 +354,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -361,14 +370,14 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
       </>
     );
   },
-  deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  deletedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -384,28 +393,28 @@ const TAGGED_TEMPLATES = {
         from{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
       </>
     );
   },
-  editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  editedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
         {" "}
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
       </>
     );
   },
-  createWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  createdWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -428,7 +437,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deleteWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  deletedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -451,7 +460,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  editedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
         {" "}
@@ -781,7 +790,7 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -796,7 +805,7 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.profile_name}</b> from{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -811,7 +820,7 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.profile_name}</b> for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -833,7 +842,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software to{" "}
+        {activity.details?.software_package}) to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -850,7 +859,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software from{" "}
+        {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -875,24 +884,98 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
-      install_uuid,
     } = details;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
 
     return (
       <>
         {" "}
-        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
-          }
+          onClick={() => onDetailsClick?.(activity.type, details)}
         >
           Show details{" "}
           <Icon className={`${baseClass}__show-query-icon`} name="eye" />
         </Button>
+      </>
+    );
+  },
+  enabledVpp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        enabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
+      </>
+    );
+  },
+  disabledVpp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        disabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
+      </>
+    );
+  },
+  addedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        added <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        deleted <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
       </>
     );
   },
@@ -962,28 +1045,35 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("macOS", activity);
     }
+    case ActivityType.EditedIosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("iOS", activity);
+    }
+    case ActivityType.EditedIpadosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
+    }
+
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
-    case ActivityType.CreatedMacOSProfile: {
-      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+    case ActivityType.CreatedAppleOSProfile: {
+      return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.DeletedMacOSProfile: {
-      return TAGGED_TEMPLATES.deleteMacOSProfile(activity, isPremiumTier);
+    case ActivityType.DeletedAppleOSProfile: {
+      return TAGGED_TEMPLATES.deletedAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.EditedMacOSProfile: {
-      return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+    case ActivityType.EditedAppleOSProfile: {
+      return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.CreatedWindowsProfile: {
-      return TAGGED_TEMPLATES.createWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.createdWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.DeletedWindowsProfile: {
-      return TAGGED_TEMPLATES.deleteWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.deletedWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.EditedWindowsProfile: {
-      return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
     // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
     // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
@@ -1078,6 +1168,21 @@ const getDetail = (
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
     }
+    case ActivityType.AddedAppStoreApp: {
+      return TAGGED_TEMPLATES.addedAppStoreApp(activity);
+    }
+    case ActivityType.DeletedAppStoreApp: {
+      return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
+    }
+    case ActivityType.InstalledAppStoreApp: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.EnabledVpp: {
+      return TAGGED_TEMPLATES.enabledVpp(activity);
+    }
+    case ActivityType.DisabledVpp: {
+      return TAGGED_TEMPLATES.disabledVpp(activity);
+    }
 
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1129,6 +1234,7 @@ const ActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.InstalledSoftware:
+      case ActivityType.InstalledAppStoreApp:
         return activity.details?.self_service ? (
           <span>An end user</span>
         ) : (

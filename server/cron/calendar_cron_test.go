@@ -11,14 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	kitlog "github.com/go-kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -199,7 +200,8 @@ func TestEventForDifferentHost(t *testing.T) {
 		return hcEvent, calEvent, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
 	require.NoError(t, err)
 }
 
@@ -341,7 +343,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -373,7 +375,8 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	eventsMu.Lock()
@@ -398,6 +401,7 @@ func (n notFoundErr) Error() string {
 }
 
 func TestCalendarEvents1KHosts(t *testing.T) {
+	t.Parallel()
 	ds := new(mock.Store)
 	ctx := context.Background()
 	var logger kitlog.Logger
@@ -630,7 +634,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -662,7 +666,9 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	distributedLock := redis_lock.NewLock(pool)
+	err := cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
@@ -699,7 +705,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil
 	}
 
-	err = cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
+	err = cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	createdCalendarEvents = calendar.ListGoogleMockEvents()
@@ -918,7 +924,7 @@ func TestEventBody(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -948,7 +954,8 @@ func TestEventBody(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	numberOfEvents := 7

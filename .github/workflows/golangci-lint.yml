@@ -38,7 +38,6 @@ jobs:
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
         os: [ubuntu-latest, macos-latest]
-        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner
@@ -52,7 +51,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: 'go.mod'
 
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'

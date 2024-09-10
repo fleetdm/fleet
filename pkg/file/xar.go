@@ -262,7 +262,11 @@ out:
 				identifier = pkg.MustClose.Apps[0].ID
 				break
 			}
+		}
+	}
 
+	if identifier == "" {
+		for _, pkg := range d.PkgRefs {
 			if pkg.PackageIdentifier != "" {
 				identifier = pkg.PackageIdentifier
 				break

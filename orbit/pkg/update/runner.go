@@ -165,8 +165,6 @@ func randomizeDuration(max time.Duration) (time.Duration, error) {
 
 // Execute begins a loop checking for updates.
 func (r *Runner) Execute() error {
-	log.Debug().Msg("start updater")
-
 	// Randomize the initial interval so that all agents don't synchronize their updates
 	initialInterval := r.opt.CheckInterval
 	// Developers use a shorter update interval (10s), so they need a faster first update check
@@ -322,7 +320,6 @@ func (r *Runner) updateTarget(target string) error {
 
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
-	log.Error().Err(err).Msg("interrupt updater")
 }
 
 // compareVersion compares the old and new versions of a binary and prints the appropriate message.

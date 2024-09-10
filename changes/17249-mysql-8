@@ -1,0 +1,2 @@
+* Drop support for MySQL 5.7
+* Minimum requirements raised to MySQL 8.0

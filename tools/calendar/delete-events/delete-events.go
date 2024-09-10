@@ -70,16 +70,20 @@ func main() {
 				log.Fatalf("Unable to create Calendar service: %v", err)
 			}
 			numberDeleted := 0
+			var maxResults int64 = 1000
+			pageToken := ""
+			now := time.Now()
 			for {
 				list, err := withRetry(
 					func() (any, error) {
 						return service.Events.List("primary").
 							EventTypes("default").
-							MaxResults(1000).
+							MaxResults(maxResults).
 							OrderBy("startTime").
 							SingleEvents(true).
 							ShowDeleted(false).
 							Q(eventTitle).
+							PageToken(pageToken).
 							Do()
 					},
 				)
@@ -89,7 +93,17 @@ func main() {
 				if len(list.(*calendar.Events).Items) == 0 {
 					break
 				}
+				foundNewEvents := false
 				for _, item := range list.(*calendar.Events).Items {
+					created, err := time.Parse(time.RFC3339, item.Created)
+					if err != nil {
+						log.Fatalf("Unable to parse event created time: %v", err)
+					}
+					if created.After(now) {
+						// Found events created after we started deleting events, so we should stop
+						foundNewEvents = true
+						continue // Skip this event but finish the loop to make sure we don't miss something
+					}
 					if item.Summary == eventTitle {
 						_, err := withRetry(
 							func() (any, error) {
@@ -104,6 +118,10 @@ func main() {
 							log.Printf("Deleted %d events for %s", numberDeleted, userEmail)
 						}
 					}
+				}
+				pageToken = list.(*calendar.Events).NextPageToken
+				if pageToken == "" || foundNewEvents {
+					break
 				}
 			}
 			log.Printf("DONE. Deleted %d events total for %s", numberDeleted, userEmail)

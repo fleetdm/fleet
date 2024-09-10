@@ -43,6 +43,42 @@ func (a AppleBM) AuthzType() string {
 	return "mdm_apple"
 }
 
+// TODO: during API implementation, remove AppleBM above or reconciliate those
+// two types. We'll likely need a new authz type for the ABM token.
+type ABMToken struct {
+	ID                  uint      `db:"id" json:"id"`
+	AppleID             string    `db:"apple_id" json:"apple_id"`
+	OrganizationName    string    `db:"organization_name" json:"org_name"`
+	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	EncryptedToken      []byte    `db:"token" json:"-"`
+
+	// MDMServerURL is not a database field, it is computed from the AppConfig's
+	// Server URL and the static path to the MDM endpoint (using
+	// apple_mdm.ResolveAppleMDMURL).
+	MDMServerURL string `db:"-" json:"mdm_server_url"`
+
+	// the following fields are not in the abm_tokens table, they must be queried
+	// by a LEFT JOIN on the corresponding team, coalesced to "No team" if
+	// null (no team).
+	MacOSTeamName  string `db:"macos_team" json:"-"`
+	IOSTeamName    string `db:"ios_team" json:"-"`
+	IPadOSTeamName string `db:"ipados_team" json:"-"`
+
+	// These fields are composed of the ID and name fields above, and are used in API responses.
+	MacOSTeam  ABMTokenTeam `json:"macos_team"`
+	IOSTeam    ABMTokenTeam `json:"ios_team"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_team"`
+}
+
+type ABMTokenTeam struct {
+	Name string `json:"name"`
+	ID   uint   `json:"team_id"`
+}
+
 type AppleCSR struct {
 	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
 	APNsKey  []byte `json:"apns_key"`
@@ -54,13 +90,15 @@ func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
 }
 
-// AppConfigUpdated is the minimal interface required to get and update the
-// AppConfig, as required to handle the DEP API errors to flag that Apple's
-// terms have changed and must be accepted. The Fleet Datastore satisfies
-// this interface.
-type AppConfigUpdater interface {
+// ABMTermsUpdater is the minimal interface required to get and update the
+// AppConfig, and set an ABM token's terms_expired flag as required to handle
+// the DEP API errors to indicate that Apple's terms have changed and must be
+// accepted. The Fleet Datastore satisfies this interface.
+type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
+	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -625,12 +663,19 @@ const (
 	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
-	// MDMAssetABMToken is an encrypted JSON file that contains a token
-	// that can be used for the authentication process with the ABM API
-	MDMAssetABMToken MDMAssetName = "abm_token"
+	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API.
+	// Deprecated: ABM tokens are now stored in the abm_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
+	// MDMAssetVPPTokenDeprecated is the name of the token used by MDM to
+	// authenticate to Apple's VPP service.
+	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
 )
 
 type MDMConfigAsset struct {
@@ -693,5 +738,120 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 	return profiles[:i]
 }
 
-// RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
-const RefetchCommandUUIDPrefix = "REFETCH-"
+// RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
+const RefetchBaseCommandUUIDPrefix = "REFETCH-"
+const RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+const RefetchAppsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "APPS-"
+
+// VPPTokenInfo is the representation of the VPP token that we send out via API.
+type VPPTokenInfo struct {
+	OrgName   string `json:"org_name"`
+	RenewDate string `json:"renew_date"`
+	Location  string `json:"location"`
+}
+
+// VPPTokenRaw is the representation of the decoded JSON object that is downloaded from ABM.
+type VPPTokenRaw struct {
+	OrgName string `json:"orgName"`
+	Token   string `json:"token"`
+	ExpDate string `json:"expDate"`
+}
+
+// VPPTokenData is the VPP data we store in the DB.
+type VPPTokenData struct {
+	// Location comes from an Apple API:
+	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
+	// the "library" of apps in ABM that is associated with this VPP token.
+	Location string `json:"location"`
+
+	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
+	// structure of `VPPTokenRaw`.
+	Token string `json:"token"`
+}
+
+const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
+
+// VPPTokenDB represents a VPP token record in the DB
+type VPPTokenDB struct {
+	ID        uint      `db:"id" json:"id"`
+	OrgName   string    `db:"organization_name" json:"org_name"`
+	Location  string    `db:"location" json:"location"`
+	RenewDate time.Time `db:"renew_at" json:"renew_date"`
+	// Token is the token dowloaded from ABM. It is the base64 encoded
+	// JSON object with the structure of `VPPTokenRaw`
+	Token string      `db:"token" json:"-"`
+	Teams []TeamTuple `json:"teams"`
+	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type TeamTuple struct {
+	ID   uint   `json:"team_id"`
+	Name string `json:"name"`
+}
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
+
+type AppleDevice int
+
+const (
+	MacOS AppleDevice = iota
+	IOS
+	IPadOS
+)
+
+type AppleDevicePlatform string
+
+const (
+	MacOSPlatform  AppleDevicePlatform = "darwin"
+	IOSPlatform    AppleDevicePlatform = "ios"
+	IPadOSPlatform AppleDevicePlatform = "ipados"
+)
+
+var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+type AppleDevicesToRefetch struct {
+	HostID              uint                   `db:"host_id"`
+	UUID                string                 `db:"uuid"`
+	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
+}
+
+type MDMCommandsAlreadySent []string
+
+func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+
+	raw, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type for MDMCommandsAlreadySent: %T", src)
+	}
+	// Filter out [null] command types which MySQL returns when there are no commands_already_sent.
+	// For details, see: https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html#function_json-arrayagg
+	if string(raw) == "[null]" {
+		*c = nil
+		return nil
+	}
+
+	var commands MDMCommandsAlreadySent
+	if err := json.Unmarshal(raw, &commands); err != nil {
+		return err
+	}
+	*c = commands
+	return nil
+}
+
+type HostMDMCommand struct {
+	HostID      uint   `db:"host_id"`
+	CommandType string `db:"command_type"`
+}

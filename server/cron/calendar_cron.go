@@ -2,9 +2,12 @@ package cron
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,17 +19,19 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 )
 
 const (
 	calendarConsumers = 18
-	reloadFrequency   = 12 * time.Hour
+	reloadFrequency   = 30 * time.Minute
 )
 
 func NewCalendarSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	distributedLock fleet.Lock,
 	serverConfig config.CalendarConfig,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
@@ -47,7 +52,7 @@ func NewCalendarSchedule(
 		schedule.WithJob(
 			"calendar_events",
 			func(ctx context.Context) error {
-				return cronCalendarEvents(ctx, ds, serverConfig, logger)
+				return cronCalendarEvents(ctx, ds, distributedLock, serverConfig, logger)
 			},
 		),
 	)
@@ -55,7 +60,8 @@ func NewCalendarSchedule(
 	return s, nil
 }
 
-func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, serverConfig config.CalendarConfig, logger kitlog.Logger) error {
+func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock fleet.Lock, serverConfig config.CalendarConfig,
+	logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -78,14 +84,14 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, serverConfig co
 		return fmt.Errorf("list teams: %w", err)
 	}
 
-	localConfig := &calendar.CalendarConfig{
+	localConfig := &calendar.Config{
 		CalendarConfig:            serverConfig,
 		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
 		ServerURL:                 appConfig.ServerSettings.ServerURL,
 	}
 	for _, team := range teams {
 		if err := cronCalendarEventsForTeam(
-			ctx, ds, localConfig, *team, appConfig.OrgInfo.OrgName, domain, logger,
+			ctx, ds, distributedLock, localConfig, *team, appConfig.OrgInfo.OrgName, domain, logger,
 		); err != nil {
 			level.Info(logger).Log("msg", "events calendar cron", "team_id", team.ID, "err", err)
 		}
@@ -97,7 +103,8 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, serverConfig co
 func cronCalendarEventsForTeam(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *calendar.CalendarConfig,
+	distributedLock fleet.Lock,
+	calendarConfig *calendar.Config,
 	team fleet.Team,
 	orgName string,
 	domain string,
@@ -179,7 +186,7 @@ func cronCalendarEventsForTeam(
 
 	// Process hosts that are failing calendar policies.
 	start = time.Now()
-	processCalendarFailingHosts(ctx, ds, calendarConfig, orgName, failingHosts, logger)
+	processCalendarFailingHosts(ctx, ds, distributedLock, calendarConfig, orgName, failingHosts, logger)
 	level.Debug(logger).Log(
 		"msg", "failing_hosts", "took", time.Since(start),
 	)
@@ -197,7 +204,8 @@ func cronCalendarEventsForTeam(
 func processCalendarFailingHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *calendar.CalendarConfig,
+	distributedLock fleet.Lock,
+	calendarConfig *calendar.Config,
 	orgName string,
 	hosts []fleet.HostPolicyMembershipData,
 	logger kitlog.Logger,
@@ -253,7 +261,8 @@ func processCalendarFailingHosts(
 				switch {
 				case err == nil && !expiredEvent:
 					if err := processFailingHostExistingCalendarEvent(
-						ctx, ds, userCalendar, orgName, hostCalendarEvent, calendarEvent, host, &policyIDtoPolicy, calendarConfig, logger,
+						ctx, ds, distributedLock, userCalendar, orgName, hostCalendarEvent, calendarEvent, host, &policyIDtoPolicy,
+						calendarConfig, logger,
 					); err != nil {
 						level.Info(logger).Log("msg", "process failing host existing calendar event", "err", err)
 						continue // continue with next host
@@ -303,26 +312,127 @@ func filterHostsWithSameEmail(hosts []fleet.HostPolicyMembershipData) []fleet.Ho
 func processFailingHostExistingCalendarEvent(
 	ctx context.Context,
 	ds fleet.Datastore,
+	distributedLock fleet.Lock,
 	userCalendar fleet.UserCalendar,
 	orgName string,
 	hostCalendarEvent *fleet.HostCalendarEvent,
 	calendarEvent *fleet.CalendarEvent,
 	host fleet.HostPolicyMembershipData,
 	policyIDtoPolicy *sync.Map,
-	calendarConfig *calendar.CalendarConfig,
+	calendarConfig *calendar.Config,
 	logger kitlog.Logger,
 ) error {
+
+	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
+	eventUUID := calendarEvent.UUID
+	lockValue := uuid.New().String()
+	lockAcquired, err := distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
+	if err != nil {
+		return fmt.Errorf("acquire calendar lock: %w", err)
+	}
+
+	lockReserved := false
+	if !lockAcquired {
+		// Lock was not acquired. We reserve the lock and try to acquire it until we do.
+		lockAcquired, err = distributedLock.SetIfNotExist(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
+			calendar.ReserveLockExpireMs)
+		if err != nil {
+			return fmt.Errorf("reserve calendar lock: %w", err)
+		}
+		if !lockAcquired {
+			// Lock was not reserved. Another cron job is processing this event. This is not expected.
+			return errors.New("could not reserve calendar lock")
+		}
+		lockReserved = true
+		done := make(chan struct{})
+		go func() {
+			for {
+				// Keep trying to get the lock.
+				lockAcquired, err = distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+					calendar.DistributedLockExpireMs)
+				if err != nil || lockAcquired {
+					done <- struct{}{}
+					return
+				}
+				time.Sleep(200 * time.Millisecond)
+			}
+		}()
+		select {
+		case <-done:
+			// Lock was acquired.
+			if err != nil {
+				return fmt.Errorf("try to acquire calendar lock: %w", err)
+			}
+		case <-time.After(time.Duration(calendar.ReserveLockExpireMs) * time.Millisecond):
+			// We couldn't acquire the lock in time.
+			return errors.New("could not acquire calendar lock in time")
+		}
+	}
+	defer func() {
+		// Release locks.
+		if lockReserved {
+			ok, err := distributedLock.ReleaseLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue)
+			if err != nil {
+				level.Error(logger).Log("msg", "Failed to release calendar reserve lock", "err", err)
+			}
+			if !ok {
+				// If the lock was not released, it will expire on its own.
+				level.Error(logger).Log("msg", "Failed to release calendar reserve lock", "event uuid", eventUUID, "lockValue", lockValue)
+			}
+		}
+		ok, err := distributedLock.ReleaseLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue)
+		if err != nil {
+			level.Error(logger).Log("msg", "Failed to release calendar lock", "err", err)
+		}
+		if !ok {
+			// If the lock was not released, it will expire on its own. However, we should adjust expiration time or something else to make sure we don't get here.
+			level.Error(logger).Log("msg", "Failed to release calendar lock", "event uuid", eventUUID, "lockValue", lockValue)
+		}
+	}()
+
 	updatedEvent := calendarEvent
 	updated := false
 	now := time.Now()
 
+	// Function to generate calendar event body.
+	var generatedTag string
+	var newETag string
+	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (string, bool, error) {
+		var body string
+		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+		return body, true, nil
+	}
+
+	// Check if event body needs to be updated.
+	currentBodyTag := calendarEvent.GetBodyTag()
+	// But don't update events created before we introduced body tags.
+	if currentBodyTag != "" {
+		updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
+
+		if currentBodyTag != updatedBodyTag && updatedBodyTag != "" {
+			newETag, err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
+			if err != nil {
+				return fmt.Errorf("update event body: %w", err)
+			}
+			updated = true
+		}
+	}
+
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
-		var err error
-		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(
-			calendarEvent, func(conflict bool) (string, bool, error) {
-				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
-			},
-		)
+		// Refetch the event since it may have updated since we got the lock.
+		// We need the latest event data (ETag) to make sure that we get correct data from the calendar service.
+		calendarEvent, err = ds.GetCalendarEvent(ctx, calendarEvent.Email)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Event was deleted while we were processing it. It will be recreated if needed on the next cron run
+				return nil
+			}
+			return fmt.Errorf("get calendar event from db: %w", err)
+		}
+		// We could check the updated_at timestamp and avoid updating the event if it was updated recently.
+
+		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(calendarEvent, genBodyFn,
+			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true})
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)
 		}
@@ -331,6 +441,12 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	if updated {
+		if generatedTag != "" && newETag != "" {
+			err = updatedEvent.SaveDataItems("body_tag", generatedTag, "etag", newETag)
+			if err != nil {
+				return fmt.Errorf("save calendar event body tag: %w", err)
+			}
+		}
 		if err := ds.UpdateCalendarEvent(
 			ctx,
 			calendarEvent.ID,
@@ -342,6 +458,13 @@ func processFailingHostExistingCalendarEvent(
 		); err != nil {
 			return fmt.Errorf("updating event calendar on db: %w", err)
 		}
+
+		// Remove event from the queue so that we don't process this event again.
+		// If we just modified the event in the calendar, calendar will send a callback, and we don't need to process that callback.
+		err = distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
+		if err != nil {
+			return fmt.Errorf("remove calendar event from queue: %w", err)
+		}
 	}
 
 	eventInFuture := now.Before(updatedEvent.StartTime)
@@ -351,7 +474,7 @@ func processFailingHostExistingCalendarEvent(
 	}
 	if now.After(updatedEvent.EndTime) {
 		return fmt.Errorf(
-			"unexpected event in the past: now=%s, start_time=%s, end_time=%s",
+			"unexpected event in the past: now=%s, start_time=%s, end_time=%s -- check calendar API quota usage and infrastructure load",
 			now, updatedEvent.StartTime, updatedEvent.EndTime,
 		)
 	}
@@ -386,6 +509,50 @@ func processFailingHostExistingCalendarEvent(
 		return fmt.Errorf("delete event channel: %w", err)
 	}
 	return nil
+}
+
+func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger) string {
+	var updatedBodyTag string
+	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
+	if len(policyIDs) == 1 && policyIDs[0] != "" {
+		var policy *calendar.PolicyLiteWithMeta
+		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
+		if !ok {
+			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
+			if err != nil {
+				level.Error(logger).Log("msg", "parse policy id", "err", err)
+				// Do nothing
+				return ""
+			}
+			policyLite, err := ds.PolicyLite(ctx, uint(id))
+			if err != nil {
+				level.Error(logger).Log("msg", "get policy", "err", err)
+				// Do nothing
+				return ""
+			}
+			policy = new(calendar.PolicyLiteWithMeta)
+			policy.PolicyLite = *policyLite
+			policyIDtoPolicy.Store(policyIDs[0], policy)
+		} else {
+			policy = policyAny.(*calendar.PolicyLiteWithMeta)
+		}
+		if policy.Tag != "" {
+			updatedBodyTag = policy.Tag
+			return updatedBodyTag
+		}
+		// If body tag wasn't cached, we calculate it.
+		policyDescription := strings.TrimSpace(policy.Description)
+		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
+			updatedBodyTag = calendar.DefaultEventBodyTag
+		} else {
+			// Calculate a unique signature for the event body, which we will use to check if the event body has changed.
+			updatedBodyTag = fmt.Sprintf("%x", sha256.Sum256([]byte(policy.Description+*policy.Resolution)))
+		}
+	} else {
+		updatedBodyTag = calendar.DefaultEventBodyTag
+	}
+	return updatedBodyTag
 }
 
 func shouldReloadCalendarEvent(now time.Time, calendarEvent *fleet.CalendarEvent, hostCalendarEvent *fleet.HostCalendarEvent) bool {
@@ -446,14 +613,21 @@ func attemptCreatingEventOnUserCalendar(
 	year, month, today := time.Now().Date()
 	preferredDate := getPreferredCalendarEventDate(year, month, today)
 	for {
+		var generatedTag string
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
-				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
-			},
+				var body string
+				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+				return body, true, nil
+			}, fleet.CalendarCreateEventOpts{},
 		)
 		var dee fleet.DayEndedError
 		switch {
 		case err == nil:
+			err = calendarEvent.SaveDataItems("body_tag", generatedTag)
+			if err != nil {
+				return nil, err
+			}
 			return calendarEvent, nil
 		case errors.As(err, &dee):
 			preferredDate = addBusinessDay(preferredDate)
@@ -492,7 +666,7 @@ func addBusinessDay(date time.Time) time.Time {
 func removeCalendarEventsFromPassingHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *calendar.CalendarConfig,
+	calendarConfig *calendar.Config,
 	hosts []fleet.HostPolicyMembershipData,
 	logger kitlog.Logger,
 ) {
@@ -601,9 +775,9 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 	}
 
 	var userCalendar fleet.UserCalendar
-	var calConfig *calendar.CalendarConfig
+	var calConfig *calendar.Config
 	if len(appConfig.Integrations.GoogleCalendar) > 0 {
-		calConfig = &calendar.CalendarConfig{
+		calConfig = &calendar.Config{
 			GoogleCalendarIntegration: *appConfig.Integrations.GoogleCalendar[0],
 			ServerURL:                 appConfig.ServerSettings.ServerURL,
 		}
@@ -657,7 +831,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 func deleteAllCalendarEvents(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *calendar.CalendarConfig,
+	calendarConfig *calendar.Config,
 	teamID *uint,
 	logger kitlog.Logger,
 ) error {
@@ -670,7 +844,7 @@ func deleteAllCalendarEvents(
 }
 
 func deleteCalendarEventsInParallel(
-	ctx context.Context, ds fleet.Datastore, calendarConfig *calendar.CalendarConfig, calendarEvents []*fleet.CalendarEvent,
+	ctx context.Context, ds fleet.Datastore, calendarConfig *calendar.Config, calendarEvents []*fleet.CalendarEvent,
 	logger kitlog.Logger,
 ) {
 	if len(calendarEvents) > 0 {
@@ -703,7 +877,7 @@ func deleteCalendarEventsInParallel(
 func cleanupTeamCalendarEvents(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *calendar.CalendarConfig,
+	calendarConfig *calendar.Config,
 	team fleet.Team,
 	logger kitlog.Logger,
 ) error {
@@ -737,6 +911,10 @@ func deleteCalendarEvent(
 			if err := userCalendar.DeleteEvent(calendarEvent); err != nil {
 				return fmt.Errorf("delete calendar event: %w", err)
 			}
+		}
+		// Stop watching for calendar changes
+		if err := userCalendar.StopEventChannel(calendarEvent); err != nil {
+			return fmt.Errorf("stop event channel: %w", err)
 		}
 	}
 	if err := ds.DeleteCalendarEvent(ctx, calendarEvent.ID); err != nil {

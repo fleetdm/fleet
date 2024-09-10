@@ -1,0 +1,3 @@
+- Adds ability for MDM migrations if the host is manually enrolled to a 3rd party MDM.
+- Adds an offline screen to the macOS MDM migration flow.
+- Updates the instructions on "My device" for MDM migrations on pre-Sonoma macOS hosts.

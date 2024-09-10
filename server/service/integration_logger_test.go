@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestIntegrationLoggerTestSuite(t *testing.T) {
+func TestIntegrationsLoggerTestSuite(t *testing.T) {
 	testingSuite := new(integrationLoggerTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withDS.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 

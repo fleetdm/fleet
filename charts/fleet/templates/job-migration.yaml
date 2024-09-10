@@ -18,6 +18,7 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded
     {{- end }}
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     metadata:
 {{- with .Values.podAnnotations }}

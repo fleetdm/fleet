@@ -13,7 +13,7 @@
     "moment": "2.29.4",
     "sails": "^1.5.11",
     "sails-hook-apianalytics": "^2.0.6",
-    "sails-hook-organics": "^2.2.2",
+    "sails-hook-organics": "^2.2.3",
     "sails-hook-orm": "^4.0.3",
     "sails-hook-sockets": "^3.0.0",
     "sails-postgresql": "^5.0.1"

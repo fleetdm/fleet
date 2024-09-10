@@ -311,32 +311,6 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and incident response when necessary.
 
-#### Deploy Nudge
-Keeping operating systems up to date is important to fix known vulnerabilities. This is why we enable automatic updates on macOS, but as that system is neither aggressive or reliable enough, we also use Nudge to push individuals to update their systems before a deadline.
-
-##### Deploying Nudge
-Two packages from the Nudge [releases](https://github.com/macadmins/nudge/releases) must be deployed via MDM.
-
-1. Nudge itself. This is the Nudge executables that display prompts to update the system.
-2. Nudge LaunchAgent. This is the package that contains the automated tasks that make Nudge check if the system is up to date, and if not, to show the prompt.
-
-If only Nudge is deployed, nothing will happen on the system, as it will never launch unless triggered manually. The main reason to only install Nudge would be to run it manually for testing purposes, or if some other tool was used to schedule running it. 
-
-At Fleet, we use the standard LaunchAgent.
-
-We do not bundle any configuration with the Nudge packages themselves.
-
-##### Nudge configuration
-Nudge supports multiple configuration modes, but the one we use is via a [profile](https://github.com/fleetdm/confidential/blob/main/mdm_profiles/nudge_configuration.mobileconfig). (Note: our MDM profiles are not public simply because a few of them contain secrets, such as Chrome organization identification strings. Our Nudge profile is extremely similar to the [sample one](https://github.com/macadmins/nudge/blob/main/Example%20Assets/com.github.macadmins.Nudge.mobileconfig)).
-
-By joining a laptop to our MDM and deploying profiles, Nudge will get configured. 
-
-When a new update is released, the following fields must be updated:
-
-* `aboutUpdateURLs` in all languages, pointing to the Apple page with information about vulnerabilities fixed in each update. If an update had no vulnerabilities fixed, we'd typically not enforce it via Nudge, but this is extremely rare.
-* `requiredMinimumOSVersion` must be set to the new version (ex: `13.1`).
-* `requiredInstallationDate` must be set to a date in the future, based on the criticality of the vulnerabilities fixed by the update.
-
 ### Chrome configuration
 We configure Chrome on company-owned devices with a basic policy.
 

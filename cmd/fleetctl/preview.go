@@ -74,7 +74,7 @@ func (d dockerCompose) Command(arg ...string) *exec.Cmd {
 
 func newDockerCompose() (dockerCompose, error) {
 	// first, check if `docker compose` is available
-	if err := exec.Command("docker compose").Run(); err == nil {
+	if err := exec.Command("docker", "compose").Run(); err == nil {
 		return dockerCompose{dockerComposeV2}, nil
 	}
 
@@ -387,7 +387,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			_, err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplyClientSpecOptions{})
+			_, _, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{})
 			if err != nil {
 				return err
 			}

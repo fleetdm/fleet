@@ -223,8 +223,10 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 // this happens because we create a database and import our test dump on the
 // leader each time `connectMySQL` is called, but we only do the same on the
 // replica when it's enabled via options.
-var mu sync.Mutex
-var databasesToReplicate string
+var (
+	mu                   sync.Mutex
+	databasesToReplicate string
+)
 
 func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
 	t.Helper()
@@ -233,14 +235,14 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	t.Cleanup(
 		func() {
-			// Stop slave
+			// Stop replica
 			if out, err := exec.Command(
-				"docker-compose", "exec", "-T", "mysql_replica_test",
+				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
 				"-u"+testUsername, "-p"+testPassword,
 				"-e",
-				"STOP SLAVE; RESET SLAVE ALL;",
+				"STOP REPLICA; RESET REPLICA ALL;",
 			).CombinedOutput(); err != nil {
 				t.Log(err)
 				t.Log(string(out))
@@ -260,45 +262,54 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	_, err = ds.primary.ExecContext(ctx, "FLUSH PRIVILEGES")
 	require.NoError(t, err)
 
-	// Retrieve master binary log coordinates
-	ms, err := ds.MasterStatus(ctx)
-	require.NoError(t, err)
-
-	// Get MySQL version
 	var version string
 	err = ds.primary.GetContext(ctx, &version, "SELECT VERSION()")
 	require.NoError(t, err)
-	using57 := strings.HasPrefix(version, "5.7")
-	extraMasterOptions := ""
-	if !using57 {
-		extraMasterOptions = "GET_MASTER_PUBLIC_KEY=1," // needed for MySQL 8.0 caching_sha2_password authentication
-	}
+
+	// Retrieve master binary log coordinates
+	ms, err := ds.MasterStatus(ctx, version)
+	require.NoError(t, err)
 
 	mu.Lock()
 	databasesToReplicate = strings.TrimPrefix(databasesToReplicate+fmt.Sprintf(", `%s`", testName), ",")
 	mu.Unlock()
 
-	// Configure slave and start replication
+	setSourceStmt := fmt.Sprintf(`
+			CHANGE REPLICATION SOURCE TO
+				GET_SOURCE_PUBLIC_KEY=1,
+				SOURCE_HOST='mysql_test',
+				SOURCE_USER='%s',
+				SOURCE_PASSWORD='%s',
+				SOURCE_LOG_FILE='%s',
+				SOURCE_LOG_POS=%d
+		`, replicaUser, replicaPassword, ms.File, ms.Position)
+	if strings.HasPrefix(version, "8.0") {
+		setSourceStmt = fmt.Sprintf(`
+			CHANGE MASTER TO
+				GET_MASTER_PUBLIC_KEY=1,
+				MASTER_HOST='mysql_test',
+				MASTER_USER='%s',
+				MASTER_PASSWORD='%s',
+				MASTER_LOG_FILE='%s',
+				MASTER_LOG_POS=%d
+		`, replicaUser, replicaPassword, ms.File, ms.Position)
+	}
+
+	// Configure replica and start replication
 	if out, err := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_replica_test",
+		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
 		"mysql",
 		"-u"+testUsername, "-p"+testPassword,
 		"-e",
 		fmt.Sprintf(
 			`
-			STOP SLAVE;
-			RESET SLAVE ALL;
+			STOP REPLICA;
+			RESET REPLICA ALL;
 			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );
-			CHANGE MASTER TO
-				%s
-				MASTER_HOST='mysql_test',
-				MASTER_USER='%s',
-				MASTER_PASSWORD='%s',
-				MASTER_LOG_FILE='%s',
-				MASTER_LOG_POS=%d;
-			START SLAVE;
-			`, databasesToReplicate, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
+			%s;
+			START REPLICA;
+			`, databasesToReplicate, setSourceStmt,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
@@ -318,7 +329,6 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	require.NoError(t, err)
 	ds.replica = replica
 	ds.readReplicaConfig = &replicaConfig
-
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
@@ -341,17 +351,20 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	}
 	for _, dbName := range dbs {
 		// Load schema from dumpfile
-		if out, err := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_test",
+		sqlCommands := fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			dbName, dbName, dbName, schema,
+		)
+
+		cmd := exec.Command(
+			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
-			"-e",
-			fmt.Sprintf(
-				"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-				dbName, dbName, dbName, schema,
-			),
-		).CombinedOutput(); err != nil {
+		)
+		cmd.Stdin = strings.NewReader(sqlCommands)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
 			t.Error(err)
 			t.Error(string(out))
 			t.FailNow()
@@ -359,17 +372,20 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	}
 	if opts.RealReplica {
 		// Load schema from dumpfile
-		if out, err := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_replica_test",
+		sqlCommands := fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			testName, testName, testName, schema,
+		)
+
+		cmd := exec.Command(
+			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
-			"-e",
-			fmt.Sprintf(
-				"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-				testName, testName, testName, schema,
-			),
-		).CombinedOutput(); err != nil {
+		)
+		cmd.Stdin = strings.NewReader(sqlCommands)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
 			t.Error(err)
 			t.Error(string(out))
 			t.FailNow()
@@ -447,7 +463,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		ds = createMySQLDSWithOptions(t, opts)
 		status, err := ds.ReplicaStatus(context.Background())
 		require.NoError(t, err)
-		if status["Replica_SQL_Running"] != "Yes" && status["Slave_SQL_Running"] != "Yes" {
+		if status["Replica_SQL_Running"] != "Yes" {
 			t.Logf("create replica attempt: %d replica status: %+v", attempt, status)
 			if lastErr, ok := status["Last_Error"]; ok && lastErr != "" {
 				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
@@ -485,6 +501,12 @@ func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error
 
 func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) error {
 	return fn(ds.primary)
+}
+
+// EncryptWithPrivateKey encrypts data with the server private key associated
+// with the Datastore.
+func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, error) {
+	return encrypt(data, ds.serverPrivateKey)
 }
 
 // TruncateTables truncates the specified tables, in order, using ds.writer.
@@ -667,7 +689,7 @@ func GetAggregatedStats(ctx context.Context, ds *Datastore, aggregate fleet.Aggr
 func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.Time, table, keyCol string, keys ...any) time.Time {
 	now := afterTime
 	for i := 0; i < len(keys); i++ {
-		now = afterTime.Add(time.Second)
+		now = now.Add(time.Second)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(),
 				fmt.Sprintf(`UPDATE %s SET created_at=? WHERE %s=?`, table, keyCol), now, keys[i])
@@ -677,7 +699,55 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
-func SetTestABMAssets(t testing.TB, ds *Datastore) {
+// CreateAndSetABMToken creates a new ABM token (using an existing ABM key/cert) and stores it in the DB.
+func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
+	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMCert,
+	})
+	require.NoError(t, err)
+
+	certPEM := assets[fleet.MDMAssetABMCert].Value
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	rawToken, err := json.Marshal(testBMToken)
+	require.NoError(t, err)
+
+	smimeToken := fmt.Sprintf(
+		"Content-Type: text/plain;charset=UTF-8\r\n"+
+			"Content-Transfer-Encoding: 7bit\r\n"+
+			"\r\n%s", rawToken,
+	)
+
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
+	require.NoError(t, err)
+
+	tokenBytes := fmt.Sprintf(
+		"Content-Type: application/pkcs7-mime; name=\"smime.p7m\"; smime-type=enveloped-data\r\n"+
+			"Content-Transfer-Encoding: base64\r\n"+
+			"Content-Disposition: attachment; filename=\"smime.p7m\"\r\n"+
+			"Content-Description: S/MIME Encrypted Message\r\n"+
+			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
+
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: []byte(tokenBytes), OrganizationName: orgName})
+	require.NoError(t, err)
+	return tok
+}
+
+func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
 	apnsCert, apnsKey, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
@@ -686,7 +756,6 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
 		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
 		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
 		{Name: fleet.MDMAssetCACert, Value: certPEM},
@@ -696,12 +765,17 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	err = ds.InsertMDMConfigAssets(context.Background(), assets)
 	require.NoError(t, err)
 
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
+	require.NoError(t, err)
+
 	appCfg, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	appCfg.MDM.EnabledAndConfigured = true
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	err = ds.SaveAppConfig(context.Background(), appCfg)
 	require.NoError(t, err)
+
+	return tok
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
@@ -786,11 +860,15 @@ type MasterStatus struct {
 	Position uint64
 }
 
-func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
+func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (MasterStatus, error) {
+	stmt := "SHOW BINARY LOG STATUS"
+	if strings.HasPrefix(mysqlVersion, "8.0") {
+		stmt = "SHOW MASTER STATUS"
+	}
 
-	rows, err := ds.writer(ctx).Query("SHOW MASTER STATUS")
+	rows, err := ds.writer(ctx).Query(stmt)
 	if err != nil {
-		return MasterStatus{}, ctxerr.Wrap(ctx, err, "show master status")
+		return MasterStatus{}, ctxerr.Wrap(ctx, err, stmt)
 	}
 	defer rows.Close()
 
@@ -835,8 +913,7 @@ func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
 }
 
 func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
-
-	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW SLAVE STATUS")
+	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW REPLICA STATUS")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "show replica status")
 	}

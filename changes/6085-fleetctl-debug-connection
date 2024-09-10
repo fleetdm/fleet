@@ -1,2 +1,0 @@
-* Fixed `fleetctl debug connection` to support server TLS certificates with intermediates.
-* Added support to `fleetctl debug connection` to test TLS connection with the embedded certs.pem in the fleetctl executable (default root CA used to generate fleetd packages). This can help find issues during package generation instead of during package installation.

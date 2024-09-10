@@ -154,6 +154,12 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:  "24.1.32.9774",
 			expectedBundleID: "com.ringcentral.glip",
 		},
+		{
+			file:             "distribution-zoom-full.xml",
+			expectedName:     "Zoom Workplace",
+			expectedVersion:  "6.1.1.36333",
+			expectedBundleID: "us.zoom.xos",
+		},
 	}
 
 	for _, tt := range tests {

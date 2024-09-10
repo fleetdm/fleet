@@ -1,0 +1,3 @@
+* When a CSR can't be downloaded due to missing private key, make the link clickable in the error
+  message that is flashed.
+  

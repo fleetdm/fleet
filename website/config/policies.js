@@ -54,4 +54,6 @@ module.exports.policies = {
   'get-human-interpretation-from-osquery-sql': true,
   'customers/view-new-license': true,
   'redirect-vanta-authorization-request': true,
+  'view-deals': true,
+  'deliver-deal-registration-submission': true,
 };

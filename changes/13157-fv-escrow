@@ -1,0 +1,1 @@
+* `fleetd` now uses Escrow Buddy to rotate FileVault keys. Internal API endpoints documented in the API for contributors have been modified and/or removed.

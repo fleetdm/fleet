@@ -51,6 +51,8 @@ func TestAppleMDM(t *testing.T) {
 	// use this to debug/verify details of calls
 	nopLog := kitlog.NewJSONLogger(os.Stdout)
 
+	testOrgName := "fleet-test"
+
 	createEnrolledHost := func(t *testing.T, i int, teamID *uint, depAssignedToFleet bool) *fleet.Host {
 		// create the host
 		h, err := ds.NewHost(ctx, &fleet.Host{
@@ -65,6 +67,7 @@ func TestAppleMDM(t *testing.T) {
 		require.NoError(t, err)
 
 		// create the nano_device and enrollment
+		var abmTokenID uint
 		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`, h.UUID, h.HardwareSerial, "test")
 			if err != nil {
@@ -72,10 +75,18 @@ func TestAppleMDM(t *testing.T) {
 			}
 			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
 				VALUES (?, ?, ?, ?, ?, ?)`, h.UUID, h.UUID, "device", "topic", "push_magic", "token_hex")
+			if err != nil {
+				return err
+			}
+
+			encTok := uuid.NewString()
+			abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+			abmTokenID = abmToken.ID
+
 			return err
 		})
 		if depAssignedToFleet {
-			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID)
 			require.NoError(t, err)
 		}
 		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "")
@@ -118,7 +129,7 @@ func TestAppleMDM(t *testing.T) {
 	}
 
 	t.Run("no-op with nil commander", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		mdmWorker := &AppleMDM{
@@ -147,7 +158,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("fails with unknown task", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		mdmWorker := &AppleMDM{
@@ -179,7 +190,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("installs default manifest", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		h := createEnrolledHost(t, 1, nil, true)
@@ -217,7 +228,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("installs default manifest, manual release", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
 
 		h := createEnrolledHost(t, 1, nil, true)
@@ -252,7 +263,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("installs custom bootstrap manifest", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		h := createEnrolledHost(t, 1, nil, true)
@@ -262,7 +273,7 @@ func TestAppleMDM(t *testing.T) {
 			Bytes:  []byte("test"),
 			Sha256: []byte("test"),
 			Token:  "token",
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
@@ -301,7 +312,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("installs custom bootstrap manifest of a team", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -314,7 +325,7 @@ func TestAppleMDM(t *testing.T) {
 			Bytes:  []byte("test"),
 			Sha256: []byte("test"),
 			Token:  "token",
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
@@ -353,7 +364,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("installs custom bootstrap manifest of a team, manual release", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -367,7 +378,7 @@ func TestAppleMDM(t *testing.T) {
 			Bytes:  []byte("test"),
 			Sha256: []byte("test"),
 			Token:  "token",
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
@@ -403,7 +414,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("unknown enroll reference", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		h := createEnrolledHost(t, 1, nil, true)
@@ -436,7 +447,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("enroll reference but SSO disabled", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
@@ -484,7 +495,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("enroll reference with SSO enabled", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
@@ -539,7 +550,7 @@ func TestAppleMDM(t *testing.T) {
 	})
 
 	t.Run("installs fleetd for manual enrollments", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds)
+		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
 		h := createEnrolledHost(t, 1, nil, true)

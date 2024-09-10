@@ -35,6 +35,7 @@ func TestVulnerabilities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Helper()
 			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
@@ -50,14 +51,14 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 
 	// Insert Host Count
 	insertStmt := `
-		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?)
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
+		VALUES (?, ?, ?, ?)
 	`
-	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10, 1)
 	require.NoError(t, err)
-	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1235", 0, 15)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1235", 0, 15, 1)
 	require.NoError(t, err)
-	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1236", 0, 20)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1236", 0, 20, 1)
 	require.NoError(t, err)
 
 	// No Vulns unless OS or Software Vulns are inserted
@@ -174,12 +175,13 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 
 	// Insert Host Count
 	insertStmt := `
-		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?), (?, ?, ?)
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
+		VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)
 	`
 	_, err = ds.writer(context.Background()).Exec(insertStmt,
-		"CVE-2020-1234", 0, 10,
-		"CVE-2020-1234", 1, 4,
+		"CVE-2020-1234", 0, 10, 1, // global
+		"CVE-2020-1234", 1, 4, 0, // team 1
+		"CVE-2020-1234", 0, 6, 0, // no team
 	)
 	require.NoError(t, err)
 
@@ -229,6 +231,14 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 
+	// No Team
+	expected.HostsCount = 6
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(0), false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVE, v.CVE)
+	require.Equal(t, expected.HostsCount, v.HostsCount)
+	require.Equal(t, expected.Source, v.Source)
+
 	expected = fleet.VulnerabilityWithMetadata{
 		CVE: fleet.CVE{
 			CVE:              "CVE-2020-1234",
@@ -262,11 +272,15 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 
 	// Insert Host Count
 	insertStmt := `
-		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?)
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
+		VALUES (?, ?, ?, ?)
 	`
 
-	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10, 1)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 1, 4, 0)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 6, 0)
 	require.NoError(t, err)
 
 	// insert Software Vuln
@@ -298,7 +312,24 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		Source:     fleet.NVDSource,
 	}
 
+	// Global (all teams)
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVE, v.CVE)
+	require.Equal(t, expected.HostsCount, v.HostsCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	// Team 1
+	expected.HostsCount = 4
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(1), false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVE, v.CVE)
+	require.Equal(t, expected.HostsCount, v.HostsCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	// No Team
+	expected.HostsCount = 6
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(0), false)
 	require.NoError(t, err)
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
@@ -354,8 +385,11 @@ func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
 func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	seedVulnerabilities(t, ds)
 
+	//
+	// Team 1
+	//
 	opts := fleet.VulnListOptions{
-		TeamID: 1,
+		TeamID: ptr.Uint(1),
 	}
 
 	list, _, err := ds.ListVulnerabilities(context.Background(), opts)
@@ -370,6 +404,55 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 		"CVE-2020-1239": 15,
 		// No team host counts for CVE-2020-1240
 		"CVE-2020-1241": 14,
+	}
+
+	for _, vuln := range list {
+		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+	}
+
+	//
+	// Team 0 (no team)
+	//
+	opts = fleet.VulnListOptions{
+		TeamID: ptr.Uint(0),
+	}
+
+	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
+	require.NoError(t, err)
+	require.Len(t, list, 6)
+
+	checkCounts = map[string]int{
+		"CVE-2020-1234": 80,
+		"CVE-2020-1235": 71,
+		"CVE-2020-1236": 62,
+		"CVE-2020-1238": 44,
+		"CVE-2020-1239": 35,
+		// No team host counts for CVE-2020-1240
+		"CVE-2020-1241": 26,
+	}
+
+	for _, vuln := range list {
+		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+	}
+
+	//
+	// Global (all teams)
+	//
+	opts = fleet.VulnListOptions{}
+
+	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
+	require.NoError(t, err)
+	require.Len(t, list, 7)
+
+	checkCounts = map[string]int{
+		"CVE-2020-1234": 100,
+		"CVE-2020-1235": 90,
+		"CVE-2020-1236": 80,
+		"CVE-2020-1237": 70,
+		"CVE-2020-1238": 60,
+		"CVE-2020-1239": 50,
+		// No team host counts for CVE-2020-1240
+		"CVE-2020-1241": 40,
 	}
 
 	for _, vuln := range list {
@@ -459,22 +542,22 @@ func testCountVulnerabilities(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), count)
 
 	// team count
-	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1})
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(1)})
 	require.NoError(t, err)
 	require.Equal(t, uint(6), count)
 
 	// team count with exploit filter
-	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1, KnownExploit: true})
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(1), KnownExploit: true})
 	require.NoError(t, err)
 	require.Equal(t, uint(3), count)
 
 	// team count with match query
-	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1, ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(1), ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
 	require.NoError(t, err)
 	require.Equal(t, uint(1), count)
 
 	// team count with exploit filter and match query
-	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1, KnownExploit: true, ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(1), KnownExploit: true, ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
 	require.NoError(t, err)
 	require.Equal(t, uint(1), count)
 }
@@ -608,14 +691,23 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assertHostCounts(t, globalExpected, list)
 
-	// assert team counts
-	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team1.ID})
+	// assert team 1 counts
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(team1.ID)})
 	require.NoError(t, err)
 	team1expected := []hostCount{
 		{CVE: "CVE-2020-1234", HostCount: 1}, // windows vuln
 		{CVE: "CVE-2020-1236", HostCount: 1}, // software vuln
 	}
 	assertHostCounts(t, team1expected, list)
+
+	// assert no team (team 0) counts
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(0)})
+	require.NoError(t, err)
+	team0expected := []hostCount{
+		{CVE: "CVE-2020-1234", HostCount: 1}, // windows vuln
+		{CVE: "CVE-2020-1235", HostCount: 1}, // macos vuln
+	}
+	assertHostCounts(t, team0expected, list)
 
 	// add 5 macos hosts (4-9) to team2
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
@@ -642,12 +734,17 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	assertHostCounts(t, globalExpected, list)
 
 	// team1 counts should not change
-	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team1.ID})
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(team1.ID)})
 	require.NoError(t, err)
 	assertHostCounts(t, team1expected, list)
 
+	// team0 counts should not change
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(0)})
+	require.NoError(t, err)
+	assertHostCounts(t, team0expected, list)
+
 	// team2 counts
-	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team2.ID})
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(team2.ID)})
 	require.NoError(t, err)
 	team2expected := []hostCount{
 		{CVE: "CVE-2020-1235", HostCount: 5}, // macos vuln
@@ -670,12 +767,17 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change to team1 counts
-	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team1.ID})
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(team1.ID)})
 	require.NoError(t, err)
 	assertHostCounts(t, team1expected, list)
 
+	// no change to team0 counts
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(0)})
+	require.NoError(t, err)
+	assertHostCounts(t, team0expected, list)
+
 	// no vulns in team2
-	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team2.ID})
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(team2.ID)})
 	require.NoError(t, err)
 	require.Len(t, list, 0)
 
@@ -789,7 +891,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	}
 
 	// assert team counts
-	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team1.ID})
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: ptr.Uint(team1.ID)})
 	require.NoError(t, err)
 	require.Len(t, list, 400)
 	for _, vuln := range list {
@@ -848,7 +950,7 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 		Name:              "Chrome",
 		Version:           "1.0.0",
 		Source:            "programs",
-		HostsCount:        5,
+		HostsCount:        6,
 		GenerateCPE:       "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
 		ResolvedInVersion: ptr.String("1.0.0"),
 	}
@@ -866,6 +968,13 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	// team 2
 	expected.HostsCount = 1
 	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(2))
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, expected, software[0])
+
+	// team 0
+	expected.HostsCount = 1
+	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(0))
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.Equal(t, expected, software[0])
@@ -890,7 +999,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 		hostids = append(hostids, host.ID)
 	}
 
-	// update 15 hosts to windows
+	// update 10 hosts to windows
 	for i := 0; i < 10; i++ {
 		arch := "arm64"
 		if i%2 == 0 {
@@ -942,15 +1051,19 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// State:
 	// 10 global windows hosts
 	// 5 global macOS hosts
+	// 3 windows hosts in no team
 	// 4 windows hosts in team 1
 	// 3 windows hosts in team 2
+	// 4 macOS hosts in no team
 	// 1 macOS host in team 2
 
-	// add software to 5 windows hosts
+	// add software to 6 windows hosts
 	// affects:
 	// 5 global windows hosts
 	// 4 windows hosts in team 1
 	// 1 windows host in team 2
+	// 1 host in no team
+
 	for i := 0; i < 5; i++ {
 		_, err = ds.UpdateHostSoftware(context.Background(), hostids[i], []fleet.Software{
 			{
@@ -961,6 +1074,16 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 	}
+
+	// add software to 1 windows host in no team
+	_, err = ds.UpdateHostSoftware(context.Background(), hostids[7], []fleet.Software{
+		{
+			Name:    "Chrome",
+			Version: "1.0.0",
+			Source:  "programs",
+		},
+	})
+	require.NoError(t, err)
 
 	_, err = ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
 		{
@@ -1095,14 +1218,16 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 
 	vulnHostCount := []struct {
-		cve       string
-		teamID    uint
-		hostCount int
+		cve         string
+		teamID      uint
+		globalstats bool
+		hostCount   int
 	}{
 		{
-			cve:       "CVE-2020-1234",
-			teamID:    0,
-			hostCount: 100,
+			cve:         "CVE-2020-1234",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   100,
 		},
 		{
 			cve:       "CVE-2020-1234",
@@ -1110,9 +1235,16 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 			hostCount: 20,
 		},
 		{
-			cve:       "CVE-2020-1235",
+			// no team
+			cve:       "CVE-2020-1234",
 			teamID:    0,
-			hostCount: 90,
+			hostCount: 80,
+		},
+		{
+			cve:         "CVE-2020-1235",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   90,
 		},
 		{
 			cve:       "CVE-2020-1235",
@@ -1120,9 +1252,16 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 			hostCount: 19,
 		},
 		{
-			cve:       "CVE-2020-1236",
+			// no team
+			cve:       "CVE-2020-1235",
 			teamID:    0,
-			hostCount: 80,
+			hostCount: 71,
+		},
+		{
+			cve:         "CVE-2020-1236",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   80,
 		},
 		{
 			cve:       "CVE-2020-1236",
@@ -1130,15 +1269,23 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 			hostCount: 18,
 		},
 		{
-			cve:       "CVE-2020-1237",
+			// no team
+			cve:       "CVE-2020-1236",
 			teamID:    0,
-			hostCount: 70,
+			hostCount: 62,
+		},
+		{
+			cve:         "CVE-2020-1237",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   70,
 		},
 		// no team 1 host count for CVE-2020-1237
 		{
-			cve:       "CVE-2020-1238",
-			teamID:    0,
-			hostCount: 60,
+			cve:         "CVE-2020-1238",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   60,
 		},
 		{
 			cve:       "CVE-2020-1238",
@@ -1146,25 +1293,45 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 			hostCount: 16,
 		},
 		{
-			cve:       "CVE-2020-1239",
+			// no team
+			cve:       "CVE-2020-1238",
 			teamID:    0,
-			hostCount: 50,
+			hostCount: 44,
+		},
+		{
+			cve:         "CVE-2020-1239",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   50,
 		},
 		{
 			cve:       "CVE-2020-1239",
 			teamID:    1,
 			hostCount: 15,
 		},
+		{
+			// no team
+			cve:       "CVE-2020-1239",
+			teamID:    0,
+			hostCount: 35,
+		},
 		// no host counts for CVE-2020-1240
 		{
-			cve:       "CVE-2020-1241",
-			teamID:    0,
-			hostCount: 40,
+			cve:         "CVE-2020-1241",
+			teamID:      0,
+			globalstats: true,
+			hostCount:   40,
 		},
 		{
 			cve:       "CVE-2020-1241",
 			teamID:    1,
 			hostCount: 14,
+		},
+		{
+			// no team
+			cve:       "CVE-2020-1241",
+			teamID:    0,
+			hostCount: 26,
 		},
 	}
 
@@ -1184,11 +1351,11 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 
 	// Insert Host Count
 	insertStmt := `
-		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?)
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
+		VALUES (?, ?, ?, ?)
 	`
 	for _, vuln := range vulnHostCount {
-		_, err = ds.writer(context.Background()).Exec(insertStmt, vuln.cve, vuln.teamID, vuln.hostCount)
+		_, err = ds.writer(context.Background()).Exec(insertStmt, vuln.cve, vuln.teamID, vuln.hostCount, vuln.globalstats)
 		require.NoError(t, err)
 	}
 }

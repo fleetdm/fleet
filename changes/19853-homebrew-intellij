@@ -1,0 +1,1 @@
+Fixed false negative vulnerabilities with IntelliJ IDEA CE and PyCharm CE installed via Homebrew.

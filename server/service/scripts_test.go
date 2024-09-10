@@ -304,7 +304,7 @@ func TestHostRunScript(t *testing.T) {
 			script  string
 			wantErr string
 		}{
-			{"empty script", "", "Script contents must not be empty."},
+			{"empty script", "", "One of 'script_id', 'script_contents', or 'script_name' is required."},
 			{"overly long script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1), "Script is too large."},
 			{"large script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen), ""},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},

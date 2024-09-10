@@ -25,9 +25,11 @@ type Runner struct {
 	proc        *process.Process
 	cmd         *exec.Cmd
 	dataPath    string
-	cancelMu    sync.Mutex
-	cancel      func()
 	singleQuery bool
+
+	ctxMu  sync.Mutex // protects the ctx and cancel
+	ctx    context.Context
+	cancel func()
 }
 
 type Option func(*Runner) error
@@ -164,9 +166,7 @@ func (r *Runner) Execute() error {
 			return fmt.Errorf("start osqueryd shell: %w", err)
 		}
 	} else {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		r.setCancel(cancel)
+		ctx, _ := r.getContextAndCancel()
 
 		if err := r.proc.Start(); err != nil {
 			return fmt.Errorf("start osqueryd: %w", err)
@@ -182,8 +182,7 @@ func (r *Runner) Execute() error {
 
 // Runner interrupts the running osquery process.
 func (r *Runner) Interrupt(err error) {
-	log.Error().Err(err).Msg("interrupt osquery")
-	if cancel := r.getCancel(); cancel != nil {
+	if _, cancel := r.getContextAndCancel(); cancel != nil {
 		cancel()
 	}
 }
@@ -199,16 +198,15 @@ func (r *Runner) ExtensionSocketPath() string {
 	return filepath.Join(r.dataPath, extensionSocketName)
 }
 
-func (r *Runner) setCancel(c func()) {
-	r.cancelMu.Lock()
-	defer r.cancelMu.Unlock()
+func (r *Runner) getContextAndCancel() (context.Context, func()) {
+	r.ctxMu.Lock()
+	defer r.ctxMu.Unlock()
 
-	r.cancel = c
-}
-
-func (r *Runner) getCancel() func() {
-	r.cancelMu.Lock()
-	defer r.cancelMu.Unlock()
-
-	return r.cancel
+	if r.ctx != nil {
+		return r.ctx, r.cancel
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r.ctx = ctx
+	r.cancel = cancel
+	return r.ctx, r.cancel
 }

@@ -21,7 +21,7 @@ func TestUp_20240707134035(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	// check that it's NULL
+	// check that UUID is not NULL
 	const selectUUIDStmt = `SELECT uuid FROM calendar_events WHERE id = ?`
 	var uuid1, uuid2 string
 	err := db.Get(&uuid1, selectUUIDStmt, event1ID)

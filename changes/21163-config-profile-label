@@ -1,0 +1,1 @@
+- Fixed bug where configuration profile was still showing the old label name after the name was updated.

@@ -29,6 +29,10 @@ interface IEditorProps {
    * @default "editor"
    */
   name?: string;
+  /** Include correct styles as a form field.
+   * @default false
+   */
+  isFormField?: boolean;
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: any) => void;
@@ -52,11 +56,13 @@ const Editor = ({
   readOnly = false,
   wrapEnabled = false,
   name = "editor",
+  isFormField = false,
   maxLines = 20,
   className,
   onChange,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
+    "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
   });
 
@@ -75,7 +81,7 @@ const Editor = ({
         <TooltipWrapper
           className={labelClassName}
           tipContent={labelTooltip}
-          position="top"
+          position="top-start"
         >
           {labelText}
         </TooltipWrapper>

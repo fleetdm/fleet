@@ -500,6 +500,26 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID string, software []fleet.Software) (*mdm.Command, error) {
+	mdmSoftware := make([]map[string]interface{}, 0, len(software))
+	for _, s := range software {
+		mdmSoftware = append(mdmSoftware, map[string]interface{}{
+			"Name":         s.Name,
+			"ShortVersion": s.Version,
+			"Identifier":   s.BundleIdentifier,
+		})
+	}
+
+	payload := map[string]any{
+		"Status":                   "Acknowledged",
+		"UDID":                     udid,
+		"CommandUUID":              cmdUUID,
+		"InstalledApplicationList": mdmSoftware,
+	}
+
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 	payload := map[string]any{
 		"MessageType":  "GetBootstrapToken",

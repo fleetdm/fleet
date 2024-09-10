@@ -1,355 +1,149 @@
 package main
 
 import (
-	"context"
-	"crypto/sha256"
-	"crypto/x509"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/pem"
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
-	"os"
-	"strings"
+	"log/slog"
+	"net/http"
+	"time"
 
-	"github.com/boltdb/bolt"
-	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
-	"github.com/groob/plist"
-	apnsbuiltin "github.com/micromdm/micromdm/platform/apns/builtin"
-	"github.com/micromdm/micromdm/platform/device"
-	devicebuiltin "github.com/micromdm/micromdm/platform/device/builtin"
-	"github.com/micromdm/micromdm/platform/pubsub/inmem"
-	"go.etcd.io/bbolt"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
-type Authenticate struct {
-	MessageType  string
-	UDID         string
-	Topic        string
-	BuildVersion string `plist:",omitempty"`
-	DeviceName   string `plist:",omitempty"`
-	Model        string `plist:",omitempty"`
-	ModelName    string `plist:",omitempty"`
-	OSVersion    string `plist:",omitempty"`
-	ProductName  string `plist:",omitempty"`
-	SerialNumber string `plist:",omitempty"`
-	IMEI         string `plist:",omitempty"`
-	MEID         string `plist:",omitempty"`
-}
-
-type TokenUpdate struct {
-	MessageType   string
-	UDID          string
-	PushMagic     string
-	Topic         string
-	Token         []byte
-	UnlockToken   []byte `plist:",omitempty"`
-	UserID        string `plist:",omitempty"`
-	UserShortName string `plist:",omitempty"`
-	UserLongName  string `plist:",omitempty"`
-}
+var (
+	apiToken = flag.String("api-token", "", "API token for the MicroMDM instance")
+	url      = flag.String("url", "", "URL of the MicroMDM instance")
+	port     = flag.String("port", "4648", "Port used by the webserver")
+)
 
 func main() {
-	flDB := flag.String("db", "/var/db/micromdm/micromdm.db", "path to micromdm DB")
 	flag.Parse()
 
-	// Device records
-	func() {
-		log.Println("Open DB for devices")
-		boltDB, err := bolt.Open(*flDB, 0o600, nil)
+	if *apiToken == "" || *url == "" {
+		log.Fatal("--api-token and --url are required.")
+	}
+
+	client := newMicroMDMClient(*apiToken, *url)
+
+	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		body, err := io.ReadAll(request.Body)
 		if err != nil {
-			log.Fatal(err)
+			slog.With("error", err).Error("reading request body")
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
 		}
-		defer boltDB.Close()
 
-		ps := inmem.NewPubSub()
-		apnsDB, err := apnsbuiltin.NewDB(boltDB, ps)
+		if len(body) == 0 {
+			slog.Error("empty request body")
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		slog.With("raw_body", string(body)).Debug("got request")
+
+		var deviceInfo struct {
+			Host struct {
+				UUID string `json:"uuid"`
+			} `json:"host"`
+		}
+		if err := json.Unmarshal(body, &deviceInfo); err != nil {
+			slog.With("device_uuid", deviceInfo.Host.UUID, "error", err).Error("failed to unmarshal request body")
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		slog.With("device_uuid", deviceInfo.Host.UUID).Info("attempting to unenroll from MicroMDM")
+		if err := client.unmanageDevice(deviceInfo.Host.UUID); err != nil {
+			slog.With("device_uuid", deviceInfo.Host.UUID, "error", err).Error("failed to unenroll device")
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		slog.With("device_uuid", deviceInfo.Host.UUID).Info("device unenrolled")
+	})
+
+	slog.With("address", fmt.Sprintf("http://localhost:%s", *port)).Info("server running")
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%s", *port),
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf(err.Error())
+	}
+}
+
+type microMDMClient struct {
+	url   string
+	token string
+}
+
+func newMicroMDMClient(apiToken, url string) *microMDMClient {
+	client := &microMDMClient{url: url, token: apiToken}
+	return client
+}
+
+func (m *microMDMClient) doWithRequest(req *http.Request) ([]byte, error) {
+	client := fleethttp.NewClient()
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode > 299 {
+		return body, fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+
+	return body, nil
+}
+
+func (m *microMDMClient) do(method, path string, data any) ([]byte, error) {
+	var body []byte
+	if data != nil {
+		b, err := json.Marshal(data)
 		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("marshaling request body: %w", err)
+		}
+		body = b
+	}
+
+	makeReq := func() (*http.Request, error) {
+		if len(body) > 0 {
+			return http.NewRequest(method, path, bytes.NewBuffer(body))
 		}
 
-		deviceDB, err := devicebuiltin.NewDB(boltDB)
-		if err != nil {
-			log.Fatal(err)
-		}
-		devices, err := deviceDB.List(context.Background(), device.ListDevicesOption{})
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(devices) == 0 {
-			log.Printf("No devices found. Are you sure %s is a MicroMDM DB?", *flDB)
-		} else {
-			log.Printf("Found %d devices", len(devices))
-		}
+		return http.NewRequest(method, path, nil)
+	}
 
-		// SCEP certificates are stored using the certificate CN as the
-		// key. I couldn't find any CN <-> device association in the
-		// db, as it's not needed: micro extracts the certificate CN
-		// from the request and uses it to authenticate devices.
-		//
-		// To avoid loading all certs in memory (rough estimation is
-		// ~2KB per cert) we store a map of the cert hash (which is
-		// stored along the device record) to the CN for later
-		// retrieval.
-		certHashToCertKey := make(map[string][]byte, len(devices))
-		// NOTE: the depot doesn't expose methods to list certs so we
-		// need to use bolt directly.
-		err = boltDB.View(func(tx *bolt.Tx) error {
-			bucket := tx.Bucket([]byte("scep_certificates"))
-			if bucket == nil {
-				log.Fatalf("No identity certificates found. Are you sure %s is a MicroMDM DB?", *flDB)
-			}
-			return bucket.ForEach(func(k, v []byte) error {
-				hash := sha256.Sum256(v)
-				certHashToCertKey[string(hash[:])] = k
-				return nil
-			})
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
+	req, err := makeReq()
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("accept", "application/json")
+	req.SetBasicAuth("micromdm", m.token)
+	return m.doWithRequest(req)
+}
 
-		var sb strings.Builder
-		for _, device := range devices {
-			pushInfo, err := apnsDB.PushInfo(context.Background(), device.UDID)
-			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
-			}
-
-			authenticate := &Authenticate{
-				MessageType:  "Authenticate",
-				UDID:         device.UDID,
-				Topic:        pushInfo.MDMTopic,
-				BuildVersion: device.BuildVersion,
-				DeviceName:   device.DeviceName,
-				Model:        device.Model,
-				ModelName:    device.ModelName,
-				OSVersion:    device.OSVersion,
-				ProductName:  device.ProductName,
-				SerialNumber: device.SerialNumber,
-				IMEI:         device.IMEI,
-				MEID:         device.MEID,
-			}
-
-			authenticatePlist, err := plist.Marshal(authenticate)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			token, err := hex.DecodeString(pushInfo.Token)
-			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
-			}
-			unlockToken, err := hex.DecodeString(device.UnlockToken)
-			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
-			}
-
-			tokenUpdate := &TokenUpdate{
-				MessageType: "TokenUpdate",
-				UDID:        device.UDID,
-
-				PushMagic: pushInfo.PushMagic,
-				Token:     token,
-				Topic:     pushInfo.MDMTopic,
-
-				UnlockToken: unlockToken,
-			}
-
-			tokenPlist, err := plist.Marshal(tokenUpdate)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			certHash, err := deviceDB.GetUDIDCertHash([]byte(device.UDID))
-			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
-			}
-
-			var certDer []byte
-			certKey := certHashToCertKey[string(certHash)]
-			err = boltDB.View(func(tx *bolt.Tx) error {
-				bucket := tx.Bucket([]byte("scep_certificates"))
-				certDer = bucket.Get(certKey)
-				return nil
-			})
-			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
-			}
-
-			var certExpiration string
-			var certPEM []byte
-			if certDer != nil {
-				// parse the cert to extract the expiration date
-				cert, err := x509.ParseCertificate(certDer)
-				if err != nil {
-					log.Printf("WARN: unable to parse SCEP identity certificate for %s: %s\n", device.UDID, err)
-				}
-				certExpiration = cert.NotAfter.Format("2006-01-02 15:04:05")
-
-				// encode it to PEM to store it in the DB in
-				// the format that nano expects. At the moment
-				// we don't really need this value as we can
-				// make do with the hash and the expiration,
-				// but I figured it would be good to have it.
-				pemBlock := &pem.Block{
-					Type:  "CERTIFICATE",
-					Bytes: cert.Raw,
-				}
-				certPEM = pem.EncodeToMemory(pemBlock)
-			}
-
-			base64BootstrapToken := base64.StdEncoding.EncodeToString(device.BootstrapToken)
-
-			sb.WriteString(fmt.Sprintf(`
-INSERT INTO nano_devices
-    (
-      id,
-      serial_number,
-      authenticate,
-      authenticate_at,
-      token_update,
-      token_update_at,
-      bootstrap_token_b64,
-      bootstrap_token_at,
-      identity_cert
-    )
-VALUES
-    (
-      '%s',
-      '%s',
-      '%s',
-      CURRENT_TIMESTAMP,
-      '%s',
-      CURRENT_TIMESTAMP,
-      '%s',
-      CURRENT_TIMESTAMP,
-      NULLIF('%s', '')
-    )
-ON DUPLICATE KEY
-UPDATE
-    serial_number = VALUES(serial_number),
-    authenticate = VALUES(authenticate),
-    authenticate_at = CURRENT_TIMESTAMP,
-    token_update = VALUES(token_update),
-    token_update_at = CURRENT_TIMESTAMP,
-    bootstrap_token_b64 = VALUES(bootstrap_token_b64),
-    bootstrap_token_at = CURRENT_TIMESTAMP,
-    identity_cert = VALUES(identity_cert);
-		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken, certPEM))
-
-			sb.WriteString(fmt.Sprintf(`
-INSERT INTO nano_enrollments
-	(
-	  id,
-	  device_id,
-	  user_id, type,
-	  topic,
-	  push_magic,
-	  token_hex,
-	  enabled,
-	  last_seen_at,
-	  enrolled_from_migration,
-	  token_update_tally
-	)
-VALUES
-	(
-	  '%s',
-	  '%s',
-	  NULL,
-	  'Device',
-	  '%s',
-	  '%s',
-	  '%s',
-	  %t,
-	  CURRENT_TIMESTAMP,
-	  1,
-	  1
-	)
-ON DUPLICATE KEY
-UPDATE
-    device_id = VALUES(device_id),
-    user_id = VALUES(user_id),
-    type = VALUES(type),
-    topic = VALUES(topic),
-    push_magic = VALUES(push_magic),
-    token_hex = VALUES(token_hex),
-    enabled = VALUES(enabled),
-    last_seen_at = CURRENT_TIMESTAMP,
-    token_update_tally = nano_enrollments.token_update_tally + 1;`,
-				device.UDID,
-				device.UDID,
-				tokenUpdate.Topic,
-				tokenUpdate.PushMagic,
-				hex.EncodeToString(tokenUpdate.Token),
-				device.Enrolled,
-			))
-
-			sb.WriteString(fmt.Sprintf(`
-INSERT INTO nano_cert_auth_associations
-    (id, sha256, cert_not_valid_after)
-VALUES
-    ('%s', '%s', NULLIF('%s', ''))
-ON DUPLICATE KEY UPDATE
-  id = VALUES(id),
-  sha256 = VALUES(sha256),
-  cert_not_valid_after = VALUES(cert_not_valid_after);
-	    `, device.UDID, hex.EncodeToString(certHash[:]), certExpiration))
-		}
-
-		sb.WriteString("\n")
-		if err := os.WriteFile("dump.sql", []byte(sb.String()), 0o600); err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Wrote device/enrollment records to dump.sql")
-	}()
-
-	// SCEP cert/key
-	func() {
-		log.Println("Open DB for SCEP cert and key")
-		bboltDB, err := bbolt.Open(*flDB, 0o600, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer bboltDB.Close()
-
-		scepBoltDepot, err := scepdepot.NewBoltDepot(bboltDB)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		key, err := scepBoltDepot.CreateOrLoadKey(2048)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		crt, err := scepBoltDepot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		privateKeyBytes := x509.MarshalPKCS1PrivateKey(key)
-		privateKeyPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: privateKeyBytes,
-		})
-
-		if err := os.WriteFile("scep.key", privateKeyPEM, 0o600); err != nil {
-			log.Fatal(err)
-		}
-
-		certPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: crt.Raw,
-		})
-
-		if err := os.WriteFile("scep.cert", certPEM, 0o600); err != nil {
-			log.Fatal(err)
-		}
-
-		log.Println("Wrote SCEP cert/key to scep.cert/scep.key")
-	}()
+func (m *microMDMClient) unmanageDevice(UUID string) error {
+	req := struct {
+		RequestType string `json:"request_type"`
+		UDID        string `json:"udid"`
+		Identifier  string `json:"identifier"`
+	}{
+		RequestType: "RemoveProfile",
+		UDID:        UUID,
+		Identifier:  "com.github.micromdm.micromdm.enroll",
+	}
+	_, err := m.do("POST", fmt.Sprintf("%s/v1/commands", m.url), &req)
+	return err
 }

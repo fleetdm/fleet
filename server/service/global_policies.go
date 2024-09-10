@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -154,6 +154,9 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 	policy, err := svc.ds.Policy(ctx, policyID)
 	if err != nil {
 		return nil, err
+	}
+	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
 
 	return policy, nil
@@ -583,8 +586,10 @@ func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 // Exposing external URL and timeout for testing purposes
-var getHumanInterpretationFromOsquerySqlUrl = "https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql"
-var getHumanInterpretationFromOsquerySqlTimeout = 30 * time.Second
+var (
+	getHumanInterpretationFromOsquerySqlUrl     = "https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql"
+	getHumanInterpretationFromOsquerySqlTimeout = 30 * time.Second
+)
 
 type AutofillError struct {
 	Message     string

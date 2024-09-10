@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: $border-radius;
+  border-radius: $border-radius-medium;
   background-color: $ui-fleet-blue-10;
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xlarge $pad-large;
@@ -43,6 +43,7 @@
   }
   &__message {
     margin: 0;
+    color: $ui-fleet-black-75;
   }
 
   &__additional-info {
@@ -55,7 +56,6 @@
   }
 
   &__upload-button {
-    margin-top: 8px;
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
   }

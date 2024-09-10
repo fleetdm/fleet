@@ -8,7 +8,6 @@ interface ITeamsHeader {
   isOnGlobalTeam?: boolean;
   currentTeamId?: number;
   userTeams?: ITeamSummary[];
-  isSandboxMode?: boolean;
   onTeamChange: (teamId: number) => void;
 }
 
@@ -16,7 +15,6 @@ const TeamsHeader = ({
   isOnGlobalTeam,
   currentTeamId,
   userTeams = [],
-  isSandboxMode = false,
   onTeamChange,
 }: ITeamsHeader) => {
   if (userTeams) {
@@ -26,7 +24,7 @@ const TeamsHeader = ({
           currentUserTeams={userTeams}
           selectedTeamId={currentTeamId}
           onChange={onTeamChange}
-          isSandboxMode={isSandboxMode}
+          includeNoTeams
         />
       );
     }

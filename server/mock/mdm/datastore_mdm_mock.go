@@ -56,6 +56,8 @@ type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, err
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
+type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
+
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
 
 type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
@@ -123,6 +125,9 @@ type MDMAppleStore struct {
 
 	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
 	GetAllMDMConfigAssetsByNameFuncInvoked bool
+
+	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
+	GetABMTokenByOrgNameFuncInvoked bool
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
@@ -278,6 +283,13 @@ func (fs *MDMAppleStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 	fs.GetAllMDMConfigAssetsByNameFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames)
+}
+
+func (fs *MDMAppleStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	fs.mu.Lock()
+	fs.GetABMTokenByOrgNameFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.GetABMTokenByOrgNameFunc(ctx, orgName)
 }
 
 func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {

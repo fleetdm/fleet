@@ -134,7 +134,7 @@ func processLogEntry(event []byte) ([]Event, error) {
 		var sqliteTime string
 		evtTime, ok := evt["time"].(string)
 		if ok {
-			goTime, err := time.Parse("2006-01-02T15:04:05-07:00", evtTime)
+			goTime, err := time.Parse(time.RFC3339, evtTime)
 			if err != nil {
 				return nil, fmt.Errorf("processLogEntry parsing time: %w", err)
 			}
