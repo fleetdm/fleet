@@ -1691,6 +1691,10 @@ type Datastore interface {
 	//
 
 	// GetFleetMaintainedAppById(ctx context.Context, appID uint)
+
+	// UpsertMaintainedApp inserts or updates a maintained app using the updated
+	// metadata provided via app.
+	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
