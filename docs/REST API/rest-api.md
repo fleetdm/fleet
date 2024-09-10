@@ -9057,8 +9057,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium._
 
-Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts. Changes to the installer package will reset
-installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/package`
 
