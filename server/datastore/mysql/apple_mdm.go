@@ -919,6 +919,7 @@ func createHostFromMDMDB(
 	devices []hostToCreateFromMDM,
 	macOSTeam, iosTeam, ipadTeam *uint,
 ) (int64, []fleet.Host, error) {
+	// NOTE: order of arguments for teams is important, see statement.
 	args := []any{iosTeam, ipadTeam, macOSTeam}
 	us, unionArgs := unionSelectDevices(devices)
 	args = append(args, unionArgs...)
@@ -1062,7 +1063,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 	}
 
 	var teamIDs []*uint
-	for _, team := range []*fleet.Team{iosTeam, ipadTeam, macOSTeam} {
+	for _, team := range []*fleet.Team{macOSTeam, iosTeam, ipadTeam} {
 		if team == nil {
 			teamIDs = append(teamIDs, nil)
 			continue
