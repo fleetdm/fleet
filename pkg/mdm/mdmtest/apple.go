@@ -274,6 +274,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
 		if err != nil {
 			return nil, fmt.Errorf("send request: %w", err)
 		}
+		defer response.Body.Close()
 		if response.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 		}
@@ -354,6 +355,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 	if err != nil {
 		return fmt.Errorf("send request: %w", err)
 	}
+	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 	}
@@ -794,6 +796,7 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
+	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 	}
