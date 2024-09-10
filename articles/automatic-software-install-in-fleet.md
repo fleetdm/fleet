@@ -88,8 +88,7 @@ Upon failure of the select policy, the selected software installation will be tr
 
 ## Additional Information
 
-* [Software installation viahere](https://fleetdm.com/guides/deploy-security-agents). TODO: Add link to software install document
-* TODO: Add other docs
+* [Deploy security agents](https://fleetdm.com/guides/deploy-security-agents).
 
 
 ### Using the REST API for self-service software packages
