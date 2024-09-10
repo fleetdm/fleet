@@ -31,7 +31,7 @@ banner at the top of page reminding you to renew your token.
 To renew an ABM token:
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under "Automatic enrollment", click "Edit", and then fin
+2. Under "Automatic enrollment", click "Edit", and then find the token that you want to renew. Token status is indicated in the "Renew date" column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Click the "Actions" dropdown for the token and then click "Renew". Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
 
 After connecting Fleet to ABM, set Fleet to be the MDM for all Macs: 
 

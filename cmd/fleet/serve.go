@@ -499,7 +499,18 @@ the way that the Fleet server works.
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
-			// validate Apple APNs/SCEP config
+			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
+				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+				if err != nil {
+					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
+						return false, nil
+					}
+					return false, err
+				}
+				return true, nil
+			}
+
+			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 				if !config.MDM.IsAppleAPNsSet() {
 					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
@@ -508,40 +519,63 @@ the way that the Fleet server works.
 				}
 
 				if len(config.Server.PrivateKey) == 0 {
-					initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+					initFatal(errors.New("inserting MDM APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
+				// parse the APNs and SCEP assets from the config
 				_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
 				if err != nil {
-					initFatal(err, "validate Apple APNs certificate and key")
+					initFatal(err, "parse Apple APNs certificate and key from config")
 				}
-
 				_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
 				if err != nil {
-					initFatal(err, "validate Apple SCEP certificate and key")
+					initFatal(err, "load Apple SCEP certificate and key from config")
 				}
 
-				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
-					{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM},
-					{Name: fleet.MDMAssetAPNSKey, Value: apnsKeyPEM},
-					{Name: fleet.MDMAssetCACert, Value: appleSCEPCertPEM},
-					{Name: fleet.MDMAssetCAKey, Value: appleSCEPKeyPEM},
-				})
-				if err != nil {
-					// duplicate key errors mean that we already
-					// have a value for those keys in the
-					// database, fail to initalize on other
-					// cases.
-					if !mysql.IsDuplicate(err) {
-						initFatal(err, "inserting MDM APNs and SCEP assets")
-					}
+				// first we'll check if the APNs and SCEP assets are already in the database and
+				// only insert config values if they're not already present in the database
+				toInsert := make([]fleet.MDMConfigAsset, 0, 4)
 
-					level.Warn(logger).Log("msg", "Your server already has stored SCEP and APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+				// check DB for APNs assets
+				found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey})
+				switch {
+				case err != nil:
+					initFatal(err, "reading APNs assets from database")
+				case !found:
+					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSKey, Value: apnsKeyPEM})
+				default:
+					level.Warn(logger).Log("msg", "Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+				}
+
+				// check DB for SCEP assets
+				found, err = checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+				switch {
+				case err != nil:
+					initFatal(err, "reading SCEP assets from database")
+				case !found:
+					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetCACert, Value: appleSCEPCertPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetCAKey, Value: appleSCEPKeyPEM})
+				default:
+					level.Warn(logger).Log("msg", "Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+				}
+
+				if len(toInsert) > 0 {
+					if len(config.Server.PrivateKey) == 0 {
+						initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+					}
+					if err := ds.InsertMDMConfigAssets(context.Background(), toInsert); err != nil {
+						if mysql.IsDuplicate(err) {
+							// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
+							level.Debug(logger).Log("msg", "unexpected duplicate key error inserting MDM APNs and SCEP assets")
+						} else {
+							initFatal(err, "inserting MDM APNs and SCEP assets")
+						}
+					}
 				}
 			}
 
-			// validate Apple BM config
+			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleBMSet() {
+				// TODO: Confirm whether we should have any fatal license errors
 				if !license.IsPremium() {
 					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
 				}
@@ -552,36 +586,38 @@ the way that the Fleet server works.
 
 				appleBM, err := config.MDM.AppleBM()
 				if err != nil {
-					initFatal(err, "validate Apple BM token, certificate and key")
+					initFatal(err, "parse Apple BM token, certificate and key from config")
 				}
 
-				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
-					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
-					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
-				})
-				if err != nil {
-					// duplicate key errors mean that we already
-					// have a value for those keys in the
-					// database, fail to initalize on other
-					// cases.
-					if !mysql.IsDuplicate(err) {
-						initFatal(err, "inserting MDM ABM assets")
-					}
+				toInsert := make([]fleet.MDMConfigAsset, 0, 4)
 
+				found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetABMKey, fleet.MDMAssetABMCert})
+				switch {
+				case err != nil:
+					initFatal(err, "reading ABM assets from database")
+				case !found:
+					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM})
+				default:
 					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
-				} else {
-					// insert the ABM token without any metdata,
-					// it'll be picked by the
-					// apple_mdm_dep_profile_assigner cron and
-					// backfilled
-					tok := &fleet.ABMToken{
-						EncryptedToken: appleBM.EncryptedToken,
-						// 2000-01-01 is our "zero value" for time
-						RenewAt: time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC),
-					}
-					_, err = ds.InsertABMToken(context.Background(), tok)
-					if err != nil {
-						initFatal(err, "save ABM token")
+				}
+
+				if len(toInsert) > 0 {
+					err := ds.InsertMDMConfigAssets(context.Background(), toInsert)
+					switch {
+					case err != nil && mysql.IsDuplicate(err):
+						// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
+						level.Debug(logger).Log("msg", "unexpected duplicate key error inserting ABM assets")
+					case err != nil:
+						initFatal(err, "inserting ABM assets")
+					default:
+						// insert the ABM token without any metdata; it'll be picked by the
+						// apple_mdm_dep_profile_assigner cron and backfilled
+						if _, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+							EncryptedToken: appleBM.EncryptedToken,
+							RenewAt:        time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC), // 2000-01-01 is our "zero value" for time
+						}); err != nil {
+							initFatal(err, "save ABM token")
+						}
 					}
 				}
 			}
@@ -589,17 +625,6 @@ the way that the Fleet server works.
 			appCfg, err := ds.AppConfig(context.Background())
 			if err != nil {
 				initFatal(err, "loading app config")
-			}
-
-			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
-				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
-				if err != nil {
-					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
-						return false, nil
-					}
-					return false, err
-				}
-				return true, nil
 			}
 
 			appCfg.MDM.EnabledAndConfigured = false
@@ -612,7 +637,7 @@ the way that the Fleet server works.
 					fleet.MDMAssetAPNSCert,
 				})
 				if err != nil {
-					initFatal(err, "validating MDM assets from database")
+					initFatal(err, "loading MDM assets from database")
 				}
 
 				var appleBMCerts bool
@@ -621,14 +646,14 @@ the way that the Fleet server works.
 					fleet.MDMAssetABMKey,
 				})
 				if err != nil {
-					initFatal(err, "validating MDM ABM assets from database")
+					initFatal(err, "loading MDM ABM assets from database")
 				}
 				if appleBMCerts {
 					// the ABM certs are there, check if a token exists and if so, apple
 					// BM is enabled and configured.
 					count, err := ds.GetABMTokenCount(context.Background())
 					if err != nil {
-						initFatal(err, "validating MDM ABM token from database")
+						initFatal(err, "loading MDM ABM token from database")
 					}
 					appCfg.MDM.AppleBMEnabledAndConfigured = count > 0
 				}

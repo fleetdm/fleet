@@ -11,7 +11,7 @@ import (
 	"io"
 	"net/textproto"
 
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 // UnwrapSMIME removes the S/MIME-like header wrapper around the raw encrypted
