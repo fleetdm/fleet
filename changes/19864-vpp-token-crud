@@ -1,2 +1,0 @@
-- Adds the functionality for the `POST /mdm/apple/vpp_token`, `DELETE /mdm/apple/vpp_token` and 
-`GET /vpp` endpoints.
