@@ -109,6 +109,21 @@ After an account is marked "[Research-ready](https://fleetdm.lightning.force.com
 4. Launch campaign once approved.
 
 
+### Settle content strategy
+
+The Head of Demand is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1KUMsb5OkAsCBQHGkGnNoj__UCPJ7Vbhk1LaEWGEARsg/edit?gid=1931288160#gid=1931288160), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
+  - Content type and title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
+  - Create date: The date by which the DRI will start crafting the content.
+  - Release date: The date by which the content will be complete and finalized.
+  - Primary buying situation: The intended audience.
+  - DRI: Person(s) responsible for the project management of this content.
+  - Author: Person(s) responsible for the creation of this content.
+  - Related event?: Related community or Fleet event, if any.
+2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
+
+
 ### Settle event strategy
 
 The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Client Platform Engineer & Community Advocate](https://fleetdm.com/handbook/engineering#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.

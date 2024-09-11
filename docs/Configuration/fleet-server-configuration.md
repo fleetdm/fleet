@@ -12,7 +12,8 @@ You can specify configuration options in the following formats:
 2. Environment variables
 3. Command-line flags
 
-All duration-based settings accept valid time units of `s`, `m`, `h`.
+- All duration-based settings accept valid time units of `s`, `m`, `h`.
+- Command-line flags can also be piped in via stdin.
 
 #### MySQL
 

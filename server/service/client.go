@@ -658,6 +658,17 @@ func (c *Client) ApplyGroup(
 				}
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						if strings.Contains(err.Error(), "Couldn't upload") {
+							// Then the error should look something like this:
+							// "Couldn't upload. CONFIG_NAME_INVALID"
+							// We want the part after the period (this is the error name from Apple)
+							// to render a more helpful error message.
+							parts := strings.Split(err.Error(), ".")
+							if len(parts) < 2 {
+								return nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w", tmName, err)
+							}
+							return nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
+						}
 						return nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
