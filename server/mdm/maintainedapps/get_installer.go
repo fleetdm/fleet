@@ -1,69 +1,103 @@
 package maintainedapps
 
 import (
-	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
 )
 
-type AppDownloader struct {
-	logger kitlog.Logger
-	store  fleet.SoftwareInstallerStore
-	client *http.Client
-}
+// type AppDownloader struct {
+// 	logger kitlog.Logger
+// 	store  fleet.SoftwareInstallerStore
+// 	client *http.Client
+// 	ds     fleet.Datastore
+// }
 
-// Given an app's URL
-// Download the installer
-// If it is > 3GB, return an error
-// Store the installer in S3
+// // Given an app's URL
+// // Download the installer
+// // If it is > 3GB, return an error
+// // Store the installer in S3
 
-const maxInstallerSizeBytes int64 = 1024 * 1024 * 1024 * 3 // 3GB
+// // TODO(JVE): is this a good name?
+// func NewAppDownloader(ctx context.Context, store fleet.SoftwareInstallerStore, logger kitlog.Logger, ds fleet.Datastore) *AppDownloader {
+// 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+// 	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
+// 	return &AppDownloader{
+// 		logger: logger,
+// 		store:  store,
+// 		client: client,
+// 		ds:     ds,
+// 	}
+// }
 
-// TODO(JVE): is this a good name?
-func NewAppDownloader(ctx context.Context, store fleet.SoftwareInstallerStore, logger kitlog.Logger) *AppDownloader {
+func Download(ctx context.Context, installerURL string, maxSize int64) ([]byte, error) {
+	// validate the URL before doing the request
+	_, err := url.ParseRequestURI(installerURL)
+	if err != nil {
+		return nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", installerURL),
+		)
+	}
+
 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
-	return &AppDownloader{
-		logger: logger,
-		store:  store,
-		client: client,
-	}
-}
+	client.Transport = fleethttp.NewSizeLimitTransport(maxSize)
 
-func (d *AppDownloader) Download(ctx context.Context, url string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create http request")
+		return nil, ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
 	}
 
-	res, err := d.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
+		var maxBytesErr *http.MaxBytesError
+		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+			return nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
+			)
+		}
 
-	if res.StatusCode != http.StatusOK {
-		return ctxerr.NewWithData(ctx, "request to download installer failed", map[string]any{"status_code": res.StatusCode})
+		return nil, ctxerr.Wrapf(ctx, err, "performing request for URL %s", installerURL)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("Couldn't edit software. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", installerURL),
+		)
 	}
 
-	body, err := io.ReadAll(res.Body)
+	// Allow all 2xx and 3xx status codes in this pass.
+	if resp.StatusCode > 400 {
+		return nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", installerURL, resp.StatusCode),
+		)
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading request body")
+		// the max size error can be received either at client.Do or here when
+		// reading the body if it's caught via a limited body reader.
+		var maxBytesErr *http.MaxBytesError
+		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+			return nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
+			)
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
 	}
 
-	slog.With("filename", "server/mdm/maintainedapps/get_installer.go", "func", "Download").Info("JVE_LOG: got response: ", "length", res.ContentLength)
-
-	if err := d.store.Put(ctx, "foobar", bytes.NewReader(body)); err != nil {
-		return ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
-	}
-
-	return nil
+	return bodyBytes, nil
 }

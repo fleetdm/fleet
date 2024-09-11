@@ -374,6 +374,8 @@ type SoftwareInstallerPayload struct {
 	InstallScript     string `json:"install_script"`
 	PostInstallScript string `json:"post_install_script"`
 	SelfService       bool   `json:"self_service"`
+	FleetMaintained   bool   `json:"-"`
+	Filename          string `json:"-"`
 }
 
 type HostLockWipeStatus struct {
