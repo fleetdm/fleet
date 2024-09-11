@@ -212,6 +212,10 @@ func main() {
 				certPEM = pem.EncodeToMemory(pemBlock)
 			}
 
+			if len(device.BootstrapToken) == 0 {
+				log.Println("Device with empty bootstrap token: ", device.UDID)
+			}
+
 			base64BootstrapToken := base64.StdEncoding.EncodeToString(device.BootstrapToken)
 
 			sb.WriteString(fmt.Sprintf(`
