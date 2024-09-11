@@ -29,12 +29,14 @@ interface IUninstallStatusMessage {
   // TODO - improve status typing
   status: string;
   software_title: string;
+  timestamp: string;
 }
 
 const StatusMessage = ({
   host_display_name,
   status,
   software_title,
+  timestamp,
 }: IUninstallStatusMessage) => {
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -107,8 +109,7 @@ const SoftwareUninstallDetailsModal = ({
           host_display_name={host_display_name}
           status={status}
           software_title={software_title}
-          // TODO
-          // timestamp={?}
+          timestamp={scriptResult.created_at}
         />
         {!isPendingStatus(status) && scriptResult && (
           <>
