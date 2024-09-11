@@ -157,7 +157,7 @@ const EditSoftwareModal = ({
       selfService: software.self_service || false,
     });
 
-    setPendingUpdates(updates);
+    setPendingUpdates(formData);
 
     const onlySelfServiceUpdated =
       Object.keys(updates).length === 1 && "selfService" in updates;
@@ -167,13 +167,12 @@ const EditSoftwareModal = ({
       setShowConfirmSaveChangesModal(true);
     } else {
       // Proceed with saving changes (API expects only changes)
-      onSaveSoftwareChanges(updates);
+      onSaveSoftwareChanges(formData);
     }
   };
 
   const onConfirmSoftwareChanges = () => {
     onSaveSoftwareChanges(pendingUpdates);
-    console.log("saving updates: ", pendingUpdates);
   };
 
   return (

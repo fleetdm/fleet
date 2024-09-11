@@ -236,7 +236,6 @@ export default {
       true
     );
   },
-  // TODO: Only send data that is changing and test E2E
   editSoftwarePackage: (
     data: IAddPackageFormData,
     softwareId: number,
@@ -245,24 +244,14 @@ export default {
   ) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
 
-    console.log("editing software package with data: ", data);
-    console.log("Targeted team id: ", teamId);
-
     const formData = new FormData();
     formData.append("team_id", teamId.toString());
     data.software && formData.append("software", data.software);
-    data.selfService &&
-      formData.append("self_service", data.selfService.toString());
-    data.installScript && formData.append("install_script", data.installScript);
-    data.preInstallQuery &&
-      formData.append("pre_install_query", data.preInstallQuery);
-    data.postInstallScript &&
-      formData.append("post_install_script", data.postInstallScript);
-    // TODO: Add uninstall script once Jacob's 20320 uninstall work is merged
-    // data.uninstallScript &&
-    //   formData.append("uninstall_script", data.uninstallScript);
-
-    console.log("formdata: ", formData);
+    formData.append("self_service", data.selfService.toString());
+    formData.append("install_script", data.installScript);
+    formData.append("pre_install_query", data.preInstallQuery || "");
+    formData.append("post_install_script", data.postInstallScript || "");
+    formData.append("uninstall_script", data.uninstallScript || "");
 
     return sendRequest(
       "PATCH",
