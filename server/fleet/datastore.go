@@ -1668,7 +1668,7 @@ type Datastore interface {
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
 
-	CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error
+	CancelPendingInstallsAndUninstalls(ctx context.Context, installerID uint) error
 	HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error
 	SaveInstallerUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
 	UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error

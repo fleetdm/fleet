@@ -312,7 +312,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 
 			// if we're updating anything other than self-service, we cancel pending install executions
 			// do this first before resetting counts; resetting install counts (setting removed = TRUE) nulls out install statuses
-			if err := svc.ds.CancelPendingInstallsForInstallerID(ctx, existingInstaller.InstallerID); err != nil {
+			if err := svc.ds.CancelPendingInstallsAndUninstalls(ctx, existingInstaller.InstallerID); err != nil {
 				return nil, err
 			}
 

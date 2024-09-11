@@ -1034,7 +1034,7 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
-type CancelPendingInstallsForInstallerIDFunc func(ctx context.Context, id uint) error
+type CancelPendingInstallsAndUninstallsFunc func(ctx context.Context, installerID uint) error
 
 type HideExistingInstallCountsForInstallerIDFunc func(ctx context.Context, id uint) error
 
@@ -2609,8 +2609,8 @@ type DataStore struct {
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
-	CancelPendingInstallsForInstallerIDFunc        CancelPendingInstallsForInstallerIDFunc
-	CancelPendingInstallsForInstallerIDFuncInvoked bool
+	CancelPendingInstallsAndUninstallsFunc        CancelPendingInstallsAndUninstallsFunc
+	CancelPendingInstallsAndUninstallsFuncInvoked bool
 
 	HideExistingInstallCountsForInstallerIDFunc        HideExistingInstallCountsForInstallerIDFunc
 	HideExistingInstallCountsForInstallerIDFuncInvoked bool
@@ -6248,11 +6248,11 @@ func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint
 	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
 }
 
-func (s *DataStore) CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error {
+func (s *DataStore) CancelPendingInstallsAndUninstalls(ctx context.Context, installerID uint) error {
 	s.mu.Lock()
-	s.CancelPendingInstallsForInstallerIDFuncInvoked = true
+	s.CancelPendingInstallsAndUninstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CancelPendingInstallsForInstallerIDFunc(ctx, id)
+	return s.CancelPendingInstallsAndUninstallsFunc(ctx, installerID)
 }
 
 func (s *DataStore) HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error {

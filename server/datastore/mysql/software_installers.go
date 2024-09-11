@@ -456,11 +456,20 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
 
-func (ds *Datastore) CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_software_installs
-       WHERE software_installer_id = ? AND status = "pending_install"`, id)
+func (ds *Datastore) CancelPendingInstallsAndUninstalls(ctx context.Context, installerID uint) error {
+	// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
+		SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = "pending_uninstall"
+	)`, installerID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cancel pending installs")
+		return ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_software_installs
+       WHERE software_installer_id = ? AND status IN("pending_install", "pending_uninstall")`, installerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
 	}
 
 	return nil
