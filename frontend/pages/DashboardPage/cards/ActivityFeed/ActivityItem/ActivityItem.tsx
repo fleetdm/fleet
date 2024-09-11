@@ -916,11 +916,9 @@ const TAGGED_TEMPLATES = {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
 
-    const {
-      host_display_name: hostName,
-      software_title: title,
-      status,
-    } = details;
+    const { host_display_name: hostName, software_title: title } = details;
+    const status =
+      details.status === "failed" ? "failed_uninstall" : details.status;
 
     const showSoftwarePackage =
       !!details.software_package &&
@@ -1273,6 +1271,7 @@ const ActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.InstalledSoftware:
+      case ActivityType.UninstalledSoftware:
       case ActivityType.InstalledAppStoreApp:
         return activity.details?.self_service ? (
           <span>An end user</span>

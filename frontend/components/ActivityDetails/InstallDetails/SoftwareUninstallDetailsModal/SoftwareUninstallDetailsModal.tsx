@@ -103,6 +103,8 @@ const SoftwareUninstallDetailsModal = ({
       return <DataError description="No data returned." />;
     }
 
+    status = status === "failed" ? "failed_uninstall" : status;
+
     return (
       <>
         <StatusMessage
