@@ -118,7 +118,7 @@ func main() {
 		var sb strings.Builder
 		for _, device := range devices {
 			if len(device.UDID) == 0 {
-				log.Println("Skipping device with empty UDID")
+				log.Println("Skipping device with empty UDID. Serial: ", device.SerialNumber, " UUID: ", device.UUID)
 				continue
 			}
 			pushInfo, err := apnsDB.PushInfo(context.Background(), device.UDID)
@@ -217,7 +217,7 @@ func main() {
 			}
 
 			if len(device.BootstrapToken) == 0 {
-				log.Println("Device with empty bootstrap token: ", device.UDID)
+				log.Println("Device with empty bootstrap token: ", device.UDID, " Last seen: ", device.LastSeen.String())
 			}
 
 			base64BootstrapToken := base64.StdEncoding.EncodeToString(device.BootstrapToken)
