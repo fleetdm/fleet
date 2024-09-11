@@ -158,20 +158,6 @@
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
 #  
-#  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔═╗╔═╗╦═╗  ╔═╗╦═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╦╔╗╔  ╦╔╦╗╔═╗╔╗╔╔╦╗╦╔╦╗╦ ╦  
-#  ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║  ╠╣ ║ ║╠╦╝  ║  ╠╦╝║ ║╚═╗╚═╗───║║║ ║║║║╠═╣║║║║  ║ ║║║╣ ║║║ ║ ║ ║ ╚╦╝  
-#  ╚═╝ ╩ ╚═╝ ╩ ╚═╝╩ ╩  ╚  ╚═╝╩╚═  ╚═╝╩╚═╚═╝╚═╝╚═╝  ═╩╝╚═╝╩ ╩╩ ╩╩╝╚╝  ╩═╩╝╚═╝╝╚╝ ╩ ╩ ╩  ╩   
-#  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗  ╔═╗╦═╗╔═╗╦  ╦╦╔═╗╦╔═╗╔╗╔╦╔╗╔╔═╗                         
-#  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦                         
-#  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩   ╩  ╩╚═╚═╝ ╚╝ ╩╚═╝╩╚═╝╝╚╝╩╝╚╝╚═╝                         
-- industryName: System for Cross-domain Identity Management (SCIM) provisioning
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/15671
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Configuration]
-  usualDepartment: IT
-  tier: Premium
-  comingSoonOn: 2024-12-31 #customer-rosner
-#  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
 #  ╩╚═╚═╝╩═╝╚═╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝
@@ -1113,7 +1099,8 @@
 #   ╦╦ ╦╔═╗╔╦╗  ╦╔╗╔  ╔╦╗╦╔╦╗╔═╗  ╔═╗╦═╗╔═╗╦  ╦╦╔═╗╦╔═╗╔╗╔╦╔╗╔╔═╗
 #   ║║ ║╚═╗ ║───║║║║───║ ║║║║║╣   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦
 #  ╚╝╚═╝╚═╝ ╩   ╩╝╚╝   ╩ ╩╩ ╩╚═╝  ╩  ╩╚═╚═╝ ╚╝ ╩╚═╝╩╚═╝╝╚╝╩╝╚╝╚═╝
-- industryName: Just-in-time (JIT) provisioning
+- industryName: Automatic user creation (JIT, SCIM)
+  description: Auto-create and manipulate Fleet users from Okta, etc with just-in-time (JIT) provisioning.
   documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -1121,6 +1108,7 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  # System for Cross-domain Identity Management (SCIM) provisioning comingSoonOn: 2024-12-31 #customer-rosner, https://github.com/fleetdm/fleet/issues/15671
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
