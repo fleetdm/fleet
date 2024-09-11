@@ -119,7 +119,8 @@ func main() {
 		for _, device := range devices {
 			pushInfo, err := apnsDB.PushInfo(context.Background(), device.UDID)
 			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
+				log.Println(device.UDID, " FAILED: ", err)
+				continue
 			}
 
 			authenticate := &Authenticate{
@@ -145,11 +146,13 @@ func main() {
 
 			token, err := hex.DecodeString(pushInfo.Token)
 			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
+				log.Println(device.UDID, " FAILED: ", err)
+				continue
 			}
 			unlockToken, err := hex.DecodeString(device.UnlockToken)
 			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
+				log.Println(device.UDID, " FAILED: ", err)
+				continue
 			}
 
 			tokenUpdate := &TokenUpdate{
@@ -171,7 +174,8 @@ func main() {
 
 			certHash, err := deviceDB.GetUDIDCertHash([]byte(device.UDID))
 			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
+				log.Println(device.UDID, " FAILED: ", err)
+				continue
 			}
 
 			var certDer []byte
@@ -182,7 +186,8 @@ func main() {
 				return nil
 			})
 			if err != nil {
-				log.Fatal(device.UDID, " FAILED: ", err)
+				log.Println(device.UDID, " FAILED: ", err)
+				continue
 			}
 
 			var certExpiration string
