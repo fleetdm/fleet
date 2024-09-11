@@ -135,6 +135,41 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
 
+### Conduct a technical evaluation (tech eval)
+
+Think of taking a prospect that is doing a tech evaluation as if you were a guide taking a customer
+on an expedition. Expeditions take a long time, are relatively costly, and usually and without a
+plan of what outcomes are going to be accomplished, results in folks getting lost. 
+
+Tech evals are guided by the tech eval test plan. The tech eval test plan is the main document that
+will track success criteria for the tech eval. Before the Solutions Consultant (SC) creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________),
+the AE and SC will ask each other, at minimum, the following questions in order to enter a scoping
+phase for the tech eval:
+1. Do we have a well defined set of technical criteria to test?
+2. Do we have a timeline to test agreed upon?
+3. What are the key business outcomes that will be achieved as a result of completing the tech eval?
+
+If the above questions cannot be answered, the opportunity will not progress to tech eval. 
+
+Once the opportunity moves to the "Stage 3 - Requested POV" phase in Salesforce, an automation will
+fire that auto generates the tech eval test plan. This doc will exist in google drive> Sales>
+Opportunities> "Account Name". 
+
+Once there is agreement to proceed with the tech eval and success criteria have been defined and
+documented, follow this process:
+1. SC creates a [tech eval issue.](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________)
+2. SC updates the issue labels to include: "~sc, :tech-eval" and the obfuscated "prospect-codename"
+   label. See [Assign a customer a codename](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename). Instead of
+   "customer-codename", prospects are labeled "prospect-codename". When a prospect purchases Fleet, the SC will edit this label from "prospect-codename" to "customer-codename".
+3. SC sets the appropriate sprint duration based on the timelines defined as well as an estimation
+   of effort in points.
+4. SC converts the issue to an Epic. All issues related to this prospect tech eval should be added
+   to the newly created epic (ie: cloud instance deployments, etc.)
+5. All checkin meetings are documented and notes taken within the tech eval test plan document. Any
+   TODO item will be added as a comment to the tech eval issue epic.
+6. The test eval test plan along with the feature tracker used for the tech eval will be presented
+   by the SC to the CS team upon transition of the prospect to Fleet customer.
+
 
 ### Hand off a technical evaluation to a temporary DRI
 
