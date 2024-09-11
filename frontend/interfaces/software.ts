@@ -319,10 +319,6 @@ const INSTALL_STATUS_PREDICATES: Record<
 } as const;
 
 export const getInstallStatusPredicate = (status: string | undefined) => {
-  // TODO(jacob) – failed uninstall activities currently have a status of "failed", not an expected
-  // possiblity here, and so this method returns the default "pending". This proposed API update
-  // should bring those into alignment, however, past "failed" uninstall activities are currently
-  // buggy: https://github.com/fleetdm/fleet/pull/21548/files#r1751092913
   if (!status) {
     return INSTALL_STATUS_PREDICATES.pending;
   }
