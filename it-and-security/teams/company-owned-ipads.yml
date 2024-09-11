@@ -20,3 +20,6 @@ controls:
 policies:
 queries:
 software:
+  app_store_apps:
+    - app_store_id: '618783545' # Slack
+    - app_store_id: '546505307' # Zoom

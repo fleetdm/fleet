@@ -196,11 +196,11 @@
         <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
           <h5>{{category.categoryName}}</h5>
             <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
-                <strong>
+              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                <strong class="d-block">
                   {{feature.name}}{{feature.comingSoon ? '*' : ''}}
-                  <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
                 </strong>
+                <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
               </div>
               <div class="d-flex flex-row justify-content-between align-items-center">
                 Free

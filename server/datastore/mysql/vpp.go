@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -780,6 +781,7 @@ TEAMLOOP:
 }
 
 func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+	stmtTeamName := `SELECT name FROM teams WHERE id = ?`
 	stmtRemove := `DELETE FROM vpp_token_teams WHERE vpp_token_id = ?`
 	stmtInsert := `
 	INSERT INTO
@@ -858,6 +860,17 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	})
 
 	if err != nil {
+		var mysqlErr *mysql.MySQLError
+		// https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_dup_entry
+		if errors.As(err, &mysqlErr) && IsDuplicate(err) {
+			var dupeTeamID uint
+			var dupeTeamName string
+			fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
+			if err := sqlx.GetContext(ctx, ds.reader(ctx), &dupeTeamName, stmtTeamName, dupeTeamID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting team name for vpp token conflict error")
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: dupeTeamName, ID: &dupeTeamID})
+		}
 		return nil, ctxerr.Wrap(ctx, err, "modifying vpp token team associations")
 	}
 
@@ -1127,7 +1140,7 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 	}
 
 	if allTeamsFound && currentID != nil && *currentID != id {
-		return ctxerr.Wrap(ctx, errors.New("All teams token already exists"))
+		return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: fleet.ReservedNameAllTeams})
 	}
 
 	if nullTeam != fleet.NullTeamNone {
@@ -1139,7 +1152,7 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 		}
 		if currentID == nil || *currentID != id {
-			return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
+			return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: nullTeam.PrettyName()})
 		}
 	}
 
