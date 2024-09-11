@@ -24,6 +24,7 @@ func TestMain(m *testing.M) {
 //
 // go test ./pkg/file/... -update
 func TestGetInstallAndRemoveScript(t *testing.T) {
+	t.Parallel()
 	scriptsByType := map[string]map[string]string{
 		"msi": {
 			"install":   "./scripts/install_msi.ps1",

@@ -61,13 +61,14 @@ If you need to run a load test with MDM enabled and configured you will need to 
 
 2. Then set the `fleet_config` terraform var the following way (make sure to add any extra configuration you need to this JSON):
 ```sh
-export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_MDM_APPLE_SCEP_CHALLENGE":"foobar","FLEET_MDM_APPLE_SCEP_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_SCEP_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_CERT_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.pem | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_KEY_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES":"'$(cat /Users/foobar/mdm/downloadtoken.p7m | gsed -z 's/\n/\\n/g' | gsed 's/"smime\.p7m"/\\"smime.p7m\\"/g' | tr -d '\r\n')'","FLEET_MDM_APPLE_BM_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-public-key.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-private.key | gsed -z 's/\n/\\n/g')'"}'
+export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY":"1","FLEET_MDM_APPLE_SCEP_CHALLENGE":"foobar","FLEET_MDM_APPLE_SCEP_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_SCEP_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_CERT_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.pem | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_KEY_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES":"'$(cat /Users/foobar/mdm/downloadtoken.p7m | gsed -z 's/\n/\\n/g' | gsed 's/"smime\.p7m"/\\"smime.p7m\\"/g' | tr -d '\r\n')'","FLEET_MDM_APPLE_BM_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-public-key.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-private.key | gsed -z 's/\n/\\n/g')'"}'
 ```
 
 - The above is needed because the newline characters in the certificate/key/token files.
 - The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument. 
 - The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
+- Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY=1` to skip verification of Apple certificates for OTA enrollments.
 This has an impact on real devices because they will not be notified of any command to execute (it may take a reboot for them to reach out to Fleet for more commands).
 
 3. Add the following `osquery-perf` arguments to [loadtesting.tf](./loadtesting.tf)

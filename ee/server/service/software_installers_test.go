@@ -18,9 +18,10 @@ func TestPreProcessUninstallScript(t *testing.T) {
 	var input = `
 blah$PACKAGE_IDS
 pkgids=$PACKAGE_ID
-they are $PACKAGE_ID, right?
-here $PACKAGE_ID reside $MY_SECRET
-more ${PACKAGE_ID}
+they are $PACKAGE_ID, right $MY_SECRET?
+quotes for "$PACKAGE_ID"
+blah${PACKAGE_ID}withConcat
+quotes and braces for "${PACKAGE_ID}"
 ${PACKAGE_ID}`
 
 	payload := fleet.UploadSoftwareInstallerPayload{
@@ -33,9 +34,10 @@ ${PACKAGE_ID}`
 	expected := `
 blah$PACKAGE_IDS
 pkgids="com.foo"
-they are "com.foo", right?
-here "com.foo" reside $MY_SECRET
-more "com.foo"
+they are "com.foo", right $MY_SECRET?
+quotes for "com.foo"
+blah"com.foo"withConcat
+quotes and braces for "com.foo"
 "com.foo"`
 	assert.Equal(t, expected, payload.UninstallScript)
 
@@ -54,12 +56,16 @@ pkgids=(
 they are (
   "com.foo"
   "com.bar"
-), right?
-here (
+), right $MY_SECRET?
+quotes for (
   "com.foo"
   "com.bar"
-) reside $MY_SECRET
-more (
+)
+blah(
+  "com.foo"
+  "com.bar"
+)withConcat
+quotes and braces for (
   "com.foo"
   "com.bar"
 )

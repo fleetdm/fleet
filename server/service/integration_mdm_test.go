@@ -66,10 +66,10 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.mozilla.org/pkcs7"
 )
 
 func TestIntegrationsMDM(t *testing.T) {
@@ -663,6 +663,8 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 	t := s.T()
 	srv := httptest.NewServer(handler)
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		srv.Close()
@@ -4166,15 +4168,156 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	ctx := context.Background()
 	t := s.T()
 
+	const defaultProf = `{
+	"profile_name": "%s",
+	"allow_pairing": true,
+	"is_mdm_removable": true,
+	"org_magic": "1",
+	"language": "en",
+	"region": "US",
+	"skip_setup_items": [
+		"Accessibility",
+		"Appearance",
+		"AppleID",
+		"AppStore",
+		"Biometric",
+		"Diagnostics",
+		"FileVault",
+		"iCloudDiagnostics",
+		"iCloudStorage",
+		"Location",
+		"Payment",
+		"Privacy",
+		"Restore",
+		"ScreenTime",
+		"Siri",
+		"TermsOfAddress",
+		"TOS",
+		"UnlockWithWatch"
+	]
+}
+`
+
+	// Associate the token with the team
+	s.enableABM(t.Name())
+	// start a server that will mock the Apple DEP API
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof godep.Profile
+			require.NoError(t, json.Unmarshal(body, &prof))
+			switch {
+			case len(prof.ProfileName) > 125:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_INVALID"}))
+			case prof.ProfileName == "":
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_REQUIRED"}))
+			case len(prof.ConfigurationWebURL) > 125:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_URL_INVALID"}))
+			case len(prof.Department) > 125:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "DEPARTMENT_INVALID"}))
+			case len(prof.SupportPhoneNumber) > 50:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_PHONE_INVALID"}))
+			case len(prof.SupportEmailAddress) > 250:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_EMAIL_INVALID"}))
+			case len(prof.OrgMagic) > 256:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "MAGIC_INVALID"}))
+			case !prof.IsMDMRemovable && !prof.IsSupervised:
+				w.WriteHeader(http.StatusBadRequest)
+				require.NoError(t, encoder.Encode(map[string]any{"error": "FLAGS_INVALID"}))
+			default:
+				w.WriteHeader(http.StatusOK)
+				require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+			}
+		}
+	}))
+
 	// get for no team returns 404
 	var getResp getMDMAppleSetupAssistantResponse
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNotFound, &getResp)
 	// get for non-existing team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNotFound, &getResp, "team_id", "123")
 
-	// create a setup assistant for no team
-	noTeamProf := `{"x": 1}`
+	// Profile name too long
 	var createResp createMDMAppleSetupAssistantResponse
+	r := s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_too_long",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "%s"}`, strings.Repeat("a", 126))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "CONFIG_NAME_INVALID")
+
+	// Profile name missing
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(`{"profile_name": ""}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "CONFIG_NAME_REQUIRED")
+
+	// Config URL invalid
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "%s"}`, strings.Repeat("a", 126))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "CONFIG_URL_INVALID")
+
+	// Department invalid
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "%s"}`, strings.Repeat("a", 126))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "DEPARTMENT_INVALID")
+
+	// Invalid support phone
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "%s"}`, strings.Repeat("1", 51))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "SUPPORT_PHONE_INVALID")
+
+	// Invalid support email
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "555-123-4567", "support_email_address": "%s"}`, strings.Repeat("1", 251))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "SUPPORT_EMAIL_INVALID")
+
+	// Invalid magic
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "555-123-4567", "support_email_address": "support@example.com", "org_magic": "%s"}`, strings.Repeat("1", 257))),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "MAGIC_INVALID")
+
+	// Invalid flag combo
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(`{"profile_name": "prof_name", "configuration_web_url": "https://example.com", "department": "foo", "support_phone_number": "555-123-4567", "support_email_address": "support@example.com", "org_magic": "1", "is_mdm_removable": false, "is_supervised": false}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "FLAGS_INVALID")
+
+	// create a setup assistant for no team
+	noTeamProf := fmt.Sprintf(defaultProf, "no-team")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team",
@@ -4194,7 +4337,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Description: "desc",
 	})
 	require.NoError(t, err)
-	tmProf := `{"y": 1}`
+	tmProf := fmt.Sprintf(defaultProf, "team1")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team1",
@@ -4210,7 +4353,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		fmt.Sprintf(`{"name": "team1", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
 
 	// update no-team
-	noTeamProf = `{"x": 2}`
+	noTeamProf = fmt.Sprintf(defaultProf, "no-team2")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team2",
@@ -4220,7 +4363,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
 
 	// update team
-	tmProf = `{"y": 2}`
+	tmProf = fmt.Sprintf(defaultProf, "team2")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team2",
@@ -4255,7 +4398,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	// update team with only a setup assistant JSON change, should detect it
 	// and create a new activity (name is the same)
-	tmProf = `{"y": 3}`
+	tmProf = fmt.Sprintf(defaultProf, "update")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team2",
@@ -4331,7 +4474,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Description: "desc2",
 	})
 	require.NoError(t, err)
-	tm2Prof := `{"z": 1}`
+	tm2Prof := fmt.Sprintf(defaultProf, "teamB")
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm2.ID,
 		Name:              "teamB",
@@ -4344,6 +4487,40 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	s.Do("DELETE", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
 	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
+
+	// Try with a team that has no relevant ABM tokens
+	teamNoABM, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name() + "no_abm",
+		Description: "no abm",
+	})
+	require.NoError(t, err)
+	// Adding another, unrelated token to the DB means that this team (which has no hosts and is not
+	// a default team for any token) will not have any relevant tokens and thus we don't know which
+	// token to use to hit the Apple APIs.
+	otherOrg := t.Name() + "some_other_org"
+	s.enableABM(otherOrg)
+	// mysql.CreateABMKeyCertIfNotExists(t, s.ds)
+	// mysql.CreateAndSetABMToken(t, s.ds, "nurv")
+	// err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
+	s.mockDEPResponse(otherOrg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
+	require.NoError(t, err)
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamNoABM.ID,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm")),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
 }
 
 // only asserts the profile identifier, status and operation (per host)
@@ -9836,6 +10013,26 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// Remove all vpp associations from team with no members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
+	// Incorrect type check
+	incorrectTypes := struct {
+		Apps []struct {
+			AppStoreID  int  `json:"app_store_id"`
+			SelfService bool `json:"self_service"`
+		} `json:"app_store_apps"`
+	}{
+		Apps: []struct {
+			AppStoreID  int  `json:"app_store_id"`
+			SelfService bool `json:"self_service"`
+		}{
+			{
+				AppStoreID: 1,
+			},
+		},
+	}
+	badTypeReq := s.Do("POST", batchURL, incorrectTypes, http.StatusBadRequest, "team_name", tmGood.Name)
+	badTypeBody := extractServerErrorText(badTypeReq.Body)
+	assert.Contains(t, badTypeBody, "must be a string")
+
 	// Associating an app we don't own
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "fake-app"}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
@@ -10974,4 +11171,146 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	err = plist.NewDecoder(bytes.NewReader(prof.Mobileconfig)).Decode(&parsedData)
 	require.NoError(t, err)
 	require.Equal(t, enrollSecretWithInvalidChars, parsedData.PayloadContent[0].EnrollSecret)
+}
+
+func (s *integrationMDMTestSuite) TestOTAEnrollment() {
+	t := s.T()
+
+	// create a global enroll secret
+	globalSecret := "global_secret"
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	reqBody := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PRODUCT</key>
+	<string></string>
+	<key>SERIAL</key>
+	<string>foo</string>
+	<key>UDID</key>
+	<string></string>
+	<key>VERSION</key>
+	<string></string>
+</dict>
+</plist>`)
+
+	// request with no enroll secret
+	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusBadRequest)
+	errMsg := extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "enroll_secret query parameter is required")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request with no body
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "invalid request body")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request with unsigned body
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", reqBody, http.StatusBadRequest)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "invalid request body")
+	require.NoError(t, httpResp.Body.Close())
+
+	cert, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	signedData, err := pkcs7.NewSignedData(reqBody)
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signedReqBody, err := signedData.Finish()
+	require.NoError(t, err)
+
+	// request with invalid apple signature
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "forbidden")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request with invalid device signature
+	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "forbidden")
+	require.NoError(t, httpResp.Body.Close())
+
+	// request without serial number
+	signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SERIAL</key>
+	<string></string>
+</dict>
+</plist>`))
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signedReqBody, err = signedData.Finish()
+	require.NoError(t, err)
+	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusBadRequest)
+	errMsg = extractServerErrorText(httpResp.Body)
+	require.Contains(t, errMsg, "SERIAL is required")
+	require.NoError(t, httpResp.Body.Close())
+
+	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+		foundInstallFleetdCommand := false
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+				foundInstallFleetdCommand = true
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.Equal(t, wantCommand, foundInstallFleetdCommand)
+	}
+
+	hwModel := "MacBookPro16,1"
+	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		globalSecret,
+		hwModel,
+	)
+	require.NoError(t, mdmDevice.Enroll())
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, true)
+
+	var hostByIdentifierResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
+	require.Nil(t, hostByIdentifierResp.Host.TeamID)
+
+	// create a team with a different enroll secret
+	var specResp applyTeamSpecsResponse
+	teamSecret := "team_secret"
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}}}}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+	hwModel = "iPad13,16"
+	mdmDevice = mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		teamSecret,
+		hwModel,
+	)
+	require.NoError(t, mdmDevice.Enroll())
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, false)
+
+	hostByIdentifierResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
+	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
+	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 }
