@@ -1015,6 +1015,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				return err
 			}
 
+			// Update $PACKAGE_ID in uninstall script
+			preProcessUninstallScript(installer)
+
 			// if filename was empty, try to extract it from the URL with the
 			// now-known extension
 			if filename == "" {
