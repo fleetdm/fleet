@@ -46,7 +46,7 @@ parasails.registerPage('fleetctl-preview', {
     clickCopyTerminalCommand: async function(platform) {
       let commandToRunFleetPreview = this.fleetctlPreviewTerminalCommand[platform];
       if(this.trialLicenseKey && !this.userHasExpiredTrialLicense){
-        commandToRunFleetPreview += ' --license_key '+this.trialLicenseKey;
+        commandToRunFleetPreview += ' --license-key '+this.trialLicenseKey;
       }
       $('[purpose="command-copy-button"]').addClass('copied');
       await setTimeout(()=>{
