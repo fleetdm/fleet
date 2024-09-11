@@ -24,7 +24,7 @@ On macOS, Chrome stores user settings and configurations in a JSON file at the f
 
 ### Step 2: Identifying AI-related settings
 
-Chrome AI-related preferences are stored in the `optimization_guide` section of the Chrome Preferences file. The `tab_organization_setting_state` key / value field will signify if AI features are enabled:
+Chrome AI-related preferences are stored in the `optimization_guide` section of the Chrome Preferences file. The `tab_organization_setting_state` key / value field will signify if AI features are enabled.
 
 `jq` is a lightweight and powerful command-line tool for parsing, filtering, and manipulating JSON data. It can extract and parse information from JSON files at specific key / value fields.
 
