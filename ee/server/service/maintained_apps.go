@@ -39,7 +39,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:     installerReader,
-		Title:             app.Filename,
+		Title:             app.Name,
 		UserID:            vc.UserID(),
 		Filename:          app.Filename,
 		TeamID:            teamID,
@@ -56,6 +56,26 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
+	}
+
+	// Create activity
+	var teamName *string
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		if err != nil {
+			return err
+		}
+		teamName = &t.Name
+	}
+
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+		SelfService:     payload.SelfService,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
 	return nil
