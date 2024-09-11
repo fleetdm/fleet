@@ -39,8 +39,8 @@ func Up_20240826160025(tx *sql.Tx) error {
 	WHERE NOT EXISTS (
 		-- software is not installed on this specific host
 		SELECT 1 FROM host_software hs
-		INNER JOIN software s2 ON hs.software_id = s2.id AND s2.title_id = st.id
-		WHERE hs.host_id = hsi.host_id
+		INNER JOIN software s2 ON hs.software_id = s2.id
+		WHERE hs.host_id = hsi.host_id AND s2.title_id = st.id
 	) AND (
 		-- software status is: Installed
 		(hsi.post_install_script_exit_code IS NOT NULL AND hsi.post_install_script_exit_code = 0) OR
@@ -74,8 +74,8 @@ func Up_20240826160025(tx *sql.Tx) error {
 	WHERE NOT EXISTS (
 		-- software is not installed on this specific host
 		SELECT 1 FROM host_software hs
-		INNER JOIN software s2 ON hs.software_id = s2.id AND s2.title_id = st.id
-		WHERE hs.host_id = hvsi.host_id
+		INNER JOIN software s2 ON hs.software_id = s2.id
+		WHERE hs.host_id = hvsi.host_id AND s2.title_id = st.id
 	) AND
 		-- software was refetched after it was installed
 		hvsi.updated_at < h.detail_updated_at
