@@ -66,8 +66,10 @@ export interface ISoftwarePackage {
   icon_url: string | null;
   status: {
     installed: number;
-    pending: number; // includes total of hosts pending_install and pending_uninstall
-    failed: number;
+    pending_install: number;
+    failed_install: number;
+    pending_uninstall: number;
+    failed_uninstall: number;
   };
 }
 
