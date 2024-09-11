@@ -12,7 +12,7 @@ Google Chrome has integrated AI to enhance user experience by providing intellig
 
 ## Using Fleet to discover AI features in Chrome
 
-Fleet, a comprehensive device management and security tool, allows organizations monitor installed software configurations and enabled features on endpoints and servers. Investigating this data enables Fleet admins to build SQL queries for detection.
+Fleet, a comprehensive device management and security tool, allows organizations to monitor installed software configurations and enabled features on endpoints and servers. Investigating this data enables Fleet admins to build SQL queries for detection.
 
 ### Step 1: Understanding Chrome's preferences JSON file
 
