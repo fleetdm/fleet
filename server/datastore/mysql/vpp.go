@@ -860,9 +860,9 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	})
 
 	if err != nil {
-		mysqlErr := &mysql.MySQLError{}
+		var mysqlErr *mysql.MySQLError
 		// https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_dup_entry
-		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+		if errors.As(err, &mysqlErr) && IsDuplicate(err) {
 			var dupeTeamID uint
 			var dupeTeamName string
 			fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
