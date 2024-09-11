@@ -75,5 +75,5 @@ type ErrVPPTokenTeamConstraint struct {
 }
 
 func (e ErrVPPTokenTeamConstraint) Error() string {
-	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have on VPP token.", e.Name)
+	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }
