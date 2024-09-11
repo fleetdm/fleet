@@ -1,2 +1,0 @@
-- adds the following filters to `/software/titles` and `/software/versions` API endpoints: `exploit: bool`, `min_cvss_score: float`, `max_cvss_score: float`
-- Software titles/versions tables allow for filtering by vulnerabilities including severity and known exploit

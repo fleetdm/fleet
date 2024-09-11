@@ -699,6 +699,34 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
+func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
+	certPEM, keyPEM, _, err := GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	var assets []fleet.MDMConfigAsset
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+	})
+	if err != nil {
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: keyPEM})
+	}
+
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+	})
+	if err != nil {
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: certPEM})
+	}
+
+	if len(assets) != 0 {
+		err = ds.InsertMDMConfigAssets(context.Background(), assets)
+		require.NoError(t, err)
+	}
+}
+
 // CreateAndSetABMToken creates a new ABM token (using an existing ABM key/cert) and stores it in the DB.
 func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
 	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
