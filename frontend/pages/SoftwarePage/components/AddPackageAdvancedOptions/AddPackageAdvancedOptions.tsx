@@ -16,8 +16,8 @@ import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   return `Currently, ${
-    isWindowsPackageType(pkgType) ? "Power" : ""
-  }Shell scripts are supported.`;
+    isWindowsPackageType(pkgType) ? "PowerS" : "s"
+  }hell scripts are supported.`;
 };
 
 const PKG_TYPE_TO_ID_TEXT = {
