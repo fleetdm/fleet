@@ -33,7 +33,7 @@ type uploadSoftwareInstallerRequest struct {
 }
 
 type updateSoftwareInstallerRequest struct {
-	ID                uint `url:"id"`
+	TitleID           uint `url:"id"`
 	File              *multipart.FileHeader
 	TeamID            *uint
 	InstallScript     *string
@@ -61,7 +61,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	if err != nil {
 		return nil, badRequestErr("intFromRequest", err)
 	}
-	decoded.ID = uint(titleID)
+	decoded.TitleID = uint(titleID)
 
 	err = r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
@@ -142,6 +142,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	req := request.(*updateSoftwareInstallerRequest)
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:           req.TitleID,
 		TeamID:            req.TeamID,
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
@@ -159,7 +160,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		payload.Filename = req.File.Filename
 	}
 
-	installer, err := svc.UpdateSoftwareInstaller(ctx, req.ID, payload)
+	installer, err := svc.UpdateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
@@ -167,7 +168,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	return getSoftwareInstallerResponse{SoftwareInstaller: installer}, nil
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

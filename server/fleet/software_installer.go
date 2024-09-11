@@ -319,6 +319,7 @@ type UploadSoftwareInstallerPayload struct {
 
 type UpdateSoftwareInstallerPayload struct {
 	// find the installer via these fields
+	TitleID     uint
 	TeamID      *uint
 	InstallerID uint
 	// used for authorization and persisted as author
