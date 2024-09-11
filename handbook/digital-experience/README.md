@@ -247,10 +247,10 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 
 Salesforce requires that the password to the "Integrations admin" account is changed every 90 days. When this happens, the Salesforce integrations on the Fleet website/Hydroplane will fail with an `INVALID_LOGIN` error. To prevent this from happening, a member of the Digital expererience team will:
 
-1. Log into the "Integrations admin" account in Salesforce
+1. Log into the "Integrations admin" account in Salesforce.
 2. Change the password and save it in the shared 1Password vault.
-3. Request a new security token for the "Integrations admin" account (This will be sent to the email address associated with the account)
-4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane)
+3. Request a new security token for the "Integrations admin" account (This will be sent to the email address associated with the account).
+4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane).
 
 
 ### Schedule press release
