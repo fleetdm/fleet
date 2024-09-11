@@ -50,6 +50,11 @@ type TokenUpdate struct {
 	UserLongName  string `plist:",omitempty"`
 }
 
+// referenceTime is used as a canary to insert/update records. As long as a
+// record has an `updated_at` timestamp, the script will update it, but if the
+// timestamp has changed, the record will be completely ignored.
+const referenceTime = "2000-01-01 00:00:00"
+
 func main() {
 	flDB := flag.String("db", "/var/db/micromdm/micromdm.db", "path to micromdm DB")
 	flag.Parse()
@@ -215,10 +220,10 @@ INSERT INTO nano_devices
       token_update_at,
       bootstrap_token_b64,
       bootstrap_token_at,
-      identity_cert
+      identity_cert,
+      updated_at
     )
-VALUES
-    (
+SELECT
       '%s',
       '%s',
       '%s',
@@ -227,10 +232,16 @@ VALUES
       CURRENT_TIMESTAMP,
       '%s',
       CURRENT_TIMESTAMP,
-      NULLIF('%s', '')
+      NULLIF('%s', ''),
+      '%s'
+WHERE
+    NOT EXISTS (
+        SELECT 1 FROM nano_devices
+        WHERE id = '%s' AND updated_at != '%s'
     )
 ON DUPLICATE KEY
 UPDATE
+    updated_at = updated_at, -- preserve updated_at
     serial_number = VALUES(serial_number),
     authenticate = VALUES(authenticate),
     authenticate_at = CURRENT_TIMESTAMP,
@@ -239,38 +250,43 @@ UPDATE
     bootstrap_token_b64 = VALUES(bootstrap_token_b64),
     bootstrap_token_at = CURRENT_TIMESTAMP,
     identity_cert = VALUES(identity_cert);
-		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken, certPEM))
+		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken, certPEM, referenceTime, device.UDID, referenceTime))
 
 			sb.WriteString(fmt.Sprintf(`
-INSERT INTO nano_enrollments
-	(
-	  id,
-	  device_id,
-	  user_id, type,
-	  topic,
-	  push_magic,
-	  token_hex,
-	  enabled,
-	  last_seen_at,
-	  enrolled_from_migration,
-	  token_update_tally
-	)
-VALUES
-	(
-	  '%s',
-	  '%s',
-	  NULL,
-	  'Device',
-	  '%s',
-	  '%s',
-	  '%s',
-	  %t,
-	  CURRENT_TIMESTAMP,
-	  1,
-	  1
-	)
+INSERT INTO nano_enrollments (
+      id,
+      device_id,
+      user_id, type,
+      topic,
+      push_magic,
+      token_hex,
+      enabled,
+      last_seen_at,
+      enrolled_from_migration,
+      token_update_tally,
+      updated_at
+)
+SELECT
+      '%s',
+      '%s',
+      NULL,
+      'Device',
+      '%s',
+      '%s',
+      '%s',
+      %t,
+      CURRENT_TIMESTAMP,
+      1,
+      1,
+      '%s'
+WHERE
+    NOT EXISTS (
+        SELECT 1 FROM nano_enrollments
+        WHERE id = '%s' AND updated_at != '%s'
+    )
 ON DUPLICATE KEY
 UPDATE
+    updated_at = updated_at, -- preserve updated_at
     device_id = VALUES(device_id),
     user_id = VALUES(user_id),
     type = VALUES(type),
@@ -286,18 +302,27 @@ UPDATE
 				tokenUpdate.PushMagic,
 				hex.EncodeToString(tokenUpdate.Token),
 				device.Enrolled,
+				referenceTime,
+				device.UDID,
+				referenceTime,
 			))
 
 			sb.WriteString(fmt.Sprintf(`
 INSERT INTO nano_cert_auth_associations
-    (id, sha256, cert_not_valid_after)
-VALUES
-    ('%s', '%s', NULLIF('%s', ''))
+    (id, sha256, cert_not_valid_after, updated_at)
+SELECT
+    '%s', '%s', NULLIF('%s', ''), '%s'
+WHERE
+    NOT EXISTS (
+        SELECT 1 FROM nano_cert_auth_associations
+        WHERE id = '%s' AND updated_at != '%s'
+    )
 ON DUPLICATE KEY UPDATE
   id = VALUES(id),
+  updated_at = updated_at, -- preserve updated_at
   sha256 = VALUES(sha256),
   cert_not_valid_after = VALUES(cert_not_valid_after);
-	    `, device.UDID, hex.EncodeToString(certHash[:]), certExpiration))
+	    `, device.UDID, hex.EncodeToString(certHash[:]), certExpiration, referenceTime, device.UDID, referenceTime))
 		}
 
 		sb.WriteString("\n")
