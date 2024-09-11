@@ -47,7 +47,6 @@ const StatusMessage = ({
     "the host"
   );
 
-  // TODO - confirm okay to fall back to created_at
   const timeStamp = updated_at || created_at;
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""

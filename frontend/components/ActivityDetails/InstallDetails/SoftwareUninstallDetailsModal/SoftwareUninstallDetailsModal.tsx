@@ -26,8 +26,6 @@ type ISoftwareUninstallDetails = Pick<
 
 interface IUninstallStatusMessage {
   host_display_name: string;
-  // TODO - confirm timestamp source
-  timestamp?: string;
   // TODO - improve status typing
   status: string;
   software_title: string;
@@ -35,7 +33,6 @@ interface IUninstallStatusMessage {
 
 const StatusMessage = ({
   host_display_name,
-  timestamp,
   status,
   software_title,
 }: IUninstallStatusMessage) => {
@@ -76,7 +73,6 @@ const SoftwareUninstallDetailsModal = ({
   onCancel: () => void;
 }) => {
   const SoftwareUninstallDetails = ({
-    // all of these props will be defined
     script_execution_id = "",
     host_display_name = "",
     software_title = "",
