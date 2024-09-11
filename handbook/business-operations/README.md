@@ -267,7 +267,9 @@ When BizOps receives notification of a Fleetie's job title changing, follow thes
     - Input the new job title in the Fleetie's row in the "Job title" cell.
     - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
 2. Update the departmental handbook page with the change of job title
-3. Update the relevant payroll/HRIS system.
+3. [Prepare salary benchmarking information](https://fleetdm.com/handbook/business-operations#prepare-salary-benchmarking-information) to determine whether the teammate's current compensation aligns with the benchmarks of the new role.
+   -  If the benchmark is significantly different, take the steps to [update a team member's compensation](https://fleetdm.com/handbook/business-operations#prepare-salary-benchmarking-information).
+4. Update the relevant payroll/HRIS system.
     - For updating Gusto (US-based Fleeties):
       - Login to Gusto and navigate to "People > Team members".
       - Find the Fleetie and select them to see their profile page.

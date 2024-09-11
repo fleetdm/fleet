@@ -88,6 +88,7 @@ func TestMDMApple(t *testing.T) {
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
+		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 	}
 
 	for _, c := range cases {
@@ -6793,6 +6794,7 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	require.Len(t, orgNames, 1)
 	require.Equal(t, orgNames[0], "org3")
 }
+
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -6862,6 +6864,68 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, hostCommands[1:], commands)
+}
+
+func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	createBuiltinLabels(t, ds)
+
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery-host-id_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node-key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 10)
+	wantSerials := []string{}
+	for _, h := range hosts {
+		wantSerials = append(wantSerials, h.HardwareSerial)
+	}
+
+	// mock results incoming from OTA enrollments
+	otaDevices := []fleet.MDMAppleMachineInfo{
+		{Serial: "abc", Product: "MacBook Pro"},
+		{Serial: "abc", Product: "MacBook Pro"},
+		{Serial: hosts[0].HardwareSerial, Product: "MacBook Pro"},
+		{Serial: "ijk", Product: "iPad13,16"},
+		{Serial: "tuv", Product: "iPhone14,6"},
+		{Serial: hosts[1].HardwareSerial, Product: "MacBook Pro"},
+		{Serial: "xyz", Product: "MacBook Pro"},
+		{Serial: "xyz", Product: "MacBook Pro"},
+		{Serial: "xyz", Product: "MacBook Pro"},
+	}
+	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
+
+	for _, d := range otaDevices {
+		err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, d)
+		require.NoError(t, err)
+	}
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, len(wantSerials))
+	gotSerials := []string{}
+	for _, h := range hosts {
+		gotSerials = append(gotSerials, h.HardwareSerial)
+
+		switch h.HardwareSerial {
+		case "abc", "xyz":
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "MacBook Pro")
+		case "ijk":
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "iPad13,16")
+		case "tuv":
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "iPhone14,6")
+
+		}
+	}
+	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
 func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {

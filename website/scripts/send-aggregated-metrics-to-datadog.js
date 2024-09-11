@@ -450,7 +450,7 @@ module.exports = {
     });
     // maintenanceWindowsConfigured
     let numberOfInstancesWithMaintenanceWindowsConfigured = _.where(latestStatisticsReportedByReleasedFleetVersions, {maintenanceWindowsEnabled: true}).length;
-    let numberOfInstancesWithoutMaintenanceWindowsConfigured = numberOfInstancesToReport - numberOfInstancesWithMaintenanceWindowsEnabled;
+    let numberOfInstancesWithoutMaintenanceWindowsConfigured = numberOfInstancesToReport - numberOfInstancesWithMaintenanceWindowsConfigured;
     metricsToReport.push({
       metric: 'usage_statistics.maintenance_windows_configured',
       type: 3,
