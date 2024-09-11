@@ -2680,12 +2680,14 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
 
+	fmt.Println(">>>> TOKENUPDATE ", r.ID, info.SCEPRenewalInProgress)
 	if info.SCEPRenewalInProgress {
 		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process", "host_uuid", r.ID)
 		err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID)
 		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 	}
 
+	fmt.Println(">>>> TOKENUPDATE ", r.ID, "doing lifecycle TurnOn")
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:          mdmlifecycle.HostActionTurnOn,
 		Platform:        info.Platform,
@@ -3481,6 +3483,7 @@ func RenewSCEPCertificates(
 		level.Debug(logger).Log("msg", "no certs to renew")
 		return nil
 	}
+	fmt.Println(">>>> certs to renew: ", len(certAssociations))
 
 	// assocsWithRefs stores hosts that have enrollment references on their
 	// enrollment profiles. This is the case for ADE-enrolled hosts using
