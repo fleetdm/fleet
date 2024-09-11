@@ -8,11 +8,11 @@ Staying ahead of technological innovations is crucial for individuals and organi
 
 ## Introduction to Chrome AI innovations
 
-Google Chrome has integrated AI to enhance user experience by providing intelligent suggestions, improving search results, and offering in-browser assistance. Visit the [Chrome AI Innovations page](https://www.google.com/chrome/ai-innovations/) for more infomration.
+Google Chrome has integrated AI to enhance user experience by providing intelligent suggestions, improving search results, and offering in-browser assistance. Visit the [Chrome AI Innovations page](https://www.google.com/chrome/ai-innovations/) for more information.
 
 ## Using Fleet to discover AI features in Chrome
 
-Fleet, a comprehensive device management and security tool, allows you to monitor installed software configurations and enabled features. Investigating this data enables Fleet admins to build SQL queries for detection.
+Fleet, a comprehensive device management and security tool, allows organizations monitor installed software configurations and enabled features on endpoints and servers. Investigating this data enables Fleet admins to build SQL queries for detection.
 
 ### Step 1: Understanding Chrome's preferences JSON file
 
@@ -28,7 +28,7 @@ Chrome AI-related preferences are stored in the `optimization_guide` section of 
 
 `jq` is a lightweight and powerful command-line tool for parsing, filtering, and manipulating JSON data. It can extract and parse information from JSON files at specific key / value fields.
 
-In this case, `jq` is used to locate and read the value of the `tab_organization_setting_state` key within the Chrome Preferences file. This allows us to craft a Fleet query for reporting the state of the Chrome AI settings.
+In this case, `jq` is used to locate and read the value of the `tab_organization_setting_state` key within the Chrome Preferences file. This knowledge allows an admin to craft a Fleet query for reporting the state of the Chrome AI settings.
 
 - If enabled, the setting will return `1`.
 
@@ -50,7 +50,7 @@ In this case, `jq` is used to locate and read the value of the `tab_organization
 
 ### Step 3: Query the JSON file with Fleet
 
-To detect Chrome AI features using Fleet, you can use the following SQL query:
+To detect Chrome AI features in Fleet, use SQL query like the following:
 
 ```
 SELECT fullkey,path FROM parse_json WHERE path LIKE '/Users/%/Library/Application Support/Google/Chrome/Default/Preferences' AND fullkey='optimization_guide/tab_organization_setting_state';
