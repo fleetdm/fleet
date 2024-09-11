@@ -318,23 +318,26 @@ type UploadSoftwareInstallerPayload struct {
 }
 
 type UpdateSoftwareInstallerPayload struct {
-	TeamID            *uint
+	// find the installer via these fields
+	TeamID      *uint
+	InstallerID uint
+	// used for authorization and persisted as author
+	UserID uint
+	// optional; used for pulling metadata + persisting new installer package to file system
+	InstallerFile io.ReadSeeker
+	// update the installer with these fields (*not* PATCH semantics at that point; while the
+	// associated endpoint is a PATCH, the entire row will be updated to these values, including
+	// blanks, so make sure they're set from either user input or the existing installer row
+	// before saving)
 	InstallScript     *string
 	PreInstallQuery   *string
 	PostInstallScript *string
 	SelfService       *bool
 	UninstallScript   *string
-	InstallerFile     io.ReadSeeker
 	StorageID         string
 	Filename          string
-	Title             string
 	Version           string
-	Source            string
-	Platform          string
-	BundleIdentifier  string
 	PackageIDs        []string
-	UserID            uint
-	InstallerID       uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
