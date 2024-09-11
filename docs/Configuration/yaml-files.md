@@ -575,10 +575,10 @@ Can only be configured for all teams (`org_settings`).
 
 ##### apple_business_manager
 
-- `organization_name` - the organization name associated with the Apple Business Manager account.
-- `macos_team` - macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager.
-- `ios_team` - iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager.
-- `ipados_team` - iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager.
+- `organization_name` is the organization name associated with the Apple Business Manager account.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
+- `ios_team` the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
 
 ##### Example
 
