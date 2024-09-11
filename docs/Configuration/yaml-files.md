@@ -262,6 +262,16 @@ controls:
 - `deadline_days` (default: null)
 - `grace_period_days` (default: null)
 
+#### ios_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `minimum_version` specifies the minimum required iOS version (default: `""`).
+
+#### ipados_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+
 #### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
