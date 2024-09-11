@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -54,7 +56,7 @@ ON DUPLICATE KEY UPDATE
 	})
 }
 
-func (ds *Datastore) GetMaintainedAppById(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
 	const stmt = `
 SELECT
 	fla.id,
@@ -77,6 +79,10 @@ WHERE
 
 	var app fleet.MaintainedApp
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, appID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp"), "no matching maintained app found")
+		}
+
 		return nil, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 

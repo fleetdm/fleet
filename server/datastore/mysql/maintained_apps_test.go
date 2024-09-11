@@ -21,6 +21,7 @@ func TestMaintainedApps(t *testing.T) {
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"IngestWithBrew", testIngestWithBrew},
+		{"GetMaintainedAppByID", testGetMaintainedAppByID},
 	}
 
 	for _, c := range cases {
@@ -84,4 +85,64 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")
 	})
 	require.ElementsMatch(t, expectedTokens, actualTokens)
+}
+
+func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	insertQuery := `
+INSERT INTO 
+	fleet_library_apps (
+		name, 
+		token, 
+		version, 
+		platform, 
+		installer_url, 
+		filename, 
+		sha256, 
+		bundle_identifier, 
+		install_script_content_id, 
+		uninstall_script_content_id
+	)
+VALUES 
+	( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`
+
+	expApp := &fleet.MaintainedApp{
+		ID:               uint(1),
+		Name:             "foo",
+		Token:            "foo",
+		Version:          "1.0.0",
+		Platform:         "darwin",
+		InstallerURL:     "https://example.com/foo.zip",
+		Filename:         "foo.zip",
+		SHA256:           "abc",
+		BundleIdentifier: "abc",
+		InstallScript:    "foo",
+		UninstallScript:  "foo",
+	}
+
+	var appID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := insertScriptContents(ctx, q, expApp.InstallScript)
+		if err != nil {
+			return err
+		}
+		isID, _ := res.LastInsertId()
+		res, err = insertScriptContents(ctx, q, expApp.UninstallScript)
+		if err != nil {
+			return err
+		}
+		usID, _ := res.LastInsertId()
+		res, err = q.ExecContext(ctx, insertQuery, "foo", "foo", "1.0.0", "darwin", "https://example.com/foo.zip", "foo.zip", "abc", "abc", isID, usID)
+		if err != nil {
+			return err
+		}
+		appID, _ = res.LastInsertId()
+		return nil
+	})
+
+	app, err := ds.GetMaintainedAppByID(ctx, uint(appID))
+	require.NoError(t, err)
+
+	require.Equal(t, expApp, app)
 }

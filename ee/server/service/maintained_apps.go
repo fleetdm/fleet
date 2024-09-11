@@ -23,7 +23,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		return fleet.ErrNoContext
 	}
 
-	app, err := svc.ds.GetMaintainedAppById(ctx, appID)
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
@@ -38,17 +38,18 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	// TODO(JVE): could this be moved into Download (rename the func ofc)?
 	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    installerReader,
-		Title:            app.Filename,
-		UserID:           vc.UserID(),
-		Filename:         app.Filename,
-		TeamID:           teamID,
-		Version:          app.Version,
-		Platform:         string(app.Platform),
-		BundleIdentifier: app.BundleIdentifier,
-		StorageID:        app.SHA256,
+		InstallerFile:     installerReader,
+		Title:             app.Filename,
+		UserID:            vc.UserID(),
+		Filename:          app.Filename,
+		TeamID:            teamID,
+		Version:           app.Version,
+		Platform:          string(app.Platform),
+		BundleIdentifier:  app.BundleIdentifier,
+		StorageID:         app.SHA256,
+		FleetLibraryAppID: &app.ID,
 	}
-	_, err = svc.ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{payload})
+	_, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting downloaded installer")
 	}
