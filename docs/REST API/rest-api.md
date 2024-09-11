@@ -8317,11 +8317,14 @@ Gets the result of a script that was executed.
   "host_timeout": false,
   "host_id": 1,
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "runtime": 20
+  "runtime": 20,
+  "created_at": "2024-09-11T20:30:24Z"
 }
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+> Note: `created_at` is the creation timestamp of the script execution request.
 
 ### Add script
 
