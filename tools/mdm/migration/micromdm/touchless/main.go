@@ -117,6 +117,10 @@ func main() {
 
 		var sb strings.Builder
 		for _, device := range devices {
+			if len(device.UDID) == 0 {
+				log.Println("Skipping device with empty UDID")
+				continue
+			}
 			pushInfo, err := apnsDB.PushInfo(context.Background(), device.UDID)
 			if err != nil {
 				log.Println(device.UDID, " FAILED: ", err)
