@@ -68,7 +68,7 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-// import { SoftwareUninstallDetailsModal } from "components/ActivityDetails/UninstallDetails/SoftwareUninstallDetails/SoftwareUninstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -1075,12 +1075,12 @@ const HostDetailsPage = ({
             onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}
-        {/* {!!packageUninstallDetails && (
+        {packageUninstallDetails && (
           <SoftwareUninstallDetailsModal
             details={packageUninstallDetails}
-            onCancel={onCancelSoftwareUninstallDetailsModal}
+            onCancel={() => setPackageUninstallDetails(null)}
           />
-        )} */}
+        )}
         {!!appInstallDetails && (
           <AppInstallDetailsModal
             details={appInstallDetails}

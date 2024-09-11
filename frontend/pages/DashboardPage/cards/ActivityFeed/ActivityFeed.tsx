@@ -18,7 +18,7 @@ import FleetIcon from "components/icons/FleetIcon";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-// import { SoftwareUninstallDetailsModal } from "components/ActivityDetails/UninstallDetails/SoftwareUninstallDetails/SoftwareUninstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
@@ -213,12 +213,12 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
-      {/* {packageUninstallDetails && (
+      {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
           details={packageUninstallDetails}
           onCancel={() => setPackageUninstallDetails(null)}
         />
-      )} */}
+      )}
       {appInstallDetails && (
         <AppInstallDetailsModal
           details={appInstallDetails}

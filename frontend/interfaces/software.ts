@@ -194,13 +194,19 @@ export const formatSoftwareType = ({
 /**
  * This list comprises all possible states of software install operations.
  */
-export const SOFTWARE_INSTALL_STATUSES = [
-  "installed",
+export const SOFTWARE_UNINSTALL_STATUSES = [
   "uninstalled",
-  "pending_install",
-  "failed_install",
   "pending_uninstall",
   "failed_uninstall",
+] as const;
+
+export type SoftwareUninstallStatus = typeof SOFTWARE_UNINSTALL_STATUSES[number];
+
+export const SOFTWARE_INSTALL_STATUSES = [
+  "installed",
+  "pending_install",
+  "failed_install",
+  ...SOFTWARE_UNINSTALL_STATUSES,
 ] as const;
 
 /*
@@ -209,9 +215,18 @@ export const SOFTWARE_INSTALL_STATUSES = [
 export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
 
 export const isValidSoftwareInstallStatus = (
-  s: string | undefined
+  s: string | undefined | null
 ): s is SoftwareInstallStatus =>
   !!s && SOFTWARE_INSTALL_STATUSES.includes(s as SoftwareInstallStatus);
+
+export const isSoftwareUninstallStatus = (
+  s: string | undefined | null
+): s is SoftwareUninstallStatus =>
+  !!s && SOFTWARE_UNINSTALL_STATUSES.includes(s as SoftwareUninstallStatus);
+
+// not a typeguard, as above 2 functions are
+export const isPendingStatus = (s: string | undefined | null) =>
+  ["pending_install", "pending_uninstall"].includes(s || "");
 
 /**
  * ISoftwareInstallResult is the shape of a software install result object
