@@ -596,8 +596,8 @@ org_settings:
 
 ##### volume_purchasing_program
 
-- `location` - is the name of the location in the Apple Business Manager account.
-- `teams` - is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
+- `location` is the name of the location in the Apple Business Manager account.
+- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
 
 ##### Example
 
