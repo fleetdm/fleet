@@ -11280,6 +11280,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.Nil(t, getHostSoftwareResp.Software[0].Status)
 
 	// Uninstall again, but this time with a failed result
+	beforeUninstall := time.Now()
+	// Since host_script_results does not use fine-grained timestamps yet, we adjust
+	beforeUninstall = beforeUninstall.Add(-time.Second)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -11325,6 +11328,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NotNil(t, scriptResultResp.ExitCode)
 	assert.EqualValues(t, 1, *scriptResultResp.ExitCode)
 	assert.Equal(t, "not ok", scriptResultResp.Output)
+	assert.Less(t, beforeUninstall, scriptResultResp.CreatedAt)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
