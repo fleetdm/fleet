@@ -455,7 +455,8 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 }
 
 func (ds *Datastore) CancelPendingInstallsForInstallerID(ctx context.Context, id uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE software_installer_id = ? AND status = "pending_install"`, id)
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_software_installs
+       WHERE software_installer_id = ? AND status = "pending_install"`, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cancel pending installs")
 	}
