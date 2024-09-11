@@ -896,61 +896,35 @@ func insertMDMAppleHostDB(
 	return nil
 }
 
-type hostWithEnrolled struct {
-	fleet.Host
-	Enrolled *bool `db:"enrolled"`
+// hostToCreateFromMDM defines a common set of parameters required to create
+// host records without a pre-existing osquery enrollment from MDM flows like
+// ADE ingestion or OTA enrollments
+type hostToCreateFromMDM struct {
+	// HardwareSerial should match the value for hosts.hardware_serial
+	HardwareSerial string
+	// HardwareModel should match the value for hosts.hardware_model
+	HardwareModel string
+	// PlatformHint is used to determine hosts.platform, if it:
+	//
+	// - contains "iphone" the platform is "ios"
+	// - contains "ipad" the platform is "ipados"
+	// - otherwise the platform is "darwin"
+	PlatformHint string
 }
 
-func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
+func createHostFromMDMDB(
 	ctx context.Context,
-	devices []godep.Device,
-	abmTokenID uint,
-	macOSTeam, iosTeam, ipadTeam *fleet.Team,
-) (createdCount int64, err error) {
-	if len(devices) < 1 {
-		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
-		return 0, nil
-	}
+	tx sqlx.ExtContext,
+	logger log.Logger,
+	devices []hostToCreateFromMDM,
+	macOSTeam, iosTeam, ipadTeam *uint,
+) (int64, []fleet.Host, error) {
+	// NOTE: order of arguments for teams is important, see statement.
+	args := []any{iosTeam, ipadTeam, macOSTeam}
+	us, unionArgs := unionSelectDevices(devices)
+	args = append(args, unionArgs...)
 
-	appCfg, err := ds.AppConfig(ctx)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
-	}
-
-	var args []any
-	teams := []*fleet.Team{iosTeam, ipadTeam, macOSTeam}
-	for _, team := range teams {
-		if team == nil {
-			args = append(args, nil)
-			continue
-		}
-
-		exists, err := ds.TeamExists(ctx, team.ID)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
-		}
-
-		if exists {
-			args = append(args, team.ID)
-			continue
-		}
-
-		// If the team doesn't exist, we still ingest the device, but it won't
-		// belong to any team.
-		level.Debug(ds.logger).Log(
-			"msg",
-			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
-			"team_id",
-			team,
-		)
-		args = append(args, nil)
-	}
-
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		us, unionArgs := unionSelectDevices(devices)
-		args = append(args, unionArgs...)
-
-		stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(`
 		INSERT INTO hosts (
 			hardware_serial,
 			hardware_model,
@@ -980,29 +954,28 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			h.id IS NULL
 		GROUP BY
 			us.hardware_serial, us.platform)`,
-			us,
-		)
+		us,
+	)
 
-		res, err := tx.ExecContext(ctx, stmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync insert")
-		}
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "inserting new host in MDM ingestion")
+	}
 
-		n, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync rows affected")
-		}
-		createdCount = n
+	n, _ := res.RowsAffected()
+	// get new host ids
+	args = []any{}
+	parts := []string{}
+	for _, d := range devices {
+		args = append(args, d.HardwareSerial)
+		parts = append(parts, "?")
+	}
 
-		// get new host ids
-		args = []interface{}{}
-		parts := []string{}
-		for _, d := range devices {
-			args = append(args, d.SerialNumber)
-			parts = append(parts, "?")
-		}
-		var hostsWithEnrolled []hostWithEnrolled
-		err = sqlx.SelectContext(ctx, tx, &hostsWithEnrolled, fmt.Sprintf(`
+	var hostsWithEnrolled []struct {
+		fleet.Host
+		Enrolled *bool `db:"enrolled"`
+	}
+	err = sqlx.SelectContext(ctx, tx, &hostsWithEnrolled, fmt.Sprintf(`
 			SELECT
 				h.id,
 				h.platform,
@@ -1012,47 +985,135 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			FROM hosts h
 			LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
 			WHERE h.hardware_serial IN(%s)`,
-			strings.Join(parts, ",")),
-			args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
+		strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
+	}
+
+	var hosts []fleet.Host
+	var unmanagedHostIDs []uint
+	for _, h := range hostsWithEnrolled {
+		hosts = append(hosts, h.Host)
+		if h.Enrolled == nil || !*h.Enrolled {
+			unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
+		}
+	}
+
+	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	}
+
+	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
+	}
+
+	appCfg, err := appConfigDB(ctx, tx)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+	}
+
+	// only upsert MDM info for hosts that are unmanaged. This
+	// prevents us from overriding valuable info with potentially
+	// incorrect data. For example: if a host is enrolled in a
+	// third-party MDM, but gets assigned in ABM to Fleet (during
+	// migration) we'll get an 'added' event. In that case, we
+	// expect that MDM info will be updated in due time as we ingest
+	// future osquery data from the host
+	if err := upsertMDMAppleHostMDMInfoDB(
+		ctx,
+		tx,
+		appCfg.ServerSettings,
+		true,
+		unmanagedHostIDs...,
+	); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+	}
+
+	return n, hosts, nil
+}
+
+func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
+	ctx context.Context,
+	teamID *uint,
+	deviceInfo fleet.MDMAppleMachineInfo,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		toInsert := []hostToCreateFromMDM{
+			{
+				HardwareSerial: deviceInfo.Serial,
+				PlatformHint:   deviceInfo.Product,
+				HardwareModel:  deviceInfo.Product,
+			},
+		}
+		_, _, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, teamID, teamID, teamID)
+		return ctxerr.Wrap(ctx, err, "creating host from OTA enrollment")
+	})
+}
+
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
+	ctx context.Context,
+	devices []godep.Device,
+	abmTokenID uint,
+	macOSTeam, iosTeam, ipadTeam *fleet.Team,
+) (createdCount int64, err error) {
+	if len(devices) < 1 {
+		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
+		return 0, nil
+	}
+
+	var teamIDs []*uint
+	for _, team := range []*fleet.Team{macOSTeam, iosTeam, ipadTeam} {
+		if team == nil {
+			teamIDs = append(teamIDs, nil)
+			continue
 		}
 
-		var hosts []fleet.Host
-		var unmanagedHostIDs []uint
-		for _, h := range hostsWithEnrolled {
-			hosts = append(hosts, h.Host)
-			if h.Enrolled == nil || !*h.Enrolled {
-				unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
+		exists, err := ds.TeamExists(ctx, team.ID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+		}
+
+		if exists {
+			teamIDs = append(teamIDs, &team.ID)
+			continue
+		}
+
+		// If the team doesn't exist, we still ingest the device, but it won't
+		// belong to any team.
+		level.Debug(ds.logger).Log(
+			"msg",
+			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
+			"team_id",
+			team,
+		)
+		teamIDs = append(teamIDs, nil)
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		htc := make([]hostToCreateFromMDM, len(devices))
+		for i, d := range devices {
+			htc[i] = hostToCreateFromMDM{
+				HardwareSerial: d.SerialNumber,
+				HardwareModel:  d.Model,
+				PlatformHint:   d.DeviceFamily,
 			}
 		}
 
-		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
-		}
-
-		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hosts...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
-		}
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
-		}
-
-		// only upsert MDM info for hosts that are unmanaged. This
-		// prevents us from overriding valuable info with potentially
-		// incorrect data. For example: if a host is enrolled in a
-		// third-party MDM, but gets assigned in ABM to Fleet (during
-		// migration) we'll get an 'added' event. In that case, we
-		// expect that MDM info will be updated in due time as we ingest
-		// future osquery data from the host
-		if err := upsertMDMAppleHostMDMInfoDB(
+		n, hosts, err := createHostFromMDMDB(
 			ctx,
 			tx,
-			appCfg.ServerSettings,
-			true,
-			unmanagedHostIDs...,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+			ds.logger,
+			htc,
+			teamIDs[0], teamIDs[1], teamIDs[2],
+		)
+		if err != nil {
+			return err
+		}
+		createdCount = n
+
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
 
 		return nil
@@ -1310,22 +1371,24 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 	})
 }
 
-func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
+func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []interface{}) {
 	for i, d := range devices {
 		if i == 0 {
 			stmt = "SELECT ? hardware_serial, ? hardware_model, ? platform"
 		} else {
 			stmt += " UNION SELECT ?, ?, ?"
 		}
-		// Map Apple's device family to Fleet's hosts.platform field.
-		platform := "darwin"
-		switch d.DeviceFamily {
-		case "iPhone":
-			platform = "ios"
-		case "iPad":
-			platform = "ipados"
+
+		// map the platform hint to Fleet's hosts.platform field.
+		normalizedHint := strings.ToLower(d.PlatformHint)
+		platform := string(fleet.MacOSPlatform)
+		switch {
+		case strings.Contains(normalizedHint, "iphone"):
+			platform = string(fleet.IOSPlatform)
+		case strings.Contains(normalizedHint, "ipad"):
+			platform = string(fleet.IPadOSPlatform)
 		}
-		args = append(args, d.SerialNumber, d.Model, platform)
+		args = append(args, d.HardwareSerial, d.HardwareModel, platform)
 	}
 
 	return stmt, args

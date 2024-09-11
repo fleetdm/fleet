@@ -39,6 +39,19 @@ type profileAssignmentReq struct {
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	t := s.T()
 	ctx := context.Background()
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
 
 	globalDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 
@@ -105,6 +118,20 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	t := s.T()
 	ctx := context.Background()
+
+	// Set up a mock DEP Apple API
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
 
 	teamDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 

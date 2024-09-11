@@ -95,6 +95,7 @@ require (
 	github.com/sethvargo/go-password v0.3.0
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
+	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.10.0
@@ -110,7 +111,6 @@ require (
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
 	go.elastic.co/apm/v2 v2.4.3
 	go.etcd.io/bbolt v1.3.9
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.44.0
 	go.opentelemetry.io/otel v1.28.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.28.0
@@ -308,6 +308,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.elastic.co/apm/module/apmhttp/v2 v2.3.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
+	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect

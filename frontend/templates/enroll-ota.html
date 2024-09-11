@@ -116,10 +116,15 @@
       <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
     </header>
     <section id="main-content">
-      <h1>Enroll your device to Fleet</h1>
+      <h1>
+        Enroll your
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+        Fleet
+      </h1>
       <p class="page-description">
-        Follow the instructions below to download and install the Fleet profile
-        on your device.
+        On your
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span>, follow
+        the instructions below to download and install the Fleet profile.
       </p>
       <ol>
         <li>
@@ -159,22 +164,33 @@
       </ol>
     </section>
     <script>
-      const os = navigator.userAgent.includes("iPhone") ? "ios" : "iPadOS";
+      document.addEventListener("DOMContentLoaded", function () {
+        const userAgent = navigator.userAgent;
+        const isIPhone = /iPhone/.test(userAgent);
+        const isIPad = /iPad/.test(userAgent);
 
-      const profileDownloadedImg = document.querySelector(
-        ".profile-downloaded-img"
-      );
-      const installProfileImg = document.querySelector(".install-profile-img");
+        // update text content for device type
+        let deviceType = "iPhone or iPad";
+        if (isIPhone) {
+          deviceType = "iPhone";
+        } else if (isIPad) {
+          deviceType = "iPad";
+        }
+        document
+          .querySelectorAll('[data-attribute="dynamic-device-type"]')
+          .forEach((el) => {
+            el.textContent = deviceType;
+          });
 
-      // setting image src based on OS
-      profileDownloadedImg.setAttribute(
-        "src",
-        `{{.URLPrefix}}/assets/images/${os}-profile-downloaded.png`
-      );
-      installProfileImg.setAttribute(
-        "src",
-        `{{.URLPrefix}}/assets/images/${os}-install-profile.png`
-      );
+        // update image src based on OS
+        const osImagePrefix = isIPhone ? "ios" : "iPadOS";
+        document.querySelector(
+          ".profile-downloaded-img"
+        ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-profile-downloaded.png`;
+        document.querySelector(
+          ".install-profile-img"
+        ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
+      });
     </script>
   </body>
 </html>
