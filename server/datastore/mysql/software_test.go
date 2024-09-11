@@ -3355,6 +3355,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		require.Len(t, got, len(expected)-len(expectOmitted), gotToString())
 		prev := ""
 		for _, g := range got {
+
+			for _, omit := range expectOmitted {
+				if g.Name+g.Source == omit {
+					t.Errorf("Did not expect %s in results", omit)
+					continue
+				}
+			}
+
 			e, ok := expected[g.Name+g.Source]
 			require.True(t, ok, "unexpected software %s%s", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
