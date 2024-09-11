@@ -182,124 +182,97 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, titleID uint, p
 		SelfService:   existingInstaller.SelfService,
 	}
 
-	// TODO drop installer pull once we have bundle IDs since at that point we'll have all the metadata we need from the DB
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
-	if payload.InstallerFile != nil || payload.PreInstallQuery != nil ||
-		payload.InstallScript != nil || payload.PostInstallScript != nil || payload.UninstallScript != nil {
+	if payload.InstallerFile != nil {
+		payloadForNewInstallerFile = &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: payload.InstallerFile,
+			Filename:      payload.Filename,
+		}
 
-		// pull existing installer to calculate metadata for defaulting/validation
-
-		// check if the existingInstaller exists in the store
-		exists, err := svc.softwareInstallStore.Exists(ctx, existingInstaller.StorageID)
+		newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForNewInstallerFile)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if existingInstaller exists")
-		}
-		if !exists {
-			return nil, ctxerr.Wrap(ctx, notFoundError{}, "does not exist in software existingInstaller store")
+			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 		}
 
-		// get the installer from the store
-		existingInstallerFile, _, err := svc.softwareInstallStore.Get(ctx, existingInstaller.StorageID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting installer from store")
-		}
-
-		existingInstallerFileMeta, err := file.ExtractInstallerMetadata(existingInstallerFile)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "extracting existing installer metadata")
-		}
-
-		if payload.InstallerFile != nil {
-			payloadForNewInstallerFile = &fleet.UploadSoftwareInstallerPayload{
-				InstallerFile: payload.InstallerFile,
-				Filename:      payload.Filename,
-			}
-
-			newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForNewInstallerFile)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
-			}
-
-			if newInstallerExtension != existingInstaller.Extension || payloadForNewInstallerFile.Source != software.Source {
-				return nil, &fleet.BadRequestError{
-					Message:     "The selected package is for a different file type.",
-					InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
-				}
-			}
-
-			if payloadForNewInstallerFile.Title != software.Name {
-				return nil, &fleet.BadRequestError{
-					Message:     "The selected package is for different software.",
-					InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
-				}
-			}
-
-			if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
-				activity.SoftwarePackage = &payload.Filename
-				payload.StorageID = payloadForNewInstallerFile.StorageID
-				payload.Filename = payloadForNewInstallerFile.Filename
-				payload.Version = payloadForNewInstallerFile.Version
-				payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
-
-				dirty = append(dirty, "Package")
-			} else { // noop if uploaded installer is identical to previous installer
-				payloadForNewInstallerFile = nil
+		if newInstallerExtension != existingInstaller.Extension || payloadForNewInstallerFile.Source != software.Source {
+			return nil, &fleet.BadRequestError{
+				Message:     "The selected package is for a different file type.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
 			}
 		}
 
-		if payloadForNewInstallerFile == nil { // fill in existing existingInstaller data to payload
-			payload.StorageID = existingInstaller.StorageID
-			payload.Filename = existingInstaller.Name
-			payload.Version = existingInstaller.Version
-			payload.PackageIDs = existingInstallerFileMeta.PackageIDs
-		}
-
-		// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
-		if payload.PreInstallQuery != nil && *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
-			dirty = append(dirty, "PreInstallQuery")
-		}
-
-		if payload.InstallScript != nil {
-			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
-			if installScript == "" {
-				installScript = file.GetInstallScript(existingInstaller.Extension)
-			}
-
-			if installScript != existingInstaller.InstallScript {
-				dirty = append(dirty, "InstallScript")
-				payload.InstallScript = &installScript
+		if payloadForNewInstallerFile.Title != software.Name {
+			return nil, &fleet.BadRequestError{
+				Message:     "The selected package is for different software.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
 			}
 		}
 
-		if payload.PostInstallScript != nil {
-			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
-			if postInstallScript != existingInstaller.PostInstallScript {
-				dirty = append(dirty, "PostInstallScript")
-				payload.PostInstallScript = &postInstallScript
-			}
+		if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
+			activity.SoftwarePackage = &payload.Filename
+			payload.StorageID = payloadForNewInstallerFile.StorageID
+			payload.Filename = payloadForNewInstallerFile.Filename
+			payload.Version = payloadForNewInstallerFile.Version
+			payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
+
+			dirty = append(dirty, "Package")
+		} else { // noop if uploaded installer is identical to previous installer
+			payloadForNewInstallerFile = nil
+		}
+	}
+
+	if payloadForNewInstallerFile == nil { // fill in existing existingInstaller data to payload
+		payload.StorageID = existingInstaller.StorageID
+		payload.Filename = existingInstaller.Name
+		payload.Version = existingInstaller.Version
+		payload.PackageIDs = existingInstaller.PackageIDs()
+	}
+
+	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
+	if payload.PreInstallQuery != nil && *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
+		dirty = append(dirty, "PreInstallQuery")
+	}
+
+	if payload.InstallScript != nil {
+		installScript := file.Dos2UnixNewlines(*payload.InstallScript)
+		if installScript == "" {
+			installScript = file.GetInstallScript(existingInstaller.Extension)
 		}
 
-		if payload.UninstallScript != nil {
-			uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
-			if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
-				uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
-			}
+		if installScript != existingInstaller.InstallScript {
+			dirty = append(dirty, "InstallScript")
+			payload.InstallScript = &installScript
+		}
+	}
 
-			payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
-				Extension:       existingInstaller.Extension,
-				UninstallScript: uninstallScript,
-				PackageIDs:      existingInstallerFileMeta.PackageIDs,
-			}
-			if payloadForNewInstallerFile != nil {
-				payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
-			}
+	if payload.PostInstallScript != nil {
+		postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
+		if postInstallScript != existingInstaller.PostInstallScript {
+			dirty = append(dirty, "PostInstallScript")
+			payload.PostInstallScript = &postInstallScript
+		}
+	}
 
-			preProcessUninstallScript(payloadForUninstallScript)
-			if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
-				uninstallScript = payloadForUninstallScript.UninstallScript
-				dirty = append(dirty, "UninstallScript")
-				payload.UninstallScript = &uninstallScript
-			}
+	if payload.UninstallScript != nil {
+		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
+		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
+			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+		}
+
+		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
+			Extension:       existingInstaller.Extension,
+			UninstallScript: uninstallScript,
+			PackageIDs:      existingInstaller.PackageIDs(),
+		}
+		if payloadForNewInstallerFile != nil {
+			payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
+		}
+
+		preProcessUninstallScript(payloadForUninstallScript)
+		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
+			uninstallScript = payloadForUninstallScript.UninstallScript
+			dirty = append(dirty, "UninstallScript")
+			payload.UninstallScript = &uninstallScript
 		}
 	}
 

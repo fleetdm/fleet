@@ -83,6 +83,8 @@ type SoftwareInstaller struct {
 	Version string `json:"version" db:"version"`
 	// Platform can be "darwin" (for pkgs), "windows" (for exes/msis) or "linux" (for debs).
 	Platform string `json:"platform" db:"platform"`
+	// PackageIDList is a comma-separated list of packages extracted from the installer
+	PackageIDList string `json:"-" db:"package_ids"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -117,6 +119,15 @@ type SoftwareInstaller struct {
 // AuthzType implements authz.AuthzTyper.
 func (s *SoftwareInstaller) AuthzType() string {
 	return "installable_entity"
+}
+
+// PackageIDs turns the comma-separated string from the database into a list (potentially zero-length) of string package IDs
+func (s *SoftwareInstaller) PackageIDs() []string {
+	if s.PackageIDList == "" {
+		return []string{}
+	}
+
+	return strings.Split(s.PackageIDList, ",")
 }
 
 // SoftwareInstallerStatusSummary represents aggregated status metrics for a software installer package.
