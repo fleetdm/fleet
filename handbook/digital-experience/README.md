@@ -251,7 +251,6 @@ Salesforce requires that the password to the "Integrations admin" account is cha
 2. Change the password and save it in the shared 1Password vault.
 3. Request a new security token for the "Integrations admin" account (This will be sent to the email address associated with the account)
 4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane)
-
 ### Schedule press release
 
 Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. Use the following steps to schedule a press release:  
