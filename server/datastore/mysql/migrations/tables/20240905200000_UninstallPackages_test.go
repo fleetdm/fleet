@@ -93,6 +93,11 @@ func TestUp_20240905200000(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, placeholderUninstallScriptWindows, windowsScript)
 
+	var extension string
+	err = db.Get(&extension, `SELECT extension FROM software_installers si WHERE si.id = 3 AND updated_at = uploaded_at`)
+	require.NoError(t, err)
+	assert.Equal(t, "exe", extension)
+
 	var status string
 	err = db.Get(&status, "SELECT status FROM host_software_installs WHERE id = ?", hsi1)
 	require.NoError(t, err)
