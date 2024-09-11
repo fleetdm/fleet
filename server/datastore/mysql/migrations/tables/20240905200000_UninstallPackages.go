@@ -74,7 +74,8 @@ ALTER TABLE host_software_installs
 ADD COLUMN uninstall_script_output TEXT COLLATE utf8mb4_unicode_ci,
 ADD COLUMN uninstall_script_exit_code INT DEFAULT NULL,
 ADD COLUMN uninstall TINYINT UNSIGNED NOT NULL DEFAULT 0,
-ADD COLUMN status VARCHAR(31) GENERATED ALWAYS AS (
+ADD COLUMN status ENUM('pending_install', 'failed_install', 'installed', 'pending_uninstall', 'failed_uninstall')
+GENERATED ALWAYS AS (
 CASE
 	WHEN removed = 1 THEN NULL
 
