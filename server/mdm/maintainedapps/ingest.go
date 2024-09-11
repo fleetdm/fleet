@@ -213,7 +213,7 @@ type brewUninstall struct {
 	RmDir  optjson.StringOr[[]string] `json:"rmdir"`
 }
 
-// same as brewUninstall, can be []string or string (see Microsoft Teams).
+// same as brewUninstall, can be []string or a string (see Microsoft Teams).
 type brewZap struct {
 	Trash optjson.StringOr[[]string] `json:"trash"`
 	RmDir optjson.StringOr[[]string] `json:"rmdir"`
