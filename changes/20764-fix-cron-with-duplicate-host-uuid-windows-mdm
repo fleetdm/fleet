@@ -1,0 +1,1 @@
+* Fixed an issue where cron profiles delivery fails if a Windows VM is enrolled twice with the same `host_uuid` / `mdm_device_id`.
