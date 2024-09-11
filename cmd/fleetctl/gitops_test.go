@@ -1165,7 +1165,8 @@ software:
 }
 
 func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
-	t.Parallel()
+	// Cannot run t.Parallel() because runServerWithMockedDS sets the FLEET_SERVER_ADDRESS
+	// environment variable.
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
