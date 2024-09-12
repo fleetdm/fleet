@@ -13630,6 +13630,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, mapp.Name, title.SoftwarePackage.Name)
 	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
 
+	// Check activity
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "%[1]s", "team_name": "%s", "team_id": %d, "self_service": true}`, mapp.Name, team.Name, team.ID),
+		0,
+	)
+
 	// Should return an error; SHAs don't match up
 	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
