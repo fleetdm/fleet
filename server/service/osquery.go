@@ -1623,9 +1623,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		// We do not want to queue software installations on vanilla osquery hosts.
 		return nil
 	}
+
+	var policyTeamID uint
 	if hostTeamID == nil {
-		// TODO(lucas): Support hosts in "No team".
-		return nil
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
 	}
 
 	// Filter out results that are not failures (we are only interested on failing policies,
@@ -1643,7 +1646,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 
 	// Get policies with associated installers for the team.
-	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, *hostTeamID, incomingFailingPoliciesIDs)
+	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, policyTeamID, incomingFailingPoliciesIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
 	}

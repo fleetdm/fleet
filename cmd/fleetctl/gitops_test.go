@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -140,6 +141,28 @@ org_settings:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "organization name must be present")
+
+	// Missing controls.
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(
+		`
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Foobar
+  secrets:
+`,
+	)
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.Error(t, err)
+	assert.Equal(t, `'controls' must be set on global config`, err.Error())
 
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
@@ -398,16 +421,15 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
-	// reserved team name; should error in both dry run and real
+	// Invalid name for "No team" file (dry and real).
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
-
+	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", tmpFile.Name()))
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"No team" is a reserved team name`)
+	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", tmpFile.Name()))
 
 	t.Setenv("TEST_TEAM_NAME", "All teams")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
@@ -1164,6 +1186,336 @@ software:
 	assert.True(t, ds.DeleteTeamFuncInvoked)
 }
 
+func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
+	// Cannot run t.Parallel() because runServerWithMockedDS sets the FLEET_SERVER_ADDRESS
+	// environment variable.
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := runServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License: license,
+		},
+	)
+	// Mock appConfig
+	savedAppConfig := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+		secret         = "TestSecret"
+	)
+	var enrolledSecrets []*fleet.EnrollSecret
+	var enrolledTeamSecrets []*fleet.EnrollSecret
+	var savedTeam *fleet.Team
+	team := &fleet.Team{
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      teamName,
+	}
+
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		if teamID == nil {
+			enrolledSecrets = secrets
+		} else {
+			enrolledTeamSecrets = secrets
+		}
+		return nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		assert.Empty(t, macProfiles)
+		assert.Empty(t, winProfiles)
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+		assert.Empty(t, scripts)
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		assert.Empty(t, profileUUIDs)
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		job.ID = 1
+		return job, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == team.ID {
+			return savedTeam, nil
+		}
+		return nil, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = team.ID
+		savedTeam = newTeam
+		enrolledTeamSecrets = newTeam.Secrets
+		return newTeam, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
+
+	globalFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	_, err = globalFileBasic.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets: [{"secret":"globalSecret"}]
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	globalFileWithSoftware, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithSoftware.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets: [{"secret":"globalSecret"}]
+software:
+  packages:
+    - url: https://example.com
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	globalFileWithControls, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithControls.WriteString(fmt.Sprintf(
+		`
+controls:
+  ios_updates:
+    deadline: "2022-02-02"
+    minimum_version: "17.6"
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets: [{"secret":"globalSecret"}]
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	globalFileWithoutControlsAndSoftwareKeys, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithoutControlsAndSoftwareKeys.WriteString(fmt.Sprintf(
+		`
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets: [{"secret":"globalSecret"}]
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"%s"}]
+software:
+`, teamName, secret),
+	)
+	require.NoError(t, err)
+
+	noTeamFilePath := filepath.Join(t.TempDir(), "no-team.yml")
+	noTeamFile, err := os.Create(noTeamFilePath)
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(`
+controls:
+policies:
+name: No team
+software:
+`)
+	require.NoError(t, err)
+
+	noTeamFilePathWithControls := filepath.Join(t.TempDir(), "no-team.yml")
+	noTeamFileWithControls, err := os.Create(noTeamFilePathWithControls)
+	require.NoError(t, err)
+	_, err = noTeamFileWithControls.WriteString(`
+controls:
+  ipados_updates:
+    deadline: "2023-03-03"
+    minimum_version: "18.0"
+policies:
+name: No team
+software:
+`)
+	require.NoError(t, err)
+
+	noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
+	noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
+	require.NoError(t, err)
+	_, err = noTeamFileWithoutControls.WriteString(`
+policies:
+name: No team
+software:
+`)
+	require.NoError(t, err)
+
+	// Dry run, global defines software, should fail.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFile.Name(), "-f", noTeamFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "'software' cannot be set on global file"))
+	// Real run, global defines software, should fail.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFile.Name(), "-f", noTeamFile.Name()})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "'software' cannot be set on global file"))
+
+	// Dry run, both global and no-team.yml define controls.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithControls.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
+	// Real run, both global and no-team.yml define controls.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithControls.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
+
+	// Dry run, controls should be defined somewhere, either in no-team.yml or global.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithoutControls.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "'controls' must be set on global config or no-team.yml"))
+	// Real run, both global and no-team.yml define controls.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithoutControls.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "'controls' must be set on global config or no-team.yml"))
+
+	// Dry run, global file without controls and software keys.
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFile.Name(), "--dry-run"})
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
+
+	// Real run, global file without controls and software keys.
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFile.Name()})
+	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
+	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
+	assert.Len(t, enrolledSecrets, 1)
+	require.NotNil(t, savedTeam)
+	assert.Equal(t, teamName, savedTeam.Name)
+	require.Len(t, enrolledTeamSecrets, 1)
+	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
+
+	// Restore to test below.
+	savedAppConfig = &fleet.AppConfig{}
+
+	// Dry run
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFile.Name(), "-f", noTeamFile.Name(), "--dry-run"})
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFile.Name(), "-f", noTeamFile.Name()})
+	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
+	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
+	assert.Len(t, enrolledSecrets, 1)
+	require.NotNil(t, savedTeam)
+	assert.Equal(t, teamName, savedTeam.Name)
+	require.Len(t, enrolledTeamSecrets, 1)
+	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
+}
+
 func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
@@ -1299,8 +1651,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 
 	cases := []struct {
-		file    string
-		wantErr string
+		noTeamFile string
+		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
 		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
@@ -1314,11 +1666,18 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
 	}
 	for _, c := range cases {
-		t.Run(filepath.Base(c.file), func(t *testing.T) {
+		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
 			setupFullGitOpsPremiumServer(t)
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
-			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			globalFile := "./testdata/gitops/global_config_no_paths.yml"
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			t.Cleanup(func() {
+				os.Remove(dstPath)
+			})
+			err := file.Copy(c.noTeamFile, dstPath, 0o755)
+			require.NoError(t, err)
+			_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {

@@ -938,6 +938,141 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.Len(t, ts.Policies, 0)
 }
 
+func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
+	t := s.T()
+	ctx := context.Background()
+
+	//
+	// Test a global admin can read and write "No team" policies.
+	//
+
+	// List "No team" policies.
+	ts := listTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 0)
+	require.Len(t, ts.InheritedPolicies, 0)
+	// Create a placeholder global policy.
+	_, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  "globalPolicy1",
+		Query: "SELECT 0;",
+	})
+	require.NoError(t, err)
+	// Create a "No team" policy.
+	tpParams := teamPolicyRequest{
+		Name:  "noTeamPolicy1",
+		Query: "SELECT 1;",
+	}
+	r := teamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &r)
+	require.NotNil(t, r.Policy.TeamID)
+	require.Zero(t, *r.Policy.TeamID)
+	// Test that we can't create a policy with the same name under "No team" domain.
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusConflict, &r)
+	// Create a second "No team" policy.
+	tpParams = teamPolicyRequest{
+		Name:  "noTeamPolicy2",
+		Query: "SELECT 2;",
+	}
+	r = teamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &r)
+	require.NotNil(t, r.Policy.TeamID)
+	require.Zero(t, *r.Policy.TeamID)
+	// List "No team" policies.
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 2)
+	assert.Equal(t, "noTeamPolicy1", ts.Policies[0].Name)
+	assert.Equal(t, "SELECT 1;", ts.Policies[0].Query)
+	require.NotNil(t, ts.Policies[0].TeamID)
+	require.Zero(t, *ts.Policies[0].TeamID)
+	assert.Equal(t, "noTeamPolicy2", ts.Policies[1].Name)
+	assert.Equal(t, "SELECT 2;", ts.Policies[1].Query)
+	require.NotNil(t, ts.Policies[1].TeamID)
+	require.Zero(t, *ts.Policies[1].TeamID)
+	require.Len(t, ts.InheritedPolicies, 1)
+	assert.Equal(t, "globalPolicy1", ts.InheritedPolicies[0].Name)
+	assert.Equal(t, "SELECT 0;", ts.InheritedPolicies[0].Query)
+	assert.Nil(t, ts.InheritedPolicies[0].TeamID)
+	// Test policy count for "No team" policies.
+	tc := countTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &tc)
+	require.Equal(t, 2, tc.Count)
+	// Test merge inherited for "No team" policies.
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	require.Len(t, ts.Policies, 3)
+	require.Nil(t, ts.InheritedPolicies)
+	assert.Equal(t, "noTeamPolicy1", ts.Policies[0].Name)
+	assert.Equal(t, "SELECT 1;", ts.Policies[0].Query)
+	assert.Equal(t, "noTeamPolicy2", ts.Policies[1].Name)
+	assert.Equal(t, "SELECT 2;", ts.Policies[1].Query)
+	assert.Equal(t, "globalPolicy1", ts.Policies[2].Name)
+	assert.Equal(t, "SELECT 0;", ts.Policies[2].Query)
+	// Test merge inherited count for "No team" policies.
+	countResp := countTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
+	require.Nil(t, countResp.Err)
+	require.Equal(t, 3, countResp.Count)
+	// Test deleting "No team" policies.
+	deletePolicyParams := deleteTeamPoliciesRequest{
+		IDs: []uint{ts.Policies[0].ID},
+	}
+	deletePolicyResp := deleteTeamPoliciesResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 1)
+	assert.Equal(t, "noTeamPolicy2", ts.Policies[0].Name)
+	assert.Equal(t, "SELECT 2;", ts.Policies[0].Query)
+	noTeamPolicy2 := ts.Policies[0]
+
+	//
+	// Test that a team admin is not allowed to access "No team" policies.
+	//
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+	password := test.GoodPassword
+	email := "testteam@user.com"
+	team1Admin := &fleet.User{
+		Name:       "test team user",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, team1Admin.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), team1Admin)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(email, password)
+
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusForbidden, &ts)
+	tpParams = teamPolicyRequest{
+		Name:  "noTeamPolicy1",
+		Query: "SELECT 1;",
+	}
+	r = teamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusForbidden, &r)
+	tc = countTeamPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusForbidden, &tc)
+	deletePolicyParams = deleteTeamPoliciesRequest{
+		IDs: []uint{noTeamPolicy2.ID},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies/delete", deletePolicyParams, http.StatusForbidden, &deleteTeamPoliciesResponse{})
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	t := s.T()
 
@@ -13064,13 +13199,12 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
-
-	test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{

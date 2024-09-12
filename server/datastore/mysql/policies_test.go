@@ -67,6 +67,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
+		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1413,6 +1414,14 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:        "team1",
 			Platform:    "windows,linux",
 		},
+		{
+			Name:        "query4",
+			Query:       "select 4;",
+			Description: "query4 desc",
+			Resolution:  "some other good resolution 2",
+			Team:        "No team",
+			Platform:    "",
+		},
 	}))
 
 	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1450,6 +1459,21 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
 	assert.False(t, teamPolicies[1].CalendarEventsEnabled)
 
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
+	assert.Equal(t, "query4", noTeamPolicies[0].Name)
+	assert.Equal(t, "select 4;", noTeamPolicies[0].Query)
+	assert.Equal(t, "query4 desc", noTeamPolicies[0].Description)
+	require.NotNil(t, noTeamPolicies[0].AuthorID)
+	assert.Equal(t, user1.ID, *noTeamPolicies[0].AuthorID)
+	require.NotNil(t, noTeamPolicies[0].Resolution)
+	assert.Equal(t, "some other good resolution 2", *noTeamPolicies[0].Resolution)
+	assert.Equal(t, "", noTeamPolicies[0].Platform)
+	assert.False(t, noTeamPolicies[0].CalendarEventsEnabled)
+	assert.NotNil(t, noTeamPolicies[0].TeamID)
+	assert.Zero(t, *noTeamPolicies[0].TeamID)
+
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
@@ -1477,6 +1501,14 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:        "team1",
 			Platform:    "windows,linux",
 		},
+		{
+			Name:        "query4",
+			Query:       "select 4;",
+			Description: "query4 desc",
+			Resolution:  "some other good resolution 2",
+			Team:        "No team",
+			Platform:    "",
+		},
 	}))
 
 	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1485,6 +1517,9 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
+	noTeamPolicies, _, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
 
 	// Test policy updating.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -3964,7 +3999,19 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.SoftwareInstallerID)
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
-	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{})
+	// Policy p4 in "No team" with associated installer.
+	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p4",
+		Query:               "SELECT 4;",
+		SoftwareInstallerID: ptr.Uint(installerID),
+	})
+	require.NoError(t, err)
+	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithInstallers, 1)
+	require.Equal(t, p4.ID, policiesWithInstallers[0].ID)
+
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithInstallers)
 
@@ -4014,6 +4061,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+
 	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1;",
@@ -4048,6 +4096,23 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer2, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer2ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer2.TitleID)
+	installer3ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello3",
+		PreInstallQuery:   "SELECT 3;",
+		PostInstallScript: "world3",
+		InstallerFile:     bytes.NewReader([]byte("hello3")),
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "1.0",
+		Source:            "rpm_packages",
+		UserID:            user1.ID,
+		TeamID:            nil,
+	})
+	require.NoError(t, err)
+	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer3.TitleID)
 
 	// Installers cannot be assigned to global policies.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4064,7 +4129,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, errSoftwareTitleIDOnGlobalPolicy)
 
-	// Apply two team policies associated to two installers.
+	// Apply two team policies associated to two installers and a "No team" policy associated to an installer.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4084,6 +4149,15 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Platform:        "linux",
 			SoftwareTitleID: installer2.TitleID,
 		},
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
+			Platform:        "linux",
+			SoftwareTitleID: installer3.TitleID,
+		},
 	})
 	require.NoError(t, err)
 	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
@@ -4096,6 +4170,11 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, team2Policies, 1)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer2.InstallerID, *team2Policies[0].SoftwareInstallerID)
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
+	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
+	require.Equal(t, installer3.InstallerID, *noTeamPolicies[0].SoftwareInstallerID)
 
 	// Unset software installer from "Team policy 1".
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4115,7 +4194,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, team1Policies, 1)
 	require.Nil(t, team1Policies[0].SoftwareInstallerID)
 
-	// Set software installer "Team policy 1" to a software installer on team2.
+	// Set "Team policy 1" to a software installer on team2.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4131,7 +4210,22 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	var notFoundErr *notFoundError
 	require.ErrorAs(t, err, &notFoundErr)
 
-	// Set software installer "Team policy 1" to a software title that doesn't exist.
+	// Set "No team policy 3" to a software installer on team2.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
+			Platform:        "darwin",
+			SoftwareTitleID: installer2.TitleID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Set "Team policy 1" to a software title that doesn't exist.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4139,6 +4233,21 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Description:     "Description 1",
 			Resolution:      "Resolution 1",
 			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: ptr.Uint(999_999),
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Set "No team policy 3" to a software title that doesn't exist.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
 			Platform:        "darwin",
 			SoftwareTitleID: ptr.Uint(999_999),
 		},
@@ -4165,7 +4274,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Nil(t, team2Policies[0].SoftwareInstallerID)
 
 	// Apply team policies associated to two installers (again, with two installers with the same title).
-	installer3ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer4ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello3",
 		PreInstallQuery:   "SELECT 3;",
 		PostInstallScript: "world3",
@@ -4179,7 +4288,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		TeamID:            &team2.ID,
 	})
 	require.NoError(t, err)
-	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
+	installer4, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer4ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer2.TitleID)
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4199,7 +4308,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Resolution:      "Resolution 2",
 			Team:            "team2",
 			Platform:        "linux",
-			SoftwareTitleID: installer3.TitleID,
+			SoftwareTitleID: installer4.TitleID,
 		},
 	})
 	require.NoError(t, err)
@@ -4212,5 +4321,392 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
-	require.Equal(t, installer3.InstallerID, *team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, installer4.InstallerID, *team2Policies[0].SoftwareInstallerID)
+}
+
+func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   ptr.String(uuid.New().String()),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(uuid.New().String()),
+			UUID:            uuid.New().String(),
+			Hostname:        name,
+			TeamID:          teamID,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host0NoTeam := newHost("host0NoTeam", nil, "darwin")
+	host1Team1 := newHost("host1Team1", &team1.ID, "darwin")
+	host2Team1 := newHost("host2Team1", &team1.ID, "linux")
+	host3Team2 := newHost("host1Team1", &team2.ID, "windows")
+	host5NoTeam := newHost("host5NoTeam", nil, "windows")
+
+	policy0NoTeam, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy0NoTeam",
+		Query: "SELECT 0;",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, policy0NoTeam.TeamID)
+	require.Equal(t, fleet.PolicyNoTeamID, *policy0NoTeam.TeamID)
+	tp, err := ds.TeamPolicy(ctx, fleet.PolicyNoTeamID, policy0NoTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, tp, policy0NoTeam)
+
+	policy1Team1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy1Team1",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	policy2Team2, err := ds.NewTeamPolicy(ctx, team2.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy2Team2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+	policy3NoTeam, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy3NoTeam",
+		Query: "SELECT 3;",
+	})
+	require.NoError(t, err)
+	policy4Team2, err := ds.NewTeamPolicy(ctx, team2.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy4Team2",
+		Query: "SELECT 4;",
+	})
+	require.NoError(t, err)
+
+	globalPolicy1, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "globalPolicy1",
+		Query: "SELECT gp1;",
+	})
+	require.NoError(t, err)
+	globalPolicy2, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "globalPolicy2",
+		Query: "SELECT gp2;",
+	})
+	require.NoError(t, err)
+
+	// Results for host0NoTeam
+	err = ds.RecordPolicyQueryExecutions(ctx, host0NoTeam, map[uint]*bool{
+		globalPolicy1.ID: ptr.Bool(false),
+		globalPolicy2.ID: ptr.Bool(false),
+		policy0NoTeam.ID: ptr.Bool(true),
+		policy3NoTeam.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Results for host1Team1
+	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
+		globalPolicy1.ID: ptr.Bool(true),
+		globalPolicy2.ID: nil, // failed to execute, e.g. typo on SQL.
+		policy1Team1.ID:  ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Results for host2Team1
+	err = ds.RecordPolicyQueryExecutions(ctx, host2Team1, map[uint]*bool{
+		globalPolicy1.ID: ptr.Bool(false),
+		globalPolicy2.ID: ptr.Bool(true),
+		policy1Team1.ID:  ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Results for host3Team2
+	err = ds.RecordPolicyQueryExecutions(ctx, host3Team2, map[uint]*bool{
+		globalPolicy1.ID: ptr.Bool(true),
+		policy2Team2.ID:  ptr.Bool(true),
+		policy4Team2.ID:  ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Results for host5NoTeam
+	err = ds.RecordPolicyQueryExecutions(ctx, host5NoTeam, map[uint]*bool{
+		globalPolicy1.ID: ptr.Bool(true),
+		globalPolicy2.ID: ptr.Bool(false),
+		policy0NoTeam.ID: ptr.Bool(false),
+		policy3NoTeam.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+
+	// Tests on global domain.
+	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, globalPolicies, 2)
+	require.Equal(t, globalPolicy1.ID, globalPolicies[0].ID)
+	require.Equal(t, uint(2), globalPolicies[0].FailingHostCount)
+	require.Equal(t, uint(3), globalPolicies[0].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, globalPolicies[1].ID)
+	require.Equal(t, uint(2), globalPolicies[1].FailingHostCount)
+	require.Equal(t, uint(1), globalPolicies[1].PassingHostCount)
+	ids := make([]uint, 0, len(globalPolicies))
+	for _, globalPolicy := range globalPolicies {
+		p, err := ds.Policy(ctx, globalPolicy.ID)
+		require.NoError(t, err)
+		require.Equal(t, p, globalPolicy)
+		ids = append(ids, globalPolicy.ID)
+	}
+	c, err := ds.CountPolicies(ctx, nil, "")
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	globalPoliciesByID, err := ds.PoliciesByID(ctx, ids)
+	require.NoError(t, err)
+	require.Len(t, globalPoliciesByID, 2)
+	require.Equal(t, globalPoliciesByID[globalPolicies[0].ID], globalPolicies[0])
+	require.Equal(t, globalPoliciesByID[globalPolicies[1].ID], globalPolicies[1])
+
+	// Tests on team1 domain.
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Equal(t, policy1Team1.ID, teamPolicies[0].ID)
+	require.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	require.Len(t, inheritedPolicies, 2)
+	require.Equal(t, globalPolicy1.ID, inheritedPolicies[0].ID)
+	require.Equal(t, uint(1), inheritedPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, inheritedPolicies[1].ID)
+	require.Equal(t, uint(0), inheritedPolicies[1].FailingHostCount)
+	require.Equal(t, uint(1), inheritedPolicies[1].PassingHostCount)
+	ids = make([]uint, 0, len(teamPolicies))
+	for _, teamPolicy := range teamPolicies {
+		p, err := ds.Policy(ctx, teamPolicy.ID)
+		require.NoError(t, err)
+		require.Equal(t, p, teamPolicy)
+		ids = append(ids, teamPolicy.ID)
+	}
+	teamPoliciesByID, err := ds.PoliciesByID(ctx, ids)
+	require.NoError(t, err)
+	require.Len(t, teamPoliciesByID, 1)
+	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
+	c, err = ds.CountMergedTeamPolicies(ctx, team1.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, 3, c)
+	c, err = ds.CountPolicies(ctx, &team1.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, 1, c)
+	mergedTeamPolicies, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, mergedTeamPolicies, 3)
+	require.Equal(t, policy1Team1.ID, mergedTeamPolicies[0].ID)
+	require.Equal(t, uint(1), mergedTeamPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[0].PassingHostCount)
+	require.Equal(t, globalPolicy1.ID, mergedTeamPolicies[1].ID)
+	require.Equal(t, uint(1), mergedTeamPolicies[1].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[1].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, mergedTeamPolicies[2].ID)
+	require.Equal(t, uint(0), mergedTeamPolicies[2].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[2].PassingHostCount)
+
+	// Tests on team2 domain.
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 2)
+	require.Equal(t, policy2Team2.ID, teamPolicies[0].ID)
+	require.Equal(t, uint(0), teamPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	require.Equal(t, policy4Team2.ID, teamPolicies[1].ID)
+	require.Equal(t, uint(1), teamPolicies[1].FailingHostCount)
+	require.Equal(t, uint(0), teamPolicies[1].PassingHostCount)
+	require.Len(t, inheritedPolicies, 2)
+	require.Equal(t, globalPolicy1.ID, inheritedPolicies[0].ID)
+	require.Equal(t, uint(0), inheritedPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, inheritedPolicies[1].ID)
+	require.Equal(t, uint(0), inheritedPolicies[1].FailingHostCount)
+	require.Equal(t, uint(0), inheritedPolicies[1].PassingHostCount)
+	ids = make([]uint, 0, len(teamPolicies))
+	for _, teamPolicy := range teamPolicies {
+		p, err := ds.Policy(ctx, teamPolicy.ID)
+		require.NoError(t, err)
+		require.Equal(t, p, teamPolicy)
+		ids = append(ids, teamPolicy.ID)
+	}
+	teamPoliciesByID, err = ds.PoliciesByID(ctx, ids)
+	require.NoError(t, err)
+	require.Len(t, teamPoliciesByID, 2)
+	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
+	require.Equal(t, teamPoliciesByID[teamPolicies[1].ID], teamPolicies[1])
+	c, err = ds.CountMergedTeamPolicies(ctx, team2.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, 4, c)
+	c, err = ds.CountPolicies(ctx, &team2.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, mergedTeamPolicies, 4)
+	require.Equal(t, policy2Team2.ID, mergedTeamPolicies[0].ID)
+	require.Equal(t, uint(0), mergedTeamPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[0].PassingHostCount)
+	require.Equal(t, policy4Team2.ID, mergedTeamPolicies[1].ID)
+	require.Equal(t, uint(1), mergedTeamPolicies[1].FailingHostCount)
+	require.Equal(t, uint(0), mergedTeamPolicies[1].PassingHostCount)
+	require.Equal(t, globalPolicy1.ID, mergedTeamPolicies[2].ID)
+	require.Equal(t, uint(0), mergedTeamPolicies[2].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[2].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, mergedTeamPolicies[3].ID)
+	require.Equal(t, uint(0), mergedTeamPolicies[3].FailingHostCount)
+	require.Equal(t, uint(0), mergedTeamPolicies[3].PassingHostCount)
+
+	// Tests on "No team" domain.
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 2)
+	require.Equal(t, policy0NoTeam.ID, teamPolicies[0].ID)
+	require.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	require.Equal(t, policy3NoTeam.ID, teamPolicies[1].ID)
+	require.Equal(t, uint(2), teamPolicies[1].FailingHostCount)
+	require.Equal(t, uint(0), teamPolicies[1].PassingHostCount)
+	require.Len(t, inheritedPolicies, 2)
+	require.Equal(t, globalPolicy1.ID, inheritedPolicies[0].ID)
+	require.Equal(t, uint(1), inheritedPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, inheritedPolicies[1].ID)
+	require.Equal(t, uint(2), inheritedPolicies[1].FailingHostCount)
+	require.Equal(t, uint(0), inheritedPolicies[1].PassingHostCount)
+	ids = make([]uint, 0, len(teamPolicies))
+	for _, teamPolicy := range teamPolicies {
+		p, err := ds.Policy(ctx, teamPolicy.ID)
+		require.NoError(t, err)
+		require.Equal(t, p, teamPolicy)
+		ids = append(ids, teamPolicy.ID)
+	}
+	teamPoliciesByID, err = ds.PoliciesByID(ctx, ids)
+	require.NoError(t, err)
+	require.Len(t, teamPoliciesByID, 2)
+	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
+	require.Equal(t, teamPoliciesByID[teamPolicies[1].ID], teamPolicies[1])
+	c, err = ds.CountMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, "")
+	require.NoError(t, err)
+	require.Equal(t, 4, c)
+	c, err = ds.CountPolicies(ctx, ptr.Uint(fleet.PolicyNoTeamID), "")
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, mergedTeamPolicies, 4)
+	require.Equal(t, policy0NoTeam.ID, mergedTeamPolicies[0].ID)
+	require.Equal(t, uint(1), mergedTeamPolicies[0].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[0].PassingHostCount)
+	require.Equal(t, policy3NoTeam.ID, mergedTeamPolicies[1].ID)
+	require.Equal(t, uint(2), mergedTeamPolicies[1].FailingHostCount)
+	require.Equal(t, uint(0), mergedTeamPolicies[1].PassingHostCount)
+	require.Equal(t, globalPolicy1.ID, mergedTeamPolicies[2].ID)
+	require.Equal(t, uint(1), mergedTeamPolicies[2].FailingHostCount)
+	require.Equal(t, uint(1), mergedTeamPolicies[2].PassingHostCount)
+	require.Equal(t, globalPolicy2.ID, mergedTeamPolicies[3].ID)
+	require.Equal(t, uint(2), mergedTeamPolicies[3].FailingHostCount)
+	require.Equal(t, uint(0), mergedTeamPolicies[3].PassingHostCount)
+
+	// Test ListPoliciesForHost and PolicyQueriesForHost for host0NoTeam.
+	host0Policies, err := ds.ListPoliciesForHost(ctx, host0NoTeam)
+	require.NoError(t, err)
+	require.Len(t, host0Policies, 4)
+	require.Equal(t, globalPolicy1.ID, host0Policies[0].ID)
+	require.Equal(t, "fail", host0Policies[0].Response)
+	require.Equal(t, globalPolicy2.ID, host0Policies[1].ID)
+	require.Equal(t, "fail", host0Policies[1].Response)
+	require.Equal(t, policy3NoTeam.ID, host0Policies[2].ID)
+	require.Equal(t, "fail", host0Policies[2].Response)
+	require.Equal(t, policy0NoTeam.ID, host0Policies[3].ID)
+	require.Equal(t, "pass", host0Policies[3].Response)
+	host0PolicyQueries, err := ds.PolicyQueriesForHost(ctx, host0NoTeam)
+	require.NoError(t, err)
+	require.Len(t, host0PolicyQueries, 4)
+	require.Equal(t, "SELECT gp1;", host0PolicyQueries[strconv.FormatUint(uint64(globalPolicy1.ID), 10)])
+	require.Equal(t, "SELECT gp2;", host0PolicyQueries[strconv.FormatUint(uint64(globalPolicy2.ID), 10)])
+	require.Equal(t, "SELECT 0;", host0PolicyQueries[strconv.FormatUint(uint64(policy0NoTeam.ID), 10)])
+	require.Equal(t, "SELECT 3;", host0PolicyQueries[strconv.FormatUint(uint64(policy3NoTeam.ID), 10)])
+
+	// Test ListPoliciesForHost and PolicyQueriesForHost for host1Team1.
+	host1Policies, err := ds.ListPoliciesForHost(ctx, host1Team1)
+	require.NoError(t, err)
+	require.Len(t, host1Policies, 3)
+	require.Equal(t, globalPolicy2.ID, host1Policies[0].ID)
+	require.Equal(t, "", host1Policies[0].Response)
+	require.Equal(t, globalPolicy1.ID, host1Policies[1].ID)
+	require.Equal(t, "pass", host1Policies[1].Response)
+	require.Equal(t, policy1Team1.ID, host1Policies[2].ID)
+	require.Equal(t, "pass", host1Policies[2].Response)
+	host1PolicyQueries, err := ds.PolicyQueriesForHost(ctx, host1Team1)
+	require.NoError(t, err)
+	require.Len(t, host1PolicyQueries, 3)
+	require.Equal(t, "SELECT gp1;", host1PolicyQueries[strconv.FormatUint(uint64(globalPolicy1.ID), 10)])
+	require.Equal(t, "SELECT gp2;", host1PolicyQueries[strconv.FormatUint(uint64(globalPolicy2.ID), 10)])
+	require.Equal(t, "SELECT 1;", host1PolicyQueries[strconv.FormatUint(uint64(policy1Team1.ID), 10)])
+
+	// Test ListPoliciesForHost and PolicyQueriesForHost for host2Team1.
+	host2Policies, err := ds.ListPoliciesForHost(ctx, host2Team1)
+	require.NoError(t, err)
+	require.Len(t, host2Policies, 3)
+	require.Equal(t, globalPolicy1.ID, host2Policies[0].ID)
+	require.Equal(t, "fail", host2Policies[0].Response)
+	require.Equal(t, policy1Team1.ID, host2Policies[1].ID)
+	require.Equal(t, "fail", host2Policies[1].Response)
+	require.Equal(t, globalPolicy2.ID, host2Policies[2].ID)
+	require.Equal(t, "pass", host2Policies[2].Response)
+	host2PolicyQueries, err := ds.PolicyQueriesForHost(ctx, host2Team1)
+	require.NoError(t, err)
+	require.Len(t, host2PolicyQueries, 3)
+	require.Equal(t, "SELECT gp1;", host2PolicyQueries[strconv.FormatUint(uint64(globalPolicy1.ID), 10)])
+	require.Equal(t, "SELECT gp2;", host2PolicyQueries[strconv.FormatUint(uint64(globalPolicy2.ID), 10)])
+	require.Equal(t, "SELECT 1;", host2PolicyQueries[strconv.FormatUint(uint64(policy1Team1.ID), 10)])
+
+	// Test ListPoliciesForHost and PolicyQueriesForHost for host3Team2.
+	host3Policies, err := ds.ListPoliciesForHost(ctx, host3Team2)
+	require.NoError(t, err)
+	require.Len(t, host3Policies, 4)
+	require.Equal(t, policy4Team2.ID, host3Policies[0].ID)
+	require.Equal(t, "fail", host3Policies[0].Response)
+	require.Equal(t, globalPolicy2.ID, host3Policies[1].ID)
+	require.Equal(t, "", host3Policies[1].Response)
+	require.Equal(t, globalPolicy1.ID, host3Policies[2].ID)
+	require.Equal(t, "pass", host3Policies[2].Response)
+	require.Equal(t, policy2Team2.ID, host3Policies[3].ID)
+	require.Equal(t, "pass", host3Policies[3].Response)
+	host3PolicyQueries, err := ds.PolicyQueriesForHost(ctx, host3Team2)
+	require.NoError(t, err)
+	require.Len(t, host3PolicyQueries, 4)
+	require.Equal(t, "SELECT gp1;", host3PolicyQueries[strconv.FormatUint(uint64(globalPolicy1.ID), 10)])
+	require.Equal(t, "SELECT gp2;", host3PolicyQueries[strconv.FormatUint(uint64(globalPolicy2.ID), 10)])
+	require.Equal(t, "SELECT 2;", host3PolicyQueries[strconv.FormatUint(uint64(policy2Team2.ID), 10)])
+	require.Equal(t, "SELECT 4;", host3PolicyQueries[strconv.FormatUint(uint64(policy4Team2.ID), 10)])
+
+	// Test ListPoliciesForHost and PolicyQueriesForHost for host5NoTeam.
+	host5Policies, err := ds.ListPoliciesForHost(ctx, host5NoTeam)
+	require.NoError(t, err)
+	require.Len(t, host5Policies, 4)
+	require.Equal(t, globalPolicy2.ID, host5Policies[0].ID)
+	require.Equal(t, "fail", host5Policies[0].Response)
+	require.Equal(t, policy0NoTeam.ID, host5Policies[1].ID)
+	require.Equal(t, "fail", host5Policies[1].Response)
+	require.Equal(t, policy3NoTeam.ID, host5Policies[2].ID)
+	require.Equal(t, "fail", host5Policies[2].Response)
+	require.Equal(t, globalPolicy1.ID, host5Policies[3].ID)
+	require.Equal(t, "pass", host5Policies[3].Response)
+	host5PolicyQueries, err := ds.PolicyQueriesForHost(ctx, host5NoTeam)
+	require.NoError(t, err)
+	require.Len(t, host5PolicyQueries, 4)
+	require.Equal(t, "SELECT gp1;", host5PolicyQueries[strconv.FormatUint(uint64(globalPolicy1.ID), 10)])
+	require.Equal(t, "SELECT gp2;", host5PolicyQueries[strconv.FormatUint(uint64(globalPolicy2.ID), 10)])
+	require.Equal(t, "SELECT 0;", host5PolicyQueries[strconv.FormatUint(uint64(policy0NoTeam.ID), 10)])
+	require.Equal(t, "SELECT 3;", host5PolicyQueries[strconv.FormatUint(uint64(policy3NoTeam.ID), 10)])
 }
