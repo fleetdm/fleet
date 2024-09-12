@@ -19,6 +19,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
+import IosIpadosPanel from "./IosIpadosPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -35,16 +36,16 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "msi",
   },
   {
-    name: "Linux (RPM)",
-    type: "rpm",
-  },
-  {
-    name: "Linux (deb)",
+    name: "Linux",
     type: "deb",
   },
   {
     name: "ChromeOS",
     type: "chromeos",
+  },
+  {
+    name: "iOS & iPadOS",
+    type: "ios-ipados",
   },
   {
     name: "Advanced",
@@ -324,7 +325,7 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderTab = (packageType: string) => {
+  const renderPanel = (packageType: string) => {
     const CHROME_OS_INFO = {
       extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
       installationUrl: "https://chrome.fleetdm.com/updates.xml",
@@ -393,6 +394,11 @@ const PlatformWrapper = ({
         </>
       );
     }
+
+    if (packageType === "ios-ipados") {
+      return <IosIpadosPanel enrollSecret={enrollSecret} />;
+    }
+
     if (packageType === "advanced") {
       return (
         <>
@@ -539,7 +545,11 @@ const PlatformWrapper = ({
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText="Distribute your package to add hosts to Fleet."
+          helpText={`Distribute your package to add hosts to Fleet.${
+            packageType === "deb"
+              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
+              : ""
+          }`}
         />
       </>
     );
@@ -569,7 +579,7 @@ const PlatformWrapper = ({
             return (
               <TabPanel className={`${baseClass}__info`} key={navItem.type}>
                 <div className={`${baseClass} form`}>
-                  {renderTab(navItem.type)}
+                  {renderPanel(navItem.type)}
                 </div>
               </TabPanel>
             );

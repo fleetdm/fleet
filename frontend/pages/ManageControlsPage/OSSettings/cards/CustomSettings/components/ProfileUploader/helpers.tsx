@@ -13,10 +13,10 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
       return [name, "Windows"];
     }
     case "mobileconfig": {
-      return [name, "macOS"];
+      return [name, "macOS, iOS, iPadOS"];
     }
     case "json": {
-      return [name, "macOS"];
+      return [name, "macOS, iOS, iPadOS"];
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);

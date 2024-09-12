@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIntegrationAnalyzer(t *testing.T) {
+func TestIntegrationsAnalyzer(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	vulnPath := t.TempDir()
 	releaseNotes := macoffice.ReleaseNotes{

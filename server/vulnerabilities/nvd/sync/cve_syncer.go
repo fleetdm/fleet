@@ -199,6 +199,9 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
@@ -249,6 +252,9 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
@@ -774,13 +780,32 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 
 	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
 	for _, description := range cve.Descriptions {
-		// Keep only english descriptions to match the legacy.
-		if description.Lang != "en" {
+		// Keep only English descriptions to match the legacy format.
+		var lang string
+		switch description.Lang {
+		case "en":
+			lang = description.Lang
+		case "en-US": // This occurred starting with Microsoft CVE-2024-38200.
+			lang = "en"
+		// non-English descriptions with known language tags are ignored.
+		case "es": // This occurred in a number of 2004 CVEs
+			continue
+		// non-English descriptions with unknown language tags are ignored and warned.
+		default:
+			level.Warn(logger).Log("msg", "Unknown CVE description language tag", "lang", description.Lang)
 			continue
 		}
 		descriptions = append(descriptions, &schema.CVEJSON40LangString{
-			Lang:  description.Lang,
+			Lang:  lang,
 			Value: description.Value,
+		})
+	}
+
+	if len(descriptions) == 0 {
+		// Populate a blank description to prevent Fleet cron job from crashing: https://github.com/fleetdm/fleet/issues/21239
+		descriptions = append(descriptions, &schema.CVEJSON40LangString{
+			Lang:  "en",
+			Value: "",
 		})
 	}
 

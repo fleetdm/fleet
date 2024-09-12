@@ -18,7 +18,6 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
       - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
       - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
@@ -44,8 +43,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: ""
-    minimum_version: ""
+    deadline: "2024-08-23"
+    minimum_version: "14.6.1"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -55,6 +54,7 @@ controls:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
+    - path: ../lib/install-update-homebrew.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
 policies:
@@ -64,12 +64,12 @@ policies:
   - path: ../lib/macos-cis.policies.yml
   - path: ../lib/windows-cis.policies.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE major = '14' OR major = '15';
+    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
     critical: false
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
     platform: darwin
-    calendar_events_enabled: true  
+    calendar_events_enabled: false
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml
@@ -81,4 +81,16 @@ queries:
     interval: 300
     automations_enabled: false
     observer_can_run: true
-
+software:
+  packages:
+    - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
+      pre_install_query:
+        path: ../lib/macos-check-if-apple-silicon.queries.yml
+      self_service: true
+    - url: https://dl.google.com/chrome/mac/stable/accept_tos%3Dhttps%253A%252F%252Fwww.google.com%252Fintl%252Fen_ph%252Fchrome%252Fterms%252F%26_and_accept_tos%3Dhttps%253A%252F%252Fpolicies.google.com%252Fterms/googlechrome.pkg
+      self_service: true
+  app_store_apps:
+    - app_store_id: '803453959' # Slack Desktop
+    - app_store_id: '1333542190' # 1Password 7 Desktop
+    - app_store_id: '1477376905' # GitHub
+    - app_store_id: '1152747299' # Figma

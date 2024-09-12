@@ -1,0 +1,36 @@
+.automatic-enrollment-section {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
+
+    // styles for the apple and windows automatic enrollment cards.
+    .automatic-enrollment-card {
+      font-size: $x-small;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: $pad-medium;
+
+      h3 {
+        font-size: $x-small;
+        font-weight: $bold;
+        margin: 0 0 $pad-xsmall;
+      }
+
+      p {
+        margin: 0;
+
+        span {
+          display: flex;
+          align-items: center;
+          gap: $pad-small;
+        }
+      }
+
+      .add-abm-button {
+        white-space: nowrap;
+      }
+    }
+  }
+}

@@ -27,6 +27,12 @@
       align-items: center;
       gap: $pad-small;
       margin: 0;
+
+      .component__tooltip-wrapper {
+        margin-left: -$pad-xsmall;
+        margin-right: -$pad-xsmall;
+        margin-top: -1px;
+      }
     }
   }
 

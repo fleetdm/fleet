@@ -16,7 +16,9 @@ import Spinner from "components/Spinner";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
-import { SoftwareInstallDetailsModal } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
@@ -36,7 +38,18 @@ const ActivityFeed = ({
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
-  const [installedSoftwareUuid, setInstalledSoftwareUuid] = useState("");
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    appInstallDetails,
+    setAppInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -83,7 +96,6 @@ const ActivityFeed = ({
     activityType: ActivityType,
     details: IActivityDetails
   ) => {
-    console.log("activityType", activityType);
     switch (activityType) {
       case ActivityType.LiveQuery:
         queryShown.current = details.query_sql ?? "";
@@ -97,9 +109,13 @@ const ActivityFeed = ({
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
-        // installUuid.current = details.install_uuid ?? "";
-        // console.log("installUuid.current", installUuid.current);
-        setInstalledSoftwareUuid(details.install_uuid ?? "");
+        setPackageInstallDetails({ ...details });
+        break;
+      case ActivityType.UninstalledSoftware:
+        setPackageUninstallDetails({ ...details });
+        break;
+      case ActivityType.InstalledAppStoreApp:
+        setAppInstallDetails({ ...details });
         break;
       default:
         break;
@@ -191,10 +207,22 @@ const ActivityFeed = ({
           onCancel={() => setShowScriptDetailsModal(false)}
         />
       )}
-      {installedSoftwareUuid && (
+      {packageInstallDetails && (
         <SoftwareInstallDetailsModal
-          installUuid={installedSoftwareUuid}
-          onCancel={() => setInstalledSoftwareUuid("")}
+          details={packageInstallDetails}
+          onCancel={() => setPackageInstallDetails(null)}
+        />
+      )}
+      {packageUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          details={packageUninstallDetails}
+          onCancel={() => setPackageUninstallDetails(null)}
+        />
+      )}
+      {appInstallDetails && (
+        <AppInstallDetailsModal
+          details={appInstallDetails}
+          onCancel={() => setAppInstallDetails(null)}
         />
       )}
     </div>

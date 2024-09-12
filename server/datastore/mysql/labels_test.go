@@ -496,7 +496,8 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, 2)  // h1 and h2
 
 	// test team filter in combination with macos settings filter
-	nanoEnroll(t, db, h1, false)
+	nanoEnrollAndSetHostMDMData(t, db, h1, false)
+	require.NoError(t, err)
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       "a" + uuid.NewString(),
@@ -515,7 +516,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)  // no team
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)                               // no team
 
-	nanoEnroll(t, db, h2, false)
+	nanoEnrollAndSetHostMDMData(t, db, h2, false)
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       "a" + uuid.NewString(),
@@ -672,6 +673,31 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.Nil(t, err)
 	assert.Equal(t, label.Name, saved.Name)
+	assert.Equal(t, label.Description, saved.Description)
+
+	// Create an Apple config profile, which should reflect a change in label's name
+	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0))
+	require.NoError(t, err)
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+			profA.ProfileUUID, label.Name, label.ID)
+		return err
+	})
+	label.Name = "changed name"
+	// ApplyLabelSpecs can't update the name -- it simply creates a new label, so we need to call SaveLabel.
+	saved.Name = label.Name
+	saved2, _, err := db.SaveLabel(context.Background(), saved, filter)
+	require.NoError(t, err)
+	assert.Equal(t, label.Name, saved2.Name)
+	assert.Equal(t, label.Description, saved2.Description)
+
+	var configProfileLabelName string
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &configProfileLabelName,
+			"SELECT label_name FROM mdm_configuration_profile_labels WHERE label_id = ?", label.ID)
+	})
+	assert.Equal(t, label.Name, configProfileLabelName)
 }
 
 func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
@@ -805,6 +831,17 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	}
 	label, err = db.NewLabel(context.Background(), label)
 	require.NoError(t, err)
+
+	// Create an Apple config profile
+	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0))
+	require.NoError(t, err)
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+			profA.ProfileUUID, label.Name, label.ID)
+		return err
+	})
+
 	label.Name = "changed name"
 	label.Description = "changed description"
 
@@ -818,6 +855,13 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
 	assert.Equal(t, 1, saved.HostCount)
+
+	var configProfileLabelName string
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &configProfileLabelName,
+			"SELECT label_name FROM mdm_configuration_profile_labels WHERE label_id = ?", label.ID)
+	})
+	assert.Equal(t, label.Name, configProfileLabelName)
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
@@ -1145,7 +1189,7 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, h)
-		nanoEnroll(t, ds, h, false)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
 	}
 
 	// set up data
@@ -1506,8 +1550,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
-		nanoEnroll(t, db, h, false)
+		nanoEnrollAndSetHostMDMData(t, db, h, false)
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))

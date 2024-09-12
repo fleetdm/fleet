@@ -13,4 +13,5 @@ controls:
 policies:
 queries:
 software:
-  - url: ${SOFTWARE_INSTALLER_URL}/toolarge.deb
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/toolarge.deb

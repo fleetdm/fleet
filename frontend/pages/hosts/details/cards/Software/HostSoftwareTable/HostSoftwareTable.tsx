@@ -4,21 +4,56 @@ import { InjectedRouter } from "react-router";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { getNextLocationPath } from "utilities/helpers";
+import { QueryParams } from "utilities/url";
+
+import { IHostSoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+
+import {
+  ApplePlatform,
+  APPLE_PLATFORM_DISPLAY_NAMES,
+  HostPlatform,
+  isIPadOrIPhone,
+} from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "host-software-table";
 
+export const DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: "allSoftware",
+    helpText: "All software installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: "vulnerableSoftware",
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+  {
+    disabled: false,
+    label: "Available for install",
+    value: "installableSoftware",
+    helpText: "Software that can be installed on your hosts.",
+  },
+] as const;
+
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  platform: HostPlatform;
   isLoading: boolean;
   router: InjectedRouter;
   sortHeader: string;
@@ -26,11 +61,15 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
+  routeTemplate?: string;
+  pathPrefix: string;
+  hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
 }
 
 const HostSoftwareTable = ({
   tableConfig,
   data,
+  platform,
   isLoading,
   router,
   sortHeader,
@@ -38,7 +77,47 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
+  routeTemplate,
+  pathPrefix,
+  hostSoftwareFilter,
 }: IHostSoftwareTableProps) => {
+  const handleFilterDropdownChange = useCallback(
+    (val: IHostSoftwareDropdownFilterVal) => {
+      const newParams: QueryParams = {
+        query: searchQuery,
+        order_key: sortHeader,
+        order_direction: sortDirection,
+        page: 0,
+      };
+
+      // mutually exclusive
+      if (val === "installableSoftware") {
+        newParams.available_for_install = true.toString();
+      } else if (val === "vulnerableSoftware") {
+        newParams.vulnerable = true.toString();
+      }
+
+      const nextPath = getNextLocationPath({
+        pathPrefix,
+        routeTemplate,
+        queryParams: newParams,
+      });
+      router.replace(nextPath);
+    },
+    [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
+  );
+
+  const memoizedFilterDropdown = useCallback(() => {
+    return (
+      <Dropdown
+        value={hostSoftwareFilter}
+        options={DROPDOWN_OPTIONS}
+        searchable={false}
+        onChange={handleFilterDropdownChange}
+        tableFilterDropdown
+      />
+    );
+  }, [handleFilterDropdownChange, hostSoftwareFilter]);
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -62,7 +141,7 @@ const HostSoftwareTable = ({
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      const newQueryParam: Record<string, string | number | undefined> = {
+      const newQueryParam: QueryParams = {
         query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
@@ -98,7 +177,7 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
-  const count = data?.count || data?.software.length || 0;
+  const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
 
   const memoizedSoftwareCount = useCallback(() => {
@@ -107,11 +186,19 @@ const HostSoftwareTable = ({
     }
 
     return <TableCount name="items" count={count} />;
-  }, [data?.count, data?.software.length]);
+  }, [count, isSoftwareNotDetected]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
-  }, [searchQuery]);
+    const vulnFilterAndNotSupported =
+      isIPadOrIPhone(platform) && hostSoftwareFilter === "vulnerableSoftware";
+    return vulnFilterAndNotSupported ? (
+      <VulnsNotSupported
+        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
+      />
+    ) : (
+      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
+    );
+  }, [hostSoftwareFilter, platform, searchQuery]);
 
   return (
     <div className={baseClass}>
@@ -129,9 +216,10 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
+        customControl={memoizedFilterDropdown}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={!isSoftwareNotDetected}
+        searchable
         manualSortBy
       />
     </div>

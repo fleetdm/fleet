@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim@sha256:cc4cc29b4ba8182fca324920f64ff68a3b24acefd4c7ba8a2e5bd4e81ac3bacf
+FROM debian:stable-slim@sha256:90128f59a7c6f6fdcb6493f587ea352d5c7507f52a6ddfba66fc56cd3d99dc2b
 
 RUN true \
     && dpkg --add-architecture i386 \

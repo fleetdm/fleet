@@ -9,7 +9,7 @@ import (
 )
 
 // parseOptions parses the stdout returned from falconctl's displayed options. As far as we know, output is a single
-// line, comma separated. We parse multiple lines, but assume data does not space that. Eg: linebreaks and commas
+// line, comma-separated. We parse multiple lines, but assume data does not space that. Eg: linebreaks and commas
 // treated as seperators.
 func parseOptions(reader io.Reader) (any, error) {
 	results := make(map[string]interface{})

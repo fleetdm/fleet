@@ -17,7 +17,7 @@ const formatFieldForCSV = (value: any): string => {
   }
 
   // Wrap the value in double quotes to enclose any value that may
-  // have a, or a " in it to distinguish them from a comma separated delimiter
+  // have a, or a " in it to distinguish them from a comma-separated delimiter
   return `"${value}"`;
 };
 

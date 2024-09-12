@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 // MaxProfileRetries is the maximum times an install profile command may be
@@ -101,6 +101,14 @@ const (
 	// FleetMacOSUpdatesProfileName is the name of the DDM profile used by Fleet
 	// to configure macOS OS updates.
 	FleetMacOSUpdatesProfileName = "Fleet macOS OS Updates"
+
+	// FleetIOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure iOS OS updates.
+	FleetIOSUpdatesProfileName = "Fleet iOS OS Updates"
+
+	// FleetIPadOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure iPadOS OS updates.
+	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
 )
 
 // FleetReservedProfileNames returns a map of PayloadDisplayName or profile
@@ -111,6 +119,8 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetFileVaultProfileName:        {},
 		FleetWindowsOSUpdatesProfileName: {},
 		FleetMacOSUpdatesProfileName:     {},
+		FleetIOSUpdatesProfileName:       {},
+		FleetIPadOSUpdatesProfileName:    {},
 		FleetCAConfigProfileName:         {},
 	}
 }
@@ -130,5 +140,9 @@ func ListFleetReservedMacOSProfileNames() []string {
 // ListFleetReservedMacOSDeclarationNames returns a list of declaration names
 // that are reserved by Fleet for Apple DDM declarations.
 func ListFleetReservedMacOSDeclarationNames() []string {
-	return []string{FleetMacOSUpdatesProfileName}
+	return []string{
+		FleetMacOSUpdatesProfileName,
+		FleetIOSUpdatesProfileName,
+		FleetIPadOSUpdatesProfileName,
+	}
 }

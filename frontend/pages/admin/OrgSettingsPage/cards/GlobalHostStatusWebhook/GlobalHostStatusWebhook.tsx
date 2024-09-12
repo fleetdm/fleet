@@ -153,20 +153,18 @@ const GlobalHostStatusWebhook = ({
           >
             Enable host status webhook
           </Checkbox>
-          <div>
-            <p className={`${baseClass}__section-description`}>
-              A request will be sent to your configured <b>Destination URL</b>{" "}
-              if the configured <b>Percentage of hosts</b> have not checked into
-              Fleet for the configured <b>Number of days</b>.
-            </p>
-            <Button
-              type="button"
-              variant="inverse"
-              onClick={toggleHostStatusWebhookPreviewModal}
-            >
-              Preview request
-            </Button>
-          </div>
+          <p className={`${baseClass}__section-description`}>
+            A request will be sent to your configured <b>Destination URL</b> if
+            the configured <b>Percentage of hosts</b> have not checked into
+            Fleet for the configured <b>Number of days</b>.
+          </p>
+          <Button
+            type="button"
+            variant="text-link"
+            onClick={toggleHostStatusWebhookPreviewModal}
+          >
+            Preview request
+          </Button>
           {enableHostStatusWebhook && (
             <>
               <InputField

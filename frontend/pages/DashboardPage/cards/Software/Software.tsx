@@ -18,12 +18,10 @@ import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {
   errorSoftware: Error | null;
-  isCollectingInventory: boolean;
   isSoftwareFetching: boolean;
   isSoftwareEnabled?: boolean;
   software?: ISoftwareResponse;
   teamId?: number;
-  pageIndex: number;
   navTabIndex: number;
   onTabChange: (index: number, last: number, event: Event) => boolean | void;
   onQueryChange?:
@@ -46,7 +44,6 @@ const baseClass = "home-software";
 
 const Software = ({
   errorSoftware,
-  isCollectingInventory,
   isSoftwareFetching,
   isSoftwareEnabled,
   navTabIndex,
@@ -96,11 +93,7 @@ const Software = ({
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
-                  emptyComponent={() => (
-                    <EmptySoftwareTable
-                      isCollectingSoftware={isCollectingInventory}
-                    />
-                  )}
+                  emptyComponent={() => <EmptySoftwareTable />}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
@@ -123,10 +116,7 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
                   emptyComponent={() => (
-                    <EmptySoftwareTable
-                      isCollectingSoftware={isCollectingInventory}
-                      softwareFilter="vulnerableSoftware"
-                    />
+                    <EmptySoftwareTable vulnFilters={{ vulnerable: true }} />
                   )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}

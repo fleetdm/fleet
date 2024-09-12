@@ -301,7 +301,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         </Checkbox>
         <Button
           type="button"
-          variant="inverse"
+          variant="text-link"
           onClick={toggleHostStatusWebhookPreviewModal}
         >
           Preview request

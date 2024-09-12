@@ -643,32 +643,32 @@ allow {
   action == read
 }
 
-# Global admins and maintainers can read any software installer.
+# Global admins and maintainers can read any installable entity (software installer or VPP app)
 allow {
-  object.type == "software_installer"
+  object.type == "installable_entity"
   subject.global_role == [admin, maintainer][_]
   action == read
 }
 
-# Global admins, maintainers, and gitops can write any software installer.
+# Global admins, maintainers, and gitops can write any installable entity (software installer or VPP app)
 allow {
-  object.type == "software_installer"
+  object.type == "installable_entity"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins and maintainers can read any software installer in their teams.
+# Team admins and maintainers can read any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "software_installer"
+  object.type == "installable_entity"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == read
 }
 
-# Team admins, maintainers, and gitops can write any software installer in their teams.
+# Team admins, maintainers, and gitops can write any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "software_installer"
+  object.type == "installable_entity"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }
@@ -677,7 +677,7 @@ allow {
 # Host software installs
 ##
 
-# Global admins and maintainers can write (install) software on hosts (not
+# Global admins and maintainers can write (install/uninstall) software on hosts (not
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
@@ -685,7 +685,7 @@ allow {
   action == write
 }
 
-# Team admin and maintainers can write (install) software on hosts for their
+# Team admin and maintainers can write (install/uninstall) software on hosts for their
 # teams (not gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
@@ -733,11 +733,11 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write MDM apple information.
+# Global admins can read, write, and list MDM apple information.
 allow {
   object.type == "mdm_apple"
   subject.global_role == admin
-  action == [read, write][_]
+  action == [read, write, list][_]
 }
 
 # Global admins can read and write Apple MDM enrollments.
@@ -937,7 +937,7 @@ allow {
   action == write
 }
 
-# Global admins, maintainers, observer_plus and observers can read scripts.
+# Global admins, maintainers, observer_plus and observers can read script results, including software uninstall results.
 allow {
   object.type == "host_script_result"
   subject.global_role == [admin, maintainer, observer, observer_plus][_]
@@ -953,7 +953,7 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, observer_plus and observers can read scripts for their teams.
+# Team admins, maintainers, observer_plus and observers can read script results for their teams, including software uninstall results.
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)

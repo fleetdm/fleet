@@ -4,6 +4,8 @@ import React, { useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
+import { CONTACT_FLEET_LINK } from "utilities/constants";
+
 import Button from "components/buttons/Button/Button";
 // @ts-ignore
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
@@ -48,7 +50,7 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
           <p>
             To get access,{" "}
             <CustomLink
-              url={orgContactUrl || "https://fleetdm.com/contact"}
+              url={orgContactUrl || CONTACT_FLEET_LINK}
               text="contact your administrator"
             />
             .

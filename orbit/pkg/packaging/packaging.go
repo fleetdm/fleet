@@ -127,7 +127,14 @@ type Options struct {
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// Architecture that the package is being built for. (amd64, arm64)
+	Architecture string
 }
+
+const (
+	ArchAmd64 string = "amd64"
+	ArchArm64 string = "arm64"
+)
 
 func initializeTempDir() (string, error) {
 	// Initialize directories
@@ -279,10 +286,10 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 }
 
 // Embed the certs file that osquery uses so that we can drop it into our installation packages.
-// This file copied from https://raw.githubusercontent.com/osquery/osquery/master/tools/deployment/certs.pem
+// This file is generated and updated by .github/workflows/update-certs.yml.
 //
 //go:embed certs.pem
-var osqueryCerts []byte
+var OsqueryCerts []byte
 
 func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
 	path := filepath.Join(orbitRoot, "certs.pem")
@@ -290,7 +297,7 @@ func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := os.WriteFile(path, osqueryCerts, 0o644); err != nil {
+	if err := os.WriteFile(path, OsqueryCerts, 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

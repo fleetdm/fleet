@@ -8,6 +8,7 @@ columns:
 notes: |-
   - The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)
   - To determine who is logged in to the Mac, or for example, to check the record name versus the computer's "short name", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).
+  - Many installers incorporate scripts due to actions that are handled by pre or post-scripts vs installer package payloads. These script actions aren't tracked in the "bill of materials" (.bom) file. So, don't blindly trust the "bill of materials" (.bom) file as the source of truth on what has or hasn't been installed.
 examples: |-
   Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.
 

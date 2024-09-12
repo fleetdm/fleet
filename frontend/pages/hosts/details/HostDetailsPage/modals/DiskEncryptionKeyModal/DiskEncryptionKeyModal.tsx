@@ -8,14 +8,14 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
-import { SupportedPlatform } from "interfaces/platform";
+import { QueryablePlatform } from "interfaces/platform";
 
 const baseClass = "disk-encryption-key-modal";
 
 // currently these are the only supported platforms for the disk encryption
 // key modal.
 export type ModalSupportedPlatform = Extract<
-  SupportedPlatform,
+  QueryablePlatform,
   "darwin" | "windows"
 >;
 

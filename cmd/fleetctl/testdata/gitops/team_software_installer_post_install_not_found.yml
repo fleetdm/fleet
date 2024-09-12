@@ -13,8 +13,9 @@ controls:
 policies:
 queries:
 software:
-  - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
-    install_script:
-      path: lib/install_ruby.sh
-    post_install_script:
-      path: lib/notfound.sh
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      install_script:
+        path: lib/install_ruby.sh
+      post_install_script:
+        path: lib/notfound.sh

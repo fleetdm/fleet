@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
-import { SelectedPlatformString, SupportedPlatform } from "./platform";
+import { SelectedPlatformString, QueryablePlatform } from "./platform";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -32,7 +32,7 @@ export interface ISchedulableQuery {
 
 export interface IEnhancedQuery extends ISchedulableQuery {
   performance: string;
-  platforms: SupportedPlatform[];
+  platforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {
   user_time_p50?: number | null;

@@ -9,6 +9,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
+import { parseOSUpdatesCurrentVersionsQueryParams } from "./OSUpdates/components/CurrentVersionSection/CurrentVersionSection";
 
 interface IControlsSubNavItem {
   name: string;
@@ -43,6 +44,8 @@ interface IManageControlsPageProps {
     query: {
       team_id?: string;
       page?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
     };
   };
   router: InjectedRouter; // v3
@@ -67,12 +70,7 @@ const ManageControlsPage = ({
 }: IManageControlsPageProps): JSX.Element => {
   const page = parseInt(location?.query?.page || "", 10) || 0;
 
-  const {
-    isFreeTier,
-    isOnGlobalTeam,
-    isPremiumTier,
-    isSandboxMode,
-  } = useContext(AppContext);
+  const { isFreeTier, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -121,7 +119,11 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabsWrapper>
-        {React.cloneElement(children, { teamIdForApi, currentPage: page })}
+        {React.cloneElement(children, {
+          teamIdForApi,
+          currentPage: page,
+          queryParams: parseOSUpdatesCurrentVersionsQueryParams(location.query),
+        })}
       </div>
     );
   };
@@ -144,7 +146,6 @@ const ManageControlsPage = ({
                         onChange={handleTeamChange}
                         includeAll={false}
                         includeNoTeams
-                        isSandboxMode={isSandboxMode}
                       />
                     )}
                   {isPremiumTier &&

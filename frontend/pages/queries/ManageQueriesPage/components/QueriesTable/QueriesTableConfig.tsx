@@ -12,7 +12,7 @@ import {
   IEnhancedQuery,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { SupportedPlatform } from "interfaces/platform";
+import { QueryablePlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 import Icon from "components/Icon";
@@ -81,7 +81,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: SupportedPlatform[];
+    value: QueryablePlatform[];
   };
 }
 

@@ -36,6 +36,8 @@ export const pastActivityComponentMap: Record<
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
@@ -45,4 +47,6 @@ export const upcomingActivityComponentMap: Record<
 > = {
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
 };

@@ -111,6 +111,10 @@
     background: @ui-off-white;
     width: 100%;
     overflow-x: scroll;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
     p {
       white-space: nowrap;
       color: @core-fleet-black-75;

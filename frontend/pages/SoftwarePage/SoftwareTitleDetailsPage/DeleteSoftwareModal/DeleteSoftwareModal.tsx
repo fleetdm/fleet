@@ -3,11 +3,15 @@ import React, { useCallback, useContext } from "react";
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
 
+import { getErrorReason } from "interfaces/errors";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "delete-software-modal";
 
+const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
+  "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
@@ -28,8 +32,13 @@ const DeleteSoftwareModal = ({
       await softwareAPI.deleteSoftwarePackage(softwareId, teamId);
       renderFlash("success", "Software deleted successfully!");
       onSuccess();
-    } catch {
-      renderFlash("error", "Couldn't delete. Please try again.");
+    } catch (error) {
+      const reason = getErrorReason(error);
+      if (reason.includes("Policy automation uses this software")) {
+        renderFlash("error", DELETE_SW_USED_BY_POLICY_ERROR_MSG);
+      } else {
+        renderFlash("error", "Couldn't delete. Please try again.");
+      }
     }
     onExit();
   }, [softwareId, teamId, renderFlash, onSuccess, onExit]);

@@ -41,7 +41,7 @@ func mdmRunCommand() *cli.Command {
 			debugFlag(),
 			&cli.StringSliceFlag{
 				Name:     "hosts",
-				Usage:    "Hosts specified by hostname, serial number, uuid, osquery_host_id or node_key that you want to target.",
+				Usage:    "Comma-separated hosts to target. Hosts can be specified by hostname, UUID, or serial number.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -122,13 +122,9 @@ func mdmRunCommand() *cli.Command {
 				hostUUIDs = append(hostUUIDs, host.UUID)
 			}
 
-			if len(hostUUIDs) == 0 {
-				// all hosts were not found
-				return errors.New("No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.")
-			}
-			if notFoundCount > 0 {
-				// at least one was not found
-				return errors.New("One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.")
+			if len(hostUUIDs) == 0 || notFoundCount > 0 {
+				// Either no hosts were targeted, or at least one targeted host was not found
+				return errors.New(fleet.TargetedHostsDontExistErrMsg)
 			}
 
 			result, err := client.RunMDMCommand(hostUUIDs, payload, mdmPlatform)
@@ -171,7 +167,7 @@ func mdmLockCommand() *cli.Command {
 		Usage: "Lock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by identifier, that you want to lock.",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -210,7 +206,7 @@ func mdmUnlockCommand() *cli.Command {
 		Usage: "Unlock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by identifier, that you want to unlock.",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -312,7 +308,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if err != nil {
 		var nfe service.NotFoundErr
 		if errors.As(err, &nfe) {
-			return nil, nil, errors.New("The host doesn't exist. Please provide a valid host identifier.")
+			return nil, nil, errors.New(fleet.HostNotFoundErrMsg)
 		}
 
 		var sce kithttp.StatusCoder

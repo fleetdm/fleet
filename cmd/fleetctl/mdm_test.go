@@ -291,7 +291,7 @@ func TestMDMRunCommand(t *testing.T) {
 				{"macOS yaml payload", []string{"--hosts", "mac-enrolled", "--payload", yamlFilePath}, appCfgAllMDM, `The payload isn't valid XML`},
 				{"win yaml payload", []string{"--hosts", "win-enrolled", "--payload", yamlFilePath}, appCfgAllMDM, `The payload isn't valid XML`},
 				{"non-mdm-command plist payload", []string{"--hosts", "mac-enrolled", "--payload", mobileConfigFilePath}, appCfgAllMDM, `The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file:`},
-				{"single host not found", []string{"--hosts", "no-such-host", "--payload", appleCmdFilePath}, appCfgAllMDM, `No hosts targeted.`},
+				{"single host not found", []string{"--hosts", "no-such-host", "--payload", appleCmdFilePath}, appCfgAllMDM, fleet.TargetedHostsDontExistErrMsg},
 				{"unenrolled macOS host", []string{"--hosts", "mac-unenrolled", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"unenrolled windows host", []string{"--hosts", "win-unenrolled", "--payload", winCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"macOS non-fleet host", []string{"--hosts", "mac-non-fleet-enrolled", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
@@ -319,7 +319,7 @@ func TestMDMRunCommand(t *testing.T) {
 				{"non-Exec win file", []string{"--hosts", "win-enrolled", "--payload", nonExecWinCmdFilePath.Name()}, appCfgAllMDM, `You can run only <Exec> command type.`},
 				{"empty win file", []string{"--hosts", "win-enrolled", "--payload", emptyWinCmdFilePath.Name()}, appCfgAllMDM, `You can run only a single <Exec> command.`},
 				{"hosts with different platforms", []string{"--hosts", "win-enrolled,mac-enrolled", "--payload", winCmdFilePath}, appCfgAllMDM, `Command can't run on hosts with different platforms.`},
-				{"all hosts not found", []string{"--hosts", "no-such-1,no-such-2,no-such-3", "--payload", winCmdFilePath}, appCfgAllMDM, `No hosts targeted.`},
+				{"all hosts not found", []string{"--hosts", "no-such-1,no-such-2,no-such-3", "--payload", winCmdFilePath}, appCfgAllMDM, fleet.TargetedHostsDontExistErrMsg},
 				{"one host not found", []string{"--hosts", "win-enrolled,no-such-2,win-enrolled-2", "--payload", winCmdFilePath}, appCfgAllMDM, `One or more targeted hosts don't exist.`},
 				{"one windows host not enrolled", []string{"--hosts", "win-enrolled,win-unenrolled,win-enrolled-2", "--payload", winCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"one macOS host not enrolled", []string{"--hosts", "mac-enrolled,mac-unenrolled,mac-enrolled-2", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
@@ -350,7 +350,6 @@ func TestMDMRunCommand(t *testing.T) {
 }
 
 func TestMDMLockCommand(t *testing.T) {
-
 	macEnrolled := testhost{
 		host: &fleet.Host{
 			ID:       1,
@@ -590,7 +589,7 @@ fleetctl mdm unlock --host=%s
 	}{
 		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
 		{appCfgAllMDM, "host flag empty", []string{"--host", ""}, `No host targeted. Please provide --host.`},
-		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
+		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, fleet.HostNotFoundErrMsg},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.host.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgWinMDM, "valid macos but only windows mdm", []string{"--host", macEnrolled.host.UUID}, `macOS MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.host.UUID}, ""},
@@ -866,7 +865,7 @@ fleetctl get host %s
 	}{
 		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
 		{appCfgAllMDM, "host flag empty", []string{"--host", ""}, `No host targeted. Please provide --host.`},
-		{appCfgAllMDM, "unlock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
+		{appCfgAllMDM, "unlock non-existent host", []string{"--host", "notfound"}, fleet.HostNotFoundErrMsg},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.host.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.host.UUID}, ""},
 		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.host.UUID}, ""},
@@ -1225,7 +1224,7 @@ func TestMDMWipeCommand(t *testing.T) {
 	}{
 		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
 		{appCfgAllMDM, "host flag empty", []string{"--host", ""}, `No host targeted. Please provide --host.`},
-		{appCfgAllMDM, "wipe non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
+		{appCfgAllMDM, "wipe non-existent host", []string{"--host", "notfound"}, fleet.HostNotFoundErrMsg},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.host.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.host.UUID}, ""},
 		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.host.UUID}, ""},

@@ -44,7 +44,7 @@ const PastActivityFeed = ({
     return (
       <EmptyFeed
         title="No activity"
-        message="When a script runs on a host, it shows up here."
+        message="Completed actions will appear here (scripts, software, lock, and wipe)."
         className={`${baseClass}__empty-feed`}
       />
     );

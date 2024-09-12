@@ -65,38 +65,40 @@ const FlashMessage = ({
   }
 
   return (
-    <div className={baseClasses} id={baseClasses}>
-      <div className={`${baseClass}__content`}>
-        <Icon
-          name={alertType === "success" ? "success" : "error"}
-          color="core-fleet-white"
-        />
-        <span>{message}</span>
-        {onUndoActionClick && undoAction && (
-          <Button
-            className={`${baseClass}__undo`}
-            variant="unstyled"
-            onClick={onUndoActionClick(undoAction)}
-          >
-            Undo
-          </Button>
-        )}
-      </div>
-      <div className={`${baseClass}__action`}>
-        <div className={`${baseClass}__ex`}>
-          <button
-            className={`${baseClass}__remove ${baseClass}__remove--${alertType} button--unstyled`}
-            onClick={onRemoveFlash}
-          >
-            <Icon
-              name="close"
-              color={
-                alertType === "warning-filled"
-                  ? "core-fleet-black"
-                  : "core-fleet-white"
-              }
-            />
-          </button>
+    <div className={"flash-message-container"}>
+      <div className={baseClasses} id={baseClasses}>
+        <div className={`${baseClass}__content`}>
+          <Icon
+            name={alertType === "success" ? "success" : "error"}
+            color="core-fleet-white"
+          />
+          <span>{message}</span>
+          {onUndoActionClick && undoAction && (
+            <Button
+              className={`${baseClass}__undo`}
+              variant="unstyled"
+              onClick={onUndoActionClick(undoAction)}
+            >
+              Undo
+            </Button>
+          )}
+        </div>
+        <div className={`${baseClass}__action`}>
+          <div className={`${baseClass}__ex`}>
+            <button
+              className={`${baseClass}__remove ${baseClass}__remove--${alertType} button--unstyled`}
+              onClick={onRemoveFlash}
+            >
+              <Icon
+                name="close"
+                color={
+                  alertType === "warning-filled"
+                    ? "core-fleet-black"
+                    : "core-fleet-white"
+                }
+              />
+            </button>
+          </div>
         </div>
       </div>
     </div>

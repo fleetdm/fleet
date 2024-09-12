@@ -18,6 +18,7 @@ parasails.registerPage('start', {
       'what-does-your-team-manage-eo-it': {},
       'what-does-your-team-manage-vm': {},
       'what-do-you-manage-mdm': {},
+      'cross-platform-mdm': {stepCompleted: true},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
       'deploy-fleet-in-your-environment': {stepCompleted: true},
@@ -25,6 +26,8 @@ parasails.registerPage('start', {
       'how-was-your-deployment': {},
       'whats-left-to-get-you-set-up': {},
     },
+
+    psychologicalStage: '2 - Aware',
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
@@ -73,6 +76,7 @@ parasails.registerPage('start', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+    primaryBuyingSituation: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -85,7 +89,37 @@ parasails.registerPage('start', {
     }
     // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
-      this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      if(this.primaryBuyingSituation !== 'vm') {
+        this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      }
+    }
+    if(this.me.psychologicalStage){
+      this.psychologicalStage = this.me.psychologicalStage;
+    }
+    if(window.location.hash) {
+      if(typeof analytics !== 'undefined') {
+        if(window.location.hash === '#signup') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+          analytics.track('fleet_website__sign_up');
+        } else if(window.location.hash === '#login') {
+          analytics.identify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+        }
+      }
+      window.location.hash = '';
     }
   },
   mounted: async function() {
@@ -99,11 +133,24 @@ parasails.registerPage('start', {
     handleSubmittingForm: async function(argins) {
       let formDataForThisStep = _.clone(argins);
       let nextStep = this.getNextStep();
-      let getStartedProgress = await Cloud.saveQuestionnaireProgress.with({
+      let questionanireProgress = await Cloud.saveQuestionnaireProgress.with({
         currentStep: this.currentStep,
         formData: formDataForThisStep,
       });
-      this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
+
+      this.previouslyAnsweredQuestions[this.currentStep] = questionanireProgress.getStartedProgress[this.currentStep];
+      this.psychologicalStage = questionanireProgress.psychologicalStage;
+      this.primaryBuyingSituation = questionanireProgress.primaryBuyingSituation;
+      if(typeof analytics !== 'undefined') {
+        analytics.identify(this.me.id, {
+          email: this.me.emailAddress,
+          firstName: this.me.firstName,
+          lastName: this.me.lastName,
+          company: this.me.organization,
+          primaryBuyingSituation: this.primaryBuyingSituation,
+          psychologicalStage: this.psychologicalStage,
+        });
+      }
       if(_.startsWith(nextStep, '/')){
         this.goto(nextStep);
       } else {
@@ -113,6 +160,9 @@ parasails.registerPage('start', {
     },
     clickGoToPreviousStep: async function() {
       switch(this.currentStep) {
+        case 'what-are-you-using-fleet-for':
+          this.currentStep = 'start';
+          break;
         case 'have-you-ever-used-fleet':
           this.currentStep = 'what-are-you-using-fleet-for';
           break;
@@ -148,8 +198,11 @@ parasails.registerPage('start', {
           } else if(primaryBuyingSituation === 'vm') {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(primaryBuyingSituation === 'mdm') {
-            this.currentStep = 'what-do-you-manage-mdm';
+            this.currentStep = 'cross-platform-mdm';
           }
+          break;
+        case 'cross-platform-mdm':
+          this.currentStep = 'what-do-you-manage-mdm';
           break;
         case 'lets-talk-to-your-team':
           this.currentStep = 'how-many-hosts';
@@ -247,6 +300,9 @@ parasails.registerPage('start', {
           nextStepInForm = 'is-it-any-good';
           break;
         case 'what-do-you-manage-mdm':
+          nextStepInForm = 'cross-platform-mdm';
+          break;
+        case 'cross-platform-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':
@@ -273,7 +329,7 @@ parasails.registerPage('start', {
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'kinda-stuck'){
             nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'havent-gotten-to-it') {
-            nextStepInForm = 'deploy-fleet-in-your-environment';
+            nextStepInForm = '/contact';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
             nextStepInForm = 'how-many-hosts';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){

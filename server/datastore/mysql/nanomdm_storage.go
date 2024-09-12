@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -135,6 +136,10 @@ func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 	return s.ds.GetAllMDMConfigAssetsByName(ctx, assetNames)
 }
 
+func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	return s.ds.GetABMTokenByOrgName(ctx, orgName)
+}
+
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleDEPStorage() (*NanoDEPStorage, error) {
@@ -156,9 +161,16 @@ type NanoDEPStorage struct {
 	ds fleet.Datastore
 }
 
-// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
+// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever. NOTE: this method will first
+// check the context for an ABM token; if it doesn't find one, it will fall back to checking the DB.
+// This is so we can use the existing DEP client machinery without major changes. See
+// https://github.com/fleetdm/fleet/issues/21177 for more details.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	token, err := assets.ABMToken(ctx, s.ds)
+	if ctxTok, ok := abmctx.FromContext(ctx); ok {
+		return ctxTok, nil
+	}
+
+	token, err := assets.ABMToken(ctx, s.ds, name)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving token in nano dep storage: %w", err)
 	}

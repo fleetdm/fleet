@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/urfave/cli/v2"
 )
 
@@ -28,14 +29,14 @@ func queryCommand() *cli.Command {
 				EnvVars:     []string{"HOSTS"},
 				Value:       "",
 				Destination: &flHosts,
-				Usage:       "Comma separated hostnames to target",
+				Usage:       "Comma-separated hosts to target. Hosts can be specified by hostname, UUID, or serial number.",
 			},
 			&cli.StringFlag{
 				Name:        "labels",
 				EnvVars:     []string{"LABELS"},
 				Value:       "",
 				Destination: &flLabels,
-				Usage:       "Comma separated label names to target",
+				Usage:       "Comma-separated label names to target",
 			},
 			&cli.BoolFlag{
 				Name:        "quiet",
@@ -84,7 +85,7 @@ func queryCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -103,7 +104,7 @@ func queryCommand() *cli.Command {
 				if tid := c.Uint(teamFlagName); tid != 0 {
 					teamID = &tid
 				}
-				queries, err := fleet.GetQueries(teamID, &flQueryName)
+				queries, err := client.GetQueries(teamID, &flQueryName)
 				if err != nil || len(queries) == 0 {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
@@ -131,11 +132,14 @@ func queryCommand() *cli.Command {
 				output = newJsonWriter(c.App.Writer)
 			}
 
-			hosts := strings.Split(flHosts, ",")
+			hostIdentifiers := strings.Split(flHosts, ",")
 			labels := strings.Split(flLabels, ",")
 
-			res, err := fleet.LiveQuery(flQuery, queryID, labels, hosts)
+			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
+				if strings.Contains(err.Error(), "no hosts targeted") {
+					return errors.New(fleet.NoHostsTargetedErrMsg)
+				}
 				return err
 			}
 

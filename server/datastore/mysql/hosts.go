@@ -26,8 +26,10 @@ import (
 
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
-var hostIssuesInsertBatchSize = 10000
-var hostIssuesUpdateFailingPoliciesBatchSize = 10000
+var (
+	hostIssuesInsertBatchSize                = 10000
+	hostIssuesUpdateFailingPoliciesBatchSize = 10000
+)
 
 // A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
 var addHostsToTeamBatchSize = 10000
@@ -539,7 +541,8 @@ var additionalHostRefsByUUID = map[string]string{
 // the rows are not deleted when the host is deleted, only a soft delete is
 // performed by setting a timestamp column to the current time.
 var additionalHostRefsSoftDelete = map[string]string{
-	"host_script_results": "host_deleted_at",
+	"host_script_results":    "host_deleted_at",
+	"host_software_installs": "host_deleted_at",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -766,54 +769,9 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 	return scheduledQueriesStats
 }
 
-func winHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) string {
-	in := strings.Repeat("?,", lenPlaceholders)
-	in += strings.Join(aliasedCols, ",")
-	in = strings.Trim(in, ",")
-
-	return fmt.Sprintf(`
-	SELECT host_uuid
-	FROM mdm_windows_enrollments
-	WHERE host_uuid IN (%s)
-	AND device_state = '%s'`,
-		in,
-		microsoft_mdm.MDMDeviceStateEnrolled)
-}
-
-func appleHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) string {
-	in := strings.Repeat("?,", lenPlaceholders)
-	in += strings.Join(aliasedCols, ",")
-	in = strings.Trim(in, ",")
-
-	return fmt.Sprintf(`
-	SELECT id
-	FROM nano_enrollments
-	WHERE id IN (%s)
-	AND enabled = 1
-	AND type = 'Device'`, in)
-}
-
-var caseConnectedToFleet = `
-CASE
-	WHEN h.platform = 'windows' THEN (
-		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond([]string{"h.uuid"}, 0) + `)
-		THEN CAST(TRUE AS JSON)
-		ELSE CAST(FALSE AS JSON)
-		END
-	)
-	WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (
-		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond([]string{"h.uuid"}, 0) + `)
-		THEN CAST(TRUE AS JSON)
-		ELSE CAST(FALSE AS JSON)
-		END
-	)
-	ELSE CAST(FALSE AS JSON)
-END
-`
-
 // hostMDMSelect is the SQL fragment used to construct the JSON object
 // of MDM host data. It assumes that hostMDMJoin is included in the query.
-var hostMDMSelect = `,
+const hostMDMSelect = `,
 	JSON_OBJECT(
 		'enrollment_status',
 		CASE
@@ -850,7 +808,39 @@ var hostMDMSelect = `,
 			ELSE hdek.decryptable
 		END,
 		'connected_to_fleet',
-		` + caseConnectedToFleet + `,
+		CASE
+			WHEN h.platform = 'windows' THEN (` +
+	// NOTE: if you change any of the conditions in this
+	// query, please update the AreHostsConnectedToFleetMDM
+	// datastore method and any relevant filters.
+	`SELECT CASE WHEN EXISTS (
+				    SELECT mwe.host_uuid
+				    FROM mdm_windows_enrollments mwe
+				    WHERE mwe.host_uuid = h.uuid
+				    AND mwe.device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
+				    AND hmdm.enrolled = 1
+				)
+				THEN CAST(TRUE AS JSON)
+				ELSE CAST(FALSE AS JSON)
+				END
+			)
+			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
+	// NOTE: if you change any of the conditions in this
+	// query, please update the AreHostsConnectedToFleetMDM
+	// datastore method and any relevant filters.
+	`SELECT CASE WHEN EXISTS (
+				    SELECT ne.id FROM nano_enrollments ne
+				    WHERE ne.id = h.uuid
+				    AND ne.enabled = 1
+				    AND ne.type = 'Device'
+				    AND hmdm.enrolled = 1
+				)
+				THEN CAST(TRUE AS JSON)
+				ELSE CAST(FALSE AS JSON)
+				END
+			)
+			ELSE CAST(FALSE AS JSON)
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
@@ -1049,17 +1039,31 @@ func (ds *Datastore) applyHostFilters(
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
-			// get the installer id
 			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-			if err != nil {
+			switch {
+			case fleet.IsNotFound(err):
+				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+				}
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+				}
+				softwareStatusJoin = vppAppJoin
+				joinParams = append(joinParams, vppAppParams...)
+
+			case err != nil:
 				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+			default:
+				installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+				}
+				softwareStatusJoin = installerJoin
+				joinParams = append(joinParams, installerParams...)
+
 			}
-			installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-			}
-			softwareStatusJoin = installerJoin
-			joinParams = append(joinParams, installerParams...)
 		} else {
 			softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
 			whereParams = append(whereParams, *opt.SoftwareTitleIDFilter)
@@ -1293,7 +1297,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	// ensure the host has MDM turned on
-	whereStatus := " AND ne.id IS NOT NULL"
+	whereStatus := " AND ne.id IS NOT NULL AND hmdm.enrolled = 1"
 	// macOS settings filter is not compatible with the "all teams" option so append the "no
 	// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 	if opt.TeamFilter == nil {
@@ -1333,7 +1337,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
 	}
 
-	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL`, subquery), append(params, subqueryParams...)
+	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery), append(params, subqueryParams...)
 }
 
 func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
@@ -1349,7 +1353,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) `
+	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1`
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1885,7 +1889,6 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-		last_enrolled_at = NOW(),
         team_id = ?
       WHERE id = ?`
 			_, err := tx.ExecContext(ctx, sqlUpdate,
@@ -2144,14 +2147,27 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
 func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	var err error
 	// nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
-		err = stmt.GetContext(ctx, dest, args...)
-	} else {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
+		err := stmt.GetContext(ctx, dest, args...)
+		if err == nil || !isMySQLUnknownStatement(err) {
+			return err
+		}
+
+		// if the statement is unknown to the MySQL server, delete it
+		// from the cache and fallback to the regular statement call
+		// bellow. This function will get called again eventually and
+		// we will store a new prepared statement in the cache.
+		//
+		// - see https://github.com/fleetdm/fleet/issues/20781 for an
+		// example of when this can happen.
+		//
+		// - see https://github.com/go-sql-driver/mysql/issues/1555 for
+		// a related open bug in the driver
+		ds.deleteCachedStmt(query)
 	}
-	return err
+
+	return sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
 }
 
 // LoadHostByNodeKey loads the whole host identified by the node key.
@@ -2269,7 +2285,6 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
-      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
@@ -2558,25 +2573,30 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	return hosts, nil
 }
 
-func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
-	if len(hostnames) == 0 {
+func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	if len(hostIdentifiers) == 0 {
 		return []uint{}, nil
 	}
 
 	sqlStatement := fmt.Sprintf(`
-			SELECT id FROM hosts
-			WHERE hostname IN (?) AND %s
+			SELECT
+				DISTINCT id FROM hosts
+			WHERE
+				(hostname IN (?)
+				OR uuid IN (?)
+				OR hardware_serial IN (?))
+			AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostnames)
+	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs by identifier")
 	}
 
 	return hostIDs, nil
@@ -2954,7 +2974,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	FROM policies p
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
-	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
+	WHERE (p.team_id IS NULL OR p.team_id = COALESCE((SELECT team_id FROM hosts WHERE id = ?), 0))
 	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
 	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
 
@@ -3635,6 +3655,18 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
+func (ds *Datastore) UpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	enrolled bool,
+) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm SET enrolled = ? WHERE host_id = ?`, enrolled, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host_mdm.enrolled")
+	}
+	return nil
+}
+
 func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,
@@ -4082,7 +4114,7 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
-		platforms = []string{"", "darwin", "windows"}
+		platforms = []string{"", "darwin", "windows", "ios", "ipados"}
 		teamIDs   []uint
 	)
 
@@ -4671,6 +4703,8 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *flee
 	args := []interface{}{aggregatedStatsTypeOSVersions}
 	switch {
 	case teamFilter != nil && teamFilter.TeamID != nil:
+		// Aggregated stats for os versions are stored by team id with 0 representing
+		// no team or the all teams if global_stats is true.
 		query += " AND id = ? AND global_stats = ?"
 		args = append(args, *teamFilter.TeamID, false)
 	case teamFilter != nil:
@@ -4935,7 +4969,7 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 		WHERE
 			hce.host_id = ?
 			AND
-			ce.start_time > NOW()	
+			ce.start_time > NOW()
 		ORDER BY ce.start_time
 	`
 
@@ -4944,20 +4978,6 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows from db")
 	}
 	return mws, nil
-}
-
-func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
-	const stmt = `
-          INSERT INTO host_disk_encryption_keys (host_id, reset_requested, base64_encrypted)
-            VALUES (?, ?, '')
-          ON DUPLICATE KEY UPDATE
-            reset_requested = VALUES(reset_requested)`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, status)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert disk encryption reset status")
-	}
-	return nil
 }
 
 // countHostNotResponding counts the hosts that haven't been submitting results for sent queries.
@@ -5025,6 +5045,18 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	}
 
 	return counts, nil
+}
+
+func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+		SELECT count(*) FROM host_orbit_info WHERE desktop_version IS NOT NULL
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {

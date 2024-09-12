@@ -2,6 +2,13 @@
   font-size: $x-small;
   min-width: max-content;
 
+  // ff only
+  @-moz-document url-prefix() {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   dt {
     font-weight: $bold;
     display: flex;

@@ -17,6 +17,7 @@ module.exports = {
     firstName: { type: 'string', required: true },
     lastName: { type: 'string', required: true },
     organization: { type: 'string' },
+    description: { type: 'string' },
     primaryBuyingSituation: { type: 'string' },
     psychologicalStage: {
       type: 'string',
@@ -29,6 +30,21 @@ module.exports = {
         '6 - Has team buy-in'
       ]
     },
+    psychologicalStageChangeReason: {
+      type: 'string',
+      example: 'Website - Organic start flow'
+    },
+    contactSource: {
+      type: 'string',
+      isIn: [
+        'Website - Contact forms',
+        'Website - Sign up',
+      ],
+    },
+    getStartedResponses: {
+      type: 'string',
+    }
+
   },
 
 
@@ -44,7 +60,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -88,7 +104,15 @@ module.exports = {
     if(psychologicalStage) {
       valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
     }
-
+    if(getStartedResponses) {
+      valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
+    }
+    if(description) {
+      valuesToSet.Description = description;
+    }
+    if(psychologicalStageChangeReason) {
+      valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
+    }
 
     let existingContactRecord;
     // Search for an existing Contact record using the provided email address or linkedIn profile URL.
@@ -105,6 +129,25 @@ module.exports = {
     }
 
     if(existingContactRecord) {
+      // If a description was provided and the contact has a description, append the new description to it.
+      if(description && existingContactRecord.Description) {
+        valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
+      // Check the existing contact record's psychologicalStage.
+      if(psychologicalStage) {
+        let recordsCurrentPsyStage = existingContactRecord.Stage__c;
+        // Because each psychological stage starts with a number, we'll get the first character in the record's current psychological stage and the new psychological stage to make comparison easier.
+        let psyStageStageNumberToChangeTo = Number(psychologicalStage[0]);
+        let recordsCurrentPsyStageNumber = Number(recordsCurrentPsyStage[0]);
+        if(psyStageStageNumberToChangeTo < recordsCurrentPsyStageNumber) {
+          // If a psychological stage regression is caused by anything other than the start flow, remove the updated value.
+          // This is done to prevent automated psyStage regressions caused by users taking other action on the website. (e.g, Booking a meeting or requesting Fleet swag.)
+          if(psychologicalStageChangeReason && psychologicalStageChangeReason !== 'Website - Organic start flow') {
+            delete valuesToSet.Stage__c;
+            delete valuesToSet.Psystage_change_reason__c;
+          }
+        }
+      }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
       salesforceContactId = existingContactRecord.Id;
@@ -165,7 +208,7 @@ module.exports = {
           // Create a timestamp to use for the new account's assigned date.
           let today = new Date();
           let nowOn = today.toISOString().replace('Z', '+0000');
-
+          require('assert')(typeof enrichmentData.employer.numberOfEmployees === 'number');
           let newAccountRecord = await salesforceConnection.sobject('Account')
           .create({
             Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
@@ -184,6 +227,10 @@ module.exports = {
         // console.log('New account created!', salesforceAccountId);
       }//ﬁ
 
+      // Only add contactSource to valuesToSet if we're creating a new contact record.
+      if(contactSource) {
+        valuesToSet.Contact_source__c = contactSource;// eslint-disable-line camelcase
+      }
       // console.log(`creating new Contact record.`)
       // Create a new Contact record for this person.
       let newContactRecord = await salesforceConnection.sobject('Contact')

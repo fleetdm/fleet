@@ -17,10 +17,6 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	return svc.ds.ListPoliciesForHost(ctx, host)
 }
 
-func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
-	return svc.ds.SetDiskEncryptionResetStatus(ctx, hostID, true)
-}
-
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
@@ -66,7 +62,12 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "fetching host mdm info")
 	}
 
-	if !fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
+	manualMigrationEligible, err := fleet.IsEligibleForManualMigration(host, mdmInfo, connected)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking manual migration eligibility")
+	}
+
+	if !fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) && !manualMigrationEligible {
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	}
 
@@ -143,9 +144,15 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
+		manualMigrationEligible, err := fleet.IsEligibleForManualMigration(host, mdmInfo, connected)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "checking manual migration eligibility")
+		}
+
+		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) || manualMigrationEligible {
 			sum.Notifications.NeedsMDMMigration = true
 		}
+
 	}
 
 	// organization information

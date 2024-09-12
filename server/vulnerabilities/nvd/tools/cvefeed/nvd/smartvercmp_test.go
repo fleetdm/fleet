@@ -47,7 +47,7 @@ func TestSmartVerCmp(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%q vs %q", c.v1, c.v2), func(t *testing.T) {
-			if ret := smartVerCmp(c.v1, c.v2); ret != c.ret {
+			if ret := SmartVerCmp(c.v1, c.v2); ret != c.ret {
 				t.Fatalf("expected %d, got %d", c.ret, ret)
 			}
 		})
@@ -68,7 +68,7 @@ func BenchmarkSmartVerCmp(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, c := range cases {
-			smartVerCmp(c.v1, c.v2)
+			SmartVerCmp(c.v1, c.v2)
 		}
 	}
 }
