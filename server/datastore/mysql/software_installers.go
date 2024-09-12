@@ -959,10 +959,10 @@ func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Contex
 	}
 	query := `
 		UPDATE software_installers
-		SET package_ids = ?, uninstall_script_content_id = ?
+		SET package_ids = ?, uninstall_script_content_id = ?, extension = ?
 		WHERE id = ?
 	`
-	_, err = ds.writer(ctx).ExecContext(ctx, query, strings.Join(payload.PackageIDs, ","), uninstallScriptID, id)
+	_, err = ds.writer(ctx).ExecContext(ctx, query, strings.Join(payload.PackageIDs, ","), uninstallScriptID, payload.Extension, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installer without package ID")
 	}

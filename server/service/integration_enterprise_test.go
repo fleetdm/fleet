@@ -10584,14 +10584,22 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		installerID, titleID := checkSoftwareInstaller(t, payload)
 
 		var origPackageIDs string
-		// Update DB by clearing package id
+		var origExtension string
+		// Update DB by clearing package id and tweaking extension
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if err := sqlx.GetContext(context.Background(), q, &origPackageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
 				installerID); err != nil {
 				return err
 			}
 			require.NotEmpty(t, origPackageIDs)
-			if _, err = q.ExecContext(context.Background(), `UPDATE software_installers SET package_ids = '' WHERE id = ?`,
+
+			if err := sqlx.GetContext(context.Background(), q, &origExtension, `SELECT extension FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			require.NotEmpty(t, origExtension)
+
+			if _, err = q.ExecContext(context.Background(), `UPDATE software_installers SET package_ids = '', extension = 'rb' WHERE id = ?`,
 				installerID); err != nil {
 				return err
 			}
@@ -10610,7 +10618,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
-		// Check package ID
+		// Check package ID and extension
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var packageIDs string
 			if err := sqlx.GetContext(context.Background(), q, &packageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
@@ -10618,6 +10626,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 				return err
 			}
 			assert.Equal(t, origPackageIDs, packageIDs)
+
+			var extension string
+			if err := sqlx.GetContext(context.Background(), q, &extension, `SELECT extension FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			assert.Equal(t, origExtension, extension)
+
 			return nil
 		})
 
