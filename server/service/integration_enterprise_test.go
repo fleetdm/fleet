@@ -13526,6 +13526,14 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	t := s.T()
 	ctx := context.Background()
+
+	// Mock server to serve the "installers"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("abc"))
+	}))
+	os.Setenv("FLEET_DEV_INSTALLER_URL", srv.URL)
+	defer os.Unsetenv("FLEET_DEV_INSTALLER_URL")
+
 	// Non-existent maintained app
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
@@ -13566,6 +13574,32 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
+	require.NotNil(t, title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
+	require.Equal(t, mapp.Filename, title.SoftwarePackage.Name)
+
+	// Add a maintained app to no team
+	addMAResp = addFleetMaintainedAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusOK, &addMAResp)
+	require.Nil(t, addMAResp.Err)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", "0",
+	)
+
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 2)
+	require.NoError(t, err)
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)

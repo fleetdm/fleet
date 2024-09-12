@@ -139,13 +139,19 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	installScript := installScriptForApp(app, &cask)
 	uninstallScript := uninstallScriptForApp(app, &cask)
 
+	// Allow mocking of the installer's URL for tests
+	installerURL := cask.URL
+	if v := os.Getenv("FLEET_DEV_INSTALLER_URL"); v != "" {
+		installerURL = v
+	}
+
 	err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:    cask.Name[0],
 		Token:   cask.Token,
 		Version: cask.Version,
 		// for now, maintained apps are always macOS (darwin)
 		Platform:         fleet.MacOSPlatform,
-		InstallerURL:     cask.URL,
+		InstallerURL:     installerURL,
 		Filename:         filename,
 		SHA256:           cask.SHA256,
 		BundleIdentifier: app.BundleIdentifier,
