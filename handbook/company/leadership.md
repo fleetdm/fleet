@@ -2,7 +2,7 @@
 
 This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/06da9dde-c6f8-4f4d-952f-26d6ad7d3aa0">
+<img width="384" alt="image" src="https://github.com/user-attachments/assets/6aec084e-3b0a-4a2c-b7c5-ed4536d73b40">
 
 
 
