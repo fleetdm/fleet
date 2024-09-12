@@ -77,6 +77,8 @@ type SoftwareInstaller struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
+	// Extension is the file extension of the software package, inferred from package contents.
+	Extension string `json:"-" db:"extension"`
 	// Version is the version of the software package.
 	Version string `json:"version" db:"version"`
 	// Platform can be "darwin" (for pkgs), "windows" (for exes/msis) or "linux" (for debs).

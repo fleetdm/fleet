@@ -115,6 +115,7 @@ INSERT INTO software_installers (
 	title_id,
 	storage_id,
 	filename,
+	extension,
 	version,
 	package_ids,
 	install_script_content_id,
@@ -126,7 +127,7 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
 
 	args := []interface{}{
 		tid,
@@ -134,6 +135,7 @@ INSERT INTO software_installers (
 		titleID,
 		payload.StorageID,
 		payload.Filename,
+		payload.Extension,
 		payload.Version,
 		strings.Join(payload.PackageIDs, ","),
 		installScriptID,
@@ -241,6 +243,7 @@ SELECT
 	si.title_id,
 	si.storage_id,
 	si.filename,
+	si.extension,
 	si.version,
 	si.install_script_content_id,
 	si.pre_install_query,
@@ -283,6 +286,7 @@ SELECT
   si.title_id,
   si.storage_id,
   si.filename,
+  si.extension,
   si.version,
   si.install_script_content_id,
   si.pre_install_query,
@@ -708,7 +712,8 @@ INSERT INTO software_installers (
 	team_id,
 	global_or_team_id,
 	storage_id,
-	filename,
+	filename, 
+	extension,
 	version,
 	install_script_content_id,
 	uninstall_script_content_id,
@@ -723,7 +728,7 @@ INSERT INTO software_installers (
 	url,
 	package_ids
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
   ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?
 )
@@ -733,6 +738,7 @@ ON DUPLICATE KEY UPDATE
   post_install_script_content_id = VALUES(post_install_script_content_id),
   storage_id = VALUES(storage_id),
   filename = VALUES(filename),
+  extension = VALUES(extension),
   version = VALUES(version),
   pre_install_query = VALUES(pre_install_query),
   platform = VALUES(platform),
@@ -845,6 +851,7 @@ WHERE global_or_team_id = ?
 				globalOrTeamID,
 				installer.StorageID,
 				installer.Filename,
+				installer.Extension,
 				installer.Version,
 				installScriptID,
 				uninstallScriptID,
