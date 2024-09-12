@@ -2,7 +2,8 @@ import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
-import getInstallScript from "utilities/software_install_scripts";
+import getDefaultInstallScript from "utilities/software_install_scripts";
+import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -30,9 +31,10 @@ const UploadingSoftware = () => {
 
 export interface IAddPackageFormData {
   software: File | null;
-  installScript: string;
   preInstallQuery?: string;
+  installScript: string;
   postInstallScript?: string;
+  uninstallScript?: string;
   selfService: boolean;
 }
 
@@ -59,9 +61,10 @@ const AddPackageForm = ({
 
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
-    installScript: "",
     preInstallQuery: undefined,
+    installScript: "",
     postInstallScript: undefined,
+    uninstallScript: undefined,
     selfService: false,
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
@@ -69,13 +72,21 @@ const AddPackageForm = ({
     software: { isValid: false },
   });
 
-  const onFileUpload = (files: FileList | null) => {
+  const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
 
-      let installScript: string;
+      let defaultInstallScript: string;
       try {
-        installScript = getInstallScript(file.name);
+        defaultInstallScript = getDefaultInstallScript(file.name);
+      } catch (e) {
+        renderFlash("error", `${e}`);
+        return;
+      }
+
+      let defaultUninstallScript: string;
+      try {
+        defaultUninstallScript = getDefaultUninstallScript(file.name);
       } catch (e) {
         renderFlash("error", `${e}`);
         return;
@@ -84,7 +95,8 @@ const AddPackageForm = ({
       const newData = {
         ...formData,
         software: file,
-        installScript,
+        installScript: defaultInstallScript,
+        uninstallScript: defaultUninstallScript,
       };
       setFormData(newData);
       setFormValidation(generateFormValidation(newData));
@@ -112,6 +124,12 @@ const AddPackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onChangeUninstallScript = (value?: string) => {
+    const newData = { ...formData, uninstallScript: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
@@ -130,7 +148,7 @@ const AddPackageForm = ({
             graphicName={"file-pkg"}
             accept=".pkg,.msi,.exe,.deb"
             message=".pkg, .msi, .exe, or .deb"
-            onFileUpload={onFileUpload}
+            onFileUpload={onFileSelect}
             buttonMessage="Choose file"
             buttonType="link"
             className={`${baseClass}__file-uploader`}
@@ -156,16 +174,19 @@ const AddPackageForm = ({
             </TooltipWrapper>
           </Checkbox>
           <AddPackageAdvancedOptions
+            selectedPackage={formData.software}
             errors={{
               preInstallQuery: formValidation.preInstallQuery?.message,
               postInstallScript: formValidation.postInstallScript?.message,
             }}
             preInstallQuery={formData.preInstallQuery}
+            installScript={formData.installScript}
             postInstallScript={formData.postInstallScript}
+            uninstallScript={formData.uninstallScript}
             onChangePreInstallQuery={onChangePreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
-            installScript={formData.installScript}
+            onChangeUninstallScript={onChangeUninstallScript}
           />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={isSubmitDisabled}>

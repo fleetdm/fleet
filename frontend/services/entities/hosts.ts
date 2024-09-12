@@ -590,4 +590,11 @@ export default {
       HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
     );
   },
+  uninstallHostSoftwarePackage: (hostId: number, softwareId: number) => {
+    const { HOST_SOFTWARE_PACKAGE_UNINSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      HOST_SOFTWARE_PACKAGE_UNINSTALL(hostId, softwareId)
+    );
+  },
 };

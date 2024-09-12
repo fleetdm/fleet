@@ -1,3 +1,0 @@
-- iOS and iPadOS device details refetch can now be triggered with the existing `POST /api/latest/fleet/hosts/:id/refetch` endpoint.
-- iOS and iPadOS user-installed apps can be viewed in Fleet
-- iOS and iPadOS apps can be installed using Apple's VPP (Volume Purchase Program)

@@ -86,8 +86,11 @@ interface IStatusDisplayOption {
   tooltip: React.ReactNode;
 }
 
+// "pending" and "failed" each encompass both "_install" and "_uninstall" sub-statuses
+type SoftwareInstallDisplayStatus = "installed" | "pending" | "failed";
+
 const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallDisplayStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -106,16 +109,22 @@ const STATUS_DISPLAY_OPTIONS: Record<
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet is installing or will install when the host comes online.",
+    tooltip: (
+      <>
+        Fleet is installing/uninstalling or will
+        <br />
+        do so when the host comes online.
+      </>
+    ),
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
     tooltip: (
       <>
-        These hosts failed to install software. Click on a host to view
+        These hosts failed to install/uninstall software.
         <br />
-        error(s).
+        Click on a host to view error(s).
       </>
     ),
   },
@@ -123,7 +132,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
 
 interface IPackageStatusCountProps {
   softwareId: number;
-  status: SoftwareInstallStatus;
+  status: SoftwareInstallDisplayStatus;
   count: number;
   teamId?: number;
 }
