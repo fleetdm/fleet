@@ -41,7 +41,6 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		InstallerFile:     installerReader,
 		Title:             app.Name,
 		UserID:            vc.UserID(),
-		Filename:          app.Filename,
 		TeamID:            teamID,
 		Version:           app.Version,
 		Platform:          string(app.Platform),

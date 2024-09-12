@@ -64,7 +64,6 @@ SELECT
 	fla.version, 
 	fla.platform, 
 	fla.installer_url, 
-	fla.filename, 
 	fla.sha256, 
 	fla.bundle_identifier, 
 	sc1.contents AS install_script, 
