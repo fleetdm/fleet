@@ -169,7 +169,9 @@
         const isIPhone = /iPhone/.test(userAgent);
         const isIPad =
           /iPad/.test(userAgent) ||
-          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+          (/Macintosh/i.test(navigator.userAgent) &&
+            navigator.maxTouchPoints &&
+            navigator.maxTouchPoints > 1);
 
         // update text content for device type
         let deviceType = "iPhone or iPad";
