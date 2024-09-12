@@ -126,6 +126,21 @@ func gitopsCommand() *cli.Command {
 					firstFileMustBeGlobal = ptr.Bool(false)
 				}
 
+				if isGlobalConfig {
+					if noTeamControls.Set() && config.Controls.Set() {
+						return errors.New("'controls' cannot be set on both global config and on no-team.yml")
+					}
+					if !noTeamControls.Defined && !config.Controls.Defined {
+						if appConfig.License.IsPremium() {
+							return errors.New("'controls' must be set on global config or no-team.yml")
+						}
+						return errors.New("'controls' must be set on global config")
+					}
+					if !config.Controls.Set() {
+						config.Controls = noTeamControls
+					}
+				}
+
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
