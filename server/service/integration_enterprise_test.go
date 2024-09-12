@@ -13540,10 +13540,19 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}))
 	defer srv.Close()
 
+	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_library_app_id = ?", mappID)
+		})
+
+		return id
+	}
+
 	// Non-existent maintained app
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
-	// Insert some maintained apps
+	// Insert the list of maintained apps
 	maintainedapps.IngestMaintainedApps(t, s.ds)
 
 	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
@@ -13571,7 +13580,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)
 	require.NoError(t, err)
-	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), 1)
+	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
 	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
@@ -13625,4 +13634,5 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
+	require.Equal(t, mapp.Name, title.SoftwarePackage.Name)
 }

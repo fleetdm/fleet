@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -31,7 +30,6 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	}
 
 	// Download installer from the URL
-	slog.With("filename", "server/service/maintained_apps.go", "func", "AddFleetMaintainedApp").Info("JVE_LOG: got mapp ", "app", app.Name, "sha", app.SHA256)
 	installerBytes, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, maxMaintainedInstallerSizeBytes)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
@@ -56,6 +54,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		UserID:            vc.UserID(),
 		TeamID:            teamID,
 		Version:           app.Version,
+		Filename:          app.Name,
 		Platform:          string(app.Platform),
 		BundleIdentifier:  app.BundleIdentifier,
 		StorageID:         app.SHA256,
