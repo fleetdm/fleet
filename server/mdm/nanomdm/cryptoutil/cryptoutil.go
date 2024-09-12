@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 // OID for UID (User ID) attribute

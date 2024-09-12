@@ -14,6 +14,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
 
@@ -69,7 +70,7 @@ type APIResponse struct {
 // asset is found, an error is returned.
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetLatestOSVersion(device apple_mdm.MachineInfo) (*Asset, error) {
+func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 	r, err := GetAssetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)

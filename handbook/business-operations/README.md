@@ -168,8 +168,9 @@ Thanks,
 
 ### Communicate the status of customer financial actions
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
-1. Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
-2. Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
+1. Check [SVB](https://connect.svb.com/#/) and [Brex](https://accounts.brex.com/login) for any recently received payments from customers and record them in SFDC.  
+2. Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
+3. Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
 
 ```
 Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
@@ -178,7 +179,7 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 - Number of past-due renewals = `todo`
 ```
 
-3. Send payment reminders via email to all outstanding accounts by responding to the invoice email initially sent to the customer.
+4. Send payment reminders via email to all outstanding accounts by responding to the invoice email initially sent to the customer.
 
 ```
 Hello,
@@ -189,7 +190,7 @@ For payment instructions please refer to your invoice, and reach out to [Fleet's
 Thanks,
 [name]
 ```
-4. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
+5. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
 5. Review the [billing cycles](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000000yGjR2AU/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Business Operations board.
 
 
@@ -267,7 +268,9 @@ When BizOps receives notification of a Fleetie's job title changing, follow thes
     - Input the new job title in the Fleetie's row in the "Job title" cell.
     - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
 2. Update the departmental handbook page with the change of job title
-3. Update the relevant payroll/HRIS system.
+3. [Prepare salary benchmarking information](https://fleetdm.com/handbook/business-operations#prepare-salary-benchmarking-information) to determine whether the teammate's current compensation aligns with the benchmarks of the new role.
+   -  If the benchmark is significantly different, take the steps to [update a team member's compensation](https://fleetdm.com/handbook/business-operations#prepare-salary-benchmarking-information).
+4. Update the relevant payroll/HRIS system.
     - For updating Gusto (US-based Fleeties):
       - Login to Gusto and navigate to "People > Team members".
       - Find the Fleetie and select them to see their profile page.

@@ -36,9 +36,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/groob/plist"
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 const DeviceInfoHeader = "x-apple-aspen-deviceinfo"
@@ -48,34 +50,24 @@ const DeviceInfoHeader = "x-apple-aspen-deviceinfo"
 //go:embed AppleIncRootCertificate.cer
 var appleRootCert []byte
 
-func newAppleRootCert() *x509.Certificate {
-	cert, err := x509.ParseCertificate(appleRootCert)
+// appleRootCA is Apple's Root CA parsed to an *x509.Certificate
+var appleRootCA = newAppleCert(appleRootCert)
+
+// appleIphoneDeviceCA is the PEM data defined here converted to DER:
+// https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/profile-service/profile-service.html#//apple_ref/doc/uid/TP40009505-CH2-SW24
+//
+//go:embed AppleIphoneDeviceCA.cer
+var appleIphoneDeviceCACert []byte
+
+// appleIphoneDeviceCA is Apple's Iphone Device CA parsed to an *x509.Certificate
+var appleIphoneDeviceCA = newAppleCert(appleIphoneDeviceCACert)
+
+func newAppleCert(crt []byte) *x509.Certificate {
+	cert, err := x509.ParseCertificate(crt)
 	if err != nil {
 		panic(fmt.Errorf("could not parse cert: %w", err))
 	}
 	return cert
-}
-
-// appleRootCA is Apple's Root CA parsed to an *x509.Certificate
-var appleRootCA = newAppleRootCert()
-
-// MachineInfo is a [device's information] sent as part of an MDM enrollment profile request
-//
-// [device's information]: https://developer.apple.com/documentation/devicemanagement/machineinfo
-type MachineInfo struct {
-	IMEI                        string `plist:"IMEI,omitempty"`
-	Language                    string `plist:"LANGUAGE,omitempty"`
-	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
-	MEID                        string `plist:"MEID,omitempty"`
-	OSVersion                   string `plist:"OS_VERSION"`
-	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
-	Product                     string `plist:"PRODUCT"`
-	Serial                      string `plist:"SERIAL"`
-	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
-	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
-	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
-	UDID                        string `plist:"UDID"`
-	Version                     string `plist:"VERSION"`
 }
 
 // verifyPKCS7SHA1RSA performs a manual SHA1withRSA verification, since it's deprecated in Go 1.18.
@@ -142,7 +134,7 @@ outer:
 }
 
 // ParseDeviceinfo attempts to parse the provided string, assuming it to be the base64-encoded value
-// of an x-apple-aspen-deviceinfo header. If successful, it returns the parsed *MachineInfo. If the
+// of an x-apple-aspen-deviceinfo header. If successful, it returns the parsed *fleet.MDMAppleMachineInfo. If the
 // verify parameter is specified as true, the signature is also verified against Apple's Root CA and
 // an error will be returned if the signature is invalid.
 //
@@ -152,7 +144,7 @@ outer:
 //
 // [documentation]: https://github.com/korylprince/dep-webview-oidc/blob/2dd846a54fed04c16dd227b8c6c31665b4d0ebd8/docs/Architecture.md#x-apple-aspen-deviceinfo-header
 // [article]: https://duo.com/labs/research/mdm-me-maybe
-func ParseDeviceinfo(b64 string, verify bool) (*MachineInfo, error) {
+func ParseDeviceinfo(b64 string, verify bool) (*fleet.MDMAppleMachineInfo, error) {
 	buf, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode base64: %w", err)
@@ -170,10 +162,46 @@ func ParseDeviceinfo(b64 string, verify bool) (*MachineInfo, error) {
 		}
 	}
 
-	info := new(MachineInfo)
+	info := new(fleet.MDMAppleMachineInfo)
 	if err = plist.Unmarshal(p7.Content, info); err != nil {
 		return nil, fmt.Errorf("could not decode plist: %w", err)
 	}
 
 	return info, nil
+}
+
+// VerifyFromAppleIphoneDeviceCA verifies a certificate was signed by Apple's iPhone Device CA.
+// Manually verify the certificate since Go has deprecated verifying SHA1WithRSA x509 certificates.
+//
+// NOTE: most of this code was taken from micromdm.
+func VerifyFromAppleIphoneDeviceCA(c *x509.Certificate) error {
+	if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY") == "1" {
+		return nil
+	}
+
+	var hashType crypto.Hash
+
+	switch c.SignatureAlgorithm {
+	case x509.SHA1WithRSA:
+		hashType = crypto.SHA1
+	case x509.SHA256WithRSA:
+		hashType = crypto.SHA256
+	default:
+		return fmt.Errorf("%w: %s", x509.ErrUnsupportedAlgorithm, c.SignatureAlgorithm)
+	}
+
+	hasher := hashType.New()
+	hasher.Write(c.RawTBSCertificate)
+	hashed := hasher.Sum(nil)
+
+	key, ok := appleIphoneDeviceCA.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		panic("appleIphoneDeviceCA: invalid key type")
+	}
+
+	if err := rsa.VerifyPKCS1v15(key, hashType, hashed, c.Signature); err != nil {
+		return fmt.Errorf("verifying signature: %w", err)
+	}
+
+	return nil
 }

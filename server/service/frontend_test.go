@@ -64,6 +64,5 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	bodyString := string(bodyBytes)
-	require.Contains(t, bodyString, "Enroll your device to Fleet")
-	require.Contains(t, bodyString, "?enroll_secret=foo")
+	require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
 }

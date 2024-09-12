@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -66,4 +67,13 @@ type VPPAppStatusSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the VPP app installation failed.
 	Failed uint `json:"failed" db:"failed"`
+}
+
+type ErrVPPTokenTeamConstraint struct {
+	Name string
+	ID   *uint
+}
+
+func (e ErrVPPTokenTeamConstraint) Error() string {
+	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }

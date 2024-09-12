@@ -1112,6 +1112,10 @@ type Datastore interface {
 	// not already enrolled in Fleet. It returns the number of hosts created, and an error.
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
 
+	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
+	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo MDMAppleMachineInfo) error
+
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host) error
