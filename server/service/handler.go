@@ -358,6 +358,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/software/versions", listSoftwareVersionsEndpoint, listSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/software/versions/{id:[0-9]+}", getSoftwareEndpoint, getSoftwareRequest{})
 
+	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedApps, listFleetMaintainedAppsRequest{})
+
 	// DEPRECATED: use /api/_version_/fleet/software/versions instead
 	ue.GET("/api/_version_/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 	// DEPRECATED: use /api/_version_/fleet/software/versions{id:[0-9]+} instead
