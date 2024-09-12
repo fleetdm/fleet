@@ -131,7 +131,11 @@ func gitopsCommand() *cli.Command {
 						return errors.New("'controls' cannot be set on both global config and on no-team.yml")
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
-						return errors.New("'controls' must be set on global config or no-team.yml")
+						if appConfig.License.IsPremium() {
+							return errors.New("'controls' must be set on global config or no-team.yml")
+						} else {
+							return errors.New("'controls' must be set on global config")
+						}
 					}
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls

@@ -565,7 +565,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		WHERE
 			-- team_id == NULL are global policies that apply to all hosts
 			-- team_id == 0 are policies that apply to hosts in "No team"
-			-- team_id > 0 are policies that apply to gosts in teams
+			-- team_id > 0 are policies that apply to hosts in teams
 			(team_id IS NULL OR team_id = COALESCE(?, 0)) AND
 			(platforms = '' OR FIND_IN_SET(?, platforms))`
 	var rows []struct {

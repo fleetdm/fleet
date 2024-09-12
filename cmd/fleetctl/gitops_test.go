@@ -142,6 +142,28 @@ org_settings:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "organization name must be present")
 
+	// Missing controls.
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(
+		`
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Foobar
+  secrets:
+`,
+	)
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.Error(t, err)
+	assert.Equal(t, `'controls' must be set on global config`, err.Error())
+
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})

@@ -10415,8 +10415,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 }
 
 func (s *integrationMDMTestSuite) TestVPPApps() {
-	s.T().Skip()
-
 	t := s.T()
 	// Invalid token
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
