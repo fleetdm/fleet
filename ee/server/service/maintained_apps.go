@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -30,12 +32,23 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 
 	// Download installer from the URL
 	slog.With("filename", "server/service/maintained_apps.go", "func", "AddFleetMaintainedApp").Info("JVE_LOG: got mapp ", "app", app.Name, "sha", app.SHA256)
-	installerBytes, err := maintainedapps.Download(ctx, app.InstallerURL, maxMaintainedInstallerSizeBytes)
+	installerBytes, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, maxMaintainedInstallerSizeBytes)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
 
-	// TODO(JVE): could this be moved into Download (rename the func ofc)?
+	// Validate the bytes we got are what we expected
+	h := sha256.New()
+	_, err = h.Write(installerBytes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating SHA256 of maintained app installer")
+	}
+	gotHash := hex.EncodeToString(h.Sum(nil))
+
+	if gotHash != app.SHA256 {
+		return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+	}
+
 	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:     installerReader,
@@ -48,11 +61,14 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		StorageID:         app.SHA256,
 		FleetLibraryAppID: &app.ID,
 	}
+
+	// Create record in software installers table
 	_, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting downloaded installer")
 	}
 
+	// Save in S3
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
 	}
@@ -62,7 +78,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "getting team")
 		}
 		teamName = &t.Name
 	}

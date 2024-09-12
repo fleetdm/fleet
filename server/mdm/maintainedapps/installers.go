@@ -14,37 +14,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// type AppDownloader struct {
-// 	logger kitlog.Logger
-// 	store  fleet.SoftwareInstallerStore
-// 	client *http.Client
-// 	ds     fleet.Datastore
-// }
-
-// // Given an app's URL
-// // Download the installer
-// // If it is > 3GB, return an error
-// // Store the installer in S3
-
-// // TODO(JVE): is this a good name?
-// func NewAppDownloader(ctx context.Context, store fleet.SoftwareInstallerStore, logger kitlog.Logger, ds fleet.Datastore) *AppDownloader {
-// 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-// 	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
-// 	return &AppDownloader{
-// 		logger: logger,
-// 		store:  store,
-// 		client: client,
-// 		ds:     ds,
-// 	}
-// }
-
-func Download(ctx context.Context, installerURL string, maxSize int64) ([]byte, error) {
+// DownloadInstaller downloads the maintained app installer located at the given URL.
+func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) ([]byte, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
 		return nil, fleet.NewInvalidArgumentError(
 			"software.url",
-			fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", installerURL),
+			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) is invalid", installerURL),
 		)
 	}
 
@@ -62,7 +39,7 @@ func Download(ctx context.Context, installerURL string, maxSize int64) ([]byte, 
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
+				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
 			)
 		}
 
@@ -73,7 +50,7 @@ func Download(ctx context.Context, installerURL string, maxSize int64) ([]byte, 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fleet.NewInvalidArgumentError(
 			"software.url",
-			fmt.Sprintf("Couldn't edit software. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", installerURL),
+			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", installerURL),
 		)
 	}
 
@@ -81,7 +58,7 @@ func Download(ctx context.Context, installerURL string, maxSize int64) ([]byte, 
 	if resp.StatusCode > 400 {
 		return nil, fleet.NewInvalidArgumentError(
 			"software.url",
-			fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", installerURL, resp.StatusCode),
+			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) received response status code %d.", installerURL, resp.StatusCode),
 		)
 	}
 
@@ -93,7 +70,7 @@ func Download(ctx context.Context, installerURL string, maxSize int64) ([]byte, 
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
+				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
 			)
 		}
 		return nil, ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)

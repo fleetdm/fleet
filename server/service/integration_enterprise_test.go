@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -13527,23 +13528,40 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	t := s.T()
 	ctx := context.Background()
 
+	installerBytes := []byte("abc")
 	// Mock server to serve the "installers"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("abc"))
+		switch r.URL.Path {
+		case "/badinstaller":
+			_, _ = w.Write([]byte("badinstaller"))
+		default:
+			_, _ = w.Write(installerBytes)
+		}
 	}))
-	os.Setenv("FLEET_DEV_INSTALLER_URL", srv.URL)
-	defer os.Unsetenv("FLEET_DEV_INSTALLER_URL")
+	defer srv.Close()
 
 	// Non-existent maintained app
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+
+	// Insert some maintained apps
+	maintainedapps.IngestMaintainedApps(t, s.ds)
+
+	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		h := sha256.New()
+		_, err := h.Write(installerBytes)
+		require.NoError(t, err)
+		spoofedSHA := hex.EncodeToString(h.Sum(nil))
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", srv.URL+"/badinstaller")
+		return err
+	})
 
 	// Create a team
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
-
-	// Insert some maintained apps
-	maintainedapps.IngestMaintainedApps(t, s.ds)
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
@@ -13552,6 +13570,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)
+	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), 1)
 	require.NoError(t, err)
 	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
@@ -13578,9 +13597,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 
+	// Should return an error; SHAs don't match up
+	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
+	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
+
 	// Add a maintained app to no team
 	addMAResp = addFleetMaintainedAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusOK, &addMAResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
 	resp = listSoftwareTitlesResponse{}
@@ -13595,7 +13618,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"team_id", "0",
 	)
 
-	mapp, err = s.ds.GetMaintainedAppByID(ctx, 2)
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 3)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
