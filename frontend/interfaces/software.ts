@@ -66,8 +66,10 @@ export interface ISoftwarePackage {
   icon_url: string | null;
   status: {
     installed: number;
-    pending: number;
-    failed: number;
+    pending_install: number;
+    failed_install: number;
+    pending_uninstall: number;
+    failed_uninstall: number;
   };
 }
 
@@ -194,14 +196,19 @@ export const formatSoftwareType = ({
 /**
  * This list comprises all possible states of software install operations.
  */
-export const SOFTWARE_INSTALL_STATUSES = [
-  "failed",
-  "failed_install",
-  "installed",
-  "pending",
-  "pending_install",
+export const SOFTWARE_UNINSTALL_STATUSES = [
+  "uninstalled",
   "pending_uninstall",
   "failed_uninstall",
+] as const;
+
+export type SoftwareUninstallStatus = typeof SOFTWARE_UNINSTALL_STATUSES[number];
+
+export const SOFTWARE_INSTALL_STATUSES = [
+  "installed",
+  "pending_install",
+  "failed_install",
+  ...SOFTWARE_UNINSTALL_STATUSES,
 ] as const;
 
 /*
@@ -210,26 +217,38 @@ export const SOFTWARE_INSTALL_STATUSES = [
 export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
 
 export const isValidSoftwareInstallStatus = (
-  s: string | undefined
+  s: string | undefined | null
 ): s is SoftwareInstallStatus =>
   !!s && SOFTWARE_INSTALL_STATUSES.includes(s as SoftwareInstallStatus);
+
+export const isSoftwareUninstallStatus = (
+  s: string | undefined | null
+): s is SoftwareUninstallStatus =>
+  !!s && SOFTWARE_UNINSTALL_STATUSES.includes(s as SoftwareUninstallStatus);
+
+// not a typeguard, as above 2 functions are
+export const isPendingStatus = (s: string | undefined | null) =>
+  ["pending_install", "pending_uninstall"].includes(s || "");
 
 /**
  * ISoftwareInstallResult is the shape of a software install result object
  * returned by the Fleet API.
  */
 export interface ISoftwareInstallResult {
+  host_display_name?: string;
   install_uuid: string;
   software_title: string;
   software_title_id: number;
   software_package: string;
   host_id: number;
-  host_display_name: string;
   status: SoftwareInstallStatus;
   detail: string;
   output: string;
   pre_install_query_output: string;
   post_install_script_output: string;
+  created_at: string;
+  updated_at: string | null;
+  self_service: boolean;
 }
 
 export interface ISoftwareInstallResults {
@@ -280,18 +299,21 @@ export interface IHostSoftware {
   app_store_app: IHostAppStoreApp | null;
   source: string;
   bundle_identifier?: string;
-  status: SoftwareInstallStatus | null;
+  status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
 export type IDeviceSoftware = IHostSoftware;
 
-const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
-  failed: "failed to install",
-  failed_install: "failed to install",
+const INSTALL_STATUS_PREDICATES: Record<
+  SoftwareInstallStatus | "pending",
+  string
+> = {
+  pending: "pending",
   installed: "installed",
-  pending: "told Fleet to install",
+  uninstalled: "uninstalled",
   pending_install: "told Fleet to install",
+  failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
   failed_uninstall: "failed to uninstall",
 } as const;
@@ -306,10 +328,14 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
   );
 };
 
-export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+export const INSTALL_STATUS_ICONS: Record<
+  SoftwareInstallStatus | "pending" | "failed",
+  IconNames
+> = {
   pending: "pending-outline",
   pending_install: "pending-outline",
   installed: "success-outline",
+  uninstalled: "success-outline",
   failed: "error-outline",
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",

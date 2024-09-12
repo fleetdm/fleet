@@ -30,7 +30,7 @@ export type IStatusDisplayConfig = {
 };
 
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  IStatusValue | "selfService",
+  Exclude<IStatusValue, "uninstalled"> | "selfService",
   IStatusDisplayConfig
 > = {
   installed: {
@@ -39,52 +39,42 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: () =>
       "Software is installed (install script finished with exit code 0).",
   },
-  pending: {
+  pending_install: {
     iconName: "pending-outline",
-    displayText: "Pending",
+    displayText: "Installing (pending)",
     tooltip: () =>
       "Fleet is installing or will install when the host comes online.",
   },
-  pending_install: {
-    iconName: "pending-outline",
-    displayText: "Pending",
-    tooltip: () => "Fleet will install software when the host comes online.",
-  },
   pending_uninstall: {
     iconName: "pending-outline",
-    displayText: "Pending",
-    tooltip: () => "Fleet will uninstall software when the host comes online.",
-  },
-  failed: {
-    iconName: "error",
-    displayText: "Failed",
+    displayText: "Uninstalling (pending)",
     tooltip: () => (
       <>
-        The host failed to install software. To view errors, select
+        Fleet is uninstalling or will uninstall
         <br />
-        <b>Actions &gt; Show details</b>.
+        software when the host comes online.
       </>
     ),
   },
   failed_install: {
     iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
+    displayText: "Install (failed)",
+    tooltip: () => (
       <>
-        The host failed to install software. To view errors, select
+        The host failed to install software.
         <br />
-        <b>Actions &gt; Show details</b>.
+        Select <b>Actions &gt; Show details</b> view errors.
       </>
     ),
   },
   failed_uninstall: {
     iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
+    displayText: "Uninstall (failed)",
+    tooltip: () => (
       <>
-        The host failed to install software. To view errors, select
+        The host failed to uninstall software.
         <br />
-        <b>Actions &gt; Show details</b>.
+        Select <b>Details &gt; Activity</b> to view errors.
       </>
     ),
   },
