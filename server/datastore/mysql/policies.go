@@ -753,9 +753,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 	// Get the query and platforms of the current policies so that we can check if query or platform changed later, if needed
 	type policyLite struct {
-		Name      string `db:"name"`
-		Query     string `db:"query"`
-		Platforms string `db:"platforms"`
+		Name                string `db:"name"`
+		Query               string `db:"query"`
+		Platforms           string `db:"platforms"`
+		SoftwareInstallerID *uint  `db:"software_installer_id"`
 	}
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -769,10 +770,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		var args []interface{}
 		var err error
 		if teamID == nil {
-			query, args, err = sqlx.In("SELECT name, query, platforms FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
+				"SELECT name, query, platforms, software_installer_id FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
@@ -838,10 +839,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							shouldRemoveAllPolicyMemberships bool
 							removePolicyStats                bool
 						)
-						// Figure out if the query or platform changed
+						// Figure out if the query, platform or software installer changed.
+						var softwareInstallerID *uint
+						if spec.SoftwareTitleID != nil {
+							softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
+						}
 						if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
 							switch {
 							case prev.Query != spec.Query:
+								shouldRemoveAllPolicyMemberships = true
+								removePolicyStats = true
+							case teamID != nil &&
+								((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
+									(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
 								shouldRemoveAllPolicyMemberships = true
 								removePolicyStats = true
 							case prev.Platforms != spec.Platform:
