@@ -1001,6 +1001,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				InstallScript:     p.InstallScript,
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
+				UninstallScript:   p.UninstallScript,
 				InstallerFile:     bytes.NewReader(bodyBytes),
 				SelfService:       p.SelfService,
 				UserID:            vc.UserID(),
@@ -1022,6 +1023,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			if err != nil {
 				return err
 			}
+
+			// Update $PACKAGE_ID in uninstall script
+			preProcessUninstallScript(installer)
 
 			// if filename was empty, try to extract it from the URL with the
 			// now-known extension

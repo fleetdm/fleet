@@ -383,6 +383,7 @@ type SoftwarePackageSpec struct {
 	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
 }
 
 type SoftwareSpec struct {

@@ -720,11 +720,12 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email,
-	url
+	url,
+	package_ids
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?
+  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -857,6 +858,7 @@ WHERE global_or_team_id = ?
 				installer.UserID,
 				installer.UserID,
 				installer.URL,
+				strings.Join(installer.PackageIDs, ","),
 			}
 
 			if _, err := tx.ExecContext(ctx, insertNewOrEditedInstaller, args...); err != nil {
