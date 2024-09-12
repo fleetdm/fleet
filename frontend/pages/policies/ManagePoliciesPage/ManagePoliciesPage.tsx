@@ -832,6 +832,9 @@ const ManagePolicyPage = ({
       config?.integrations.google_calendar.length > 0) ??
     false;
 
+  if (!isRouteOk) {
+    return <Spinner />;
+  }
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>

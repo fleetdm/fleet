@@ -39,6 +39,7 @@ const REGEX_DETAIL_PAGES = {
   PACK_NEW: /\/packs\/new/i,
   QUERIES_EDIT: /\/queries\/\d+/i,
   QUERIES_NEW: /\/queries\/new/i,
+  // TODO - remove below 2 for no teams with edit and new policies pages?
   POLICY_EDIT: /\/policies\/\d+/i,
   POLICY_NEW: /\/policies\/new/i,
   SOFTWARE_TITLES_DETAILS: /\/software\/titles\/\d+/i,
@@ -55,7 +56,7 @@ const REGEX_GLOBAL_PAGES = {
 };
 
 const REGEX_EXCLUDE_NO_TEAM_PAGES = {
-  MANAGE_POLICIES: /\/policies\/manage/i,
+  // MANAGE_POLICIES: /\/policies\/manage/i,
   MANAGE_QUERIES: /\/queries\/manage/i,
 };
 
@@ -103,6 +104,15 @@ const SiteTopNav = ({
   const isActiveGlobalPage = isGlobalPage(currentPath);
 
   const currentQueryParams = { ...query };
+  // if (isActiveGlobalPage || isActiveDetailPage) {
+  //   // detail pages (e.g., host details) and some manage pages (e.g., queries) don't have team_id
+  //   // query params that we can simply append to the top nav links so instead we need grab the team
+  //   // id from context
+  //   currentQueryParams.team_id =
+  //     currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+  //       ? undefined
+  //       : currentTeam?.id;
+  // }
   if (
     isActiveGlobalPage ||
     (isActiveDetailPage && !currentPath.match(REGEX_DETAIL_PAGES.POLICY_EDIT))
