@@ -658,6 +658,8 @@ type Service interface {
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
 
+	ListFleetMaintainedApps(ctx context.Context, teamID uint) ([]FleetMaintainedAppAvailable, PaginationMetadata, error)
+
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
 	// Per the [spec][1] OTA enrollment is composed of two phases, each

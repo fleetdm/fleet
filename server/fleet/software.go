@@ -436,3 +436,10 @@ type VPPBatchPayloadWithPlatform struct {
 	SelfService bool                `json:"self_service"`
 	Platform    AppleDevicePlatform `json:"platform"`
 }
+
+type FleetMaintainedAppAvailable struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Version  string `json:"version"`
+	Platform string `json:"platform"`
+}

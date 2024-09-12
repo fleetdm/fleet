@@ -248,3 +248,35 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 
 	return svc.ds.CountSoftware(ctx, opt)
 }
+
+// Fleet Maintained Apps
+type listFleetMaintainedAppsRequest struct {
+	TeamID  uint `query:"team_id"`
+	Page    int  `query:"page"`
+	PerPage int  `query:"per_page"`
+}
+
+type listFleetMaintainedAppsResponse struct {
+	FleetMaintainedApps []fleet.FleetMaintainedAppAvailable `json:"fleet_maintained_apps"`
+	Meta                fleet.PaginationMetadata            `json:"meta"`
+	Err                 error                               `json:"error,omitempty"`
+}
+
+func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
+
+func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(listFleetMaintainedAppsRequest)
+
+	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID)
+	if err != nil {
+		return listFleetMaintainedAppsResponse{Err: err}, nil
+	}
+
+	return listFleetMaintainedAppsResponse{FleetMaintainedApps: apps, Meta: meta}, nil
+}
+
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint) ([]fleet.FleetMaintainedAppAvailable, fleet.PaginationMetadata, error) {
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.PaginationMetadata{}, fleet.ErrMissingLicense
+}
