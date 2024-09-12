@@ -557,6 +557,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if appConfig.MDM.VolumePurchasingProgram.Set && appConfig.MDM.VolumePurchasingProgram.Valid {
 		for tokenID, tokenTeams := range vppAssignments {
 			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
+				if errors.As(err, &errTokConstraint) {
+					return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+				}
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 			}
 		}
@@ -836,7 +840,7 @@ func (svc *Service) validateMDM(
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
 	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)

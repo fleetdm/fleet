@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -103,7 +103,9 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	case http.StatusOK:
 		// success, go on
 	case http.StatusNotFound:
-		// TODO: delete the existing entry? do nothing and succeed? doing the latter for now.
+		// nothing to do, either it currently exists in the DB and it keeps on
+		// existing, or it doesn't and keeps on being missing.
+		level.Warn(i.logger).Log("msg", "maintained app missing in brew API", "identifier", app.Identifier)
 		return nil
 	default:
 		if len(body) > 512 {
@@ -130,11 +132,10 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	if cask.URL == "" {
 		return ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
 	}
-	parsedURL, err := url.Parse(cask.URL)
+	_, err = url.Parse(cask.URL)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
 	}
-	filename := path.Base(parsedURL.Path)
 
 	installScript := installScriptForApp(app, &cask)
 	uninstallScript := uninstallScriptForApp(app, &cask)
@@ -152,7 +153,6 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		// for now, maintained apps are always macOS (darwin)
 		Platform:         fleet.MacOSPlatform,
 		InstallerURL:     installerURL,
-		Filename:         filename,
 		SHA256:           cask.SHA256,
 		BundleIdentifier: app.BundleIdentifier,
 		InstallScript:    installScript,
@@ -189,9 +189,13 @@ type brewArtifact struct {
 	// Pkg is a bit like Binary, it is an array with a string and an object as
 	// first two elements. The object has a choices field with an array of
 	// objects. See Microsoft Edge.
-	Pkg       []optjson.StringOr[*brewPkgChoices] `json:"pkg"`
-	Uninstall []*brewUninstall                    `json:"uninstall"`
-	Zap       []*brewZap                          `json:"zap"`
+	Pkg []optjson.StringOr[*brewPkgChoices] `json:"pkg"`
+	// Zap and Uninstall have the same format, they support the same stanzas.
+	// It's just that in homebrew, Zaps are not processed by default (only when
+	// --zap is provided on uninstall). For our uninstall scripts, we want to
+	// process the zaps.
+	Uninstall []*brewUninstall `json:"uninstall"`
+	Zap       []*brewUninstall `json:"zap"`
 	// Binary is an array with a string and an object as first two elements. See
 	// the "docker" and "firefox" casks.
 	Binary []optjson.StringOr[*brewBinaryTarget] `json:"binary"`
@@ -212,15 +216,15 @@ type brewUninstall struct {
 	LaunchCtl optjson.StringOr[[]string] `json:"launchctl"`
 	Quit      optjson.StringOr[[]string] `json:"quit"`
 	PkgUtil   optjson.StringOr[[]string] `json:"pkgutil"`
-	Script    optjson.StringOr[[]string] `json:"script"`
-	// format: [0]=signal, [1]=process name
-	Signal optjson.StringOr[[]string] `json:"signal"`
-	Delete optjson.StringOr[[]string] `json:"delete"`
-	RmDir  optjson.StringOr[[]string] `json:"rmdir"`
-}
-
-// same as brewUninstall, can be []string or string (see Microsoft Teams).
-type brewZap struct {
-	Trash optjson.StringOr[[]string] `json:"trash"`
-	RmDir optjson.StringOr[[]string] `json:"rmdir"`
+	// brew docs says string or hash, but our only case has a single string.
+	Script optjson.StringOr[map[string]any] `json:"script"`
+	// format: [0]=signal, [1]=process name (although the brew documentation says
+	// it's an array of arrays, it's not like that in our single case that uses
+	// it).
+	Signal    optjson.StringOr[[]string] `json:"signal"`
+	Delete    optjson.StringOr[[]string] `json:"delete"`
+	RmDir     optjson.StringOr[[]string] `json:"rmdir"`
+	Trash     optjson.StringOr[[]string] `json:"trash"`
+	LoginItem optjson.StringOr[[]string] `json:"login_item"`
+	Kext      optjson.StringOr[[]string] `json:"kext"`
 }

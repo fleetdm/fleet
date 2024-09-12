@@ -24,3 +24,9 @@ CREATE TABLE `sample` (
 Do not use [goqu](https://github.com/doug-martin/goqu); use MySQL queries directly. Searching for, understanding, and debugging direct MySQL
 queries is easier. If needing to modify an existing `goqu` query, try to rewrite it in
 MySQL. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8041045095900447703).
+
+### Data retention
+
+Sometimes we need data from rows that have been deleted from DB. For example, the activity feed may be retained forever, and it needs user info (or host info) that may not exist anymore.
+Going forward, we need to keep this data in a dedicated table(s). A reference unmerged PR is [here](https://github.com/fleetdm/fleet/pull/17472/files#diff-57a635e42320a87dd15a3ae03d66834f2cbc4fcdb5f3ebb7075d966b96f760afR16).
+The `id` may be the same as that of the original table. For example, if the `user` row is deleted, a new entry with the same `user.id` can be added to `user_persistent_info`.

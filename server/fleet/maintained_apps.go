@@ -9,7 +9,6 @@ type MaintainedApp struct {
 	Version          string              `json:"version" db:"version"`
 	Platform         AppleDevicePlatform `json:"platform" db:"platform"`
 	InstallerURL     string              `json:"-" db:"installer_url"`
-	Filename         string              `json:"filename" db:"filename"`
 	SHA256           string              `json:"-" db:"sha256"`
 	BundleIdentifier string              `json:"-" db:"bundle_identifier"`
 

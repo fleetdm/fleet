@@ -77,6 +77,10 @@ import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetail
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
+import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
+import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
+import SoftwarePackage from "pages/SoftwarePage/SoftwareAddPage/SoftwarePackage";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
 
 import PATHS from "router/paths";
 
@@ -271,6 +275,17 @@ const routes = (
           </Route>
           <Route path="software">
             <IndexRedirect to="titles" />
+            {/* we check the add route first otherwise a route like 'software/add' will be caught
+             * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
+            <Route path="add" component={SoftwareAddPage}>
+              <IndexRedirect to="fleet-maintained" />
+              <Route
+                path="fleet-maintained"
+                component={SoftwareFleetMaintained}
+              />
+              <Route path="package" component={SoftwarePackage} />
+              <Route path="app-store" component={SoftwareAppStore} />
+            </Route>
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
