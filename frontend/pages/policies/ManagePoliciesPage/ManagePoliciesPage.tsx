@@ -286,7 +286,8 @@ const ManagePolicyPage = ({
         orderKey: sortHeader,
         // teamIdForApi will never actually be undefined here
         teamId: teamIdForApi || 0,
-        mergeInherited: !!teamIdForApi,
+        // no teams does inherit
+        mergeInherited: true,
       },
     ],
     ({ queryKey }) => {

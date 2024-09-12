@@ -155,7 +155,7 @@ const generateTableHeaders = (
                   </ReactTooltip5>
                 </div>
               )}
-              {viewingTeamPolicies && !cellProps.row.original.team_id && (
+              {viewingTeamPolicies && cellProps.row.original.team_id !== 0 && (
                 <InheritedBadge tooltipContent="This policy runs on all hosts." />
               )}
             </>
