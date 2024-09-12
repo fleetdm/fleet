@@ -24,11 +24,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -60,8 +63,9 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
-	redisPool        fleet.RedisPool
-	calendarSchedule *schedule.Schedule
+	redisPool            fleet.RedisPool
+	calendarSchedule     *schedule.Schedule
+	softwareInstallStore fleet.SoftwareInstallerStore
 
 	lq *live_query_mock.MockLiveQuery
 }
@@ -72,6 +76,13 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
 	s.lq = live_query_mock.New(s.T())
 	var calendarSchedule *schedule.Schedule
+
+	// Create a software install store
+	dir := s.T().TempDir()
+	softwareInstallStore, err := filesystem.NewSoftwareInstallerStore(dir)
+	require.NoError(s.T(), err)
+	s.softwareInstallStore = softwareInstallStore
+
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -98,6 +109,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 				}
 			},
 		},
+		SoftwareInstallStore: softwareInstallStore,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = kitlog.NewNopLogger()
@@ -10539,6 +10551,93 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
+	})
+
+	t.Run("uninstall migration for software installer", func(t *testing.T) {
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+			Name: t.Name(),
+		}, http.StatusOK, &createTeamResp)
+		require.NotZero(t, createTeamResp.Team.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:          &createTeamResp.Team.ID,
+			InstallScript:   "another install script",
+			UninstallScript: "exit 1",
+			Filename:        "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:     "ruby",
+			Version:   "1:2.5.1",
+			Source:    "deb_packages",
+			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:  "linux",
+		}
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		logger := kitlog.NewLogfmtLogger(os.Stderr)
+
+		// Run the migration when nothing is to be done
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		require.NoError(t, err)
+
+		// check the software installer
+		installerID, titleID := checkSoftwareInstaller(t, payload)
+
+		var origPackageIDs string
+		// Update DB by clearing package id
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(context.Background(), q, &origPackageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			require.NotEmpty(t, origPackageIDs)
+			if _, err = q.ExecContext(context.Background(), `UPDATE software_installers SET package_ids = '' WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		// Check title to make it works without package id
+		respTitle := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &respTitle, "team_id",
+			fmt.Sprintf("%d", createTeamResp.Team.ID))
+		require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
+		assert.Equal(t, "another install script", respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
+		assert.Equal(t, "exit 1", respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
+
+		// Run the migration
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		require.NoError(t, err)
+
+		// Check package ID
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var packageIDs string
+			if err := sqlx.GetContext(context.Background(), q, &packageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			assert.Equal(t, origPackageIDs, packageIDs)
+			return nil
+		})
+
+		// Check uninstall script
+		uninstallScript := file.GetUninstallScript("deb")
+		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "\"ruby\"")
+		respTitle = getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &respTitle, "team_id",
+			fmt.Sprintf("%d", createTeamResp.Team.ID))
+		require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
+		assert.Equal(t, "another install script", respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
+		assert.Equal(t, uninstallScript, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
+
+		// Running the migration again causes no issues.
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		require.NoError(t, err)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+			"team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
 }
 
