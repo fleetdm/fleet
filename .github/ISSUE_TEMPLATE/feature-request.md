@@ -11,6 +11,8 @@ assignees: ''
 Thanks for filing an issue!  Please use the prompts below to provide as much context as you can about your use case and motivations.
 -->
 
+Gong snippet: TODO <!-- Insert the link to the relevant, private Gong snippet. Remove this checkbox if you don't have access to Fleet's Gong or there is no Gong recording available -->
+
 ## Problem
 
 <!-- Describe the problem you're trying to solve. What are you trying to accomplish? 
@@ -18,8 +20,6 @@ Thanks for filing an issue!  Please use the prompts below to provide as much con
 Example: I want to order a pair of shoes from my food delivery app, which does not show options for stores that don't carry food. 
 
 Note: @ Fleet requestor to provide a Gong snippet using the 'share internally' link for any recorded calls where a feature request is discussed -->
-
-Gong snippet: 
 
 ## What have you tried?
 
