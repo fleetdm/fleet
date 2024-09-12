@@ -67,6 +67,10 @@ func main() {
 		shellCommand,
 	}
 	app.Flags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "reload-launchd",
+			Usage: "Perform an unload/load the macOS LaunchDaemon",
+		},
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
@@ -238,6 +242,8 @@ func main() {
 		}
 		startTime := time.Now()
 
+		log.Info().Msg("orbit startup")
+
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
 			if logDir := filepath.Dir(logf); logDir != "." {
@@ -277,6 +283,10 @@ func main() {
 
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		}
+
+		if c.Bool("reload-launchd") {
+			reloadLaunchDaemon()
 		}
 
 		checkAndPatchCertificate(c.String("root-dir"))
@@ -1977,4 +1987,126 @@ func checkAndPatchCertificate(rootDir string) {
 	}
 
 	log.Info().Msg("successfully patched certificate")
+
+	err = updateAndReloadLaunchDaemon()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to update launchd. Continuing.")
+		return
+	}
+	log.Info().Msg("Waiting 30s for launchd to restart process.")
+	// In testing, launchd seems to kill this process pretty much immediately so the following lines
+	// are not hit.
+	time.Sleep(30 * time.Second)
+	log.Error().Msg("Unexpected process continuing after 30s.")
+}
+
+const reloadPlistPath = "/Library/LaunchDaemons/com.fleetdm.orbit-reload.plist"
+
+func updateAndReloadLaunchDaemon() error {
+	// Update the plist to turn on Fleet Desktop
+	channel := exec.Command("plutil", "-replace", "EnvironmentVariables.ORBIT_DESKTOP_CHANNEL", "-string", "stable", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err := channel.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("set desktop channel")
+	if err != nil {
+		return err
+	}
+
+	enable := exec.Command("plutil", "-replace", "EnvironmentVariables.ORBIT_FLEET_DESKTOP", "-string", "true", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err = enable.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("enable desktop")
+	if err != nil {
+		return err
+	}
+
+	// Create another launchd that will complete the unload/load process
+
+	// Write the plist
+	launchdPlist := []byte(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.fleetdm.orbit-reload</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/opt/orbit/bin/orbit/orbit</string>
+            <string>--reload-launchd</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>StandardErrorPath</key>
+        <string>/var/log/orbit/reload.stderr.log</string>
+        <key>StandardOutPath</key>
+        <string>/var/log/orbit/reload.stdout.log</string>
+    </dict>
+</plist>
+	`)
+	err = os.WriteFile(reloadPlistPath, launchdPlist, 0o644)
+	log.Info().Err(err).Msg("write reload plist")
+	if err != nil {
+		return err
+	}
+
+	// Load the launchd
+	load := exec.Command("launchctl", "load", reloadPlistPath)
+	out, err = load.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("bootstrap reload launchd")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func reloadRetry(f func() error) error {
+	return retrypkg.Do(f, retrypkg.WithInterval(1*time.Second), retrypkg.WithMaxAttempts(15))
+}
+
+func reloadLaunchDaemon() {
+	err := reloadRetry(unloadLoadCommands)
+	if err != nil {
+		log.Error().Err(err).Msg("All attempts to unload/load the LaunchDaemon failed")
+		os.Exit(1)
+	}
+
+	// Unload the launchd that runs this on success
+	err = reloadRetry(func() error {
+		err := os.Remove(reloadPlistPath)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to delete reload plist")
+		}
+		log.Info().Str("path", reloadPlistPath).Msg("Deleted plist. Bootout launchd.")
+
+		unload := exec.Command("launchctl", "bootout", "system/com.fleetdm.orbit-reload")
+		out, err := unload.CombinedOutput()
+
+		// In testing, this log typically doesn't print as launchd as already killed the process
+		log.Info().Err(err).Str("out", string(out)).Msg("bootout launchd")
+		if bytes.HasPrefix(out, []byte("bootout failed")) {
+			return fmt.Errorf("failed to bootout launchd")
+		}
+		return err
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("All attempts to unload self failed")
+	}
+
+	// Usually will not hit this as launchd should kill it first
+	os.Exit(0)
+}
+
+func unloadLoadCommands() error {
+	unload := exec.Command("launchctl", "unload", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err := unload.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("unload launchd")
+	if err != nil {
+		return err
+	}
+	load := exec.Command("launchctl", "load", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err = load.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("load launchd")
+	if err != nil {
+		return err
+	}
+	return nil
 }
