@@ -243,7 +243,7 @@ SELECT
       CURRENT_TIMESTAMP,
       '%s',
       CURRENT_TIMESTAMP,
-      '%s',
+      NULLIF('%s', ''),
       CURRENT_TIMESTAMP,
       NULLIF('%s', ''),
       '%s'
