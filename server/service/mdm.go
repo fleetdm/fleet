@@ -2351,6 +2351,16 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		var fwe apple_mdm.FleetWebsiteError
 		if errors.As(err, &fwe) {
+			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
+			if fwe.Status >= 400 && fwe.Status <= 499 {
+				return nil, ctxerr.Wrap(
+					ctx,
+					fleet.NewInvalidArgumentError(
+						"email_address",
+						fmt.Sprintf("this email address is not valid: %v", err),
+					),
+				)
+			}
 			return nil, ctxerr.Wrap(
 				ctx,
 				fleet.NewUserMessageError(
