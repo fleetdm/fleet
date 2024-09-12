@@ -52,7 +52,7 @@ func TestWaitForUnenrollment(t *testing.T) {
 				return true, "example.com", nil
 			}
 
-			outErr := m.waitForUnenrollment()
+			outErr := m.waitForUnenrollment(true)
 			if c.wantErr {
 				require.Error(t, outErr)
 			} else {
@@ -71,7 +71,27 @@ func TestWaitForUnenrollment(t *testing.T) {
 			return false, "", nil
 		}
 
-		outErr := m.waitForUnenrollment()
+		outErr := m.waitForUnenrollment(true)
 		require.NoError(t, outErr)
+	})
+
+	t.Run("only check file during ADE enrollment", func(t *testing.T) {
+		var fileWasChecked bool
+		m.testEnrollmentCheckFileFn = func() (bool, error) {
+			fileWasChecked = true
+			return true, nil
+		}
+
+		m.testEnrollmentCheckStatusFn = func() (bool, string, error) {
+			return false, "", nil
+		}
+
+		err := m.waitForUnenrollment(false)
+		require.NoError(t, err)
+		require.False(t, fileWasChecked)
+
+		err = m.waitForUnenrollment(true)
+		require.NoError(t, err)
+		require.True(t, fileWasChecked)
 	})
 }

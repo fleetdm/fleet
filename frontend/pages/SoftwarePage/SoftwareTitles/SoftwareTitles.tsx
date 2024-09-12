@@ -21,7 +21,8 @@ import TableDataError from "components/DataError";
 import SoftwareTable from "./SoftwareTable";
 import {
   ISoftwareDropdownFilterVal,
-  getSoftwareFilterForQueryKey,
+  ISoftwareVulnFilters,
+  buildSoftwareFilterQueryParams,
 } from "./SoftwareTable/helpers";
 
 const baseClass = "software-titles";
@@ -40,10 +41,12 @@ interface ISoftwareTitlesProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
   resetPageIndex: boolean;
   addedSoftwareToken: string | null;
+  onAddFiltersClick: () => void;
 }
 
 const SoftwareTitles = ({
@@ -54,10 +57,12 @@ const SoftwareTitles = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
   resetPageIndex,
   addedSoftwareToken,
+  onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -83,7 +88,8 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         addedSoftwareToken,
-        ...getSoftwareFilterForQueryKey(softwareFilter),
+        ...vulnFilters,
+        ...buildSoftwareFilterQueryParams(softwareFilter),
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -117,8 +123,8 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        vulnerable: softwareFilter === "vulnerableSoftware",
         addedSoftwareToken,
+        ...vulnFilters,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -150,6 +156,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         availableForInstall: true,
+        ...vulnFilters,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -190,6 +197,8 @@ const SoftwareTitles = ({
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
         resetPageIndex={resetPageIndex}
+        onAddFiltersClick={onAddFiltersClick}
+        vulnFilters={vulnFilters}
       />
     </div>
   );

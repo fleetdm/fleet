@@ -6,7 +6,7 @@ import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { getNextLocationPath } from "utilities/helpers";
 import { QueryParams } from "utilities/url";
 
-import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import { IHostSoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 import {
   ApplePlatform,
@@ -63,7 +63,7 @@ interface IHostSoftwareTableProps {
   pagePath: string;
   routeTemplate?: string;
   pathPrefix: string;
-  hostSoftwareFilter: ISoftwareDropdownFilterVal;
+  hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
 }
 
 const HostSoftwareTable = ({
@@ -82,7 +82,7 @@ const HostSoftwareTable = ({
   hostSoftwareFilter,
 }: IHostSoftwareTableProps) => {
   const handleFilterDropdownChange = useCallback(
-    (val: ISoftwareDropdownFilterVal) => {
+    (val: IHostSoftwareDropdownFilterVal) => {
       const newParams: QueryParams = {
         query: searchQuery,
         order_key: sortHeader,

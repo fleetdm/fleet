@@ -64,7 +64,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 			return ctxerr.Wrap(ctx, err, "insert calendar event")
 		}
 
-		if insertOnDuplicateDidInsert(result) {
+		if insertOnDuplicateDidInsertOrUpdate(result) {
 			id, _ = result.LastInsertId()
 		} else {
 			stmt := `SELECT id FROM calendar_events WHERE email = ?`

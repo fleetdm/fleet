@@ -111,3 +111,11 @@ Example of running the agent with MDM. Note that `enroll_secret` is not needed f
 ```
 go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep_challenge 0d53306e-6d7a-9d14-a372-f9e53f9d62db
 ```
+
+## Installing software
+
+The agent can install software for "macos", "ubuntu", and "windows" OSs when running with orbit agent. The following options control the installation behavior:
+
+- `--software_installer_pre_install_fail_prob`: default 0.05, `select 1` always passes and `select 0` always fails
+- `--software_installer_install_fail_prob`: default 0.05, `exit 0` always passes and `exit 1` always fails
+- `--software_installer_post_install_fail_prob`: default 0.05, `exit 0` always passes and `exit 1` always fails

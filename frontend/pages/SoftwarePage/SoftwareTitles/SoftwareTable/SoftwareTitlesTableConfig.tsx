@@ -76,7 +76,7 @@ const getSoftwareNameCellData = (
     isSelfService = software_package.self_service;
   } else if (app_store_app) {
     hasPackage = true;
-    isSelfService = false;
+    isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
   }
 

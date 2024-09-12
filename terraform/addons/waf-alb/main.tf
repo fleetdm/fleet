@@ -1,4 +1,9 @@
-resource "aws_wafv2_rule_group" "main" {
+locals {
+  default_action = var.waf_type == "blocklist" ? "block" : "allow"
+}
+
+resource "aws_wafv2_rule_group" "blocked" {
+  count    = var.waf_type == "blocklist" ? 1 : 0
   name     = var.name
   scope    = "REGIONAL"
   capacity = 2
@@ -34,7 +39,7 @@ resource "aws_wafv2_rule_group" "main" {
 
     statement {
       ip_set_reference_statement {
-        arn = aws_wafv2_ip_set.main.arn
+        arn = aws_wafv2_ip_set.blocked[0].arn
       }
     }
 
@@ -52,11 +57,46 @@ resource "aws_wafv2_rule_group" "main" {
   }
 }
 
-resource "aws_wafv2_ip_set" "main" {
+resource "aws_wafv2_ip_set" "blocked" {
+  count              = var.waf_type == "blocklist" ? 1 : 0
   name               = var.name
   scope              = "REGIONAL"
   ip_address_version = "IPV4"
   addresses          = var.blocked_addresses
+}
+
+resource "aws_wafv2_rule_group" "allowed" {
+  count    = var.waf_type == "allowlist" ? 1 : 0
+  name     = var.name
+  scope    = "REGIONAL"
+  capacity = 2
+
+  rule {
+    name     = "specific"
+    priority = 1
+
+    action {
+      allow {}
+    }
+
+    statement {
+      ip_set_reference_statement {
+        arn = aws_wafv2_ip_set.allowed[0].arn
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = false
+      metric_name                = var.name
+      sampled_requests_enabled   = false
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = false
+    metric_name                = var.name
+    sampled_requests_enabled   = false
+  }
 }
 
 resource "aws_wafv2_web_acl" "main" {
@@ -64,7 +104,14 @@ resource "aws_wafv2_web_acl" "main" {
   scope = "REGIONAL"
 
   default_action {
-    allow {}
+    dynamic "block" {
+      for_each = var.waf_type == "allowlist" ? [true] : []
+      content {}
+    }
+    dynamic "allow" {
+      for_each = var.waf_type == "blocklist" ? [true] : []
+      content {}
+    }
   }
 
   rule {
@@ -77,7 +124,7 @@ resource "aws_wafv2_web_acl" "main" {
 
     statement {
       rule_group_reference_statement {
-        arn = aws_wafv2_rule_group.main.arn
+        arn = var.waf_type == "blocklist" ? aws_wafv2_rule_group.blocked[0].arn : aws_wafv2_rule_group.allowed[0].arn
       }
     }
 
@@ -94,6 +141,15 @@ resource "aws_wafv2_web_acl" "main" {
     sampled_requests_enabled   = false
   }
 }
+
+resource "aws_wafv2_ip_set" "allowed" {
+  count              = var.waf_type == "allowlist" ? 1 : 0
+  name               = var.name
+  scope              = "REGIONAL"
+  ip_address_version = "IPV4"
+  addresses          = var.allowed_addresses
+}
+
 
 resource "aws_wafv2_web_acl_association" "main" {
   resource_arn = var.lb_arn

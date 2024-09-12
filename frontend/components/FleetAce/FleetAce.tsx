@@ -29,6 +29,7 @@ export interface IFleetAceProps {
   label?: string;
   name?: string;
   value?: string;
+  placeholder?: string;
   readOnly?: boolean;
   maxLines?: number;
   showGutter?: boolean;
@@ -55,6 +56,7 @@ const FleetAce = ({
   labelActionComponent,
   name = "query-editor",
   value,
+  placeholder,
   readOnly,
   maxLines = 20,
   showGutter = true,
@@ -266,6 +268,7 @@ const FleetAce = ({
         showPrintMargin={false}
         theme="fleet"
         value={value}
+        placeholder={placeholder}
         width="100%"
         wrapEnabled={wrapEnabled}
         style={style}

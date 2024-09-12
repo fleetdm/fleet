@@ -1,0 +1,1 @@
+- Improves the UX of turning off MDM on an offline host (endpoint doesn't error anymore)

@@ -120,9 +120,31 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDMAppleABMAssignmentInfo represents an user definition of the association
+// between an ABM token (via organization name) and the teams used to associate
+// hosts when they're ingested during the ABM sync.
+type MDMAppleABMAssignmentInfo struct {
+	OrganizationName string `json:"organization_name"`
+	MacOSTeam        string `json:"macos_team"`
+	IOSTeam          string `json:"ios_team"`
+	IpadOSTeam       string `json:"ipados_team"`
+}
+
+// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
+// between a VPP token (via location) and the team associations.
+type MDMAppleVolumePurchasingProgramInfo struct {
+	Location string   `json:"location"`
+	Teams    []string `json:"teams"`
+}
+
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
-	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	// Deprecated: use AppleBussinessManager instead
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+
+	// AppleBusinessManager defines the associations between ABM tokens
+	// and the teams used to assign hosts when they're ingested from ABM.
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -136,6 +158,10 @@ type MDM struct {
 	// PATCH /config API, it is only set automatically, internally, by detecting
 	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
 	// API.
+	//
+	// It is set to true as soon as one of the ABM tokens receives this error
+	// code, and is set to false only once all ABM tokens have agreed to the new
+	// terms.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
 	// EnabledAndConfigured is set to true if Fleet has been
@@ -171,6 +197,8 @@ type MDM struct {
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -607,6 +635,25 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
+	if c.MDM.AppleBusinessManager.Set {
+		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
+		for i, s := range c.MDM.AppleBusinessManager.Value {
+			abm[i] = s
+		}
+		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
+
+	}
+
+	if c.MDM.VolumePurchasingProgram.Set {
+		vpp := make([]MDMAppleVolumePurchasingProgramInfo, len(c.MDM.VolumePurchasingProgram.Value))
+		for i, s := range c.MDM.VolumePurchasingProgram.Value {
+			vpp[i].Location = s.Location
+			vpp[i].Teams = make([]string, len(s.Teams))
+			copy(vpp[i].Teams, s.Teams)
+		}
+		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
+	}
+
 	return &clone
 }
 
@@ -831,7 +878,6 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)

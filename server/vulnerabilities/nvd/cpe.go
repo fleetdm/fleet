@@ -440,7 +440,7 @@ func TranslateSoftwareToCPE(
 	vulnPath string,
 	logger kitlog.Logger,
 ) error {
-	// Skip software from sources for which we will be using OVAL for vulnerability detection.
+	// Skip software from sources for which we will be using OVAL or goval-dictionary for vulnerability detection.
 	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{

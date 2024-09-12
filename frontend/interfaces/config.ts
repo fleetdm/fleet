@@ -47,6 +47,11 @@ export interface IMdmConfig {
   only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
   apple_bm_default_team?: string;
+  /**
+   * @deprecated
+   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_bm_terms_expired.
+   * https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
+   */
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;

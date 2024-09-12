@@ -23,6 +23,7 @@ import {
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
+  tooltipTextWithLineBreaks,
 } from "utilities/helpers";
 import { COLORS } from "styles/var/colors";
 import {
@@ -67,17 +68,6 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
-};
-
-const tooltipTextWithLineBreaks = (lines: string[]) => {
-  return lines.map((line) => {
-    return (
-      <span key={Math.random().toString().slice(2)}>
-        {line}
-        <br />
-      </span>
-    );
-  });
 };
 
 const lastSeenTime = (status: string, seenTime: string): string => {

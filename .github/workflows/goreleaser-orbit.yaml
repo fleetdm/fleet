@@ -56,7 +56,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml # v1.20.0
@@ -95,7 +95,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml # v1.20.0
@@ -128,7 +128,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux-arm64.yml # v1.20.0
@@ -161,7 +161,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml # v1.20.0

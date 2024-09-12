@@ -5,12 +5,12 @@ import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import mdmAppleAPI, {
-  IGetVppInfoResponse,
+  IGetVppTokensResponse,
   IVppApp,
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
@@ -18,11 +18,15 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Radio from "components/forms/fields/Radio";
-import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
-import { buildQueryStringFromParams } from "utilities/url";
+import Checkbox from "components/forms/fields/Checkbox";
+
 import SoftwareIcon from "../icons/SoftwareIcon";
-import { getErrorMessage, getUniqueAppId } from "./helpers";
+import {
+  generateRedirectQueryParams,
+  getErrorMessage,
+  getUniqueAppId,
+  teamHasVPPToken,
+} from "./helpers";
 
 const baseClass = "app-store-vpp";
 
@@ -31,14 +35,14 @@ const EnableVppCard = () => {
     <Card borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
+          <b>No Volume Purchasing Program (VPP) token assigned</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first enable VPP.
+          To add App Store apps, assign a VPP token to this team.
         </p>
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Enable VPP"
+          text="Edit VPP"
           className={`${baseClass}__enable-vpp-link`}
         />
       </div>
@@ -53,9 +57,8 @@ const NoVppAppsCard = () => (
         You don&apos;t have any App Store apps
       </p>
       <p className={`${baseClass}__no-software-description`}>
-        Add apps in{" "}
-        <CustomLink url="https://business.apple.com" text="ABM" newTab /> Apps
-        that are already added to this team are not listed.
+        You must purchase apps in ABM. App Store apps that are already added to
+        this team are not listed.
       </p>
     </div>
   </Card>
@@ -142,14 +145,15 @@ const AppStoreVpp = ({
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
+  const [isSelfService, setIsSelfService] = useState(false);
 
   const {
     data: vppInfo,
     isLoading: isLoadingVppInfo,
     error: errorVppInfo,
-  } = useQuery<IGetVppInfoResponse, AxiosError>(
+  } = useQuery<IGetVppTokensResponse, AxiosError>(
     ["vppInfo"],
-    () => mdmAppleAPI.getVppInfo(),
+    () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 30000,
@@ -157,13 +161,15 @@ const AppStoreVpp = ({
     }
   );
 
+  const hasVPPToken = teamHasVPPToken(teamId, vppInfo?.vpp_tokens);
+
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
     error: errorVppApps,
   } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: !!vppInfo,
+    enabled: hasVPPToken,
     staleTime: 30000,
     select: (res) => res.app_store_apps,
   });
@@ -182,7 +188,8 @@ const AppStoreVpp = ({
       await mdmAppleAPI.addVppApp(
         teamId,
         selectedApp.app_store_id,
-        selectedApp.platform
+        selectedApp.platform,
+        isSelfService
       );
       renderFlash(
         "success",
@@ -191,10 +198,8 @@ const AppStoreVpp = ({
           to install software.
         </>
       );
-      const queryParams = buildQueryStringFromParams({
-        team_id: teamId,
-        available_for_install: true,
-      });
+
+      const queryParams = generateRedirectQueryParams(teamId, isSelfService);
       // any unique string - triggers SW refetch
       setAddedSoftwareToken(`${Date.now()}`);
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
@@ -209,10 +214,7 @@ const AppStoreVpp = ({
       return <Spinner />;
     }
 
-    if (
-      errorVppInfo &&
-      getErrorReason(errorVppInfo).includes("MDMConfigAsset was not found")
-    ) {
+    if (!hasVPPToken) {
       return <EnableVppCard />;
     }
 
@@ -225,7 +227,7 @@ const AppStoreVpp = ({
         return <NoVppAppsCard />;
       }
       return (
-        <>
+        <div className={`${baseClass}__modal-body`}>
           <VppAppList
             apps={vppApps}
             selectedApp={selectedApp}
@@ -236,7 +238,20 @@ const AppStoreVpp = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
-        </>
+          <Checkbox
+            value={isSelfService}
+            onChange={(newVal: boolean) => setIsSelfService(newVal)}
+            className={`${baseClass}__self-service-checkbox`}
+            tooltipContent={
+              <>
+                End users can install from <b>Fleet Desktop</b> {">"}{" "}
+                <b>Self-service</b>.
+              </>
+            }
+          >
+            Self-service
+          </Checkbox>
+        </div>
       );
     }
     return null;

@@ -7,6 +7,17 @@ The guide assumes you'll build and run the Fleet server locally with the `make f
 
 (Has been tested on macOS only.)
 
+## 0. Edit docker-compose.yml
+
+Add the following service to the main `docker-compose.yml`:
+```yml
+  toxiproxy:
+    image: shopify/toxiproxy
+    ports:
+      - "22220:22220"
+      - "8474:8474"
+```
+
 ## 1. Start services
 
 ```sh

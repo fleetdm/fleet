@@ -46,7 +46,8 @@
 			"enable_software_inventory": false
 		},
 		"mdm": {
-			"apple_bm_default_team": "",
+			"apple_business_manager": null,
+			"volume_purchasing_program": null,
 			"apple_bm_terms_expired": false,
 			"apple_bm_enabled_and_configured": false,
 			"enabled_and_configured": false,

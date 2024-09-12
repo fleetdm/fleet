@@ -77,7 +77,7 @@ The same is not true if S3 is used as the storage backend. In that scenario, it 
 
 ### Alternative carving backends
 
-#### Minio
+#### MinIO
 
 Configure the following:
 - `FLEET_S3_ENDPOINT_URL=minio_host:port`
@@ -86,6 +86,11 @@ Configure the following:
 - `FLEET_S3_ACCESS_KEY_ID=acces_key_id`
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
 - `FLEET_S3_REGION=minio` or any non-empty string otherwise Fleet will attempt to derive the region.
+
+If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will
+automatically point carves to the local MinIO container and write to the `carves-dev` bucket without needing to set
+additional configuration. Note that this bucket is *not* created automatically when bringing MinIO up; you'll need to
+log in via `http://localhost:9001` with credentials `minio` / `minio123!` to create the bucket.
 
 ### Troubleshooting
 
