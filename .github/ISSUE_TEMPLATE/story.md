@@ -41,6 +41,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Activity changes: TODO <!-- Specify changes to Fleet's activity feed as a draft PR to the Audit log page in the contributor docs: https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Audit-logs.md This PR will be closed before release because the Audit log page is automatically generated: https://fleetdm.com/handbook/company/communications#audit-logs Put "No changes" if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes as a draft PR to the Manage access doc page. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify "Fleet Free" or "Fleet Premium".  If only certain parts of the user story involve paid features, specify which parts.  Implementation of paid features should live in the `ee/` directory. -->
+- [ ] Once shipped, requester has been notified
 
 ### Engineering
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->
