@@ -210,6 +210,29 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
+func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
+	query := `
+    SELECT 1
+    FROM
+      host_software_installs
+    WHERE
+      software_installer_id = ?
+    AND
+      host_id = ?
+    AND
+      install_script_exit_code IS NULL
+`
+	var access bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &access, query, installerID, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check software installer association to host")
+	}
+	return true, nil
+}
+
 func (ds *Datastore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT

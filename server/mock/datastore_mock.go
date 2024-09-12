@@ -1040,6 +1040,8 @@ type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet
 
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
+type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID uint, installerID uint) (bool, error)
+
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
 type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error)
@@ -2606,6 +2608,9 @@ type DataStore struct {
 
 	GetSoftwareInstallerMetadataByIDFunc        GetSoftwareInstallerMetadataByIDFunc
 	GetSoftwareInstallerMetadataByIDFuncInvoked bool
+
+	ValidateOrbitSoftwareInstallerAccessFunc        ValidateOrbitSoftwareInstallerAccessFunc
+	ValidateOrbitSoftwareInstallerAccessFuncInvoked bool
 
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
@@ -6232,6 +6237,13 @@ func (s *DataStore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uin
 	s.GetSoftwareInstallerMetadataByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareInstallerMetadataByIDFunc(ctx, id)
+}
+
+func (s *DataStore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
+	s.mu.Lock()
+	s.ValidateOrbitSoftwareInstallerAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.ValidateOrbitSoftwareInstallerAccessFunc(ctx, hostID, installerID)
 }
 
 func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {

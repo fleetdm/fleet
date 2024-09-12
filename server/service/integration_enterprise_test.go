@@ -10390,15 +10390,18 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// create an orbit host that is not in the team
 		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
-		// downloading installer still works because we allow it explicitly
+		// downloading installer doesn't work if the host doesn't have a pending install request
 		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
-		}, http.StatusOK)
+		}, http.StatusForbidden)
 
 		// create an orbit host, assign to team
-		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+		hostInTeam := createOrbitEnrolledHost(t, "linux", "orbit-host-team", s.ds)
 		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{hostInTeam.ID}))
+
+		// Create a software installation request
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", hostInTeam.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
 
 		// requesting download with alt != media fails
 		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
@@ -10414,6 +10417,28 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusOK)
 		checkDownloadResponse(t, r, payload.Filename)
+
+		// Get execution ID, normally comes from orbit config
+		var installUUID string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &installUUID, "SELECT execution_id FROM host_software_installs WHERE host_id = ? AND install_script_exit_code IS NULL", hostInTeam.ID)
+		})
+
+		// Installation complete, host no longer has access to software
+		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID:                hostInTeam.ID,
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: ptr.Int(0),
+				InstallScriptOutput:   ptr.String("done"),
+			},
+		}, http.StatusNoContent)
+
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusForbidden)
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -10457,14 +10482,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// create an orbit host that is not in the team
 		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
-		// downloading installer still works because we allow it explicitly
+		// downloading installer fails because there's no install request
 		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
-		}, http.StatusOK)
+		}, http.StatusForbidden)
 
 		// create an orbit host, assign to team
-		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+		hostInTeam := createOrbitEnrolledHost(t, "linux", "orbit-host-team", s.ds)
 
 		// requesting download with alt != media fails
 		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
@@ -10474,12 +10499,37 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		errMsg := extractServerErrorText(r.Body)
 		require.Contains(t, errMsg, "only alt=media is supported")
 
+		// Create a software installation request
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", hostInTeam.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+
 		// valid download
 		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusOK)
 		checkDownloadResponse(t, r, payload.Filename)
+
+		// Get execution ID, normally comes from orbit config
+		var installUUID string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &installUUID, "SELECT execution_id FROM host_software_installs WHERE host_id = ? AND install_script_exit_code IS NULL", hostInTeam.ID)
+		})
+
+		// Installation complete, host no longer has access to software
+		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID:                hostInTeam.ID,
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: ptr.Int(0),
+				InstallScriptOutput:   ptr.String("done"),
+			},
+		}, http.StatusNoContent)
+
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusForbidden)
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
