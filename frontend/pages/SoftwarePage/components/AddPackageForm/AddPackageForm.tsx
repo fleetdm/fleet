@@ -133,7 +133,9 @@ const AddPackageForm = ({
   };
 
   const onChangeInstallScript = (value: string) => {
-    setFormData({ ...formData, installScript: value });
+    const newData = { ...formData, installScript: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onChangePreInstallQuery = (value?: string) => {
