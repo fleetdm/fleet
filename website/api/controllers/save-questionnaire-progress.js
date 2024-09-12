@@ -142,6 +142,21 @@ module.exports = {
         } else {// Otherwise, they have a use case and will be set to stage 4.
           psychologicalStage = '4 - Has use case';
         }
+        // When the user submits the step before the "Is it any good?" step, we will generate them a 30 day Trial key for Fleet Premium that they can use with fleetctl preview
+        if(!userRecord.fleetPremiumTrialLicenseKey) {
+          let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
+          let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
+            numberOfHosts: 10,
+            organization: this.req.me.organization,
+            expiresAt: thirtyDaysFromNowAt,
+          });
+          // Save the trial license key to the DB record for this user.
+          await User.updateOne({id: this.req.me.id})
+          .set({
+            fleetPremiumTrialLicenseKey: trialLicenseKeyForThisUser,
+            fleetPremiumTrialLicenseKeyExpiresAt: thirtyDaysFromNowAt,
+          });
+        }
       } else if(currentStep === 'is-it-any-good') {
         if(currentSelectedBuyingSituation === 'mdm') {
           // Since the mdm use case question is the only buying situation-specific question where a use case can't
