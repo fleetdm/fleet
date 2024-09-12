@@ -1,4 +1,3 @@
-// TODO: Rease onto 20320 Jacob's work that includes all correct fields, help text, default scripts, etc
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
 import React, { useContext, useState } from "react";
 
@@ -13,11 +12,11 @@ import FileUploader from "components/FileUploader";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
+import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
 import { generateFormValidation } from "./helpers";
 
-export const baseClass = "add-package-form";
+export const baseClass = "package-form";
 
 const UploadingSoftware = () => {
   return (
@@ -29,7 +28,7 @@ const UploadingSoftware = () => {
 };
 
 // TODO: Rename to PackageFormData since its used in both add/edit software packages
-export interface IAddPackageFormData {
+export interface IPackageFormData {
   software: File | null;
   preInstallQuery?: string;
   installScript: string;
@@ -47,10 +46,10 @@ export interface IFormValidation {
   selfService?: { isValid: boolean };
 }
 
-interface IAddPackageFormProps {
+interface IPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
-  onSubmit: (formData: IAddPackageFormData) => void;
+  onSubmit: (formData: IPackageFormData) => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -62,8 +61,7 @@ interface IAddPackageFormProps {
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
 
-// TODO: Rename to PackageForm everywhere (after Jacob's work is merged to avoid conflicts)
-const AddPackageForm = ({
+const PackageForm = ({
   isUploading,
   onCancel,
   onSubmit,
@@ -74,7 +72,7 @@ const AddPackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
-}: IAddPackageFormProps) => {
+}: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const initialFormData = {
@@ -85,9 +83,7 @@ const AddPackageForm = ({
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
   };
-  const [formData, setFormData] = useState<IAddPackageFormData>(
-    initialFormData
-  );
+  const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
     software: { isValid: false },
@@ -202,7 +198,7 @@ const AddPackageForm = ({
               Self-service
             </TooltipWrapper>
           </Checkbox>
-          <AddPackageAdvancedOptions
+          <PackageAdvancedOptions
             selectedPackage={formData.software}
             errors={{
               preInstallQuery: formValidation.preInstallQuery?.message,
@@ -232,4 +228,4 @@ const AddPackageForm = ({
 };
 
 // Allows form not to re-render as long as its props don't change
-export default React.memo(AddPackageForm);
+export default React.memo(PackageForm);

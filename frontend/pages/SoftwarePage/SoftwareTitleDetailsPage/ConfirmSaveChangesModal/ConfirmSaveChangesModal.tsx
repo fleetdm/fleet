@@ -3,7 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
 const baseClass = "save-changes-modal";
 

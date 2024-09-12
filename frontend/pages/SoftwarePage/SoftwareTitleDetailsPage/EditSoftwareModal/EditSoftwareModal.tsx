@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
-import { noop } from "lodash";
 import deepDifference from "utilities/deep_difference";
 
 import { getErrorReason } from "interfaces/errors";
@@ -16,10 +15,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 
-// TODO: Rename AddPackageForm.tsx to PackageForm.tsx after blocker PRs merge to avoid merge conflicts
-import AddPackageForm from "pages/SoftwarePage/components/AddPackageForm";
-// TODO: Rename this to PackageFormData after blocker PRs merge to avoid merge conflicts
-import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
+import PackageForm from "pages/SoftwarePage/components/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 import {
   UPLOAD_TIMEOUT,
   MAX_FILE_SIZE_MB,
@@ -58,7 +55,7 @@ const EditSoftwareModal = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
-  const [pendingUpdates, setPendingUpdates] = useState<IAddPackageFormData>({
+  const [pendingUpdates, setPendingUpdates] = useState<IPackageFormData>({
     software: null,
     installScript: "",
     selfService: false,
@@ -79,7 +76,7 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
-  const onSaveSoftwareChanges = async (formData: IAddPackageFormData) => {
+  const onSaveSoftwareChanges = async (formData: IPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -146,7 +143,7 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  const onEditSoftware = (formData: IAddPackageFormData) => {
+  const onEditSoftware = (formData: IPackageFormData) => {
     // Check for changes to conditionally confirm save changes modal
     const updates = deepDifference(formData, {
       software,
@@ -182,7 +179,7 @@ const EditSoftwareModal = ({
         title="Edit software"
         onExit={onExit}
       >
-        <AddPackageForm
+        <PackageForm
           isEditingSoftware
           isUploading={isUpdatingSoftware}
           onCancel={onExit}

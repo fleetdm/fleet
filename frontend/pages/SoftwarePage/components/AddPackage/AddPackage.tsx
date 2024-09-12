@@ -12,8 +12,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 
-import AddPackageForm from "../AddPackageForm";
-import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
+import PackageForm from "../PackageForm";
+import { IPackageFormData } from "../PackageForm/PackageForm";
 import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
@@ -66,7 +66,7 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddPackageFormData) => {
+  const onAddPackage = async (formData: IPackageFormData) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -129,7 +129,7 @@ const AddPackage = ({
 
   return (
     <div className={baseClass}>
-      <AddPackageForm
+      <PackageForm
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}

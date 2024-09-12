@@ -11,7 +11,7 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -205,7 +205,7 @@ export default {
   },
 
   addSoftwarePackage: (
-    data: IAddPackageFormData,
+    data: IPackageFormData,
     teamId?: number,
     timeout?: number
   ) => {
@@ -237,7 +237,7 @@ export default {
     );
   },
   editSoftwarePackage: (
-    data: IAddPackageFormData,
+    data: IPackageFormData,
     softwareId: number,
     teamId: number,
     timeout?: number
