@@ -38,7 +38,7 @@ Configuring default teams in Fleet simplifies the enrollment and management of A
 
 For organizations managing a large number of macOS, iOS, or iPadOS devices, this feature plays a crucial role in automating routine tasks, increasing efficiency, and improving the overall deployment experience. It enables teams to focus on more critical tasks and be confident that newly enrolled devices are correctly configured. For more information on using Fleet, please refer to the [Fleet documentation](https://fleetdm.com/docs) and [guides](https://fleetdm.com/guides).
 
-<meta name="articleTitle" value="Managing labels in Fleet">
+<meta name="articleTitle" value="Configuring default teams for macOS, iOS, and iPadOS devices in Fleet">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="category" value="guides">
