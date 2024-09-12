@@ -243,6 +243,15 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 - Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
 - To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
 
+### Change the "Integrations admin" Salesforce account password
+
+Salesforce requires that the password to the "Integrations admin" account is changed every 90 days. When this happens, the Salesforce integrations on the Fleet website/Hydroplane will fail with an `INVALID_LOGIN` error. To prevent this from happening, a member of the Digital expererience team will:
+
+1. Log into the "Integrations admin" account in Salesforce.
+2. Change the password and save it in the shared 1Password vault.
+3. Request a new security token for the "Integrations admin" account (This will be sent to the email address associated with the account).
+4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane).
+
 
 ### Schedule press release
 
