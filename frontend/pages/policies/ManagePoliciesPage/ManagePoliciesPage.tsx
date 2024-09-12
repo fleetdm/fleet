@@ -363,6 +363,7 @@ const ManagePolicyPage = ({
     ["teams", teamIdForApi],
     () => teamsAPI.load(teamIdForApi),
     {
+      // no call for no team (teamIdForApi === 0)
       enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicy,
       select: (data) => data.team,
     }
@@ -695,7 +696,7 @@ const ManagePolicyPage = ({
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
   const showAutomationsDropdown =
-    canManageAutomations && automationsConfig && hasPoliciesToAutomateOrDelete;
+    canManageAutomations && hasPoliciesToAutomateOrDelete;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -800,7 +801,7 @@ const ManagePolicyPage = ({
     );
   };
 
-  const getAutomationsDropdownOptions = () => {
+  const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: React.ReactNode;
     let disabledCalendarTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
@@ -822,6 +823,16 @@ const ManagePolicyPage = ({
         </>
       );
     }
+    const installSWOption = {
+      label: "Install software",
+      value: "install_software",
+      disabled: !!disabledInstallTooltipContent,
+      helpText: "Install software to resolve failing policies.",
+      tooltipContent: disabledInstallTooltipContent,
+    };
+    if (!configPresent) {
+      return [installSWOption];
+    }
 
     return [
       {
@@ -831,13 +842,7 @@ const ManagePolicyPage = ({
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
-      {
-        label: "Install software",
-        value: "install_software",
-        disabled: !!disabledInstallTooltipContent,
-        helpText: "Install software to resolve failing policies.",
-        tooltipContent: disabledInstallTooltipContent,
-      },
+      installSWOption,
       {
         label: "Other workflows",
         value: "other_workflows",
@@ -888,7 +893,7 @@ const ManagePolicyPage = ({
                     onChange={onSelectAutomationOption}
                     placeholder="Manage automations"
                     searchable={false}
-                    options={getAutomationsDropdownOptions()}
+                    options={getAutomationsDropdownOptions(!!automationsConfig)}
                   />
                 </div>
               )}
