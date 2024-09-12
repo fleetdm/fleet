@@ -17,6 +17,10 @@ output "lb" {
   value = module.saml_auth_proxy_alb
 }
 
+output "lb_security_group" {
+  value = aws_security_group.saml_auth_proxy_alb.id
+}
+
 output "secretsmanager_secret_id" {
   value = aws_secretsmanager_secret.saml_auth_proxy_cert.id
 }
