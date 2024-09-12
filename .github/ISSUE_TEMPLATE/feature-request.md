@@ -15,7 +15,11 @@ Thanks for filing an issue!  Please use the prompts below to provide as much con
 
 <!-- Describe the problem you're trying to solve. What are you trying to accomplish? 
 
-Example: I want to order a pair of shoes from my food delivery app, which does not show options for stores that don't carry food. -->
+Example: I want to order a pair of shoes from my food delivery app, which does not show options for stores that don't carry food. 
+
+Note: @ Fleet requestor to provide a Gong snippet using the 'share internally' link for any recorded calls where a feature request is discussed -->
+
+Gong snippet: 
 
 ## What have you tried?
 
