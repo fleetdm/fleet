@@ -119,8 +119,6 @@ func TestValidGitOpsYaml(t *testing.T) {
 							os.Unsetenv(k)
 						}
 					})
-				} else {
-					t.Parallel()
 				}
 
 				var appConfig *fleet.EnrichedAppConfig
@@ -155,6 +153,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
+					require.Len(t, gitops.Software.Packages, 2)
+					for _, pkg := range gitops.Software.Packages {
+						if strings.Contains(pkg.URL, "MicrosoftTeams") {
+							assert.Equal(t, "uninstall.sh", pkg.UninstallScript.Path)
+						} else {
+							assert.Empty(t, pkg.UninstallScript.Path)
+						}
+					}
 				} else {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]

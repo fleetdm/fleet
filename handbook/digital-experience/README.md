@@ -88,7 +88,7 @@ Once you have the above follow these steps:
 
 ### Check production dependencies of fleetdm.com
 
-Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
+Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this [manual process](https://www.loom.com/share/153613cc1c5347478d3a9545e438cc97?sid=5102dafc-7e27-43cb-8c62-70c8789e5559) can be replaced with Dependabot.
 
 
 ### Respond to a 5xx error on fleetdm.com
@@ -104,7 +104,7 @@ Production systems can fail for various reasons, and it can be frustrating to us
 
 ### Check browser compatibility for fleetdm.com
 
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers).
+A [browser compatibility check](https://www.loom.com/share/4b1945ccffa14b7daca8ab9546b8fbb9?sid=eaa4d27a-236b-426d-a7cb-9c3bdb2c8cdc) of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers).
 
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
@@ -242,6 +242,15 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 - The order will be processed in ~30m.
 - Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
 - To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+
+### Change the "Integrations admin" Salesforce account password
+
+Salesforce requires that the password to the "Integrations admin" account is changed every 90 days. When this happens, the Salesforce integrations on the Fleet website/Hydroplane will fail with an `INVALID_LOGIN` error. To prevent this from happening, a member of the Digital expererience team will:
+
+1. Log into the "Integrations admin" account in Salesforce.
+2. Change the password and save it in the shared 1Password vault.
+3. Request a new security token for the "Integrations admin" account (This will be sent to the email address associated with the account).
+4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane).
 
 
 ### Schedule press release

@@ -825,12 +825,23 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 			}
 		}
 
+		var us []byte
+		if si.UninstallScript.Path != "" {
+			uninstallScriptFile := resolveApplyRelativePath(baseDir, si.UninstallScript.Path)
+			us, err = os.ReadFile(uninstallScriptFile)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read uninstall script file %s: %w", si.URL,
+					si.UninstallScript.Path, err)
+			}
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:               si.URL,
 			SelfService:       si.SelfService,
 			PreInstallQuery:   qc,
 			InstallScript:     string(ic),
 			PostInstallScript: string(pc),
+			UninstallScript:   string(us),
 		}
 
 	}

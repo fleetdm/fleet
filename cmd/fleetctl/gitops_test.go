@@ -142,6 +142,28 @@ org_settings:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "organization name must be present")
 
+	// Missing controls.
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(
+		`
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Foobar
+  secrets:
+`,
+	)
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.Error(t, err)
+	assert.Equal(t, `'controls' must be set on global config`, err.Error())
+
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
@@ -781,7 +803,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
+	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+		appliedSoftwareInstallers = installers
 		return nil, nil
 	}
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
@@ -804,8 +828,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	// Dry run
 	const baseFilename = "team_config_no_paths.yml"
-	file := "./testdata/gitops/" + baseFilename
-	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
+	gitopsFile := "./testdata/gitops/" + baseFilename
+	_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
 	assert.Nil(t, savedTeam)
 	assert.Len(t, enrolledSecrets, 0)
 	assert.Len(t, appliedPolicySpecs, 0)
@@ -813,13 +837,14 @@ func TestGitOpsFullTeam(t *testing.T) {
 	assert.Len(t, appliedScripts, 0)
 	assert.Len(t, appliedMacProfiles, 0)
 	assert.Len(t, appliedWinProfiles, 0)
+	assert.Empty(t, appliedSoftwareInstallers)
 
 	// Real run
 	// Setting global calendar config
 	appConfig.Integrations = fleet.Integrations{
 		GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 	}
-	_ = runAppForTest(t, []string{"gitops", "-f", file})
+	_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Contains(t, string(*savedTeam.Config.AgentOptions), "distributed_denylist_duration")
@@ -839,21 +864,26 @@ func TestGitOpsFullTeam(t *testing.T) {
 	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 	assert.Equal(t, baseFilename, *savedTeam.Filename)
+	require.Len(t, appliedSoftwareInstallers, 2)
+	packageID := `"ruby"`
+	uninstallScriptProcessed := strings.ReplaceAll(file.GetUninstallScript("deb"), "$PACKAGE_ID", packageID)
+	assert.ElementsMatch(t, []string{fmt.Sprintf("echo 'uninstall' %s\n", packageID), uninstallScriptProcessed},
+		[]string{appliedSoftwareInstallers[0].UninstallScript, appliedSoftwareInstallers[1].UninstallScript})
 
 	// Change team name
 	newTeamName := "New Team Name"
 	t.Setenv("TEST_TEAM_NAME", newTeamName)
-	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
-	_ = runAppForTest(t, []string{"gitops", "-f", file})
+	_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, newTeamName, savedTeam.Name)
 	assert.Equal(t, baseFilename, *savedTeam.Filename)
 
 	// Try to change team name again, but this time the new name conflicts with an existing team
 	t.Setenv("TEST_TEAM_NAME", "Conflict")
-	_, err = runAppNoChecks([]string{"gitops", "-f", file, "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
 	assert.ErrorContains(t, err, "team name already exists")
-	_, err = runAppNoChecks([]string{"gitops", "-f", file})
+	_, err = runAppNoChecks([]string{"gitops", "-f", gitopsFile})
 	assert.ErrorContains(t, err, "team name already exists")
 
 	// Now clear the settings
@@ -1590,6 +1620,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries_apply.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
@@ -1639,6 +1670,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/no_team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},

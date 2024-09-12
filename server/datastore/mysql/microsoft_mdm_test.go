@@ -1156,6 +1156,45 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
+
+	// create a device that enrolls with the same device id and uuid as d1
+	// but a different hardware id (simulates the issue in #20764).
+	d3 := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            d1.MDMDeviceID,
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               d1.HostUUID,
+	}
+
+	time.Sleep(time.Second) // ensure it gets a latest created_at
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d3)
+	require.NoError(t, err)
+	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d3.HostUUID, d3.MDMDeviceID)
+	require.NoError(t, err)
+
+	// commands can still be enqueued, will be enqueued for the latest enrolled device
+	// when a duplicate host uuid/device id exists (i.e. for d3 even if d2 is passed -
+	// they have the same ids).
+	cmd.CommandUUID = uuid.NewString()
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.MDMDeviceID, d2.MDMDeviceID}, cmd)
+	require.NoError(t, err)
+	// command enqueued and created
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 3)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 3) // d2 sees the new command as we retrieve by device_id and they share the same
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 3)
 }
 
 func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {

@@ -2,7 +2,7 @@
 
 This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/06da9dde-c6f8-4f4d-952f-26d6ad7d3aa0">
+<img width="384" alt="image" src="https://github.com/user-attachments/assets/6aec084e-3b0a-4a2c-b7c5-ed4536d73b40">
 
 
 
@@ -420,7 +420,7 @@ As a CEO shadow, you will be attending both internal and external meetings regar
 
 CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.com/calendar/embed?src=mike%40fleetdm.com&ctz=America%2FChicago) that **do not have** "[no shadows]" appended to the calendar event title. Before beginning your time as a [CEO shadow](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program):
 1. Make sure you've read through the [CEO flaws](https://fleetdm.com/handbook/company/leadership#ceo-flaws) to better understand how to communicate with him.
-2. Update your Zoom display name to be "[your name] | CEO shadow" (e.g. "Jayne Doo | CEO shadow").
+2. Update your Zoom display name to be "CEO shadow | [your name]" (e.g. "CEO shadow | Jayne Doo").
 3. Know which meetings you're expected to join. **You won't be listed as an attendee on any of the CEO's calendar events** to avoid confusion when scheduling meetings with external participants. You're intentionally marked out of office to avoid scheduling conflicts.
 
 > Please **DO NOT** add yourself as an attendee to any of the CEO's meetings. The CEO regularly meets with prospects and customers in the community, and without the context of the CEO shadow program, an unknown name on the calendar event could be mistaken for a sales tactic.
