@@ -55,8 +55,9 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
-  name: string;
-  source: string;
+  name?: string;
+  source?: string;
+  /** pass in a `path` that this cell will link to */
   path?: string;
   router?: InjectedRouter;
   hasPackage?: boolean;

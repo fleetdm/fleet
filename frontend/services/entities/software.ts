@@ -6,12 +6,14 @@ import {
   ISoftwareVersion,
   ISoftwareTitle,
   ISoftwareTitleDetails,
+  IFleetMaintainedApp,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { createMockFleetMaintainedApp } from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -100,6 +102,16 @@ export interface IGetSoftwareVersionQueryKey
 
 export interface ISoftwareInstallTokenResponse {
   token: string;
+}
+
+export interface ISoftwareFleetMaintainedAppsResponse {
+  fleet_maintained_apps: IFleetMaintainedApp[];
+  count: number;
+  counts_updated_at: string | null;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 const ORDER_KEY = "name";
@@ -285,5 +297,26 @@ export default {
     const { SOFTWARE_INSTALL_RESULTS } = endpoints;
     const path = SOFTWARE_INSTALL_RESULTS(installUuid);
     return sendRequest("GET", path);
+  },
+
+  getFleetMaintainedApps: (
+    teamId: number
+  ): Promise<ISoftwareFleetMaintainedAppsResponse> => {
+    const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
+    const path = `${SOFTWARE_FLEET_MAINTAINED_APPS}?team_id=${teamId}`;
+
+    return new Promise((resolve) => {
+      resolve({
+        fleet_maintained_apps: [createMockFleetMaintainedApp()],
+        count: 1,
+        counts_updated_at: "2021-09-01T00:00:00Z",
+        meta: {
+          has_next_results: false,
+          has_previous_results: false,
+        },
+      });
+    });
+
+    // return sendRequest("GET", path);
   },
 };

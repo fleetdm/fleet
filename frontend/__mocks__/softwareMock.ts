@@ -7,6 +7,7 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IAppStoreApp,
+  IFleetMaintainedApp,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -252,4 +253,20 @@ export const createMockSoftwareTitlesResponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
+  id: 1,
+  name: "test app",
+  version: "1.2.3",
+  platform: "darwin",
+};
+
+export const createMockFleetMaintainedApp = (
+  overrides?: Partial<IFleetMaintainedApp>
+): IFleetMaintainedApp => {
+  return {
+    ...DEFAULT_FLEET_MAINTAINED_APPS_MOCK,
+    ...overrides,
+  };
 };

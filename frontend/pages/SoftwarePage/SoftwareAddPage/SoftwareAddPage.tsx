@@ -98,7 +98,7 @@ const SoftwareAddPage = ({
         </TabsWrapper>
         {React.cloneElement(children, {
           router,
-          teamId: location.query.team_id,
+          currentTeamId: location.query.team_id,
         })}
       </>
     </MainContent>
