@@ -1,3 +1,4 @@
+// TODO: make 'queryParams', 'router', and 'tableQueryData' dependencies stable (aka, memoized)
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
@@ -87,7 +88,9 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
+    // investigate
     setConfig,
+    // investigate
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);
@@ -172,7 +175,7 @@ const ManagePolicyPage = ({
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
-  }, []);
+  }, [setLastEditedQueryPlatform]);
 
   useEffect(() => {
     if (!isRouteOk) {
@@ -181,13 +184,20 @@ const ManagePolicyPage = ({
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
-  }, [location, isRouteOk]);
+  }, [
+    location,
+    isRouteOk,
+    initialSearchQuery,
+    initialSortHeader,
+    initialSortDirection,
+  ]);
 
   useEffect(() => {
     if (!isRouteOk) {
       return;
     }
     const path = location.pathname + location.search;
+    // udpate app context with URL path
     if (location.search && filteredPoliciesPath !== path) {
       setFilteredPoliciesPath(path);
     }
@@ -336,7 +346,7 @@ const ManagePolicyPage = ({
       return configAPI.loadAll();
     },
     {
-      enabled: canAddOrDeletePolicy,
+      enabled: isRouteOk && canAddOrDeletePolicy,
       onSuccess: (data) => {
         setConfig(data);
       },
@@ -371,7 +381,7 @@ const ManagePolicyPage = ({
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-  }, [page]);
+  }, []);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
@@ -438,7 +448,16 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [isRouteOk, teamIdForApi, searchQuery, sortDirection, page, sortHeader] // Other dependencies can cause infinite re-renders as URL is source of truth
+    [
+      isRouteOk,
+      tableQueryData,
+      sortDirection,
+      sortHeader,
+      searchQuery,
+      teamIdForApi,
+      queryParams,
+      router,
+    ] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
   const toggleOtherWorkflowsModal = () =>
