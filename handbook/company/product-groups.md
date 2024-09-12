@@ -709,13 +709,6 @@ Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
-### Weekly bug review
-
-QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
-
-QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
-
-
 ### Group weeklies
 
 A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
@@ -742,7 +735,16 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
   - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
+ 
+### New customer promise(s)
 
+This meeting happens before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
+
+**Participants:** CEO, CTO, CRO, VP of Customer Success, and Head of Product Design.
+
+**Agenda:**
+- Discuss new promises
+- Decide if we know enough to say yes/no or go back to the customer for more digging
 
 ## Development best practices
 
