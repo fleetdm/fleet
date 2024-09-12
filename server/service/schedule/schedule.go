@@ -47,6 +47,8 @@ type Schedule struct {
 	jobs []Job
 
 	statsStore CronStatsStore
+
+	runOnce bool
 }
 
 // JobFn is the signature of a Job.
@@ -120,6 +122,13 @@ func WithJob(id string, fn JobFn) Option {
 	}
 }
 
+// WithRunOnce sets the Schedule to run only once.
+func WithRunOnce(once bool) Option {
+	return func(s *Schedule) {
+		s.runOnce = once
+	}
+}
+
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
@@ -172,6 +181,9 @@ func (s *Schedule) Start() {
 	startedAt := prevScheduledRun.CreatedAt
 	if startedAt.IsZero() {
 		startedAt = time.Now()
+	} else if s.runOnce && prevScheduledRun.Status == fleet.CronStatsStatusCompleted {
+		// If job is set to run once, and it already ran, then nothing to do
+		return
 	}
 	s.setIntervalStartedAt(startedAt)
 

@@ -829,6 +829,16 @@ the way that the Fleet server works.
 				}
 			}()
 
+			if softwareInstallStore != nil {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cronUninstallSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
+					},
+				); err != nil {
+					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
+				}
+			}
+
 			if config.Server.FrequentCleanupsEnabled {
 				if err := cronSchedules.StartCronSchedule(
 					func() (fleet.CronSchedule, error) {
