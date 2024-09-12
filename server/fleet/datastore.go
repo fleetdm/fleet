@@ -1694,6 +1694,7 @@ type Datastore interface {
 	// Fleet-maintained apps
 	//
 
+	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
 	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated

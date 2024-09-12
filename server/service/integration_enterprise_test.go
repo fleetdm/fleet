@@ -13549,6 +13549,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		return id
 	}
 
+	getScriptContentsByID := func(scriptContentID uint) string {
+		var contents string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &contents, "SELECT contents FROM script_contents WHERE id = ?", scriptContentID)
+		})
+		return contents
+	}
+
 	// Non-existent maintained app
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
@@ -13574,7 +13582,15 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 1, TeamID: &team.ID}, http.StatusOK, &addMAResp)
+	req := &addFleetMaintainedAppRequest{
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
 	// Validate software installer fields
@@ -13586,6 +13602,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
+	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
+	install := getScriptContentsByID(i.InstallScriptContentID)
+	require.Equal(t, req.InstallScript, install)
+	require.NotNil(t, i.PostInstallScriptContentID)
+	postinstall := getScriptContentsByID(*i.PostInstallScriptContentID)
+	require.Equal(t, req.PostInstallScript, postinstall)
 
 	// The maintained app should now be in software titles
 	var resp listSoftwareTitlesResponse
@@ -13605,14 +13627,25 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
+	require.Equal(t, mapp.Name, title.SoftwarePackage.Name)
+	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
 
 	// Should return an error; SHAs don't match up
 	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
 
 	// Add a maintained app to no team
+
+	req = &addFleetMaintainedAppRequest{
+		AppID:             3,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+	}
+
 	addMAResp = addFleetMaintainedAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusOK, &addMAResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
 	resp = listSoftwareTitlesResponse{}
@@ -13635,4 +13668,17 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, mapp.Name, title.SoftwarePackage.Name)
+
+	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(3))
+	require.NoError(t, err)
+	require.Equal(t, ptr.Uint(3), i.FleetLibraryAppID)
+	require.Equal(t, mapp.SHA256, i.StorageID)
+	require.Equal(t, "darwin", i.Platform)
+	require.NotEmpty(t, i.InstallScriptContentID)
+	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
+	install = getScriptContentsByID(i.InstallScriptContentID)
+	require.Equal(t, req.InstallScript, install)
+	require.NotNil(t, i.PostInstallScriptContentID)
+	postinstall = getScriptContentsByID(*i.PostInstallScriptContentID)
+	require.Equal(t, req.PostInstallScript, postinstall)
 }
