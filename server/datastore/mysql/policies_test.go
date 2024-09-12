@@ -4061,6 +4061,24 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   ptr.String(uuid.New().String()),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(uuid.New().String()),
+			UUID:            uuid.New().String(),
+			Hostname:        name,
+			TeamID:          teamID,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1Team1", &team1.ID, "darwin")
 
 	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
@@ -4113,6 +4131,24 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer3.TitleID)
+	// Another installer on team1 to test changing installers.
+	installer5ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello5",
+		PreInstallQuery:   "SELECT 5;",
+		PostInstallScript: "world5",
+		InstallerFile:     bytes.NewReader([]byte("hello5")),
+		StorageID:         "storage5",
+		Filename:          "file5",
+		Title:             "file5",
+		Version:           "1.0",
+		Source:            "programs",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+	})
+	require.NoError(t, err)
+	installer5, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer5ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer5.TitleID)
 
 	// Installers cannot be assigned to global policies.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4164,6 +4200,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 1)
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
+	policy1Team1 := team1Policies[0]
 	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
 	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -4175,6 +4212,14 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, noTeamPolicies, 1)
 	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
 	require.Equal(t, installer3.InstallerID, *noTeamPolicies[0].SoftwareInstallerID)
+
+	// Record policy execution on policy1Team1.
+	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
+		policy1Team1.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
 
 	// Unset software installer from "Team policy 1".
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4193,6 +4238,8 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 1)
 	require.Nil(t, team1Policies[0].SoftwareInstallerID)
+	// Should not clear results because we've cleared not changed/set-new installer.
+	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
 
 	// Set "Team policy 1" to a software installer on team2.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4317,11 +4364,82 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, team1Policies, 1)
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
+	// Should clear results because we've are setting an installer.
+	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
+	countBiggerThanZero := true
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[0].ID,
+		)
+	})
+	require.False(t, countBiggerThanZero)
 	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer4.InstallerID, *team2Policies[0].SoftwareInstallerID)
+
+	// Record policy execution on policy1Team1 to test that setting the same installer won't clear results.
+	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
+		policy1Team1.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer1.TitleID,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
+	countBiggerThanZero = false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[0].ID,
+		)
+	})
+	require.True(t, countBiggerThanZero)
+
+	// Now change the installer, should clear results.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer5.TitleID,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
+	countBiggerThanZero = true
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[0].ID,
+		)
+	})
+	require.False(t, countBiggerThanZero)
 }
 
 func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
