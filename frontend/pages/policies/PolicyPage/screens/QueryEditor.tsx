@@ -146,7 +146,7 @@ const QueryEditor = ({
   };
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
-    if (policyTeamId) {
+    if (policyTeamId !== undefined) {
       formData.team_id = policyTeamId;
     }
     setIsUpdatingPolicy(true);
@@ -206,7 +206,7 @@ const QueryEditor = ({
       // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
       const team_id = storedPolicy?.team_id;
 
-      return team_id
+      return team_id !== undefined
         ? teamPoliciesAPI.update(policyIdForEdit, {
             ...updatedPolicy,
             team_id,

@@ -84,7 +84,7 @@ const PolicyPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
@@ -197,7 +197,7 @@ const PolicyPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
-    storedPolicy?.team_id &&
+    storedPolicy?.team_id !== undefined &&
     !(storedPolicy?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
@@ -207,7 +207,7 @@ const PolicyPage = ({
 
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
-      return formData.team_id
+      return formData.team_id !== undefined
         ? teamPoliciesAPI.create(formData)
         : globalPoliciesAPI.create(formData);
     }

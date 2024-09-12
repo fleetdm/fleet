@@ -104,15 +104,6 @@ const SiteTopNav = ({
   const isActiveGlobalPage = isGlobalPage(currentPath);
 
   const currentQueryParams = { ...query };
-  // if (isActiveGlobalPage || isActiveDetailPage) {
-  //   // detail pages (e.g., host details) and some manage pages (e.g., queries) don't have team_id
-  //   // query params that we can simply append to the top nav links so instead we need grab the team
-  //   // id from context
-  //   currentQueryParams.team_id =
-  //     currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-  //       ? undefined
-  //       : currentTeam?.id;
-  // }
   if (
     isActiveGlobalPage ||
     (isActiveDetailPage && !currentPath.match(REGEX_DETAIL_PAGES.POLICY_EDIT))

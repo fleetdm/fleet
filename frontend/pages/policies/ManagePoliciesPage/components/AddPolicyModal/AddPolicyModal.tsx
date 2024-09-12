@@ -84,7 +84,9 @@ const AddPolicyModal = ({
     setPolicyTeamId(teamId);
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(
-      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+      teamId === undefined
+        ? PATHS.NEW_POLICY
+        : `${PATHS.NEW_POLICY}?team_id=${teamId}`
     );
   };
 
@@ -93,7 +95,9 @@ const AddPolicyModal = ({
     setLastEditedQueryBody(DEFAULT_POLICY.query);
     setLastEditedQueryId(null);
     router.push(
-      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+      teamId === undefined
+        ? PATHS.NEW_POLICY
+        : `${PATHS.NEW_POLICY}?team_id=${teamId}`
     );
   }, [
     router,
