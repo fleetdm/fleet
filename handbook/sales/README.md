@@ -135,7 +135,8 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
 
-### Conduct a technical evaluation (tech eval)
+
+### Conduct a technical evaluation
 
 Think of taking a prospect that is doing a tech evaluation as if you were a guide taking a customer
 on an expedition. Expeditions take a long time, are relatively costly, and usually and without a
