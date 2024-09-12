@@ -672,6 +672,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 					"software_installer_id": installer.InstallerID,
 					"team_id":               host.TeamID,
 					"title_id":              softwareTitleID,
+					"status":                *lastInstallRequest.Status,
 				},
 			),
 		}
@@ -699,8 +700,9 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	contents, err := svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return fleet.NewInvalidArgumentError("software_title_id", `No uninstall script exists for the provided "software_title_id".`).
-				WithStatus(http.StatusNotFound)
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError("software_title_id", `No uninstall script exists for the provided "software_title_id".`).
+					WithStatus(http.StatusNotFound), "getting uninstall script contents")
 		}
 		return err
 	}

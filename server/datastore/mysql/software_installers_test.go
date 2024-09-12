@@ -281,13 +281,6 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID)
 			require.NoError(t, err)
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err = q.ExecContext(ctx, `
-					UPDATE host_software_installs SET uninstall = 1 WHERE host_id = ? AND software_installer_id = ?`,
-					hostPendingUninstall.ID, si.InstallerID)
-				require.NoError(t, err)
-				return nil
-			})
 
 			// Host with failed uninstall
 			tag = "-failed_uninstall"
@@ -304,7 +297,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err = q.ExecContext(ctx, `
-					UPDATE host_software_installs SET uninstall = 1, uninstall_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
+					UPDATE host_software_installs SET uninstall_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
 					hostFailedUninstall.ID, si.InstallerID)
 				require.NoError(t, err)
 				return nil
@@ -325,7 +318,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err = q.ExecContext(ctx, `
-					UPDATE host_software_installs SET uninstall = 1, uninstall_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
+					UPDATE host_software_installs SET uninstall_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
 					hostUninstalled.ID, si.InstallerID)
 				require.NoError(t, err)
 				return nil

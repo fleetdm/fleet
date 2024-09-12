@@ -16,9 +16,5 @@ $processOptions = @{
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 
-# Start process and track exit code
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
-
 # Prints the exit code
 Write-Host "Install exit code: $exitCode"

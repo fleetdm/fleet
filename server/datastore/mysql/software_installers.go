@@ -266,7 +266,6 @@ SELECT
   si.post_install_script_content_id,
   si.uninstall_script_content_id,
   si.uploaded_at,
-  si.uninstall_script_content_id,
   si.self_service,
   COALESCE(st.name, '') AS software_title
   %s
@@ -802,7 +801,7 @@ WHERE global_or_team_id = ?
 
 			uisRes, err := insertScriptContents(ctx, tx, installer.UninstallScript)
 			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
+				return ctxerr.Wrapf(ctx, err, "inserting uninstall script contents for software installer with name %q", installer.Filename)
 			}
 			uninstallScriptID, _ := uisRes.LastInsertId()
 

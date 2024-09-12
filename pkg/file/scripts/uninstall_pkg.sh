@@ -15,5 +15,7 @@ do
     pkgutil --files "$pkg_id" | sed -e 's@^@'"$volume""$location"'/@' | tr '\n' '\0' | xargs -n 1 -0 rm -rf
     # Remove receipts
     pkgutil --forget "$pkg_id"
+  else
+    echo "WARNING: volume or location are empty for package ID $pkg_id"
   fi
 done
