@@ -71,6 +71,13 @@
   description: "Research SalesForce accounts and begin ABM ads"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#warm-up-actions"
   dri: "Drew-P-drawers"
+- 
+  task: "Review objections"
+  startedOn: "2024-09-16"
+  frequency: "Weekly"
+  description: "Review common objections"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#warm-up-actions"
+  dri: "Drew-P-drawers"
 # -
 #   task: "Propose a fleet event"
 #   startedOn: "2023-10-02"
