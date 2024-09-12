@@ -241,7 +241,12 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		postInstallScriptID = &sid
 	}
 
-	stmt := `UPDATE software_installers SET
+	touchUploaded := ""
+	if payload.InstallerFile != nil {
+		touchUploaded = ", uploaded_at = NOW()"
+	}
+
+	stmt := fmt.Sprintf(`UPDATE software_installers SET
 	storage_id = ?,
 	filename = ?,
 	version = ?,
@@ -253,8 +258,8 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
     self_service = ?,
 	user_id = ?,
 	user_name = (SELECT name FROM users WHERE id = ?),
-	user_email = (SELECT email FROM users WHERE id = ?)
-	WHERE id = ?`
+	user_email = (SELECT email FROM users WHERE id = ?) %s
+	WHERE id = ?`, touchUploaded)
 
 	args := []interface{}{
 		payload.StorageID,

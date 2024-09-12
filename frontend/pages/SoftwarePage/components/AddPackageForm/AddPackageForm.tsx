@@ -98,7 +98,11 @@ const AddPackageForm = ({
       const file = files[0];
 
       // Only populate default install/uninstall scripts when adding (but not editing) software
-      if (!isEditingSoftware) {
+      if (isEditingSoftware) {
+        const newData = { ...formData, software: file };
+        setFormData(newData);
+        setFormValidation(generateFormValidation(newData));
+      } else {
         let newDefaultInstallScript: string;
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
@@ -118,8 +122,8 @@ const AddPackageForm = ({
         const newData = {
           ...formData,
           software: file,
-          installScript: defaultInstallScript || "", // TODO: figure this out
-          uninstallScript: defaultUninstallScript || "", // TODO: figure this out
+          installScript: newDefaultInstallScript || "",
+          uninstallScript: newDefaultUninstallScript || "",
         };
         setFormData(newData);
         setFormValidation(generateFormValidation(newData));

@@ -218,10 +218,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			dirty = append(dirty, "Package")
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
+			payload.InstallerFile = nil
 		}
 	}
 
-	if payloadForNewInstallerFile == nil { // fill in existing existingInstaller data to payload
+	if payload.InstallerFile == nil { // fill in existing existingInstaller data to payload
 		payload.StorageID = existingInstaller.StorageID
 		payload.Filename = existingInstaller.Name
 		payload.Version = existingInstaller.Version
