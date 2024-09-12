@@ -58,12 +58,12 @@ module.exports = {
     replyTo: {
       description: 'The reply to email address.',
       example: {
-        email: 'anne.m.martin@example.com',
+        emailAddress: 'anne.m.martin@example.com',
         name: 'Anne M. Martin'
       },
       type: {
+        emailAddress: 'string',
         name: 'string',
-        email: 'string',
       }
     },
 

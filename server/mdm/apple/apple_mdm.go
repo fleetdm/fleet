@@ -403,7 +403,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			}
 
 			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName, "team", team.Name)
+				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName)
 				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
 					result = multierror.Append(result, err)
 					continue
@@ -624,7 +624,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
-		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
 
 		skipSerials, assignSerials, err := d.ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
@@ -643,12 +642,14 @@ func (d *DEPService) processDeviceResponse(
 		for orgName, serials := range assignSerials {
 			apiResp, err := d.depClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
+				// only log the error so the failure can be recorded
+				// below in UpdateHostDEPAssignProfileResponses and
+				// the proper cooldowns are applied
 				level.Error(logger).Log(
 					"msg", "assign profile",
 					"devices", len(assignSerials),
 					"err", err,
 				)
-				return fmt.Errorf("assign profile: %w", err)
 			}
 
 			logs := []interface{}{
@@ -798,6 +799,62 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 var funcMap = map[string]any{
 	"xml": mobileconfig.XMLEscapeString,
 }
+
+var OTASCEPTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadIdentifier</key>
+    <string>Ignored</string>
+    <key>PayloadUUID</key>
+    <string>Ignored</string>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>PayloadContent</key>
+        <dict>
+          <key>Key Type</key>
+          <string>RSA</string>
+          <key>Challenge</key>
+          <string>{{ .SCEPChallenge | xml }}</string>
+          <key>Key Usage</key>
+          <integer>5</integer>
+          <key>Keysize</key>
+          <integer>2048</integer>
+          <key>URL</key>
+          <string>{{ .SCEPURL }}</string>
+          <key>Subject</key>
+          <array>
+            <array>
+              <array>
+                <string>O</string>
+                <string>Fleet</string>
+              </array>
+            </array>
+            <array>
+              <array>
+                <string>CN</string>
+                <string>Fleet Identity</string>
+              </array>
+            </array>
+          </array>
+        </dict>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.scep</string>
+        <key>PayloadType</key>
+        <string>com.apple.security.scep</string>
+        <key>PayloadUUID</key>
+        <string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
+    </array>
+  </dict>
+</plist>`))
 
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
@@ -1040,4 +1097,37 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return ctxerr.Wrap(ctx, err, "add host mdm commands")
 	}
 	return nil
+}
+
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
+	if err != nil {
+		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
+	}
+
+	enrollURL, err := url.Parse(path)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ota enrollment url: %w", err)
+	}
+
+	q := enrollURL.Query()
+	q.Set("enroll_secret", enrollSecret)
+	enrollURL.RawQuery = q.Encode()
+
+	var profileBuf bytes.Buffer
+	tmplArgs := struct {
+		Organization string
+		URL          string
+		EnrollSecret string
+	}{
+		Organization: orgName,
+		URL:          enrollURL.String(),
+	}
+
+	err = mobileconfig.OTAMobileConfigTemplate.Execute(&profileBuf, tmplArgs)
+	if err != nil {
+		return nil, fmt.Errorf("executing ota profile template: %w", err)
+	}
+
+	return profileBuf.Bytes(), nil
 }

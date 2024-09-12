@@ -255,7 +255,7 @@ When review is requested on a proposal to open a new position, the Apprentice to
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Business Operations.
+   - _Create Slack channel:_ Create a private "#YYYY-hiring-xxxxxx" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Business Operations.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
@@ -441,14 +441,6 @@ Although it's sad to see someone go, Fleet understands that not everything is me
    > After finding out about the departure, the Head of Business Operations will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
-
-## Changing someone's position
-
-From time to time, someone's job title changes.  To do this, Business Operations follows these steps:
-
-1. Change "Fleeties" to reflect the new job title, manager, and/or department.
-2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
-3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1e59ac8f-26d8-4f2f-9ff4-2e303753c910">
 

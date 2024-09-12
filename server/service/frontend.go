@@ -1,9 +1,11 @@
 package service
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -66,6 +68,69 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 			return
 		}
 	})
+}
+
+func ServeEndUserEnrollOTA(urlPrefix string, logger log.Logger) http.Handler {
+	herr := func(w http.ResponseWriter, err string) {
+		logger.Log("err", err)
+		http.Error(w, err, http.StatusInternalServerError)
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeBrowserSecurityHeaders(w)
+
+		fs := newBinaryFileSystem("/frontend")
+		file, err := fs.Open("templates/enroll-ota.html")
+		if err != nil {
+			herr(w, "load enroll ota template: "+err.Error())
+			return
+		}
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			herr(w, "read bindata file: "+err.Error())
+			return
+		}
+
+		t, err := template.New("enroll-ota").Parse(string(data))
+		if err != nil {
+			herr(w, "create react template: "+err.Error())
+			return
+		}
+
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		if err != nil {
+			herr(w, "generate enroll ota url: "+err.Error())
+			return
+		}
+		if err := t.Execute(w, struct {
+			EnrollURL string
+			URLPrefix string
+		}{
+			URLPrefix: urlPrefix,
+			EnrollURL: enrollURL,
+		}); err != nil {
+			herr(w, "execute react template: "+err.Error())
+			return
+		}
+	})
+}
+
+func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) {
+	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/enrollment_profiles/ota")
+	if err != nil {
+		return "", fmt.Errorf("creating path for end user ota enrollment url: %w", err)
+	}
+
+	enrollURL, err := url.Parse(path)
+	if err != nil {
+		return "", fmt.Errorf("parsing end user ota enrollment url: %w", err)
+	}
+
+	q := enrollURL.Query()
+	q.Set("enroll_secret", enrollSecret)
+	enrollURL.RawQuery = q.Encode()
+	return enrollURL.String(), nil
 }
 
 func ServeStaticAssets(path string) http.Handler {

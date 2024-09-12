@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240829170024, Down_20240829170024)
+	MigrationClient.AddMigration(Up_20240829170044, Down_20240829170044)
 }
 
-func Up_20240829170024(tx *sql.Tx) error {
+func Up_20240829170044(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE policies
 		ADD COLUMN software_installer_id INT UNSIGNED DEFAULT NULL,
@@ -32,6 +32,6 @@ func Up_20240829170024(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240829170024(tx *sql.Tx) error {
+func Down_20240829170044(tx *sql.Tx) error {
 	return nil
 }

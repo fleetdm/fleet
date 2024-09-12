@@ -1112,6 +1112,10 @@ type Datastore interface {
 	// not already enrolled in Fleet. It returns the number of hosts created, and an error.
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
 
+	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
+	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo MDMAppleMachineInfo) error
+
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host) error
@@ -1288,7 +1292,7 @@ type Datastore interface {
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
 	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip
 	// any serials that have a non-zero `retry_job_id`.
-	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error)
+	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 	// GetDEPAssignProfileExpiredCooldowns returns the serials of the hosts that have expired
 	// cooldowns, grouped by team.
 	GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error)
@@ -1358,6 +1362,9 @@ type Datastore interface {
 	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
+	// UpdateVPPTokenTeams sets the teams associated with this token.
+	// Note that updating the token's associations removes all
+	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
@@ -1668,7 +1675,7 @@ type Datastore interface {
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
-	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]SoftwareInstaller, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
