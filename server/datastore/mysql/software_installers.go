@@ -216,7 +216,7 @@ func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, h
       install_script_exit_code IS NULL
 `
 	var access bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &access, query, hostID, installerID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &access, query, installerID, hostID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
