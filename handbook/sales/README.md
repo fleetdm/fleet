@@ -25,6 +25,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Track an objection
+
+We often hear objections to using Fleet that are important to track, understand, and solve for. To track an objection:
+1. Navigate to the ["Understanding objections document" (Confidential Google Doc)](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit).
+2. Copy the template at the top of the page and paste it at the top of the "Objections" section completing all TODOs.
+
+
 ### Onboard a new sales team member
 
 Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
