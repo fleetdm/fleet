@@ -817,6 +817,17 @@ WHERE
   title_id NOT IN (?)
 `
 
+	const checkExistingInstaller = `
+SELECT id,
+storage_id != ? is_package_modified,
+install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
+COALESCE(post_install_script_content_id != ? OR 
+	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
+	(? IS NULL AND post_install_script_content_id IS NOT NULL)
+, FALSE) is_metadata_modified FROM software_installers
+WHERE global_or_team_id = ?	AND title_id = (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
+`
+
 	const insertNewOrEditedInstaller = `
 INSERT INTO software_installers (
 	team_id,
