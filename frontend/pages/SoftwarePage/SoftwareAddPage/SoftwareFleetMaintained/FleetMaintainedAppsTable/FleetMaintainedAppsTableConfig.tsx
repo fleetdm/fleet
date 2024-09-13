@@ -9,6 +9,8 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import { buildQueryStringFromParams } from "utilities/url";
+import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import TooltipWrapper from "components/TooltipWrapper";
 
 type IFleetMaintainedAppsTableConfig = Column<IFleetMaintainedApp>;
 type ITableStringCellProps = IStringCellProps<IFleetMaintainedApp>;
@@ -45,11 +47,31 @@ export const generateTableConfig = (
       disableSortBy: true,
     },
     {
-      Header: "Platform",
-      accessor: "platform",
-      Cell: ({ cell }: ITableStringCellProps) => {
-        return <span>{cell.value}</span>;
+      Header: () => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                Currently, only macOS apps are <br />
+                supported.
+              </>
+            }
+          >
+            Platform
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} disableSortBy />;
       },
+      accessor: "platform",
+      Cell: ({ cell }: ITableStringCellProps) => (
+        <TextCell
+          value={
+            APPLE_PLATFORM_DISPLAY_NAMES[
+              cell.value as keyof typeof APPLE_PLATFORM_DISPLAY_NAMES
+            ]
+          }
+        />
+      ),
       disableSortBy: true,
     },
   ];
