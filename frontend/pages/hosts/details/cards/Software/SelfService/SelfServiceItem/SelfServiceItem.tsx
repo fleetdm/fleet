@@ -21,24 +21,25 @@ import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell"
 
 const baseClass = "self-service-item";
 
-const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
+const STATUS_CONFIG: Record<
+  Exclude<
+    SoftwareInstallStatus,
+    "pending_uninstall" | "failed_uninstall" | "uninstalled"
+  >,
+  IStatusDisplayConfig
+> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
-      </>
-    ),
+    tooltip: ({ lastInstalledAt }) =>
+      `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
-  pending: {
+  pending_install: {
     iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
+    displayText: "Pending",
+    tooltip: () => "Fleet is installing software.",
   },
-  failed: {
+  failed_install: {
     iconName: "error",
     displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
@@ -139,12 +140,11 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
   switch (status) {
     case null:
       return "Install";
-    case "failed":
+    case "failed_install":
       return "Retry";
     case "installed":
       return "Reinstall";
     default:
-      // we don't show a button for pending installs
       return "";
   }
 };
@@ -165,14 +165,11 @@ const InstallerStatusAction = ({
     SoftwareInstallStatus | undefined
   >(undefined);
 
-  // displayStatus allows us to display the localStatus (if any) or the status from the list
-  // software reponse
-  const displayStatus = localStatus || status;
-  const installButtonText = getInstallButtonText(displayStatus);
+  const installButtonText = getInstallButtonText(status);
 
   // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
-  const lastInstall = localStatus === "failed" ? null : last_install;
+  const lastInstall = localStatus === "failed_install" ? null : last_install;
 
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -183,7 +180,7 @@ const InstallerStatusAction = ({
   }, []);
 
   const onClick = useCallback(async () => {
-    setLocalStatus("pending");
+    setLocalStatus("pending_install");
     try {
       await deviceApi.installSelfServiceSoftware(deviceToken, id);
       if (isMountedRef.current) {
@@ -192,7 +189,7 @@ const InstallerStatusAction = ({
     } catch (error) {
       renderFlash("error", "Couldn't install. Please try again.");
       if (isMountedRef.current) {
-        setLocalStatus("failed");
+        setLocalStatus("failed_install");
       }
     }
   }, [deviceToken, id, onInstall, renderFlash]);
@@ -200,21 +197,16 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-status`}>
-        <InstallerStatus
-          id={id}
-          status={displayStatus}
-          last_install={lastInstall}
-        />
+        <InstallerStatus id={id} status={status} last_install={lastInstall} />
       </div>
       <div className={`${baseClass}__item-action`}>
         {!!installButtonText && (
           <Button
             variant="text-icon"
             type="button"
-            className={`${baseClass}__item-action-button${
-              localStatus === "pending" ? "--installing" : ""
-            }`}
+            className={`${baseClass}__item-action-button`}
             onClick={onClick}
+            disabled={localStatus === "pending_install"}
           >
             <span data-testid={`${baseClass}__item-action-button--test`}>
               {installButtonText}

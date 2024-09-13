@@ -212,7 +212,7 @@ func TestDEPClient(t *testing.T) {
 			// simulate using a new token, not yet saved in the DB, so we pass the
 			// token directly in the context
 			ctx = ctxabm.NewContext(ctx, &nanodep_client.OAuth1Tokens{AccessToken: c.token})
-			orgName = "new_abm_token"
+			orgName = apple_mdm.UnsavedABMTokenOrgName
 		}
 		res, err := dep.AccountDetail(ctx, orgName)
 

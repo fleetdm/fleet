@@ -204,8 +204,10 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   icon_url: null,
   status: {
     installed: 1,
-    pending: 2,
-    failed: 3,
+    pending_install: 2,
+    failed_install: 1,
+    pending_uninstall: 1,
+    failed_uninstall: 1,
   },
 };
 

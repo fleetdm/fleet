@@ -18,7 +18,7 @@ const baseClass = "software-filters-modal";
 
 interface ISoftwareFiltersModalProps {
   onExit: () => void;
-  onSubmit: (vulnFilters: ISoftwareVulnFilters) => void;
+  onSubmit: (vulnFilters: ISoftwareVulnFiltersParams) => void;
   vulnFilters: ISoftwareVulnFiltersParams;
   isPremiumTier: boolean;
 }
@@ -53,8 +53,8 @@ const SoftwareFiltersModal = ({
     onSubmit({
       vulnerable: vulnSoftwareFilterEnabled,
       exploit: hasKnownExploit || undefined,
-      min_cvss_score: severity?.minSeverity || undefined,
-      max_cvss_score: severity?.maxSeverity || undefined,
+      minCvssScore: severity?.minSeverity || undefined,
+      maxCvssScore: severity?.maxSeverity || undefined,
     });
   };
 

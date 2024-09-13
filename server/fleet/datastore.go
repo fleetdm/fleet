@@ -532,6 +532,11 @@ type Datastore interface {
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error)
+	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
+	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
+	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
+	// GetSoftwareTitleNameFromExecutionID returns the software title name associated with the provided software install execution ID.
+	GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -1112,6 +1117,10 @@ type Datastore interface {
 	// not already enrolled in Fleet. It returns the number of hosts created, and an error.
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
 
+	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
+	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo MDMAppleMachineInfo) error
+
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host) error
@@ -1288,7 +1297,7 @@ type Datastore interface {
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
 	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip
 	// any serials that have a non-zero `retry_job_id`.
-	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error)
+	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 	// GetDEPAssignProfileExpiredCooldowns returns the serials of the hosts that have expired
 	// cooldowns, grouped by team.
 	GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error)
@@ -1358,6 +1367,9 @@ type Datastore interface {
 	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
+	// UpdateVPPTokenTeams sets the teams associated with this token.
+	// Note that updating the token's associations removes all
+	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
@@ -1535,8 +1547,8 @@ type Datastore interface {
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// and returns the updated host script result record. Note that it does not
 	// fail if the script execution request does not exist, in this case it will
-	// return nil, nil.
-	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (*HostScriptResult, error)
+	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (hsr *HostScriptResult, action string, err error)
 	// GetHostScriptExecutionResult returns the result of a host script
 	// execution. It returns the host script results even if no results have been
 	// received, it is the caller's responsibility to check if that was the case
@@ -1555,6 +1567,10 @@ type Datastore interface {
 	// GetScriptContents returns the raw script contents of the corresponding
 	// script.
 	GetScriptContents(ctx context.Context, id uint) ([]byte, error)
+
+	// GetAnyScriptContents returns the raw script contents of the corresponding
+	// script, regardless whether it is present in the scripts table.
+	GetAnyScriptContents(ctx context.Context, id uint) ([]byte, error)
 
 	// DeleteScript deletes the script identified by its id.
 	DeleteScript(ctx context.Context, id uint) error
@@ -1635,11 +1651,22 @@ type Datastore interface {
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
 
+	// ValidateSoftwareInstallerAccess checks if a host has access to
+	// an installer. Access is granted if there is currently an unfinished
+	// install request present in host_software_installs
+	ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error)
+
 	// GetSoftwareInstallerMetadataByTeamAndTitleID returns the software
 	// installer corresponding to the specified team and title ids. If
 	// withScriptContents is true, also returns the contents of the install and
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// GetSoftwareInstallersWithoutPackageIDs returns a map of software installers to storage ids that do not have a package ID.
+	GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error)
+
+	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
+	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
 
 	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPApp, error)
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
@@ -1668,7 +1695,7 @@ type Datastore interface {
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
-	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]SoftwareInstaller, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)

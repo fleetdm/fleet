@@ -4,8 +4,6 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-import FileSaver from "file-saver";
-import { parse } from "content-disposition";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -45,10 +43,15 @@ function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
 
   useLayoutEffect(() => {
     const element = ref.current;
-    if (element) {
-      const { scrollWidth, clientWidth } = element;
-      setIsTruncated(scrollWidth > clientWidth);
+    function updateIsTruncated() {
+      if (element) {
+        const { scrollWidth, clientWidth } = element;
+        setIsTruncated(scrollWidth > clientWidth);
+      }
     }
+    window.addEventListener("resize", updateIsTruncated);
+    updateIsTruncated();
+    return () => window.removeEventListener("resize", updateIsTruncated);
   }, [ref]);
 
   return isTruncated;
@@ -83,8 +86,11 @@ interface IStatusDisplayOption {
   tooltip: React.ReactNode;
 }
 
+// "pending" and "failed" each encompass both "_install" and "_uninstall" sub-statuses
+type SoftwareInstallDisplayStatus = "installed" | "pending" | "failed";
+
 const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallDisplayStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -92,26 +98,41 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     tooltip: (
       <>
-        Fleet installed software on these hosts. Currently, if the software is
-        uninstalled, the &quot;Installed&quot; status won&apos;t be updated.
+        Software is installed on these hosts (install script finished
+        <br />
+        with exit code 0). Currently, if the software is uninstalled, the
+        <br />
+        &quot;installed&quot; status won&apos;t be updated.
       </>
     ),
   },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet will install software when these hosts come online.",
+    tooltip: (
+      <>
+        Fleet is installing/uninstalling or will
+        <br />
+        do so when the host comes online.
+      </>
+    ),
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
-    tooltip: "Fleet failed to install software on these hosts.",
+    tooltip: (
+      <>
+        These hosts failed to install/uninstall software.
+        <br />
+        Click on a host to view error(s).
+      </>
+    ),
   },
 };
 
 interface IPackageStatusCountProps {
   softwareId: number;
-  status: SoftwareInstallStatus;
+  status: SoftwareInstallDisplayStatus;
   count: number;
   teamId?: number;
 }
@@ -130,16 +151,18 @@ const PackageStatusCount = ({
   })}`;
   return (
     <DataSet
+      className={`${baseClass}__status`}
       title={
         <TooltipWrapper
           position="top"
           tipContent={displayData.tooltip}
           underline={false}
           showArrow
+          tipOffset={10}
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
-            <span>{displayData.displayName}</span>
+            <div>{displayData.displayName}</div>
           </div>
         </TooltipWrapper>
       }
@@ -305,7 +328,7 @@ const SoftwarePackageCard = ({
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__main-content`}>
+      <div className={`${baseClass}__row-1`}>
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
@@ -315,46 +338,46 @@ const SoftwarePackageCard = ({
             <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
-        <div className={`${baseClass}__package-statuses`}>
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="installed"
-            count={status.installed}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="pending"
-            count={status.pending}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="failed"
-            count={status.failed}
-            teamId={teamId}
-          />
+        <div className={`${baseClass}__actions-wrapper`}>
+          {isSelfService && (
+            <div className={`${baseClass}__self-service-badge`}>
+              <Icon
+                name="install-self-service"
+                size="small"
+                color="ui-fleet-black-75"
+              />
+              Self-service
+            </div>
+          )}
+          {showActions && (
+            <ActionsDropdown
+              isSoftwarePackage={!!softwarePackage}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              onAdvancedOptionsClick={onAdvancedOptionsClick}
+            />
+          )}
         </div>
       </div>
-      <div className={`${baseClass}__actions-wrapper`}>
-        {isSelfService && (
-          <div className={`${baseClass}__self-service-badge`}>
-            <Icon
-              name="install-self-service"
-              size="small"
-              color="ui-fleet-black-75"
-            />
-            Self-service
-          </div>
-        )}
-        {showActions && (
-          <ActionsDropdown
-            isSoftwarePackage={!!softwarePackage}
-            onDownloadClick={onDownloadClick}
-            onDeleteClick={onDeleteClick}
-            onAdvancedOptionsClick={onAdvancedOptionsClick}
-          />
-        )}
+      <div className={`${baseClass}__package-statuses`}>
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="installed"
+          count={status.installed}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="pending"
+          count={status.pending}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="failed"
+          count={status.failed}
+          teamId={teamId}
+        />
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal

@@ -36,8 +36,6 @@ func TestNewMDMProfileManagerWithoutConfig(t *testing.T) {
 }
 
 func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
-	// FIXME
-	t.Skip()
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
 
@@ -108,9 +106,9 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.NotEmpty(t, defProf.Token)
 
 	// no profile UUID was assigned for no-team (because there are no hosts right now)
-	profUUID, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
-	require.NoError(t, err)
-	require.Equal(t, "", profUUID)
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, "")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &nfe)
 
 	// no teams, so no team-specific custom setup assistants
 	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})

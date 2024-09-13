@@ -4,7 +4,6 @@ import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
 import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
-import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -14,6 +13,7 @@ const baseClass = "install-status-cell";
 type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
 interface TootipArgs {
   softwareName?: string | null;
+  // this field is used in My device > Self-service
   lastInstalledAt?: string;
   isAppStoreApp?: boolean;
 }
@@ -30,32 +30,51 @@ export type IStatusDisplayConfig = {
 };
 
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  IStatusValue | "selfService",
+  Exclude<IStatusValue, "uninstalled"> | "selfService",
   IStatusDisplayConfig
 > = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
+    tooltip: () =>
+      "Software is installed (install script finished with exit code 0).",
+  },
+  pending_install: {
+    iconName: "pending-outline",
+    displayText: "Installing (pending)",
+    tooltip: () =>
+      "Fleet is installing or will install when the host comes online.",
+  },
+  pending_uninstall: {
+    iconName: "pending-outline",
+    displayText: "Uninstalling (pending)",
+    tooltip: () => (
       <>
-        Fleet installed software on this host ({dateAgo(lastInstall as string)}
-        ). Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
+        Fleet is uninstalling or will uninstall
+        <br />
+        software when the host comes online.
       </>
     ),
   },
-  pending: {
-    iconName: "pending-outline",
-    displayText: "Pending",
-    tooltip: () => "Fleet will install software when the host comes online.",
-  },
-  failed: {
+  failed_install: {
     iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
+    displayText: "Install (failed)",
+    tooltip: () => (
       <>
-        Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
-        Select <b>Actions &gt; Software details</b> to see more.
+        The host failed to install software.
+        <br />
+        Select <b>Actions &gt; Show details</b> view errors.
+      </>
+    ),
+  },
+  failed_uninstall: {
+    iconName: "error",
+    displayText: "Uninstall (failed)",
+    tooltip: () => (
+      <>
+        The host failed to uninstall software.
+        <br />
+        Select <b>Details &gt; Activity</b> to view errors.
       </>
     ),
   },
@@ -96,10 +115,6 @@ const InstallStatusCell = ({
   app_store_app,
 }: IInstallStatusCellProps) => {
   // FIXME: Improve the way we handle polymophism of software_package and app_store_app
-  const lastInstalledAt =
-    software_package?.last_install?.installed_at ||
-    app_store_app?.last_install?.installed_at ||
-    "";
   const hasPackage = !!software_package;
   const hasAppStoreApp = !!app_store_app;
 
@@ -140,7 +155,6 @@ const InstallStatusCell = ({
         <span className={`${baseClass}__status-tooltip-text`}>
           {displayConfig.tooltip({
             softwareName,
-            lastInstalledAt,
             isAppStoreApp: hasAppStoreApp,
           })}
         </span>

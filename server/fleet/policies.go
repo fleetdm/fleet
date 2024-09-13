@@ -77,6 +77,9 @@ var (
 	errPolicyInvalidPlatform = errors.New("invalid policy platform")
 )
 
+// PolicyNoTeamID is the team ID of "No team" policies.
+const PolicyNoTeamID = uint(0)
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
 	if p.QueryID != nil {
@@ -293,6 +296,9 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
+	// SoftwareTitleID is the title ID of the installer associated with this policy.
+	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
+	SoftwareTitleID *uint `json:"software_title_id"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.

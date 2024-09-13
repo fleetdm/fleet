@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -139,53 +140,16 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 	return nil
 }
 
-// RegisterProfileWithAppleDEPServer registers the enrollment profile in
-// Apple's servers via the DEP API, so it can be used for assignment. If
-// setupAsst is nil, the default profile is registered. It assigns the
-// up-to-date dynamic settings such as the server URL and MDM SSO URL if
-// end-user authentication is enabled for that team/no-team.
-//
-// It does that registration for all tokens associated in any way with that
-// team - that is, if DEP hosts are part of that team then the token used to
-// discover those hosts will be used to register the profile, and if a token
-// has that team as default team for a platform, it will also be used to
-// register the profile.
-//
-// On success, it returns the profile uuid and timestamp for the specific token
-// of interest to the caller (identified by its organization name).
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokeOrgName string) (string, time.Time, error) {
-	appCfg, err := d.ds.AppConfig(ctx)
-	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching app config")
-	}
+// CreateDefaultAutomaticProfile creates the default automatic enrollment profile in the DB.
+func (d *DEPService) CreateDefaultAutomaticProfile(ctx context.Context) error {
+	return d.createDefaultAutomaticProfile(ctx)
+}
 
-	// must always get the default profile, because the authentication token is
-	// defined on that profile.
-	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
-	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching default profile")
-	}
-
-	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
-	if err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "generating enroll URL")
-	}
-
-	var rawJSON json.RawMessage
-	var requestedTokenModTime time.Time
-	if defaultProf.DEPProfile != nil {
-		rawJSON = *defaultProf.DEPProfile
-		requestedTokenModTime = defaultProf.UpdatedAt
-	}
-	if setupAsst != nil {
-		rawJSON = setupAsst.Profile
-		requestedTokenModTime = setupAsst.UploadedAt
-	}
-
+func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.RawMessage, appCfg *fleet.AppConfig, team *fleet.Team, enrollURL string) (*godep.Profile, error) {
 	var jsonProf godep.Profile
 	jsonProf.IsMDMRemovable = true // the default value defined by Apple is true
-	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
-		return "", time.Time{}, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	if err := json.Unmarshal(setupAsstJSON, &jsonProf); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
 
 	// if configuration_web_url is set, this setting is completely managed by the
@@ -216,6 +180,57 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	// enable_release_device_manually is true.
 	jsonProf.AwaitDeviceConfigured = true
 
+	return &jsonProf, nil
+}
+
+// RegisterProfileWithAppleDEPServer registers the enrollment profile in
+// Apple's servers via the DEP API, so it can be used for assignment. If
+// setupAsst is nil, the default profile is registered. It assigns the
+// up-to-date dynamic settings such as the server URL and MDM SSO URL if
+// end-user authentication is enabled for that team/no-team.
+//
+// It does that registration for all tokens associated in any way with that
+// team - that is, if DEP hosts are part of that team then the token used to
+// discover those hosts will be used to register the profile, and if a token
+// has that team as default team for a platform, it will also be used to
+// register the profile.
+//
+// On success, it returns the profile uuid and timestamp for the specific token
+// of interest to the caller (identified by its organization name).
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
+	appCfg, err := d.ds.AppConfig(ctx)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	// must always get the default profile, because the authentication token is
+	// defined on that profile.
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "fetching default profile")
+	}
+
+	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	var rawJSON json.RawMessage
+	var requestedTokenModTime time.Time
+	if defaultProf.DEPProfile != nil {
+		rawJSON = *defaultProf.DEPProfile
+		requestedTokenModTime = defaultProf.UpdatedAt
+	}
+	if setupAsst != nil {
+		rawJSON = setupAsst.Profile
+		requestedTokenModTime = setupAsst.UploadedAt
+	}
+
+	jsonProf, err := d.buildJSONProfile(ctx, rawJSON, appCfg, team, enrollURL)
+	if err != nil {
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "building json profile")
+	}
+
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	// Get all relevant org names
 	var tmID *uint
@@ -235,7 +250,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 
 	var requestedTokenProfileUUID string
 	for _, orgName := range orgNames {
-		res, err := depClient.DefineProfile(ctx, orgName, &jsonProf)
+		res, err := depClient.DefineProfile(ctx, orgName, jsonProf)
 		if err != nil {
 			return "", time.Time{}, ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 		}
@@ -249,11 +264,82 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 				return "", time.Time{}, ctxerr.Wrap(ctx, err, "save default setup assistant profile UUID")
 			}
 		}
-		if orgName == abmTokeOrgName {
+		if orgName == abmTokenOrgName {
 			requestedTokenProfileUUID = res.ProfileUUID
 		}
 	}
 	return requestedTokenProfileUUID, requestedTokenModTime, nil
+}
+
+// ValidateSetupAssistant validates the setup assistant by sending the profile to the DefineProfile
+// Apple API.
+func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) error {
+	appCfg, err := d.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	// must always get the default profile, because the authentication token is
+	// defined on that profile.
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching default profile")
+	}
+
+	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	rawJSON := setupAsst.Profile
+
+	jsonProf, err := d.buildJSONProfile(ctx, rawJSON, appCfg, team, enrollURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building json profile")
+	}
+
+	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
+	// Get all relevant org names
+	var tmID *uint
+	if team != nil {
+		tmID = &team.ID
+	}
+
+	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
+	}
+
+	if len(orgNames) == 0 {
+		// Then check to see if there are any tokens at all. If there is only 1, we assume we can
+		// use it (the vast majority of deployments will only have a single token).
+		toks, err := d.ds.ListABMTokens(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+		}
+
+		if len(toks) != 1 {
+			return ctxerr.New(ctx, "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+		}
+
+		orgNames = append(orgNames, toks[0].OrganizationName)
+	}
+
+	for _, orgName := range orgNames {
+		_, err := depClient.DefineProfile(ctx, orgName, jsonProf)
+		if err != nil {
+			var httpErr *godep.HTTPError
+			if errors.As(err, &httpErr) {
+				// We can count on this working because of how the godep.HTTPerror Error() method
+				// formats its output.
+				return ctxerr.Errorf(ctx, "Couldn't upload. %s", string(httpErr.Body))
+			}
+
+			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")
+		}
+	}
+
+	return nil
 }
 
 // EnsureDefaultSetupAssistant ensures that the default Setup Assistant profile
@@ -403,7 +489,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			}
 
 			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName, "team", team.Name)
+				d.logger.Log("msg", "clearing device syncer cursor", "org_name", token.OrganizationName)
 				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
 					result = multierror.Append(result, err)
 					continue
@@ -624,7 +710,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
-		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
 
 		skipSerials, assignSerials, err := d.ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
@@ -643,12 +728,14 @@ func (d *DEPService) processDeviceResponse(
 		for orgName, serials := range assignSerials {
 			apiResp, err := d.depClient.AssignProfile(ctx, orgName, profUUID, serials...)
 			if err != nil {
+				// only log the error so the failure can be recorded
+				// below in UpdateHostDEPAssignProfileResponses and
+				// the proper cooldowns are applied
 				level.Error(logger).Log(
 					"msg", "assign profile",
 					"devices", len(assignSerials),
 					"err", err,
 				)
-				return fmt.Errorf("assign profile: %w", err)
 			}
 
 			logs := []interface{}{
@@ -798,6 +885,62 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 var funcMap = map[string]any{
 	"xml": mobileconfig.XMLEscapeString,
 }
+
+var OTASCEPTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadIdentifier</key>
+    <string>Ignored</string>
+    <key>PayloadUUID</key>
+    <string>Ignored</string>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>PayloadContent</key>
+        <dict>
+          <key>Key Type</key>
+          <string>RSA</string>
+          <key>Challenge</key>
+          <string>{{ .SCEPChallenge | xml }}</string>
+          <key>Key Usage</key>
+          <integer>5</integer>
+          <key>Keysize</key>
+          <integer>2048</integer>
+          <key>URL</key>
+          <string>{{ .SCEPURL }}</string>
+          <key>Subject</key>
+          <array>
+            <array>
+              <array>
+                <string>O</string>
+                <string>Fleet</string>
+              </array>
+            </array>
+            <array>
+              <array>
+                <string>CN</string>
+                <string>Fleet Identity</string>
+              </array>
+            </array>
+          </array>
+        </dict>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.scep</string>
+        <key>PayloadType</key>
+        <string>com.apple.security.scep</string>
+        <key>PayloadUUID</key>
+        <string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
+    </array>
+  </dict>
+</plist>`))
 
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
@@ -1040,4 +1183,37 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return ctxerr.Wrap(ctx, err, "add host mdm commands")
 	}
 	return nil
+}
+
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
+	if err != nil {
+		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
+	}
+
+	enrollURL, err := url.Parse(path)
+	if err != nil {
+		return nil, fmt.Errorf("parsing ota enrollment url: %w", err)
+	}
+
+	q := enrollURL.Query()
+	q.Set("enroll_secret", enrollSecret)
+	enrollURL.RawQuery = q.Encode()
+
+	var profileBuf bytes.Buffer
+	tmplArgs := struct {
+		Organization string
+		URL          string
+		EnrollSecret string
+	}{
+		Organization: orgName,
+		URL:          enrollURL.String(),
+	}
+
+	err = mobileconfig.OTAMobileConfigTemplate.Execute(&profileBuf, tmplArgs)
+	if err != nil {
+		return nil, fmt.Errorf("executing ota profile template: %w", err)
+	}
+
+	return profileBuf.Bytes(), nil
 }

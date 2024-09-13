@@ -105,7 +105,7 @@ Fleet also provides a REST API for managing apps programmatically. You can add, 
 
 This feature extends Fleet's capabilities for managing macOS, iOS, and iPadOS hosts. Whether you manage your hosts' software via uploaded installers or via the App Store VPP integration, Fleet provides you with the tools you need to manage your hosts effectively.
 
-<meta name="articleTitle" value="Install VPP apps on macOS using Fleet">
+<meta name="articleTitle" value="Install VPP apps on macOS, iOS, and iPadOS using Fleet">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">

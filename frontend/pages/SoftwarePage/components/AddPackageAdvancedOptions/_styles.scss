@@ -1,0 +1,17 @@
+.add-package-advanced-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $pad-large;
+
+  &__input-fields {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__table-link {
+    font-size: $xx-small;
+  }
+}

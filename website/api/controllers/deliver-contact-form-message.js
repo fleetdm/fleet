@@ -75,7 +75,7 @@ module.exports = {
       to: sails.config.custom.fromEmailAddress,
       replyTo: {
         name: firstName + ' '+ lastName,
-        email: emailAddress,
+        emailAddress: emailAddress,
       },
       subject: 'New contact form message',
       layout: false,

@@ -162,6 +162,22 @@ module.exports = {
       }
     });
 
+    let todayOn = new Date();
+    let isoTimestampForDescription = todayOn.toISOString();
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: this.req.me.emailAddress,
+      firstName: this.req.me.firstName,
+      lastName: this.req.me.lastName,
+      organization: this.req.me.organization,
+      description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${quoteRecord.numberOfHosts} host${quoteRecord.numberOfHosts > 1 ? 's' : ''}.`
+    }).exec((err)=>{
+      if(err){
+        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} purchased a self-service Fleet premium subscription, a Contact and Account record could not be created/updated in the CRM.`, err);
+      }
+      return;
+    });
+
+
   }
 
 

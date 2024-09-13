@@ -13,6 +13,7 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 
@@ -20,6 +21,21 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
 
 const baseClass = "software-title-details-table";
+
+const SoftwareLastUpdatedInfo = (lastUpdatedAt: string) => {
+  return (
+    <LastUpdatedText
+      lastUpdatedAt={lastUpdatedAt}
+      customTooltipText={
+        <>
+          The last time software data was <br />
+          updated, including vulnerabilities <br />
+          and host counts.
+        </>
+      }
+    />
+  );
+};
 
 const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
@@ -54,6 +70,7 @@ interface ISoftwareTitleDetailsTableProps {
   teamIdForApi?: number;
   isIPadOSOrIOSApp: boolean;
   isAvailableForInstall?: boolean;
+  countsUpdatedAt?: string;
 }
 
 interface IRowProps extends Row {
@@ -69,6 +86,7 @@ const SoftwareTitleDetailsTable = ({
   teamIdForApi,
   isIPadOSOrIOSApp,
   isAvailableForInstall,
+  countsUpdatedAt,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -95,7 +113,10 @@ const SoftwareTitleDetailsTable = ({
   );
 
   const renderVersionsCount = () => (
-    <TableCount name="versions" count={data?.length} />
+    <>
+      <TableCount name="versions" count={data?.length} />
+      {countsUpdatedAt && SoftwareLastUpdatedInfo(countsUpdatedAt)}
+    </>
   );
 
   return (
