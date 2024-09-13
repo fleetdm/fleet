@@ -88,9 +88,7 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
-    // investigate
     setConfig,
-    // investigate
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);

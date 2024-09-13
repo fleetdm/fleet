@@ -103,7 +103,7 @@ export default {
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
-    if (!teamId || teamId < API_NO_TEAM_ID) {
+    if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
           `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`

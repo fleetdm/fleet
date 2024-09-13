@@ -23,8 +23,6 @@ interface IQueryEditorProps {
   storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
-  isTeamAdmin: boolean;
-  isTeamMaintainer: boolean;
   isTeamObserver: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -41,8 +39,6 @@ const QueryEditor = ({
   storedPolicyError,
   showOpenSchemaActionText,
   isStoredPolicyLoading,
-  isTeamAdmin,
-  isTeamMaintainer,
   isTeamObserver,
   createPolicy,
   onOsqueryTableSelect,
@@ -86,7 +82,6 @@ const QueryEditor = ({
     policyAutofillData,
     setPolicyAutofillData,
   ] = useState<IAutofillPolicy | null>(null);
-  const [policyAutofillErrors, setPolicyAutofillErrors] = useState<any>({});
   const [
     isFetchingAutofillDescription,
     setIsFetchingAutofillDescription,
@@ -115,7 +110,6 @@ const QueryEditor = ({
       } catch (error) {
         console.log(error);
         renderFlash("error", "Couldn't autofill policy data.");
-        setPolicyAutofillErrors(error);
       }
       setIsFetchingAutofillDescription(false);
     }
@@ -139,7 +133,6 @@ const QueryEditor = ({
       } catch (error) {
         console.log(error);
         renderFlash("error", "Couldn't autofill policy data.");
-        setPolicyAutofillErrors(error);
       }
       setIsFetchingAutofillResolution(false);
     }
