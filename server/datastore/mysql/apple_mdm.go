@@ -982,6 +982,7 @@ func createHostFromMDMDB(
 				h.platform,
 				h.hardware_model,
 				h.hardware_serial,
+				h.hostname,
 				COALESCE(hmdm.enrolled, 0) as enrolled
 			FROM hosts h
 			LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id

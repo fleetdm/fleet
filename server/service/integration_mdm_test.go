@@ -1053,6 +1053,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
+		HardwareModel:   "MacBookPro16,1",
 
 		UUID:           mdmDevice.UUID,
 		HardwareSerial: mdmDevice.SerialNumber,
