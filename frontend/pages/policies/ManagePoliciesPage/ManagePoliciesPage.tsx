@@ -21,7 +21,7 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { ITeamConfig } from "interfaces/team";
+import { API_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -931,7 +931,8 @@ const ManagePolicyPage = ({
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}
             router={router}
-            teamId={teamIdForApi || 0}
+            // default to all teams, though should be present here
+            teamId={currentTeamId ?? API_ALL_TEAMS_ID}
             teamName={currentTeamName}
           />
         )}

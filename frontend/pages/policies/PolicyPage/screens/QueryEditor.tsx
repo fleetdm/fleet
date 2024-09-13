@@ -14,6 +14,7 @@ import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
 import BackLink from "components/BackLink";
 import PolicyForm from "pages/policies/PolicyPage/components/PolicyForm";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 interface IQueryEditorProps {
   router: InjectedRouter;
@@ -139,7 +140,7 @@ const QueryEditor = ({
   };
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
-    if (policyTeamId !== undefined) {
+    if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
       formData.team_id = policyTeamId;
     }
     setIsUpdatingPolicy(true);
