@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
@@ -241,7 +242,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
 			ext := filepath.Ext(installerPath)
 			ext = strings.TrimPrefix(ext, ".")
-			uninstallScript := installer.UninstallScript
+			uninstallScript := file.GetRemoveScript(ext)
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath, "rollback-script")
 			log.Info().Msgf(
 				"rollback staus: exit code: %d, error: %s, output: %s",
