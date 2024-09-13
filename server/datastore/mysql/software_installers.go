@@ -222,6 +222,10 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 }
 
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	if payload.InstallScript == nil || payload.UninstallScript == nil || payload.PreInstallQuery == nil || payload.SelfService == nil {
+		return ctxerr.Wrap(ctx, errors.New("missing installer update payload fields"), "update installer record")
+	}
+
 	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, *payload.InstallScript)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
