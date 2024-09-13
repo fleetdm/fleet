@@ -396,3 +396,14 @@ export interface IFleetMaintainedApp {
   version: string;
   platform: string;
 }
+
+export interface IFleetMaintainedAppDetails {
+  id: number;
+  name: string;
+  version: string;
+  platform: string;
+  pre_install_script: string; // TODO: is this needed?
+  install_script: string;
+  post_install_script: string; // TODO: is this needed?
+  unintall_script: string;
+}
