@@ -407,5 +407,15 @@
       "vendor": ["linux"],
       "part": "o"
     }
+  },
+  {
+    "software": {
+      "name": ["git"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["git"],
+      "vendor": ["git"]
+    }
   }
 ]
