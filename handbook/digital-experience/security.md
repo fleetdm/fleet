@@ -27,7 +27,7 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Requester   | Requests recovery for their own account                                                                |
-| Recoverer   | Person with access to perform the recovery who monitors `#g-business-operations`                                                                                                                               |
+| Recoverer   | Person with access to perform the recovery who monitors `#g-digital-experience`                                                                                                                               |
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
@@ -35,10 +35,10 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 
 
 1. If the requester still has access to GitHub and/or Slack, they [ask for
-   help](https://fleetdm.com/handbook/business-operations#intake). For non-urgent requests, please
-   prefer filing an issue with the business operations team. If they do not have access,
+   help](https://fleetdm.com/handbook/digital-experience#contact-us). For non-urgent requests, please
+   prefer filing an issue with the Digital Experience team. If they do not have access,
    they can contact their manager or a teammate over the phone via voice or texting, and they will
-   [ask for help](https://fleetdm.com/handbook/business-operations#intake) on behalf of the
+   [ask for help](https://fleetdm.com/handbook/digital-experience#contact-us) on behalf of the
    requester.
 2. The recoverer identifies the requester through a live video call.
 * If the recoverer does not know the requester well enough to positively identify them visually, the
@@ -870,12 +870,12 @@ questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 
 ## Securtiy audits
 
-Read about Fleet's security audits on [this page](https://fleetdm.com/handbook/business-operations/security-audits).
+Read about Fleet's security audits on [this page](https://fleetdm.com/handbook/digital-experience/security-audits).
 
 
 ## Application security
 
-Read about Fleet's application security practices on the [application security page](https://fleetdm.com/handbook/business-operations/application-security).
+Read about Fleet's application security practices on the [application security page](https://fleetdm.com/handbook/digital-experience/application-security).
 
 <meta name="maintainedBy" value="hollidayn">
 <meta name="title" value="Security">

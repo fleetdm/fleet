@@ -331,7 +331,6 @@ module.exports.routes = {
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
   'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
-  'GET /handbook/people': '/handbook/business-operations',
   'GET /handbook/people/ceo-handbook': '/handbook/ceo',
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing#growth',
@@ -351,8 +350,8 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
-  'GET /handbook/security': '/handbook/business-operations/security',
-  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/security': '/handbook/digital-experience/security',
+  'GET /handbook/security/security-policies':'/handbook/digital-experience/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
@@ -363,6 +362,7 @@ module.exports.routes = {
   'GET /handbook/marketing': '/handbook/demand/',
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
+  'GET /handbook/business-operations': '/handbook/finance',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
@@ -379,8 +379,8 @@ module.exports.routes = {
   'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
   'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
   'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
-  'GET /docs/using-fleet/application-security': '/handbook/business-operations/application-security',
-  'GET /docs/using-fleet/security-audits': '/handbook/business-operations/security-audits',
+  'GET /docs/using-fleet/application-security': '/handbook/digital-experience/application-security',
+  'GET /docs/using-fleet/security-audits': '/handbook/digital-experience/security-audits',
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
