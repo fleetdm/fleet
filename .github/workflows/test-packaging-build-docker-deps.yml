@@ -3,7 +3,7 @@
 #
 # It fetches the targets: orbit, osquery and fleet-desktop from the default
 # (Fleet's) TUF server, https://tuf.fleetctl.com.
-name: Test packaging
+name: Test packaging with local fleetdm/wix and fleetdm/bomutils
 
 on:
   push:
