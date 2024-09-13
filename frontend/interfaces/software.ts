@@ -405,5 +405,5 @@ export interface IFleetMaintainedAppDetails {
   pre_install_script: string; // TODO: is this needed?
   install_script: string;
   post_install_script: string; // TODO: is this needed?
-  unintall_script: string;
+  uninstall_script: string;
 }

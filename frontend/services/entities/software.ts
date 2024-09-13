@@ -7,13 +7,17 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IFleetMaintainedApp,
+  IFleetMaintainedAppDetails,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import { createMockFleetMaintainedApp } from "__mocks__/softwareMock";
+import {
+  createMockFleetMaintainedApp,
+  createMockFleetMaintainedAppDetails,
+} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -112,6 +116,10 @@ export interface ISoftwareFleetMaintainedAppsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+}
+
+export interface IFleetMaintainedAppResponse {
+  fleet_maintained_app: IFleetMaintainedAppDetails;
 }
 
 const ORDER_KEY = "name";
@@ -314,6 +322,19 @@ export default {
           has_next_results: false,
           has_previous_results: false,
         },
+      });
+    });
+
+    // return sendRequest("GET", path);
+  },
+
+  getFleetMainainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
+    const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
+    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
+
+    return new Promise((resolve) => {
+      resolve({
+        fleet_maintained_app: createMockFleetMaintainedAppDetails(),
       });
     });
 
