@@ -283,6 +283,10 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
 
 
+### Update weekly KPIs
+- Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for finance](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
+
+
 ## Rituals
 
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
