@@ -388,7 +388,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
-	hostID uint) error {
+	hostID uint,
+) error {
 	// Between deleted and inserted software, check which software titles were deleted.
 	// If software titles were deleted, get the software titles of the installed software.
 	// See if deleted titles match installed software titles.
@@ -2161,24 +2162,25 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
-	var onlyVulnerableClause string
+	var onlyVulnerableJoin string
 	if opts.VulnerableOnly {
-		onlyVulnerableClause = `
-AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id = s.id WHERE s.title_id = st.id)
+		onlyVulnerableJoin = `
+INNER JOIN software_cve scve ON scve.software_id = s.id
 		`
 	}
 
-	softwareIsInstalledOnHostClause := `
+	softwareIsInstalledOnHostClause := fmt.Sprintf(`
 			EXISTS (
 				SELECT 1
 				FROM
 					host_software hs
 				INNER JOIN
 					software s ON hs.software_id = s.id
+					%s
 				WHERE
 					hs.host_id = :host_id AND
 					s.title_id = st.id
-			) OR `
+			) OR `, onlyVulnerableJoin)
 	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.last_status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 	if opts.OnlyAvailableForInstall {
 		// Get software that has a package/VPP installer but was not installed with Fleet
@@ -2280,8 +2282,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
-			%s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be

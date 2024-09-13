@@ -1329,6 +1329,14 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
 
+	// Check that we return bad request if the website API does (it will do this in case of an
+	// invalid email address
+	s.FailNextCSRRequestWith(http.StatusUnprocessableEntity)
+	errResp = validationErrResp{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "this email address is not valid")
+
 	// Invalid APNS cert upload attempt
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", []byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.", nil)
 

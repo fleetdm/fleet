@@ -10,9 +10,10 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Contracts and Compliance Engineer       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 | Apprentice to the CEO           | <sup><sub> See [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
 | Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
-
+ 
 
 ## Contact us
 
@@ -25,11 +26,219 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
+Compliance and contracts including maintaining Delaware registered agent and certificate of good standing, receiving and responding to legal notices, SOC2, deal desk, compensation planning, Onboarding, 30/60/90s, manager training, holding hiring managers accountable (for actually getting their open positions filled quickly)
+5. Logistical admin and witness for offboarding
+6. Logistical admin for pre-start hiring process
+7. Logistical admin for position opening and compensation determination process 
+
 > _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 
-### QA a change to fleetdm.com
+### Access a background check
 
+All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
+
+
+### Convert a Fleetie to a consultant
+
+If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the Digital Experience team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify them of the change.
+Once notified, Digital Experience takes the following steps:
+1. Confirm the following details with the Fleetie:
+    - Date of change
+    - Term of consultancy (time period)
+    - Hours/capacity expected (hours per week or month)
+    - Confirm hourly rate
+2. Once details are confirmed, use the information given to create the consulting agreement for the Fleetie (either in docusign (US-based) or via Plane (international)), and send to their personal email for signature. Once signed, save in Fleetie's [employee file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+3. Schedule the Fleetie's final day in HRIS (Gusto or Plane).
+4. Update final day in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+5. Create an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md) for the Fleetie converting to a consultant, and confirm with their manager if there is a need to retain any tools or access while they are a consultant (default to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
+6. Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
+
+
+### Inform managers about hours worked
+
+Every Friday at 2:00 PM CT, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location.
+
+Here's how:
+
+1. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval (generally their manager) for hours worked. Find the DRI using the [Digital Experience KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
+     - For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
+3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
+     - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
+
+
+### Change the DRI of a consultant
+
+1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
+2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
+
+
+### Update personnel details
+When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
+1. Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
+    - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+2. Digital Experience makes change to HRIS (Gusto or Plane) to reflect change. 
+    - Note: if making the change requires follow up steps, resolve those steps to action the change.
+3. Once change is effected in HRIS, Digital Experience makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+4. If required, Digital Experience makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
+5. If required, Digital Experience makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
+6. If required, Digital Experience also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
+7. The change is now actioned, notify the team member and close the issue.
+
+> Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
+
+
+### Change a Fleetie's job title
+When Digital Experience receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
+1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
+    - Search the spreadsheet for the Fleetie in need of a job title change.
+    - Input the new job title in the Fleetie's row in the "Job title" cell.
+    - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
+2. Update the departmental handbook page with the change of job title
+3. [Prepare salary benchmarking information](#prepare-salary-benchmarking-information) to determine whether the teammate's current compensation aligns with the benchmarks of the new role.
+   -  If the benchmark is significantly different, take the steps to [update a team member's compensation](#prepare-salary-benchmarking-information).
+4. Update the relevant payroll/HRIS system.
+    - For updating Gusto (US-based Fleeties):
+      - Login to Gusto and navigate to "People > Team members".
+      - Find the Fleetie and select them to see their profile page.
+      - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
+    - For updating Plane (non-US Fleeties):
+      - Login to Plane and navigate to "People > Team".
+      - Find the Fleetie and select them to see their profile page.
+      - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
+      - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
+
+
+### Change a Fleetie's manager
+When Digital Experience receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
+1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
+    - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
+    - Search for the Fleetie whose manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
+    - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
+    - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
+    - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
+2. If the person's department is changing, then update both departmental handbook pages to move the person to their new department:
+    - Remove the person from the "Team" section of the old department and add them to the "Team" section of the new department.
+3. If the person's level of confidential access will change along with the change to their manager, then update that level of access:
+    - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
+    - Update 1password to remove this person from old vaults and/or add them to new vaults.
+    - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
+
+> **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
+
+### Recognize employee workiversaries
+
+At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
+
+1. Bimonthly, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the following two months.
+2. Post in the #help-classifed Slack channel and cc the Head of Digital Experience. Use the following template:
+
+   
+    ```
+    [Month]
+    [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
+    ```
+
+    
+   The Head of Digital Experience will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
+
+
+    ```
+    Hey! Just a heads up, tomorrow is [teammate’s name] [number of years at Fleet] workiversary at Fleet.
+    Digital Experience can post something in the #random channel to recognize them, would you like to make that post instead?
+    ```
+ 
+   > If a manager elects to post and hasn't done so by 2pm ET on the day of the workiversary, send them a friendly reminder and offer to post instead.
+
+4. If the manager has deferred to Digital Experience, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
+
+
+
+### Prepare salary benchmarking information
+1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
+2. Copy the template text and paste at the end of the document.
+3. Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
+4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
+
+
+### Update a team member's compensation
+
+To [change a teammate's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
+1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+2. Share the values assessment document with the manager and ask them to perform the values assessment.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Digital Experience so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
+   - If the teammate's manager is not part of the e-group, the Head of Digital Experience will ensure they're included in the discussion at e-group as well. 
+4. Once compensation decisions have been finalized, the Head of Digital Experience will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
+5. Send the teammates manager a Slack DM to determine who will communicate the decision to the teammate.
+6. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+8. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
+
+> If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
+
+
+### Review Fleet's US company benefits
+
+Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
+1. Log in to your [Gusto admin account](https://gusto.com/).
+2. Navigate to "Benefits" and select "Renewal survey".
+3. Complete the survey questions, aiming for minimal changes.
+4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+
+### Grant equity
+Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
+
+Doing an equity grant involves:
+- Executing a board consent
+- The recipient and CEO signing paperwork about the stock options
+- Updating the number of shares for the recipient in the equity plan
+- Updating Carta to reflect the grant
+
+For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
+
+> Fleet's [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) is the source of truth, not Carta.  Neither are pro formas sent in an email attachment, even if they come from lawyers.
+> 
+> Anyone can make mistakes, and none of us are perfect.  Even when we triple check.  Small mistakes in share counts can be hard to attribute, and can cause headaches and eat up nights of our CEO's and operations team's time.  If you notice what might be a discrepancy between the equity plan and any other secondary source of information, please speak up and let Fleet's CEO know ASAP.  Even if you're wrong, your note will be appreciated.
+
+
+### Review an NDA
+We need to review an NDA anytime a vendor, customer or other party wants to:
+- Use their own NDA rather than Fleet's standard NDA, or
+- "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
+
+We should always seek to use Fleet's own NDA first, without alteration. 
+
+When reading an NDA, we want to pay close attention to the following:
+- We want to be sure that the confidentiality obligations of the NDA are reciprocal.  Fleet and the other party to the agreement should be bound to the same standards of confidentiality toward the handling of each other's confidential information.
+- Fleet does not agree to _"do not compete"_ or _"do not solicit clauses"_. An NDA should not contain provisions beyond the scope of an NDA. The two most commonly encountered examples of this are the "do not compete" and "do not solicit" clauses. We want to be free to hire the best people and make the best products, so when reading through an NDA it is important to keep an eye out for language that prohibits Fleet from hiring or soliciting current or former employees of other companies or that prohibit Fleet from independently developing products that compete with another company's products.  Using the `cmd + f` function to search for "solici", "compet" and "hir" and reading through the results is a helpful method to quickly scan for these clauses.
+- Look for any language that discusses a transfer of property rights. Rarely, you may find a clause snuck into an agreement that discusses the transfer of intellectual property rights.  _We want to avoid any situation where Fleet transfers its intellectual property to another party as part of an NDA_.  
+- Should you find any clauses in steps 2 or 3 that are beyond the scope of protecting both party's confidential information in a customer NDA or an altered version of Fleet's NDA, reject this language and communicate that Fleet cannot agree to those terms.
+- Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in Digital Experience, who will consult legal counsel if necessary to resolve any concerns.
+
+### Review a vendor agreement
+When reviewing contracts from a vendor, Fleet is concerned about the following:
+- If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
+- We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
+- We want to make sure that contracts can be terminated relatively easily and be aware of what the process is for terminating them, avoiding commitments over 12 months in length.
+- We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
+- Remember, once we have signed the agreement - we're stuck with it. If any clause in the agreement appears strange or gives you pause or concern, it is better to seek clarification than to commit to something that might be detrimental to Fleet.  Contracts are fairly standardized, and you'll quickly learn what is normal and what feels out of place.  Unusual clauses or wording that seems out of the ordinary should get a second set of eyes just to be sure, do not hesitate to reach out to Nathanael Holliday with questions, who will reach out to legal counsel as necessary.
+
+### Review an order form
+- We should always check order forms for additional terms that go beyond the scope of the order form (caps on price increases, for example).
+- Be sure the order form includes contact information + billing address and information so that Fleet knows how and who to invoice for payment.
+- Verify that the payment terms are correct and matches what's in the agreement. This is a frequent common mistake as companies usually have default payment terms and overlook changing them to match atypical payment terms.
+- Make sure the effective term of the order matches what was agreed upon (usually a one year term) and that the order form includes the correct number of hosts and whether or not it should contain professional services (usually, it does not). 
+- Check that the amount on the order form reflects what Fleet agreed to, as this is the amount that the customer will expect to be invoiced for.
+- Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday in Digital Experience with concerns.
+
+### Review a non-standard subscription agreement
+We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
+When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
+
+### QA a change to fleetdm.com
 Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
@@ -226,7 +435,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 
 ### Downgrade an unused license seat
 
-- On the first Wednesday of every quarter, the CEO, head of BizOps and Head of Digital experience will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- On the first Wednesday of every quarter, the CEO and Head of Digital experience will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
 - During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
 - Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to Digital Experience to have their access restored.
 - The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
@@ -327,11 +536,11 @@ Agenda:
 
 When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
 1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
-2. A Business Operations Engineer will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
+2. The [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
 
 > If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
 
-3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/business-operations#team).
+3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/digital-experience#team).
 
 
 ### Prepare for CEO office minutes 
@@ -393,9 +602,9 @@ After the team member notifies the Head of Digital Experience (via Slack), the H
 
 ### Document performance feedback
 
-Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
-1. If KPIs are not reported on time, the BizOps Engineer will notify the Apprentice to the CEO and the DRI.
-2. The Apprentice will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
+Every Friday at 5PM a [Digital Experience team member](https://fleetdm.com/handbook/digital-experience#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
+1. If KPIs are not reported on time, notify the Head of Digital Experience and the DRI.
+2. The Head of Digital Experience will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
 
 
 ### Send the weekly update
