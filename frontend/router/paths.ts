@@ -76,6 +76,8 @@ export default {
     return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
   SOFTWARE_ADD_FLEET_MAINTAINED: `${URL_PREFIX}/software/add/fleet-maintained`,
+  SOFTWARE_FLEET_MAINTAINED_DETAILS: (id: number) =>
+    `${URL_PREFIX}/software/add/fleet-maintained/${id}`,
   SOFTWARE_ADD_PACKAGE: `${URL_PREFIX}/software/add/package`,
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 

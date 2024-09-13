@@ -2,14 +2,15 @@ import React from "react";
 import { Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IFleetMaintainedApp } from "interfaces/software";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import { buildQueryStringFromParams } from "utilities/url";
-import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import TooltipWrapper from "components/TooltipWrapper";
 
 type IFleetMaintainedAppsTableConfig = Column<IFleetMaintainedApp>;
@@ -28,9 +29,11 @@ export const generateTableConfig = (
       ),
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name } = cellProps.row.original;
+        const { name, id } = cellProps.row.original;
 
-        const path = `/new_path?${buildQueryStringFromParams({
+        const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
+          id
+        )}?${buildQueryStringFromParams({
           team_id: teamId,
         })}`;
 
