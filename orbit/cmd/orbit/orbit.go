@@ -1988,7 +1988,19 @@ func checkAndPatchCertificate(rootDir string) {
 
 	log.Info().Msg("successfully patched certificate")
 
-	err = updateAndReloadLaunchDaemon()
+	// Each platform dependent function should do the update and then exit
+	switch runtime.GOOS {
+	case "darwin":
+		enableDesktopDarwin()
+	case "linux":
+		enableDesktopLinux()
+	}
+
+	log.Error().Msg("enable Fleet Desktop probably failed")
+}
+
+func enableDesktopDarwin() {
+	err := updateAndReloadLaunchDaemon()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to update launchd. Continuing.")
 		return
@@ -2109,4 +2121,31 @@ func unloadLoadCommands() error {
 		return err
 	}
 	return nil
+}
+
+func enableDesktopLinux() {
+	log.Info().Msg("Update /etc/default/orbit to enable Fleet Desktop")
+	const envPath = "/etc/default/orbit"
+	f, err := os.OpenFile(envPath, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		log.Info().Err(err).Msg("failed to open default file")
+		return
+	}
+
+	flags := `
+ORBIT_FLEET_DESKTOP=true
+ORBIT_DESKTOP_CHANNEL=stable
+	`
+	if _, err = f.WriteString(flags); err != nil {
+		log.Info().Err(err).Msg("failed to write default file")
+		return
+	}
+
+	if err := f.Close(); err != nil {
+		log.Info().Err(err).Msg("failed to close default file")
+	}
+
+	// Exit the process and let systemd bring it back up with the new values
+	log.Info().Msg("Desktop enabled. Restarting.")
+	os.Exit(0)
 }
