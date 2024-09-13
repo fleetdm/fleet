@@ -111,6 +111,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		PackageSelfService *bool   `db:"package_self_service"`
 		PackageName        *string `db:"package_name"`
 		PackageVersion     *string `db:"package_version"`
+		PackageURL         *string `db:"package_url"`
 		VPPAppSelfService  *bool   `db:"vpp_app_self_service"`
 		VPPAppAdamID       *string `db:"vpp_app_adam_id"`
 		VPPAppVersion      *string `db:"vpp_app_version"`
@@ -152,6 +153,7 @@ func (ds *Datastore) ListSoftwareTitles(
 				Name:        *title.PackageName,
 				Version:     version,
 				SelfService: title.PackageSelfService,
+				PackageURL:  title.PackageURL,
 			}
 		}
 
@@ -262,6 +264,7 @@ SELECT
 	si.self_service as package_self_service,
 	si.filename as package_name,
 	si.version as package_version,
+	si.url AS package_url,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vap.latest_version as vpp_app_version,
@@ -277,7 +280,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url`
+GROUP BY st.id, package_self_service, package_name, package_version, package_url, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

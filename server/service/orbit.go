@@ -685,7 +685,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	hsr, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
+	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
@@ -707,20 +707,47 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			scriptName = scr.Name
 		}
 
-		// TODO(sarah): We may need to special case lock/unlock script results here?
-		if err := svc.NewActivity(
-			ctx,
-			user,
-			fleet.ActivityTypeRanScript{
-				HostID:            host.ID,
-				HostDisplayName:   host.DisplayName(),
-				ScriptExecutionID: hsr.ExecutionID,
-				ScriptName:        scriptName,
-				Async:             !hsr.SyncRequest,
-			},
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+		switch action {
+		case "uninstall":
+			// Get software title from execution ID
+			softwareTitleName, err := svc.ds.GetSoftwareTitleNameFromExecutionID(ctx, hsr.ExecutionID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get software title from execution ID")
+			}
+			activityStatus := "failed"
+			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
+				activityStatus = "uninstalled"
+			}
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeUninstalledSoftware{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+					SoftwareTitle:   softwareTitleName,
+					ExecutionID:     hsr.ExecutionID,
+					Status:          activityStatus,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
+		default:
+			// TODO(sarah): We may need to special case lock/unlock script results here?
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeRanScript{
+					HostID:            host.ID,
+					HostDisplayName:   host.DisplayName(),
+					ScriptExecutionID: hsr.ExecutionID,
+					ScriptName:        scriptName,
+					Async:             !hsr.SyncRequest,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
 		}
+
 	}
 	return nil
 }
@@ -992,7 +1019,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
-	if status := result.Status(); status != fleet.SoftwareInstallerPending {
+	if status := result.Status(); status != fleet.SoftwareInstallPending {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")

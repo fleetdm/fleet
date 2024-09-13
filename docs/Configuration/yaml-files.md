@@ -262,6 +262,16 @@ controls:
 - `deadline_days` (default: null)
 - `grace_period_days` (default: null)
 
+#### ios_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `minimum_version` specifies the minimum required iOS version (default: `""`).
+
+#### ipados_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+
 #### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
@@ -273,13 +283,15 @@ Use `labels_include_all` to only apply (scope) profiles to hosts that have all t
 
 #### macos_setup
 
-The `macos_setup` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that automatically enrolled to your old MDM solution.
+The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
 - `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
-- `macos_setup_assistant` is a path to a custom automatic enrollment (DEP) profile (.json).
+- `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 
 #### macos_migration
+
+The `macos_migration` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that enrolled to your old MDM solution.
 
 - `enable` specifies whether or not to enable end user migration workflow (default: `false`)
 - `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: `""`).
@@ -325,6 +337,8 @@ software:
 #### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
+
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string. 
 
 ### org_settings and team_settings
 
@@ -582,6 +596,19 @@ org_settings:
   mdm:
     apple_bm_default_team: "Workstations" # Available in Fleet Premium
 ```
+
+Can only be configured for all teams (`org_settings`).
+
+##### end_user_authentication
+
+The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
+
+Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
+
+- `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
+- `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
+- `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
+- `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
 Can only be configured for all teams (`org_settings`).
 

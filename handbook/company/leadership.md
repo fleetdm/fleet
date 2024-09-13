@@ -2,7 +2,7 @@
 
 This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/06da9dde-c6f8-4f4d-952f-26d6ad7d3aa0">
+<img width="384" alt="image" src="https://github.com/user-attachments/assets/6aec084e-3b0a-4a2c-b7c5-ed4536d73b40">
 
 
 
@@ -255,7 +255,7 @@ When review is requested on a proposal to open a new position, the Apprentice to
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Digital Experience.
+   - _Create Slack channel:_ Create a private "#YYYY-hiring-xxxxxx" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Digital Experience.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
@@ -333,7 +333,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
     - Single doc URL: TODO
      ```
      
-5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Digital Experience via Google Drive.  
+5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Digital Experience via Google Drive.
    - _Share_ this single document with the Head of Digital Experience via email.
    - When the Head of Digital Experience receives this shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
 
@@ -351,7 +351,7 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
 3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Head of Digital Experience 
+   - Cc: Head of Digital Experience
    - Subject: "Full time?"
    - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
@@ -420,7 +420,7 @@ As a CEO shadow, you will be attending both internal and external meetings regar
 
 CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.com/calendar/embed?src=mike%40fleetdm.com&ctz=America%2FChicago) that **do not have** "[no shadows]" appended to the calendar event title. Before beginning your time as a [CEO shadow](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program):
 1. Make sure you've read through the [CEO flaws](https://fleetdm.com/handbook/company/leadership#ceo-flaws) to better understand how to communicate with him.
-2. Update your Zoom display name to be "[your name] | CEO shadow" (e.g. "Jayne Doo | CEO shadow").
+2. Update your Zoom display name to be "CEO shadow | [your name]" (e.g. "CEO shadow | Jayne Doo").
 3. Know which meetings you're expected to join. **You won't be listed as an attendee on any of the CEO's calendar events** to avoid confusion when scheduling meetings with external participants. You're intentionally marked out of office to avoid scheduling conflicts.
 
 > Please **DO NOT** add yourself as an attendee to any of the CEO's meetings. The CEO regularly meets with prospects and customers in the community, and without the context of the CEO shadow program, an unknown name on the calendar event could be mistaken for a sales tactic.
@@ -442,18 +442,14 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
+<<<<<<< HEAD
 ## Changing someone's position
-
-From time to time, someone's job title changes.  To do this, Digital Experience follows these steps:
-
-1. Change "Fleeties" to reflect the new job title, manager, and/or department.
-2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
-3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
+From time to time, someone's job title changes.  To do this, reach out to [Digital Experience](https://fleetdm.com/handbook/digital-experience).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1e59ac8f-26d8-4f2f-9ff4-2e303753c910">
 
 
-## Delivering performance feedback 
+## Delivering performance feedback
 
 When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 

@@ -25,6 +25,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Track an objection
+
+We often hear objections to using Fleet that are important to track, understand, and solve for. To track an objection:
+1. Navigate to the ["Understanding objections document" (Confidential Google Doc)](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit).
+2. Copy the template at the top of the page and paste it at the top of the "Objections" section completing all TODOs.
+
+
 ### Onboard a new sales team member
 
 Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
@@ -51,7 +58,9 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 
 For customers with large deployments, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
 
-Provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
+Payment information for customers within the United States is on Fleet's invoices. Typically, payment information does not need to be sent separately.
+
+For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
 
 
 ### Review rep activity
@@ -59,9 +68,20 @@ Provide remittance information to customers by exporting ["💸 Paying Fleet"](h
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
 
 To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep activity on a regular basis following these steps:
-1. In Salesforce, visit the activity report on your dashboard.  (TODO: taylor will replace this and/or link it)
+1. In Salesforce, visit the activity report on your dashboard.
 2. For each rep, review recent activity from the last 30 days across all of that rep's accounts.
 3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
+
+Every week, AEs will review the status of all qualified opportunities with leadership in an opportunity pipeline review meeting. For this meeting, reps will:
+1. Update the following information in Salesforce for every opp:
+  - Contacts (and Roles)
+  - Amount
+  - Close date
+  - Stage
+  - Next steps
+2. Make sure all contacts have been sent a connection request from Mike McNeil.
+3. Identify and discuss where gaps are in [MEDDPICC](https://handbook.gitlab.com/handbook/sales/meddppicc/).
+4. Relay how many meetings they had with attendees from both IT and security this week.
 
 
 ### Validate Salesforce data (RevOps) 

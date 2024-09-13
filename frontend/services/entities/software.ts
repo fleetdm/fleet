@@ -219,6 +219,8 @@ export default {
     formData.append("software", data.software);
     formData.append("self_service", data.selfService.toString());
     data.installScript && formData.append("install_script", data.installScript);
+    data.uninstallScript &&
+      formData.append("uninstall_script", data.uninstallScript);
     data.preInstallQuery &&
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&

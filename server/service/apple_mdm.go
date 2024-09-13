@@ -44,6 +44,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
+	"go.mozilla.org/pkcs7"
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -1276,8 +1277,7 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 				InternalErr: err,
 			}
 		}
-		p := fleet.MDMAppleMachineInfo(*parsed)
-		decoded.MachineInfo = &p
+		decoded.MachineInfo = parsed
 	}
 
 	return &decoded, nil
@@ -1456,7 +1456,7 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 }
 
 func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
-	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(m))
+	latest, err := gdmf.GetLatestOSVersion(m)
 	if err != nil {
 		return nil, err
 	}
@@ -1570,47 +1570,17 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID, info.Platform)
-}
-
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string, platform string) error {
-	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
-	ticker := time.NewTicker(300 * time.Millisecond)
-	defer func() {
-		ticker.Stop()
-		cancelFn()
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			// time out after 5 seconds
-			return fleet.MDMAppleCommandTimeoutError{}
-		case <-ticker.C:
-			nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, deviceID)
-			if err != nil {
-				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
-				return err
-			}
-			if nanoEnroll != nil && nanoEnroll.Enabled {
-				// check again on the next tick
-				continue
-			}
-			// success, mdm enrollment is no longer enabled for the device
-			level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
-
-			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
-			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
-				Action:   mdmlifecycle.HostActionTurnOff,
-				Platform: platform,
-				UUID:     deviceID,
-			})
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+		Action:   mdmlifecycle.HostActionTurnOff,
+		Platform: info.Platform,
+		UUID:     h.UUID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "running turn off action in mdm lifecycle")
 	}
+
+	return nil
 }
 
 type mdmAppleGetInstallerRequest struct {
@@ -4176,4 +4146,225 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /enrollment_profiles/ota
+////////////////////////////////////////////////////////////////////////////////
+
+type getOTAProfileRequest struct {
+	EnrollSecret string `query:"enroll_secret"`
+}
+
+func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOTAProfileRequest)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
+	if err != nil {
+		return &getMDMAppleConfigProfileResponse{Err: err}, err
+	}
+
+	reader := bytes.NewReader(profile)
+	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
+}
+
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
+	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
+	// by the enroll secret verification below
+	svc.authz.SkipAuthorization(ctx)
+
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
+	}
+
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
+	}
+
+	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /ota_enrollment?enroll_secret=xyz
+////////////////////////////////////////////////////////////////////////////////
+
+type mdmAppleOTARequest struct {
+	EnrollSecret string `query:"enroll_secret"`
+	Certificates []*x509.Certificate
+	RootSigner   *x509.Certificate
+	DeviceInfo   fleet.MDMAppleMachineInfo
+}
+
+func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "enroll_secret query parameter is required",
+		}
+	}
+
+	rawData, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
+	}
+
+	p7, err := pkcs7.Parse(rawData)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
+	var request mdmAppleOTARequest
+	err = plist.Unmarshal(p7.Content, &request.DeviceInfo)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
+	if request.DeviceInfo.Serial == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "SERIAL is required",
+		}
+	}
+
+	request.EnrollSecret = enrollSecret
+	request.Certificates = p7.Certificates
+	request.RootSigner = p7.GetOnlySigner()
+	return &request, nil
+}
+
+type mdmAppleOTAResponse struct {
+	Err error `json:"error,omitempty"`
+	xml []byte
+}
+
+func (r mdmAppleOTAResponse) error() error { return r.Err }
+
+func (r mdmAppleOTAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.xml)))
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if _, err := w.Write(r.xml); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*mdmAppleOTARequest)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.DeviceInfo)
+	if err != nil {
+		return mdmAppleGetInstallerResponse{Err: err}, nil
+	}
+	return mdmAppleOTAResponse{xml: xml}, nil
+}
+
+// NOTE: this method and how OTA works is documented in full in the interface definition.
+func (svc *Service) MDMAppleProcessOTAEnrollment(
+	ctx context.Context,
+	certificates []*x509.Certificate,
+	rootSigner *x509.Certificate,
+	enrollSecret string,
+	deviceInfo fleet.MDMAppleMachineInfo,
+) ([]byte, error) {
+	// authorization is performed via the enroll secret and the provided certificates
+	svc.authz.SkipAuthorization(ctx)
+
+	if len(certificates) == 0 {
+		return nil, authz.ForbiddenWithInternal("no certificates provided", nil, nil, nil)
+	}
+
+	// first check is for the enroll secret, we'll only let the host
+	// through if it has a valid secret.
+	enrollSecretInfo, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, authz.ForbiddenWithInternal("invalid enroll secret provided", nil, nil, nil)
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "validating enroll secret")
+	}
+
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	}
+	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+	fleetURL := appCfg.ServerSettings.ServerURL
+
+	// if the root signer was issued by Apple's CA, it means we're in the
+	// first phase and we should return a SCEP payload.
+	if err := apple_mdm.VerifyFromAppleIphoneDeviceCA(rootSigner); err == nil {
+		scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resolve Apple SCEP url")
+		}
+
+		var buf bytes.Buffer
+		if err := apple_mdm.OTASCEPTemplate.Execute(&buf, struct {
+			SCEPURL       string
+			SCEPChallenge string
+		}{
+			SCEPURL:       scepURL,
+			SCEPChallenge: scepChallenge,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "execute template")
+		}
+		return buf.Bytes(), nil
+	}
+
+	// otherwise we might be in the second phase, check if the signing cert
+	// was issued by Fleet, only let the enrollment through if so.
+	certVerifier := mdmcrypto.NewSCEPVerifier(svc.ds)
+	if err := certVerifier.Verify(rootSigner); err != nil {
+		return nil, authz.ForbiddenWithInternal(fmt.Sprintf("payload signed with invalid certificate: %s", err), nil, nil, nil)
+	}
+
+	topic, err := svc.mdmPushCertTopic(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	}
+
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appCfg.OrgInfo.OrgName,
+		appCfg.ServerSettings.ServerURL,
+		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		topic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
+	}
+
+	// before responding, create a host record, and assign the host to the
+	// team that matches the enroll secret provided.
+	err = svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, deviceInfo)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating new host record")
+	}
+
+	// at this point we know the device can be enrolled, so we respond with
+	// a signed enrollment profile
+	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
 }

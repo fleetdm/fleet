@@ -637,12 +637,15 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// UninstallSoftwareTitle uninstalls a software title in the given host.
+	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
+
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 
-	// BatchSetSoftwareInstallers replaces the software installers for a
-	// specified team
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
+	// BatchSetSoftwareInstallers replaces the software installers for a specified team.
+	// Returns the metadata of inserted software installers.
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) ([]SoftwareInstaller, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -654,6 +657,32 @@ type Service interface {
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
+
+	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
+	//
+	// Per the [spec][1] OTA enrollment is composed of two phases, each
+	// phase is a request sent by the host to the same endpoint, but it
+	// must be handled differently depending on the signatures of the
+	// request body:
+	//
+	// 1. First request has a certificate signed by Apple's CA as the root
+	// certificate. The server must return a SCEP payload that the device
+	// will use to get a keypair. Note that this keypair is _different_
+	// from the "SCEP identity certificate" that will be generated during
+	// MDM enrollment, and only used for OTA.
+	//
+	// 2. Second request has the SCEP certificate generated in `1` as the
+	// root certificate, the server responds with a "classic" enrollment
+	// profile and the device starts the regular enrollment process from there.
+	//
+	// The extra steps allows us to grab device information like the serial
+	// number and hardware uuid to perform operations before the host even
+	// enrolls in MDM. Currently, this method creates a host records and
+	// assigns a pre-defined team (based on the enrollSecret provided) to
+	// the host.
+	//
+	// [1]: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1
+	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -929,6 +958,9 @@ type Service interface {
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
+	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
+	GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

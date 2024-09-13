@@ -53,7 +53,7 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
-import { isIPadOrIPhone, Platform } from "interfaces/platform";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -68,6 +68,7 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -180,6 +181,10 @@ const HostDetailsPage = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
@@ -479,7 +484,7 @@ const HostDetailsPage = ({
       case "ios":
         return mdmConfig?.ios_updates;
       default:
-        null;
+        return undefined;
     }
   };
 
@@ -598,6 +603,13 @@ const HostDetailsPage = ({
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
             // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case "uninstalled_software":
+          setPackageUninstallDetails({
+            ...details,
             host_display_name:
               host?.display_name || details?.host_display_name || "",
           });
@@ -933,9 +945,7 @@ const HostDetailsPage = ({
                 id={host.id}
                 platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanInstallSoftware={
-                  !!host.orbit_version || isIosOrIpadosHost
-                }
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -1063,6 +1073,12 @@ const HostDetailsPage = ({
           <SoftwareInstallDetailsModal
             details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
+        {packageUninstallDetails && (
+          <SoftwareUninstallDetailsModal
+            details={packageUninstallDetails}
+            onCancel={() => setPackageUninstallDetails(null)}
           />
         )}
         {!!appInstallDetails && (

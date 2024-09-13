@@ -1,5 +1,3 @@
-import validator from "validator";
-
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
@@ -7,7 +5,7 @@ import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
 
 type IAddPackageFormValidatorKey = Exclude<
   keyof IAddPackageFormData,
-  "installScript"
+  "installScript" | "uninstallScript"
 >;
 
 type IMessageFunc = (formData: IAddPackageFormData) => string;

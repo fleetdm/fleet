@@ -229,18 +229,20 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		return ctxerr.Wrap(ctx, err, "get team")
 	}
 
-	skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
+	cooldownSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "run hosts transferred")
 	}
 
-	if !fromCooldown {
-		// if not a retry, then we need to screen the serials for cooldown
-		if len(skipSerials) > 0 {
-			// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
-			// after the cooldown period is over
-			level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+	// if it's a retry, serials on cooldown need to be assigned as well.
+	if fromCooldown {
+		for k, v := range cooldownSerials {
+			assignSerials[k] = append(assignSerials[k], v...)
 		}
+	} else if len(cooldownSerials) > 0 {
+		// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
+		// after the cooldown period is over
+		level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", cooldownSerials))
 	}
 
 	if len(assignSerials) == 0 {
@@ -389,17 +391,17 @@ func QueueMacosSetupAssistantJob(
 }
 
 func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
-	serialsByTeamId, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	serialsByTeamID, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting cooldowns")
 	}
-	if len(serialsByTeamId) == 0 {
+	if len(serialsByTeamID) == 0 {
 		level.Info(logger).Log("msg", "no cooldowns to process")
 		return nil
 	}
 
 	// queue job for each team so that macOS setup assistant worker can pick it up and process it
-	for teamID, serials := range serialsByTeamId {
+	for teamID, serials := range serialsByTeamID {
 		if len(serials) == 0 {
 			logger.Log("msg", "no cooldowns", "team_id", teamID)
 			continue
