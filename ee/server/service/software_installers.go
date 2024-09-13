@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -1164,4 +1165,69 @@ func packageExtensionToPlatform(ext string) string {
 	}
 
 	return requiredPlatform
+}
+
+func UninstallSoftwareMigration(
+	ctx context.Context,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger kitlog.Logger,
+) error {
+	// Find software installers without package_id
+	idMap, err := ds.GetSoftwareInstallersWithoutPackageIDs(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software installers without package_id")
+	}
+	if len(idMap) == 0 {
+		return nil
+	}
+
+	// Download each package and parse it
+	for id, storageID := range idMap {
+		// check if the installer exists in the store
+		exists, err := softwareInstallStore.Exists(ctx, storageID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if installer exists")
+		}
+		if !exists {
+			level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+			continue
+		}
+
+		// get the installer from the store
+		installer, _, err := softwareInstallStore.Get(ctx, storageID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting installer from store")
+		}
+
+		meta, err := file.ExtractInstallerMetadata(installer)
+		if err != nil {
+			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+				err)
+			continue
+		}
+		if len(meta.PackageIDs) == 0 {
+			level.Warn(logger).Log("msg", "no package_id found in metadata", "software_installer_id", id, "storage_id", storageID)
+			continue
+		}
+		if meta.Extension == "" {
+			level.Warn(logger).Log("msg", "no extension found in metadata", "software_installer_id", id, "storage_id", storageID)
+			continue
+		}
+		payload := fleet.UploadSoftwareInstallerPayload{
+			PackageIDs: meta.PackageIDs,
+			Extension:  meta.Extension,
+		}
+		payload.UninstallScript = file.GetUninstallScript(payload.Extension)
+
+		// Update $PACKAGE_ID in uninstall script
+		preProcessUninstallScript(&payload)
+
+		// Update the package_id in the software installer and the uninstall script
+		if err := ds.UpdateSoftwareInstallerWithoutPackageIDs(ctx, id, payload); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating package_id in software installer")
+		}
+	}
+
+	return nil
 }

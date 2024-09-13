@@ -927,3 +927,44 @@ func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, ex
 	}
 	return name, nil
 }
+
+func (ds *Datastore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error) {
+	query := `
+		SELECT id, storage_id FROM software_installers WHERE package_ids = ''
+	`
+	type result struct {
+		ID        uint   `db:"id"`
+		StorageID string `db:"storage_id"`
+	}
+
+	var results []result
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installers without package ID")
+	}
+	if len(results) == 0 {
+		return nil, nil
+	}
+	idMap := make(map[uint]string, len(results))
+	for _, r := range results {
+		idMap[r.ID] = r.StorageID
+	}
+	return idMap, nil
+}
+
+func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,
+	payload fleet.UploadSoftwareInstallerPayload) error {
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+	query := `
+		UPDATE software_installers
+		SET package_ids = ?, uninstall_script_content_id = ?
+		WHERE id = ?
+	`
+	_, err = ds.writer(ctx).ExecContext(ctx, query, strings.Join(payload.PackageIDs, ","), uninstallScriptID, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installer without package ID")
+	}
+	return nil
+}

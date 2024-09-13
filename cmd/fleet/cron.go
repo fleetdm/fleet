@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1392,5 +1393,30 @@ func newIPhoneIPadRefetcher(
 		}),
 	)
 
+	return s, nil
+}
+
+// cronUninstallSoftwareMigration will update uninstall scripts for software.
+// Once all customers are using on Fleet 4.57 or later, this job can be removed.
+func cronUninstallSoftwareMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUninstallSoftwareMigration)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger)
+		}),
+	)
 	return s, nil
 }
