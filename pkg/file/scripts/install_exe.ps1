@@ -18,3 +18,4 @@ $exitCode = $process.ExitCode
 
 # Prints the exit code
 Write-Host "Install exit code: $exitCode"
+Exit $exitCode
