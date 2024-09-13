@@ -4,7 +4,7 @@ import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { QueryParams } from "utilities/url";
 
@@ -40,8 +40,8 @@ const REGEX_DETAIL_PAGES = {
   QUERIES_EDIT: /\/queries\/\d+/i,
   QUERIES_NEW: /\/queries\/new/i,
   // TODO - remove below 2 for no teams with edit and new policies pages?
-  POLICY_EDIT: /\/policies\/\d+/i,
-  POLICY_NEW: /\/policies\/new/i,
+  // POLICY_EDIT: /\/policies\/\d+/i,
+  // POLICY_NEW: /\/policies\/new/i,
   SOFTWARE_TITLES_DETAILS: /\/software\/titles\/\d+/i,
   SOFTWARE_VERSIONS_DETAILS: /\/software\/versions\/\d+/i,
 };
@@ -56,7 +56,6 @@ const REGEX_GLOBAL_PAGES = {
 };
 
 const REGEX_EXCLUDE_NO_TEAM_PAGES = {
-  // MANAGE_POLICIES: /\/policies\/manage/i,
   MANAGE_QUERIES: /\/queries\/manage/i,
 };
 
@@ -113,7 +112,7 @@ const SiteTopNav = ({
     // id from context (note that policy edit page does support team_id param so we exclude that one)
     currentQueryParams.team_id =
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-        ? undefined
+        ? API_ALL_TEAMS_ID
         : currentTeam?.id;
   }
 
@@ -151,7 +150,7 @@ const SiteTopNav = ({
         : currentPath;
 
       const includeTeamId = (activePath: string) => {
-        if (currentQueryParams.team_id) {
+        if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
           return `${path}?team_id=${currentQueryParams.team_id}`;
         }
         return activePath;
