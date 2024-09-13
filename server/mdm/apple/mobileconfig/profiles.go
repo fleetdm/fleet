@@ -1,9 +1,6 @@
 package mobileconfig
 
 import (
-	"encoding/xml"
-	"fmt"
-	"strings"
 	"text/template"
 )
 
@@ -119,13 +116,7 @@ var FleetCARootTemplate = template.Must(template.New("").Option("missingkey=erro
 </plist>
 `))
 
-var OTAMobileConfigTemplate = template.Must(template.New("").Funcs(template.FuncMap{"xml": func(v string) (string, error) {
-	var escaped strings.Builder
-	if err := xml.EscapeText(&escaped, []byte(v)); err != nil {
-		return "", fmt.Errorf("XML escaping in OTA profile: %w", err)
-	}
-	return escaped.String(), nil
-}}).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+var OTAMobileConfigTemplate = template.Must(template.New("").Funcs(funcMap).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>

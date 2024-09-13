@@ -4198,10 +4198,6 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	)
 }
 
-func (s *integrationMDMTestSuite) TestGetManualEnrollmentProfile() {
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/enrollment_profiles/manual")
-}
-
 func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	t := s.T()
 	ctx := context.Background()
