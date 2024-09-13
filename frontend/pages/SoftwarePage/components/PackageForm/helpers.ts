@@ -50,10 +50,6 @@ const FORM_VALIDATION_CONFIG: Record<
     // no validations related to postInstallScript
     validations: [],
   },
-  // uninstallScript: {
-  //   // no validations related to postInstallScript
-  //   validations: [],
-  // },
   selfService: {
     // no validations related to self service
     validations: [],
