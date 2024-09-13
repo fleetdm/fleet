@@ -88,6 +88,16 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-email"
   dri: "SFriendLee"
 -
+  task: "Monthly mail review" # TODO tie this to a responsibility tldr: go into earthclass company mail inbox, filter by "paper on hand" select "shred and keep scan" for oldest mail.
+  startedOn: "2024-04-15" 
+  frequency: "Monthly"
+  description: "Review and clear mail incurring storage fees" 
+  moreInfoUrl: null 
+  dri: "SFriendLee"
+  autoIssue:   
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
   task: "Process all \"New requests\" on the #g-digital-experience kanban board"
   startedOn: "2023-07-29"
   frequency: "Daily ⏰"
