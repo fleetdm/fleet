@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -169,10 +168,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
-	var dirty []string
+	dirty := make(map[string]bool)
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
-		dirty = append(dirty, "SelfService")
+		dirty["SelfService"] = true
 	}
 
 	activity := fleet.ActivityTypeEditedSoftware{
@@ -215,7 +214,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.Version = payloadForNewInstallerFile.Version
 			payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
 
-			dirty = append(dirty, "Package")
+			dirty["Package"] = true
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
@@ -231,7 +230,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
 	if payload.PreInstallQuery != nil && *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
-		dirty = append(dirty, "PreInstallQuery")
+		dirty["PreInstallQuery"] = true
 	}
 
 	if payload.InstallScript != nil {
@@ -241,7 +240,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		if installScript != existingInstaller.InstallScript {
-			dirty = append(dirty, "InstallScript")
+			dirty["InstallScript"] = true
 			payload.InstallScript = &installScript
 		}
 	}
@@ -249,7 +248,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.PostInstallScript != nil {
 		postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
 		if postInstallScript != existingInstaller.PostInstallScript {
-			dirty = append(dirty, "PostInstallScript")
+			dirty["PostInstallScript"] = true
 			payload.PostInstallScript = &postInstallScript
 		}
 	}
@@ -272,14 +271,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		preProcessUninstallScript(payloadForUninstallScript)
 		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
 			uninstallScript = payloadForUninstallScript.UninstallScript
-			dirty = append(dirty, "UninstallScript")
+			dirty["UninstallScript"] = true
 			payload.UninstallScript = &uninstallScript
 		}
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		if slices.Equal(dirty, []string{"SelfService"}) { // only self-service changed; use lighter update function
+		if len(dirty) == 1 && dirty["UninstallScript"] == true { // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
@@ -297,7 +296,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if payload.UninstallScript == nil {
 				payload.UninstallScript = &existingInstaller.UninstallScript
 			}
-			if payload.PostInstallScript == nil && slices.Contains(dirty, "PostInstallScript") == false {
+			if payload.PostInstallScript == nil && dirty["PostInstallScript"] == false {
 				payload.PostInstallScript = &existingInstaller.PostInstallScript
 			}
 			if payload.PreInstallQuery == nil {
@@ -317,7 +316,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, err
 			}
 
-			if slices.Contains(dirty, "Package") {
+			if dirty["Package"] == true {
 				if err := svc.ds.HideExistingInstallCountsForInstallerID(ctx, existingInstaller.InstallerID); err != nil {
 					return nil, err
 				}
