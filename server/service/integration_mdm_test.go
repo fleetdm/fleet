@@ -1329,6 +1329,14 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
 
+	// Check that we return bad request if the website API does (it will do this in case of an
+	// invalid email address
+	s.FailNextCSRRequestWith(http.StatusUnprocessableEntity)
+	errResp = validationErrResp{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "this email address is not valid")
+
 	// Invalid APNS cert upload attempt
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", []byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.", nil)
 
@@ -9966,8 +9974,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	})
 	require.NoError(t, err)
 
-	// No vpp token set, no association.
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+	// No vpp token set, but request is empty so it succeeds (clears VPP apps for the team).
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	// No vpp token set, try association
 	// FIXME
@@ -10707,7 +10715,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// attempt to install a VPP app on the non-MDM enrolled host
 	installResp := installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, macOSTitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", orbitHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusBadRequest, &installResp)
 
 	// Disable all teams token
@@ -10738,7 +10746,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
-	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, 99999), &installSoftwareRequest{},
+		http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.")
 
 	// Add app 1 as self-service
@@ -10757,7 +10766,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", vppRes.Token.ID), &deleteVPPTokenRequest{}, http.StatusNoContent)
 
@@ -10802,14 +10812,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			errApp.Name,
 			errApp.AdamID,
 			failedCmdUUID,
-			fleet.SoftwareInstallerFailed,
+			fleet.SoftwareInstallFailed,
 		),
 		0,
 	)
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 	countResp = countHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -10849,7 +10859,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			addedApp.Name,
 			addedApp.AdamID,
 			cmdUUID,
-			fleet.SoftwareInstallerInstalled,
+			fleet.SoftwareInstalled,
 		),
 		0,
 	)
@@ -10868,12 +10878,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
 	require.NotNil(t, got2.Status)
-	require.Equal(t, *got2.Status, fleet.SoftwareInstallerFailed)
+	require.Equal(t, *got2.Status, fleet.SoftwareInstallFailed)
 	require.NotNil(t, got2.AppStoreApp)
 	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
 	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
@@ -10895,7 +10905,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Empty(t, got1.AppStoreApp.Name)
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 
@@ -10988,7 +10998,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					&fleetSelfServiceSoftwareInstallRequest{}, http.StatusAccepted, &ssInstallResp)
 			} else {
 				installResp = installSoftwareResponse{}
-				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", installHost.ID, titleID),
+				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", installHost.ID, titleID),
 					&installSoftwareRequest{}, http.StatusAccepted, &installResp)
 			}
 			countResp = countHostsResponse{}
@@ -11026,7 +11036,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					app.Name,
 					app.AdamID,
 					cmdUUID,
-					fleet.SoftwareInstallerPending,
+					fleet.SoftwareInstallPending,
 					install.deviceToken != "",
 				),
 				string(*hostActivitiesResp.Activities[0].Details),
@@ -11054,7 +11064,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					app.Name,
 					app.AdamID,
 					cmdUUID,
-					fleet.SoftwareInstallerInstalled,
+					fleet.SoftwareInstalled,
 					install.deviceToken != "",
 				),
 				0,
@@ -11074,7 +11084,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(app.IconURL))
 					require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 					require.Equal(t, got1.AppStoreApp.Version, app.LatestVersion)
-					require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+					require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
 					require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 					require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 					foundInstalledApp = true

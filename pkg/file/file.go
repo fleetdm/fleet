@@ -25,6 +25,7 @@ type InstallerMetadata struct {
 	BundleIdentifier string
 	SHASum           []byte
 	Extension        string
+	PackageIDs       []string
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the

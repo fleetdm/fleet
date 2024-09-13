@@ -30,8 +30,25 @@ module.exports = {
 
   fn: async function ({start}) {
 
+    let trialLicenseKey;
+    // Check to see if this user has a Fleet premium trial license key.
+    let userHasTrialLicense = this.req.me.fleetPremiumTrialLicenseKey;
+    let userHasExpiredTrialLicense = false;
+    if(userHasTrialLicense) {
+      if(this.req.me.fleetPremiumTrialLicenseKeyExpiresAt < Date.now()) {
+        userHasExpiredTrialLicense = true;
+      }
+      trialLicenseKey = this.req.me.fleetPremiumTrialLicenseKey;
+    } else {
+      trialLicenseKey = '';
+    }
+
     // Respond with view.
-    return {hideNextStepsButtons: start};
+    return {
+      hideNextStepsButtons: start,
+      trialLicenseKey,
+      userHasExpiredTrialLicense,
+    };
 
   }
 

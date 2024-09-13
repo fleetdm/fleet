@@ -17,7 +17,7 @@ Please also see [Application security](https://fleetdm.com/docs/using-fleet/appl
 
 
 ## Data security
-Please also see ["Data security"](https://fleetdm.com/handbook/business-operations/security-policies#data-management-policy)
+Please also see ["Data security"](https://fleetdm.com/handbook/digital-experience/security-policies#data-management-policy)
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Should the need arise during an active relationship, how can our Data be removed from the Fleet's environment?   | Customer data is primarily stored in RDS, S3, and Cloudwatch logs. Deleting these resources will remove the vast majority of customer data. Fleet can take further steps to remove data on demand, including deleting individual records in monitoring systems if requested.                                                                                                                              |
@@ -35,7 +35,7 @@ Please also see ["Data security"](https://fleetdm.com/handbook/business-operatio
 | Can Fleet customers access service logs?    |    Logs will not be accessible by default, but can be provided upon request. |
 
 ## Encryption and key management
-Please also see [Encryption and key management](https://fleetdm.com/handbook/business-operations/security-policies#encryption-policy)
+Please also see [Encryption and key management](https://fleetdm.com/handbook/digital-experience/security-policies#encryption-policy)
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet have a cryptographic key management process (generation, exchange, storage, safeguards, use, vetting, and replacement), that is documented and currently implemented, for all system components? (e.g. database, system, web, etc.)   | All data is encrypted at rest using methods appropriate for the system (ie KMS for AWS based resources). Data going over the internet is encrypted using TLS or other appropiate transport security. |
@@ -48,10 +48,10 @@ Please also see [Encryption and key management](https://fleetdm.com/handbook/bus
 | Does Fleet have documented information security baselines for every component of the infrastructure (e.g., hypervisors, operating systems, routers, DNS servers, etc.)?  | Fleet follows best practices for the given system. For instance, with AWS we utilize AWS best practices for security including GuardDuty, CloudTrail, etc.                                                                |
 
 ## Business continuity
-Please also see [Business continuity](https://fleetdm.com/handbook/business-operations/security-policies#business-continuity-plan)
+Please also see [Business continuity](https://fleetdm.com/handbook/digital-experience/security-policies#business-continuity-plan)
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Please provide your application/solution disaster recovery RTO/RPO | RTO and RPO intervals differ depending on the service that is impacted. Please refer to https://fleetdm.com/handbook/business-operations/security-policies#business-continuity-and-disaster-recovery-policy                                                               |
+| Please provide your application/solution disaster recovery RTO/RPO | RTO and RPO intervals differ depending on the service that is impacted. Please refer to https://fleetdm.com/handbook/digital-experience/security-policies#business-continuity-and-disaster-recovery-policy                                                               |
 
 ## Network security
 | Question | Answer                                                                                                                                                 |

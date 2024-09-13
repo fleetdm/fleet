@@ -463,7 +463,7 @@ When this occurs, we will begin receiving the following error message when attem
 
 2. Log in using the credentials stored in 1Password under "Apple developer account".
 
-3. Contact the Head of Business Operations to determine which phone number to use for 2FA.
+3. Contact the Head of Digital Experience to determine which phone number to use for 2FA.
 
 4. Complete the 2FA process to log in.
 
@@ -535,7 +535,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 
 ### Ship approved equipment
 
-Once the Business Operations department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
+Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. package equipment for shipment and include Yubikeys (if requested).
