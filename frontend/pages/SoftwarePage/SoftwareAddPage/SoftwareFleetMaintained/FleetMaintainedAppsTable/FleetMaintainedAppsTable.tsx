@@ -123,9 +123,9 @@ const FleetMaintainedAppsTable = ({
             lastUpdatedAt={data.counts_updated_at}
             customTooltipText={
               <>
-                The last time software data was <br />
-                updated, including vulnerabilities <br />
-                and host counts.
+                The last time Fleet-maintained <br />
+                package library data was <br />
+                updated.
               </>
             }
           />

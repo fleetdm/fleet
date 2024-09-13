@@ -21,7 +21,7 @@ interface ISoftwareFleetMaintainedProps {
 }
 
 // default values for query params used on this page if not provided
-const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE = 0;
