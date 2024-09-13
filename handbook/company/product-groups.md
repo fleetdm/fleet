@@ -386,7 +386,7 @@ Requests are weighed by:
 
 ### After the feature is accepted
 
-After the 🎁🗣 Feature Fest meeting, the Feature prioritization DRI will clear the Feature Fest board as follows:
+After the "🎁🗣 Feature fest" meeting, the feature prioritization DRI will clear the ["🎁 Feature fest" board](https://github.com/fleetdm/fleet/issues#workspaces/feature-fest-651b2962605ba29209324c57/board) as follows:
 **Prioritized features:** Remove `feature fest` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The request will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 **Put to the side features:** Remove `feature fest` label and notify the requestor.
 
