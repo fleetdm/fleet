@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1266,25 +1267,29 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		return
 	}
 
-	// Check if the 'software_linux' result and status
+	// Check the 'software_linux' result and status
 	sw, ok := (*results)[linuxSoftware]
 	if !ok {
 		return
 	}
-
 	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
 	// Extract the Python and Debian packages from the software list for filtering
-	// allocating space for 40 packages based on state of fresh ubuntu 24.04 install
-	pythonPackages := make([]string, 0, 40)
+	// pre-allocating space for 40 packages based on number of package found in
+	// a fresh ubuntu 24.04 install
+	pythonPackages := make(map[string]int, 40)
 	debPackages := make(map[string]struct{}, 40)
-	for _, row := range sw {
+
+	// Track indexes of rows to remove
+	indexesToRemove := []int{}
+
+	for i, row := range sw {
 		switch row["source"] {
 		case pythonSource:
 			loweredName := strings.ToLower(row["name"])
-			pythonPackages = append(pythonPackages, loweredName)
+			pythonPackages[loweredName] = i
 			row["name"] = loweredName
 		case debSource:
 			// Only append python3 deb packages
@@ -1299,25 +1304,29 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 		return
 	}
 
-	// Prepare the final filtered software list
-	filteredSW := make([]map[string]string, 0, len(sw))
-	for _, row := range sw {
-		if row["source"] == pythonSource {
-			convertedName := pythonPrefix + row["name"]
+	// Loop through pythonPackages map to identify any that should be removed
+	for name, index := range pythonPackages {
+		convertedName := pythonPrefix + name
 
-			// Filter out Python packages that are also Debian packages
-			if _, found := debPackages[convertedName]; found {
-				continue
-			}
-
+		// Filter out Python packages that are also Debian packages
+		if _, found := debPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
+		} else {
 			// Update remaining Python package names to match OVAL definitions
-			row["name"] = convertedName
+			sw[index]["name"] = convertedName
 		}
-		filteredSW = append(filteredSW, row)
+	}
+
+	// Sort indexes to remove in descending order
+	sort.Sort(sort.Reverse(sort.IntSlice(indexesToRemove)))
+
+	// Remove rows from sw in descending order of indexes
+	for _, index := range indexesToRemove {
+		sw = append(sw[:index], sw[index+1:]...)
 	}
 
 	// Store the updated software result back in the results map
-	(*results)[linuxSoftware] = filteredSW
+	(*results)[linuxSoftware] = sw
 }
 
 func preProcessSoftwareExtraResults(
