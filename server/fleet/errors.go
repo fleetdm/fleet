@@ -295,7 +295,7 @@ type OTAForbiddenError struct {
 }
 
 func (e OTAForbiddenError) Error() string {
-	return "Couldn't install the profile. Invalid enrollment secret. Please contact your IT administrator."
+	return "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin."
 }
 
 func (e OTAForbiddenError) StatusCode() int {
