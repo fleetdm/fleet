@@ -1,24 +1,37 @@
-# Fleet extracts name from installer (EXE) and saves it to package ID variable
+# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
+# variable
 $softwareName = $PACKAGE_ID
 
-# It is recommended to use exact software name here if possible to avoid uninstalling unintended software.
+# It is recommended to use exact software name here if possible to avoid
+# uninstalling unintended software.
 $softwareNameLike = "*$softwareName*"
 
 # Some uninstallers require a flag to run silently.
-# Each uninstaller might use different argument (usually it's "/S", "/s" or "-ms")
+# Each uninstaller might use different argument (usually it's "/S" or "/s")
 $uninstallArgs = "/S"
 
-$machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-[array]$uninstallKeys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty $_.PSPath }
+$machineKey = `
+ 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$machineKey32on64 = `
+ 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+[array]$uninstallKeys = Get-ChildItem `
+    -Path @($machineKey, $machineKey32on64) `
+    -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-ItemProperty $_.PSPath }
 
 $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
-    # If needed, add -notlike to the comparison to exclude certain similar software
+    # If needed, add -notlike to the comparison to exclude certain similar
+    # software
     if ($key.DisplayName -like $softwareNameLike) {
         $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include 'QuietUninstallString' and require a flag to run silently.
-        $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+        # Get the uninstall command. Some uninstallers do not include
+        # 'QuietUninstallString' and require a flag to run silently.
+        $uninstallCommand = if ($key.QuietUninstallString) {
+            $key.QuietUninstallString
+        } else {
+            $key.UninstallString
+        }
 
         $processOptions = @{
             FilePath = $uninstallCommand
@@ -35,7 +48,7 @@ foreach ($key in $uninstallKeys) {
 
         # Prints the exit code
         Write-Host "Uninstall exit code: $exitCode"
-        # Exit the loop once the software is found and uninstalled. Remove next line if you want to uninstall all software that matches the name.
+        # Exit the loop once the software is found and uninstalled.
         break
     }
 }
