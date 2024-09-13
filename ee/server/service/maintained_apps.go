@@ -30,7 +30,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	}
 
 	// Download installer from the URL
-	installerBytes, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, maxMaintainedInstallerSizeBytes)
+	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, maxMaintainedInstallerSizeBytes)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
@@ -47,6 +47,11 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
 	}
 
+	// Fall back to the filename if we weren't able to extract a filename from the installer response
+	if filename == "" {
+		filename = app.Name
+	}
+
 	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:     installerReader,
@@ -54,7 +59,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		UserID:            vc.UserID(),
 		TeamID:            teamID,
 		Version:           app.Version,
-		Filename:          app.Name,
+		Filename:          filename,
 		Platform:          string(app.Platform),
 		BundleIdentifier:  app.BundleIdentifier,
 		StorageID:         app.SHA256,
