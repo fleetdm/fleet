@@ -194,7 +194,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 		}
 
-		if newInstallerExtension != existingInstaller.Extension || payloadForNewInstallerFile.Source != software.Source {
+		if newInstallerExtension != existingInstaller.Extension {
 			return nil, &fleet.BadRequestError{
 				Message:     "The selected package is for a different file type.",
 				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
