@@ -33,7 +33,6 @@ Compliance and contracts including maintaining Delaware registered agent and cer
 
 > _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
-=============================
 
 ### Access a background check
 
@@ -239,14 +238,7 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
 When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
 
-
-
-
-
-=============================
-
 ### QA a change to fleetdm.com
-
 Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
