@@ -417,5 +417,14 @@
       "product": ["git"],
       "vendor": ["git"]
     }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["org.virtualbox.app.VirtualBox"]
+    },
+    "filter": {
+      "product": ["virtualbox"],
+      "vendor": ["oracle"]
+    }
   }
 ]
