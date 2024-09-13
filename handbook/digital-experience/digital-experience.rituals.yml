@@ -175,7 +175,7 @@
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
   description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#downgrade-an-unused-license-seat"
   dri: "sampfluger88"
 -
   task: "Communicate Fleet's potential energy to stakeholders" 
@@ -188,21 +188,33 @@
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
 -
-  task: "Change password of \"Integrations admin\" Salesforce account" 
-  startedOn: "2024-09-10" 
+  task: "Vanta check" # TODO tie this to a responsibility
+  startedOn: "2024-04-01"
+  frequency: "Monthly"
+  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time."
+  moreInfoUrl:
+  dri: "sampfluger88"
+  autoIssue:
+    labels: [ "#g-digital-experience" ]
+    repo: "confidential"
+-
+  task: "Recognize and benchmark workiversaries"
+  startedOn: "2024-07-15"
+  frequency: "Bimonthly"
+  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#recognize-employee-workiversaries"
+  dri: "sampfluger88"
+-
+  task: "Quarterly grants"
+  startedOn: "2024-02-01"
   frequency: "Quarterly"
-  description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce." 
+  description: "Create the equity grants GitHub issue and walk through the steps."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#grant-equity"
+  dri: "hollidayn"
+-
+  task: "Change password of \"Integrations admin\" Salesforce account"
+  startedOn: "2024-09-10"
+  frequency: "Quarterly"
+  description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
-
-
-
-
-
-
-
-
-
-
-
-

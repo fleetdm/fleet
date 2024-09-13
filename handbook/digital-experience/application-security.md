@@ -1,13 +1,13 @@
 # Application security
 
-- [Describe your secure coding practices (SDLC)](https://fleetdm.com/handbook/business-operations/application-security#describe-your-secure-coding-practices-including-code-reviews-use-of-static-dynamic-security-testing-tools-3-rd-party-scans-reviews)
-- [SQL injection](https://fleetdm.com/handbook/business-operations/application-security#sql-injection)
-- [Broken authentication](https://fleetdm.com/handbook/business-operations/application-security#broken-authentication-authentication-session-management-flaws-that-compromise-passwords-keys-session-tokens-etc)
-  - [Passwords](https://fleetdm.com/handbook/business-operations/application-security#passwords)
-  - [Authentication tokens](https://fleetdm.com/handbook/business-operations/application-security#authentication-tokens)
-- [Sensitive data exposure](https://fleetdm.com/handbook/business-operations/application-security#sensitive-data-exposure-encryption-in-transit-at-rest-improperly-implemented-apis)
-- [Cross-site scripting](https://fleetdm.com/handbook/business-operations/application-security#cross-site-scripting-ensure-an-attacker-cant-execute-scripts-in-the-users-browser)
-- [Components with known vulnerabilities](https://fleetdm.com/handbook/business-operations/application-security#components-with-known-vulnerabilities-prevent-the-use-of-libraries-frameworks-other-software-with-existing-vulnerabilities)
+- [Describe your secure coding practices (SDLC)](https://fleetdm.com/handbook/digital-experience/application-security#describe-your-secure-coding-practices-including-code-reviews-use-of-static-dynamic-security-testing-tools-3-rd-party-scans-reviews)
+- [SQL injection](https://fleetdm.com/handbook/digital-experience/application-security#sql-injection)
+- [Broken authentication](https://fleetdm.com/handbook/digital-experience/application-security#broken-authentication-authentication-session-management-flaws-that-compromise-passwords-keys-session-tokens-etc)
+  - [Passwords](https://fleetdm.com/handbook/digital-experience/application-security#passwords)
+  - [Authentication tokens](https://fleetdm.com/handbook/digital-experience/application-security#authentication-tokens)
+- [Sensitive data exposure](https://fleetdm.com/handbook/digital-experience/application-security#sensitive-data-exposure-encryption-in-transit-at-rest-improperly-implemented-apis)
+- [Cross-site scripting](https://fleetdm.com/handbook/digital-experience/application-security#cross-site-scripting-ensure-an-attacker-cant-execute-scripts-in-the-users-browser)
+- [Components with known vulnerabilities](https://fleetdm.com/handbook/digital-experience/application-security#components-with-known-vulnerabilities-prevent-the-use-of-libraries-frameworks-other-software-with-existing-vulnerabilities)
 
 The Fleet community follows best practices when coding. Here are some of the ways we mitigate against the OWASP top 10 issues:
 
