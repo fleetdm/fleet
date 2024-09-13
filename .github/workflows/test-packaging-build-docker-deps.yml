@@ -11,6 +11,10 @@ on:
       - main
       - patch-*
       - prepare-*
+    paths:
+      - "tools/bomutils-docker/**"
+      - "tools/wix-docker/**"
+      - ".github/workflows/test-packaging-build-docker-deps.yml"
   pull_request:
     paths:
       - "tools/bomutils-docker/**"
