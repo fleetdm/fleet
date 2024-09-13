@@ -241,7 +241,7 @@ interface ISoftwarePackageCardProps {
   router: InjectedRouter;
 }
 
-// NOTE: This component is depeent on having either a software package
+// NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
