@@ -600,6 +600,10 @@ After the team member notifies the Head of Digital Experience (via Slack), the H
  -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
+### Verify KPIs completed on time
+- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and [document performance feedback](https://fleetdm.com/handbook/digital-experience#document-performance-feedback).
+
+
 ### Document performance feedback
 
 Every Friday at 5PM a [Digital Experience team member](https://fleetdm.com/handbook/digital-experience#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
