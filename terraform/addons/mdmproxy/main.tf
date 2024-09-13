@@ -140,6 +140,11 @@ resource "aws_ecs_service" "mdmproxy" {
   desired_count                      = var.config.desired_count
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
+  force_new_deployment               = true
+
+  triggers = {
+    redeployment = md5(jsonencode(aws_secretsmanager_secret_version.mdmproxy.secret_string))
+  }
 
   load_balancer {
     target_group_arn = module.alb.target_group_arns[0]
