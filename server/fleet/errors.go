@@ -291,12 +291,11 @@ func (e PermissionError) PermissionError() []map[string]string {
 // the content of `message` will be displayed to the end user.
 type OTAForbiddenError struct {
 	ErrorWithUUID
-	Message     string
 	InternalErr error
 }
 
 func (e OTAForbiddenError) Error() string {
-	return e.Message
+	return "Couldn't install the profile. Invalid enrollment secret. Please contact your IT administrator."
 }
 
 func (e OTAForbiddenError) StatusCode() int {

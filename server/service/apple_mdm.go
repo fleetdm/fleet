@@ -4205,7 +4205,6 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	enrollSecret := r.URL.Query().Get("enroll_secret")
 	if enrollSecret == "" {
 		return nil, &fleet.OTAForbiddenError{
-			Message:     "invalid enroll secret provided",
 			InternalErr: errors.New("enroll_secret query parameter was empty"),
 		}
 	}
@@ -4291,7 +4290,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, &fleet.OTAForbiddenError{
-				Message:     "invalid enroll secret provided",
 				InternalErr: err,
 			}
 		}

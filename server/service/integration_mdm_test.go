@@ -556,6 +556,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// enable MDM flows
 	s.appleCoreCertsSetup()
 
+	// create a global enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: "global-secret"}},
+		},
+	}, http.StatusOK, &applyResp)
+
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 	s.T().Cleanup(s.appleITunesSrv.Close)
@@ -9820,7 +9828,10 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
 	var recordedPushes []*mdm.Push
+	var mu sync.Mutex
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
 		recordedPushes = pushes
 		return mockSuccessfulPush(pushes)
 	}
