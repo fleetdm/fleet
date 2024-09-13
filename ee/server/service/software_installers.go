@@ -1223,7 +1223,7 @@ func UninstallSoftwareMigration(
 		// Update $PACKAGE_ID in uninstall script
 		preProcessUninstallScript(&payload)
 
-		// Update the package_id in the software installer and the uninstall script
+		// Update the package_id and extension in the software installer and the uninstall script
 		if err := ds.UpdateSoftwareInstallerWithoutPackageIDs(ctx, id, payload); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating package_id in software installer")
 		}
