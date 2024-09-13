@@ -310,16 +310,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 			}
 
-			// if we're updating anything other than self-service, we cancel pending install executions
-			// do this first before resetting counts; resetting install counts (setting removed = TRUE) nulls out install statuses
-			if err := svc.ds.CancelPendingInstallsAndUninstalls(ctx, existingInstaller.InstallerID); err != nil {
+			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
+			// and if we're updating the package we reset counts. This is run in its own transaction internally
+			// for consistency, but independent of the installer update query as the main update should stick
+			// even if side effects fail.
+			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"] == true); err != nil {
 				return nil, err
-			}
-
-			if dirty["Package"] == true {
-				if err := svc.ds.HideExistingInstallCountsForInstallerID(ctx, existingInstaller.InstallerID); err != nil {
-					return nil, err
-				}
 			}
 		}
 

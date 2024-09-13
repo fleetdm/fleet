@@ -1668,14 +1668,14 @@ type Datastore interface {
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
 
-	// CancelPendingInstallsAndUninstalls removes host_software_installer and queued script records for
+	// ProcessInstallerUpdateSideEffects handles, in a transaction, the following based on whether metadata
+	// or package are dirty:
+	// 1. If metadata or package were updated, removes host_software_installer and queued script records for
 	// pending non-VPP installs and uninstalls for an installer by its ID. See implementation for caveats.
-	CancelPendingInstallsAndUninstalls(ctx context.Context, installerID uint) error
-
-	// HideExistingInstallCountsForInstallerID marks host software installer rows for the supplied installer
+	// 2. If package was updated, marks host software installer rows for the supplied installer
 	// as removed, hiding them from stats calculations (note that this will null out installer statuses due
 	// to how the virtual column works).
-	HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error
+	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
 
 	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
 	// for which fields must be set.

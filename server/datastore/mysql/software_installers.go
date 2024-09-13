@@ -465,33 +465,34 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
 
-func (ds *Datastore) CancelPendingInstallsAndUninstalls(ctx context.Context, installerID uint) error {
-	// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
+func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
+			// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
+			_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
+				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = "pending_uninstall"
+			)`, installerID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
+			}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
-		SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = "pending_uninstall"
-	)`, installerID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
-	}
+			_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
+			   WHERE software_installer_id = ? AND status IN("pending_install", "pending_uninstall")`, installerID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
+			}
+		}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_software_installs
-       WHERE software_installer_id = ? AND status IN("pending_install", "pending_uninstall")`, installerID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
-	}
+		if wasPackageUpdated { // hide existing install counts
+			_, err := tx.ExecContext(ctx, `UPDATE host_software_installs SET removed = TRUE
+	  			WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, installerID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "hide existing install counts")
+			}
+		}
 
-	return nil
-}
-
-func (ds *Datastore) HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_software_installs SET removed = TRUE
-	  	WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, id)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "hide existing install counts")
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {

@@ -1034,14 +1034,6 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
-type CancelPendingInstallsAndUninstallsFunc func(ctx context.Context, installerID uint) error
-
-type HideExistingInstallCountsForInstallerIDFunc func(ctx context.Context, id uint) error
-
-type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
-
-type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
-
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
@@ -1055,6 +1047,12 @@ type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, 
 type GetSoftwareInstallersWithoutPackageIDsFunc func(ctx context.Context) (map[uint]string, error)
 
 type UpdateSoftwareInstallerWithoutPackageIDsFunc func(ctx context.Context, id uint, payload fleet.UploadSoftwareInstallerPayload) error
+
+type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
+
+type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
 
 type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error)
 
@@ -2609,18 +2607,6 @@ type DataStore struct {
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
-	CancelPendingInstallsAndUninstallsFunc        CancelPendingInstallsAndUninstallsFunc
-	CancelPendingInstallsAndUninstallsFuncInvoked bool
-
-	HideExistingInstallCountsForInstallerIDFunc        HideExistingInstallCountsForInstallerIDFunc
-	HideExistingInstallCountsForInstallerIDFuncInvoked bool
-
-	UpdateInstallerSelfServiceFlagFunc        UpdateInstallerSelfServiceFlagFunc
-	UpdateInstallerSelfServiceFlagFuncInvoked bool
-
-	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
-	SaveInstallerUpdatesFuncInvoked bool
-
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
 
@@ -2644,6 +2630,15 @@ type DataStore struct {
 
 	UpdateSoftwareInstallerWithoutPackageIDsFunc        UpdateSoftwareInstallerWithoutPackageIDsFunc
 	UpdateSoftwareInstallerWithoutPackageIDsFuncInvoked bool
+
+	ProcessInstallerUpdateSideEffectsFunc        ProcessInstallerUpdateSideEffectsFunc
+	ProcessInstallerUpdateSideEffectsFuncInvoked bool
+
+	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
+	SaveInstallerUpdatesFuncInvoked bool
+
+	UpdateInstallerSelfServiceFlagFunc        UpdateInstallerSelfServiceFlagFunc
+	UpdateInstallerSelfServiceFlagFuncInvoked bool
 
 	GetVPPAppByTeamAndTitleIDFunc        GetVPPAppByTeamAndTitleIDFunc
 	GetVPPAppByTeamAndTitleIDFuncInvoked bool
@@ -6248,34 +6243,6 @@ func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint
 	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
 }
 
-func (s *DataStore) CancelPendingInstallsAndUninstalls(ctx context.Context, installerID uint) error {
-	s.mu.Lock()
-	s.CancelPendingInstallsAndUninstallsFuncInvoked = true
-	s.mu.Unlock()
-	return s.CancelPendingInstallsAndUninstallsFunc(ctx, installerID)
-}
-
-func (s *DataStore) HideExistingInstallCountsForInstallerID(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.HideExistingInstallCountsForInstallerIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.HideExistingInstallCountsForInstallerIDFunc(ctx, id)
-}
-
-func (s *DataStore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
-	s.mu.Lock()
-	s.UpdateInstallerSelfServiceFlagFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateInstallerSelfServiceFlagFunc(ctx, selfService, id)
-}
-
-func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
-	s.mu.Lock()
-	s.SaveInstallerUpdatesFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveInstallerUpdatesFunc(ctx, payload)
-}
-
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 	s.mu.Lock()
 	s.GetHostLastInstallDataFuncInvoked = true
@@ -6323,6 +6290,27 @@ func (s *DataStore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context
 	s.UpdateSoftwareInstallerWithoutPackageIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateSoftwareInstallerWithoutPackageIDsFunc(ctx, id, payload)
+}
+
+func (s *DataStore) ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
+	s.mu.Lock()
+	s.ProcessInstallerUpdateSideEffectsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ProcessInstallerUpdateSideEffectsFunc(ctx, installerID, wasMetadataUpdated, wasPackageUpdated)
+}
+
+func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	s.mu.Lock()
+	s.SaveInstallerUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveInstallerUpdatesFunc(ctx, payload)
+}
+
+func (s *DataStore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
+	s.mu.Lock()
+	s.UpdateInstallerSelfServiceFlagFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateInstallerSelfServiceFlagFunc(ctx, selfService, id)
 }
 
 func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
