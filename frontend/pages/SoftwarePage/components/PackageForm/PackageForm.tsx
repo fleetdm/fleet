@@ -22,12 +22,11 @@ const UploadingSoftware = () => {
   return (
     <div className={`${baseClass}__uploading-message`}>
       <Spinner centered={false} />
-      <p>Adding software. This may take a few minutes to finish.</p>
+      <p>Uploading software. This may take a few minutes to finish.</p>
     </div>
   );
 };
 
-// TODO: Rename to PackageFormData since its used in both add/edit software packages
 export interface IPackageFormData {
   software: File | null;
   preInstallQuery?: string;

@@ -71,6 +71,33 @@ const EditSoftwareModal = ({
     );
   }, [showConfirmSaveChangesModal]);
 
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+
+    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Next line with e.returnValue is included for legacy support
+      // e.g.Chrome / Edge < 119
+      e.returnValue = true;
+    };
+
+    // set up event listener to prevent user from leaving page while uploading
+    if (isUpdatingSoftware) {
+      addEventListener("beforeunload", beforeUnloadHandler);
+      timeout = setTimeout(() => {
+        removeEventListener("beforeunload", beforeUnloadHandler);
+      }, UPLOAD_TIMEOUT);
+    } else {
+      removeEventListener("beforeunload", beforeUnloadHandler);
+    }
+
+    // clean up event listener and timeout on component unmount
+    return () => {
+      removeEventListener("beforeunload", beforeUnloadHandler);
+      clearTimeout(timeout);
+    };
+  }, [isUpdatingSoftware]);
+
   const toggleConfirmSaveChangesModal = () => {
     // open and closes save changes modal
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
@@ -120,25 +147,29 @@ const EditSoftwareModal = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
-      console.log("Error: ", e);
       const reason = getErrorReason(e);
-      if (
-        reason.includes(
-          "Couldn't edit software. Fleet couldn't read the version from"
-        )
-      ) {
+      if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
           "error",
-          `${reason}. ${(
+          <>
+            Couldn&apos;t edit <b>{software.name}</b>. {reason}.
             <CustomLink
               newTab
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
               text="Learn more"
             />
-          )} `
+          </>
         );
+      } else if (reason.includes("selected package is")) {
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t edit <b>{software.name}</b>. {reason}
+          </>
+        );
+      } else {
+        renderFlash("error", getErrorMessage(e));
       }
-      renderFlash("error", getErrorMessage(e));
     }
     setIsUpdatingSoftware(false);
   };
@@ -169,6 +200,7 @@ const EditSoftwareModal = ({
   };
 
   const onConfirmSoftwareChanges = () => {
+    setShowConfirmSaveChangesModal(false);
     onSaveSoftwareChanges(pendingUpdates);
   };
 

@@ -336,7 +336,7 @@ const SoftwarePackageCard = ({
         <div className={`${baseClass}__main-info`}>
           {renderIcon()}
           <div className={`${baseClass}__info`}>
-            <SoftwareName name={name} />
+            <SoftwareName name={softwarePackage?.name || name} />
             <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
