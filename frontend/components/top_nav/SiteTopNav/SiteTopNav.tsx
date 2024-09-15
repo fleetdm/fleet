@@ -39,9 +39,6 @@ const REGEX_DETAIL_PAGES = {
   PACK_NEW: /\/packs\/new/i,
   QUERIES_EDIT: /\/queries\/\d+/i,
   QUERIES_NEW: /\/queries\/new/i,
-  // TODO - remove below 2 for no teams with edit and new policies pages?
-  // POLICY_EDIT: /\/policies\/\d+/i,
-  // POLICY_NEW: /\/policies\/new/i,
   SOFTWARE_TITLES_DETAILS: /\/software\/titles\/\d+/i,
   SOFTWARE_VERSIONS_DETAILS: /\/software\/versions\/\d+/i,
 };
@@ -53,10 +50,6 @@ const REGEX_GLOBAL_PAGES = {
   INTEGRATIONS: /\/settings\/integrations/i,
   TEAMS: /\/settings\/teams$/i, // Note: we want this to only match if it is the end of the path
   PROFILE: /\/profile/i,
-};
-
-const REGEX_EXCLUDE_NO_TEAM_PAGES = {
-  MANAGE_QUERIES: /\/queries\/manage/i,
 };
 
 const testDetailPage = (path: string, re: RegExp) => {
@@ -75,12 +68,6 @@ const isDetailPage = (path: string) => {
 
 const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
-};
-
-const isExcludeNoTeamPage = (path: string) => {
-  return Object.values(REGEX_EXCLUDE_NO_TEAM_PAGES).some((re) =>
-    path.match(re)
-  );
 };
 
 const SiteTopNav = ({
@@ -103,13 +90,10 @@ const SiteTopNav = ({
   const isActiveGlobalPage = isGlobalPage(currentPath);
 
   const currentQueryParams = { ...query };
-  if (
-    isActiveGlobalPage ||
-    (isActiveDetailPage && !currentPath.match(REGEX_DETAIL_PAGES.POLICY_EDIT))
-  ) {
-    // detail pages (e.g., host details) and some manage pages (e.g., queries) don't have team_id
-    // query params that we can simply append to the top nav links so instead we need grab the team
-    // id from context (note that policy edit page does support team_id param so we exclude that one)
+  if (isActiveGlobalPage || isActiveDetailPage) {
+    // detail pages (e.g., host details) and some manage pages (e.g., queries) aren't guaranteed to
+    // have a team_id in the URL that we can simply append to the top nav links so instead we need grab the team
+    // id from context
     currentQueryParams.team_id =
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
         ? API_ALL_TEAMS_ID
@@ -172,13 +156,6 @@ const SiteTopNav = ({
           </a>
         </li>
       );
-    }
-
-    if (
-      isExcludeNoTeamPage(navItem.location.pathname) &&
-      (currentQueryParams.team_id === "0" || currentQueryParams.team_id === 0)
-    ) {
-      currentQueryParams.team_id = undefined;
     }
 
     return (
