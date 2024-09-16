@@ -14,11 +14,13 @@ import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 export interface IAddPolicyModalProps {
   onCancel: () => void;
   router: InjectedRouter; // v3
-  teamId: number;
+  // API context, all teams: undefined
+  teamId: number | undefined;
   teamName?: string;
 }
 
@@ -81,19 +83,27 @@ const AddPolicyModal = ({
     setLastEditedQueryResolution(selectedPolicy.resolution);
     setLastEditedQueryCritical(selectedPolicy.critical || false);
     setLastEditedQueryId(null);
-    setPolicyTeamId(teamId);
+    setPolicyTeamId(
+      teamId === API_ALL_TEAMS_ID ? APP_CONTEXT_ALL_TEAMS_ID : teamId
+    );
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(
-      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+      teamId === API_ALL_TEAMS_ID
+        ? PATHS.NEW_POLICY
+        : `${PATHS.NEW_POLICY}?team_id=${teamId}`
     );
   };
 
   const onCreateYourOwnPolicyClick = useCallback(() => {
-    setPolicyTeamId(teamId);
+    setPolicyTeamId(
+      teamId === API_ALL_TEAMS_ID ? APP_CONTEXT_ALL_TEAMS_ID : teamId
+    );
     setLastEditedQueryBody(DEFAULT_POLICY.query);
     setLastEditedQueryId(null);
     router.push(
-      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+      teamId === API_ALL_TEAMS_ID
+        ? PATHS.NEW_POLICY
+        : `${PATHS.NEW_POLICY}?team_id=${teamId}`
     );
   }, [
     router,
