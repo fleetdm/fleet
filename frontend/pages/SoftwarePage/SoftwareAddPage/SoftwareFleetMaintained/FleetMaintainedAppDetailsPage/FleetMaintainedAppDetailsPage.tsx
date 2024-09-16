@@ -1,11 +1,15 @@
 import React, { useContext } from "react";
 import { Location } from "history";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
+import { QueryContext } from "context/query";
+import { AppContext } from "context/app";
+import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -13,11 +17,10 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import { QueryContext } from "context/query";
-import useToggleSidePanel from "hooks/useToggleSidePanel";
-import { AppContext } from "context/app";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+import FleetAppDetailsForm from "./FleetAppDetailsForm";
+import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -31,11 +34,13 @@ interface IFleetMaintainedAppDetailsRouteParams {
 
 interface IFleetMaintainedAppDetailsPageProps {
   location: Location<IFleetMaintainedAppDetailsQueryParams>;
+  router: InjectedRouter;
   routeParams: IFleetMaintainedAppDetailsRouteParams;
 }
 
 const FleetMaintainedAppDetailsPage = ({
   location,
+  router,
   routeParams,
 }: IFleetMaintainedAppDetailsPageProps) => {
   const teamId = location.query.team_id;
@@ -45,7 +50,7 @@ const FleetMaintainedAppDetailsPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
-  const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
+  const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
 
   const { data, isLoading, isError } = useQuery(
     ["fleet-maintained-app", id],
@@ -59,6 +64,18 @@ const FleetMaintainedAppDetailsPage = ({
 
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
+  };
+
+  const backToAddSoftwareUrl = `${
+    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED
+  }?${buildQueryStringFromParams({ team_id: teamId })}`;
+
+  const onCancel = () => {
+    router.push(backToAddSoftwareUrl);
+  };
+
+  const onSubmit = (formData: IFleetMaintainedAppFormData) => {
+    console.log(formData);
   };
 
   const renderContent = () => {
@@ -79,12 +96,17 @@ const FleetMaintainedAppDetailsPage = ({
         <>
           <BackLink
             text="Back to add software"
-            path={`${
-              PATHS.SOFTWARE_ADD_FLEET_MAINTAINED
-            }?${buildQueryStringFromParams({ team_id: teamId })}`}
+            path={backToAddSoftwareUrl}
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{data.name}</h1>
+          <FleetAppDetailsForm
+            defaultInstallScript={data.install_script}
+            defaultPostInstallScript={data.post_install_script}
+            defaultUninstallScript={data.uninstall_script}
+            onCancel={onCancel}
+            onSubmit={onSubmit}
+          />
           <AdvancedOptionsFields
             showSchemaButton={isSidePanelOpen}
             installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
