@@ -47,7 +47,7 @@ func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerI
 	return 0, nil
 }
 
-// SoftwareInstallDetailsResult contains all of the information
+// SoftwareInstallDetails contains all of the information
 // required for a client to pull in and install software from the fleet server
 type SoftwareInstallDetails struct {
 	// HostID is used for authentication on the backend and should not
@@ -61,6 +61,8 @@ type SoftwareInstallDetails struct {
 	PreInstallCondition string `json:"pre_install_condition" db:"pre_install_condition"`
 	// InstallScript is the script to run to install the software package.
 	InstallScript string `json:"install_script" db:"install_script"`
+	// UninstallScript is the script to run to uninstall the software package.
+	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// SelfService indicates the install was initiated by the device user
@@ -229,12 +231,9 @@ const (
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
-	// TODO(roberto): this is not true, how do we know that the rollback script was successful?
-	SoftwareInstallerPostInstallFailCopy = `Running script...
+	SoftwareInstallerPostInstallFailCopy    = `Running script...
 Exit code: %d (Failed)
 %s
-Rolling back software install...
-Rolled back successfully
 `
 )
 
