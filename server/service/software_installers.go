@@ -106,24 +106,24 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
 
-	val, ok = r.MultipartForm.Value["install_script"]
-	if ok && len(val) > 0 {
-		decoded.InstallScript = &val[0]
+	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
+	if ok && len(installScriptMultipart) > 0 {
+		decoded.InstallScript = &installScriptMultipart[0]
 	}
 
-	val, ok = r.MultipartForm.Value["pre_install_query"]
-	if ok && len(val) > 0 {
-		decoded.PreInstallQuery = &val[0]
+	preinstallQueryMultipart, ok := r.MultipartForm.Value["pre_install_query"]
+	if ok && len(preinstallQueryMultipart) > 0 {
+		decoded.PreInstallQuery = &preinstallQueryMultipart[0]
 	}
 
-	val, ok = r.MultipartForm.Value["post_install_script"]
-	if ok && len(val) > 0 {
-		decoded.PostInstallScript = &val[0]
+	postInstallScriptMultipart, ok := r.MultipartForm.Value["post_install_script"]
+	if ok && len(postInstallScriptMultipart) > 0 {
+		decoded.PostInstallScript = &postInstallScriptMultipart[0]
 	}
 
-	val, ok = r.MultipartForm.Value["uninstall_script"]
-	if ok && len(val) > 0 {
-		decoded.UninstallScript = &val[0]
+	uninstallScriptMultipart, ok := r.MultipartForm.Value["uninstall_script"]
+	if ok && len(uninstallScriptMultipart) > 0 {
+		decoded.UninstallScript = &uninstallScriptMultipart[0]
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
