@@ -829,7 +829,7 @@ COALESCE(post_install_script_content_id != ? OR
 	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
 	(? IS NULL AND post_install_script_content_id IS NOT NULL)
 , FALSE) is_metadata_modified FROM software_installers
-WHERE global_or_team_id = ?	AND title_id = (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
+WHERE global_or_team_id = ?	AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 `
 
 	const insertNewOrEditedInstaller = `
@@ -1028,7 +1028,7 @@ WHERE global_or_team_id = ?
 			}
 
 			// perform side effects if this was an update
-			if len(existing) >= 1 {
+			if len(existing) > 0 {
 				if err := ds.runInstallerUpdateSideEffectsInTransaction(
 					ctx,
 					tx,
