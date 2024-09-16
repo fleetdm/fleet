@@ -967,6 +967,36 @@ WHERE global_or_team_id = ?
 				postInstallScriptID = &insertID
 			}
 
+			wasUpdatedArgs := []interface{}{
+				// package update
+				installer.StorageID,
+				// metadata update
+				installScriptID,
+				uninstallScriptID,
+				installer.PreInstallQuery,
+				postInstallScriptID,
+				postInstallScriptID,
+				postInstallScriptID,
+				// WHERE clause
+				globalOrTeamID,
+				installer.Title,
+				installer.Source,
+			}
+
+			// pull existing installer state if it exists so we can diff for side effects post-update
+			type existingInstallerUpdateCheckResult struct {
+				InstallerID        uint `db:"id"`
+				IsPackageModified  bool `db:"is_package_modified"`
+				IsMetadataModified bool `db:"is_metadata_modified"`
+			}
+			var existing []existingInstallerUpdateCheckResult
+			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
+			if err != nil {
+				if !errors.Is(err, sql.ErrNoRows) {
+					return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
+				}
+			}
+
 			args := []interface{}{
 				tmID,
 				globalOrTeamID,
@@ -993,6 +1023,17 @@ WHERE global_or_team_id = ?
 				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
 			}
 
+			// perform side effects if this was an update
+			if len(existing) >= 1 {
+				if err := ds.ProcessInstallerUpdateSideEffects(
+					ctx,
+					existing[0].InstallerID,
+					existing[0].IsMetadataModified,
+					existing[0].IsPackageModified,
+				); err != nil {
+					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
+				}
+			}
 		}
 
 		if err := sqlx.SelectContext(ctx, tx, &insertedSoftwareInstallers, loadInsertedSoftwareInstallers, globalOrTeamID); err != nil {
