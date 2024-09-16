@@ -251,12 +251,8 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 				// If all customers have updated to v4.57.0 or later, we can remove this method.
 				uninstallScript = file.GetRemoveScript(ext)
 			}
-			uninstallScriptName := "rollback_script"
-			if ext == "exe" || ext == "msi" {
-				uninstallScriptName = "rollback-script.ps1"
-			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
-				uninstallScriptName)
+				"rollback-script"+scriptExtension)
 			log.Info().Msgf(
 				"rollback staus: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
