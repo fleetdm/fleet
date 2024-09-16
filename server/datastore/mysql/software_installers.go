@@ -438,6 +438,7 @@ SELECT
 	hsi.install_script_exit_code,
 	hsi.self_service,
 	hsi.host_deleted_at,
+	hsi.created_at as created_at,
 	si.user_id AS software_installer_user_id,
 	si.user_name AS software_installer_user_name,
 	si.user_email AS software_installer_user_email
@@ -959,10 +960,10 @@ func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Contex
 	}
 	query := `
 		UPDATE software_installers
-		SET package_ids = ?, uninstall_script_content_id = ?
+		SET package_ids = ?, uninstall_script_content_id = ?, extension = ?
 		WHERE id = ?
 	`
-	_, err = ds.writer(ctx).ExecContext(ctx, query, strings.Join(payload.PackageIDs, ","), uninstallScriptID, id)
+	_, err = ds.writer(ctx).ExecContext(ctx, query, strings.Join(payload.PackageIDs, ","), uninstallScriptID, payload.Extension, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installer without package ID")
 	}

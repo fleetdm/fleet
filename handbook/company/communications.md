@@ -485,7 +485,7 @@ We use the following story points to estimate tasks:
 ### Making a pull request
 
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
-1. Click the _"Edit page"_ button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub browser).
+1. Click the _"Edit page"_ button (top right of the page) from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub browser).
 2. Make your suggested edits in the GitHub.
 3. Click _"Commit changes...."_
 4. Give your proposed change a title or _["Commit message"](https://about.gitlab.com/topics/version-control/version-control-best-practices/#write-descriptive-commit-messages)_ and optional _"Extended description"_ (good commit messages help page maintainers quickly understand the proposed changes).
