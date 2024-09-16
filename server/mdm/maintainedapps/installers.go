@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -70,6 +71,13 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 		if err == nil {
 			filename = params["filename"]
 		}
+	}
+
+	// Fall back on extracting the filename from the URL
+	// This is OK for the first 20 apps we support, but we should do something more robust once we
+	// support more apps.
+	if filename == "" {
+		filename = path.Base(resp.Request.URL.Path)
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
