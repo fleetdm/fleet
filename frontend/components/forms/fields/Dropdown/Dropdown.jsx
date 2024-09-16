@@ -51,6 +51,8 @@ class Dropdown extends Component {
     autoFocus: PropTypes.bool,
     /** Includes styled filter icon */
     tableFilterDropdown: PropTypes.bool,
+    /** Includes styled filter icon */
+    hostsFilterBlock: PropTypes.bool,
     helpText: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.arrayOf(PropTypes.string),
@@ -72,6 +74,7 @@ class Dropdown extends Component {
     tooltip: "",
     autoFocus: false,
     tableFilterDropdown: false,
+    hostsFilterBlock: false,
   };
 
   onMenuOpen = () => {
@@ -156,7 +159,7 @@ class Dropdown extends Component {
   };
 
   // Adds styled filter icon to dropdown
-  renderCustomTableFilter = () => {
+  renderCustomTableFilter = (hostsFilterBlock) => {
     const { options, value } = this.props;
     const customLabel = options
       .filter((option) => option.value === value)
@@ -164,7 +167,10 @@ class Dropdown extends Component {
 
     return (
       <div className={`${baseClass}__custom-value`}>
-        <Icon name="filter" className={`${baseClass}__icon`} />
+        <Icon
+          name={hostsFilterBlock ? "filter-alt" : "filter"}
+          className={`${baseClass}__icon`}
+        />
         <div className={`${baseClass}__custom-value-label`}>{customLabel}</div>
       </div>
     );
@@ -193,6 +199,7 @@ class Dropdown extends Component {
       searchable,
       autoFocus,
       tableFilterDropdown,
+      hostsFilterBlock,
     } = this.props;
 
     const formFieldProps = pick(this.props, [
@@ -230,9 +237,11 @@ class Dropdown extends Component {
           onClose={onMenuClose}
           autoFocus={autoFocus}
           arrowRenderer={renderCustomDropdownArrow}
-          valueComponent={
-            tableFilterDropdown ? renderCustomTableFilter : undefined
-          }
+          valueComponent={() => {
+            return tableFilterDropdown || hostsFilterBlock
+              ? renderCustomTableFilter(hostsFilterBlock)
+              : undefined;
+          }}
         />
       </FormField>
     );
