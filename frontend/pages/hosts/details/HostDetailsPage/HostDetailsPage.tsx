@@ -68,6 +68,7 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -180,6 +181,10 @@ const HostDetailsPage = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
@@ -602,6 +607,13 @@ const HostDetailsPage = ({
               host?.display_name || details?.host_display_name || "",
           });
           break;
+        case "uninstalled_software":
+          setPackageUninstallDetails({
+            ...details,
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
         case "installed_app_store_app":
           setAppInstallDetails({
             ...details,
@@ -933,9 +945,7 @@ const HostDetailsPage = ({
                 id={host.id}
                 platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanInstallSoftware={
-                  !!host.orbit_version || isIosOrIpadosHost
-                }
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -1063,6 +1073,12 @@ const HostDetailsPage = ({
           <SoftwareInstallDetailsModal
             details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
+        {packageUninstallDetails && (
+          <SoftwareUninstallDetailsModal
+            details={packageUninstallDetails}
+            onCancel={() => setPackageUninstallDetails(null)}
           />
         )}
         {!!appInstallDetails && (

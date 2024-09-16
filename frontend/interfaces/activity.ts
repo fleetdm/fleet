@@ -80,6 +80,7 @@ export enum ActivityType {
   AddedSoftware = "added_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  UninstalledSoftware = "uninstalled_software",
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
   AddedAppStoreApp = "added_app_store_app",
@@ -93,12 +94,14 @@ export type IHostPastActivityType =
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp;
 
 // This is a subset of ActivityType that are shown only for the host upcoming activities
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp;
 
 export interface IActivity {
