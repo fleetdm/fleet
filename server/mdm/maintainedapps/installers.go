@@ -22,7 +22,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
 		return nil, "", fleet.NewInvalidArgumentError(
-			"software.url",
+			"fleet_maintained_app.url",
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) is invalid", installerURL),
 		)
 	}
@@ -40,7 +40,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 		var maxBytesErr *http.MaxBytesError
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, "", fleet.NewInvalidArgumentError(
-				"software.url",
+				"fleet_maintained_app.url",
 				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
 			)
 		}
@@ -51,7 +51,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, "", fleet.NewInvalidArgumentError(
-			"software.url",
+			"fleet_maintained_app.url",
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", installerURL),
 		)
 	}
@@ -59,7 +59,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 	// Allow all 2xx and 3xx status codes in this pass.
 	if resp.StatusCode > 400 {
 		return nil, "", fleet.NewInvalidArgumentError(
-			"software.url",
+			"fleet_maintained_app.url",
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) received response status code %d.", installerURL, resp.StatusCode),
 		)
 	}
@@ -87,7 +87,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 		var maxBytesErr *http.MaxBytesError
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, "", fleet.NewInvalidArgumentError(
-				"software.url",
+				"fleet_maintained_app.url",
 				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
 			)
 		}
