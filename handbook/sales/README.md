@@ -136,24 +136,22 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
 
 
-### Conduct a technical evaluation
+### Conduct a technical evaluation (aka proof of value, or POV)
 
-Think of taking a prospect that is doing a tech evaluation as if you were a guide taking a customer
-on an expedition. Expeditions take a long time, are relatively costly, and usually and without a
-plan of what outcomes are going to be accomplished, results in folks getting lost. 
+Think of taking a prospect that is doing a tech evaluation as if you were a guide taking a customer on an expedition. If not planned well, expeditions can take a long time, can be relatively costly, and can result in folks getting lost. 
 
-Tech evals are guided by the tech eval test plan. The tech eval test plan is the main document that
+To avoid these problems at Fleet, Tech evals are guided by the tech eval test plan. The tech eval test plan is the main document that
 will track success criteria for the tech eval. Before the Solutions Consultant (SC) creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________),
 the AE and SC will ask each other, at minimum, the following questions in order to enter a scoping
 phase for the tech eval:
 1. Do we have a well defined set of technical criteria to test?
-2. Do we have a timeline to test agreed upon?
-3. What are the key business outcomes that will be achieved as a result of completing the tech eval?
+2. Do we have a timeline agreed upon?
+3. What are the key business outcomes that will be verified as a result of completing the tech eval?
 
-If the above questions cannot be answered, the opportunity will not progress to tech eval. 
+If the above questions cannot be answered, the opportunity should not progress to tech eval. 
 
 Once the opportunity moves to the "Stage 3 - Requested POV" phase in Salesforce, an automation will
-fire that auto generates the tech eval test plan. This doc will exist in google drive> Sales>
+generate the tech eval test plan. This doc will exist in google drive> Sales>
 Opportunities> "Account Name". 
 
 Once there is agreement to proceed with the tech eval and success criteria have been defined and
