@@ -13,9 +13,9 @@ func TestUp_20240909145426(t *testing.T) {
 	execNoErr(t, db, `INSERT INTO script_contents (id, md5_checksum, contents) VALUES (1, 'checksum', 'script content')`)
 	swiID := execNoErrLastID(t, db, `
 		INSERT INTO software_installers
-			(filename, version, platform, install_script_content_id, storage_id)
+			(filename, version, platform, install_script_content_id, storage_id, package_ids, uninstall_script_content_id)
 		VALUES
-		(?,?,?,?,?)`, "sw1-installer.pkg", "1.2", "darwin", 1, "storage-id1")
+		(?,?,?,?,?,?,?)`, "sw1-installer.pkg", "1.2", "darwin", 1, "storage-id1", "", 1)
 
 	// Apply current migration.
 	applyNext(t, db)
