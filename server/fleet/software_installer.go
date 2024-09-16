@@ -231,12 +231,9 @@ const (
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
-	// TODO(roberto): this is not true, how do we know that the rollback script was successful?
-	SoftwareInstallerPostInstallFailCopy = `Running script...
+	SoftwareInstallerPostInstallFailCopy    = `Running script...
 Exit code: %d (Failed)
 %s
-Rolling back software install...
-Rolled back successfully
 `
 )
 
