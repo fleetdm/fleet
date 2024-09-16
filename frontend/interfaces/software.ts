@@ -226,6 +226,7 @@ export const SOFTWARE_AGGREGATE_STATUSES = [
   "pending",
   "failed",
 ] as const;
+
 export type SoftwareAggregateStatus = typeof SOFTWARE_AGGREGATE_STATUSES[number];
 
 export const isValidSoftwareAggregateStatus = (
@@ -340,7 +341,7 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
   );
 };
 
-export const mergeInstallStatuses = (
+export const aggregateInstallStatusCounts = (
   packageStatuses: ISoftwarePackage["status"]
 ) => ({
   installed: packageStatuses.installed,

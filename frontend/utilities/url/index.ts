@@ -9,10 +9,7 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import {
-  isValidSoftwareAggregateStatus,
-  SoftwareAggregateStatus,
-} from "interfaces/software";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -38,7 +35,7 @@ interface IMutuallyExclusiveHostParams {
   softwareId?: number;
   softwareVersionId?: number;
   softwareTitleId?: number;
-  softwareStatus?: SoftwareAggregateStatus;
+  softwareStatus?: string;
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
