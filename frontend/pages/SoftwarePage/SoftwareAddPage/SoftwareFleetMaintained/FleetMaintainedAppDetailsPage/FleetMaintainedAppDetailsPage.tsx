@@ -1,6 +1,5 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { Location } from "history";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
@@ -18,9 +17,7 @@ import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { AppContext } from "context/app";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import AddPackage from "pages/SoftwarePage/components/AddPackage";
-import AddPackageForm from "pages/SoftwarePage/components/AddPackageForm";
-import AddPackageAdvancedOptions from "pages/SoftwarePage/components/AddPackageAdvancedOptions";
+import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -60,14 +57,6 @@ const FleetMaintainedAppDetailsPage = ({
     }
   );
 
-  const onCloseSidebar = () => {
-    setSidePanelOpen(false);
-  };
-
-  const onOpenSidebar = () => {
-    setSidePanelOpen(true);
-  };
-
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
   };
@@ -96,17 +85,29 @@ const FleetMaintainedAppDetailsPage = ({
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{data.name}</h1>
-          <AddPackageAdvancedOptions
+          <AdvancedOptionsFields
+            showSchemaButton={isSidePanelOpen}
+            installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
+            postInstallScriptHelpText="Currently, shell scripts are supported."
+            uninstallScriptHelpText="Currently, shell scripts are supported."
             errors={{}}
-            selectedPackage={IAddPackageFormData["software"]}
             preInstallQuery={data.pre_install_script}
             installScript={data.install_script}
             postInstallScript={data.post_install_script}
             uninstallScript={data.uninstall_script}
-            onChangePreInstallQuery={(value?: string) => {}}
-            onChangeInstallScript={(value: string) => {}}
-            onChangePostInstallScript={(value?: string) => {}}
-            onChangeUninstallScript={(value?: string) => {}}
+            onClickShowSchema={() => setSidePanelOpen(true)}
+            onChangePreInstallQuery={(value?: string) => {
+              console.log(value);
+            }}
+            onChangeInstallScript={(value: string) => {
+              console.log(value);
+            }}
+            onChangePostInstallScript={(value?: string) => {
+              console.log(value);
+            }}
+            onChangeUninstallScript={(value?: string) => {
+              console.log(value);
+            }}
           />
         </>
       );
@@ -126,7 +127,7 @@ const FleetMaintainedAppDetailsPage = ({
             key="query-side-panel"
             onOsqueryTableSelect={onOsqueryTableSelect}
             selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSidebar}
+            onClose={() => setSidePanelOpen(false)}
           />
         </SidePanelContent>
       )}

@@ -8,11 +8,11 @@ import {
   PackageType,
 } from "interfaces/package_type";
 
-import Editor from "components/Editor";
 import CustomLink from "components/CustomLink";
-import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
+
 import { IPackageFormData } from "../PackageForm/PackageForm";
+import AdvancedOptionsFields from "../AdvancedOptionsFields";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   return `Currently, ${
@@ -95,63 +95,23 @@ const PackageAdvancedOptions = ({
       return null;
     }
     return (
-      <div className={`${baseClass}__input-fields`}>
-        <FleetAce
-          className="form-field"
-          focus
-          error={errors.preInstallQuery}
-          value={preInstallQuery}
-          placeholder="SELECT * FROM osquery_info WHERE start_time > 1"
-          label="Pre-install query"
-          name="preInstallQuery"
-          maxLines={10}
-          onChange={onChangePreInstallQuery}
-          helpText={
-            <>
-              Software will be installed only if the{" "}
-              <CustomLink
-                className={`${baseClass}__table-link`}
-                text="query returns results"
-                url="https://fleetdm.com/tables"
-                newTab
-              />
-            </>
-          }
-        />
-        <Editor
-          wrapEnabled
-          maxLines={10}
-          name="install-script"
-          onChange={onChangeInstallScript}
-          value={installScript}
-          helpText={getInstallHelpText(ext)}
-          label="Install script"
-          isFormField
-        />
-        <Editor
-          label="Post-install script"
-          focus
-          error={errors.postInstallScript}
-          wrapEnabled
-          name="post-install-script-editor"
-          maxLines={10}
-          onChange={onChangePostInstallScript}
-          value={postInstallScript}
-          helpText={getPostInstallHelpText(ext)}
-          isFormField
-        />
-        <Editor
-          label="Uninstall script"
-          focus
-          wrapEnabled
-          name="uninstall-script-editor"
-          maxLines={20}
-          onChange={onChangeUninstallScript}
-          value={uninstallScript}
-          helpText={getUninstallHelpText(ext)}
-          isFormField
-        />
-      </div>
+      <AdvancedOptionsFields
+        className={`${baseClass}__input-fields`}
+        showSchemaButton={false}
+        installScriptHelpText={getInstallHelpText(ext)}
+        postInstallScriptHelpText={getPostInstallHelpText(ext)}
+        uninstallScriptHelpText={getUninstallHelpText(ext)}
+        errors={errors}
+        preInstallQuery={preInstallQuery}
+        installScript={installScript}
+        postInstallScript={postInstallScript}
+        uninstallScript={uninstallScript}
+        onClickShowSchema={() => {}}
+        onChangePreInstallQuery={onChangePreInstallQuery}
+        onChangeInstallScript={onChangeInstallScript}
+        onChangePostInstallScript={onChangePostInstallScript}
+        onChangeUninstallScript={onChangeUninstallScript}
+      />
     );
   };
 

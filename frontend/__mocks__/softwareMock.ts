@@ -280,7 +280,7 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   pre_install_script: "SELECT * FROM osquery_info WHERE start_time > 1",
   install_script: '#!/bin/sh\n\ninstaller -pkg "$INSTALLER" -target /',
   post_install_script: 'echo "Installed"',
-  unintall_script:
+  uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
 };
 
