@@ -1,3 +1,46 @@
+## Fleet 4.57.0 (Sep 18, 2024)
+
+**Endpoint Operations**
+
+- Added support for configuring policy installers via GitOps.
+- Added support for policies in "No team" that run on hosts that belong to "No team".
+- Added reserved team names: "All teams" and "No team".
+
+**Device Management (MDM)**
+
+- Added feature allowing automatic installation of software on hosts that fail policies.
+- Added feature for end users to enroll BYOD devices into Fleet MDM.
+- Added the ability to use Fleet to uninstall packages from hosts.
+- Added an endpoint for getting an OTA MDM profile for enrolling iOS and iPadOS hosts.
+- Added protocol support for OTA enrollment and automatic team assignment for hosts.
+- Added validation of Setup Assistant profiles on profile upload.
+- Added validation to prevent installing software on a host with a pending installation.a
+
+**Vulnerability Management**
+
+- Fixed a false negative vulnerability for git.
+- Fixed false positive vulnerabilities for minio.
+- Fixed an issue where virtual box for macOS wasn't matching against the NVD product name.
+
+**Bug fixes and improvements**
+
+- Updated Go to go1.23.1.
+- Removed validation of APNS certificate from server startup.
+- Removed invalid node keys from server logs.
+- Improved the UX of turning off MDM on an offline host.
+- Improved clarity of GitOps VPP app ID type errors.
+- Improved gitops error message about enabling windows MDM.
+- Improved messaging for VPP token constraint errors.
+- Improved loading state for UI tables when no data is present yet.
+- Improved permissions so that hosts can no longer access installers that aren't directly assigned to them.
+- Improved verification of premium license before uploading VPP tokens.
+- Added "0 items" description on empty software tables for UI consistency.
+- Fixed logic to properly catch and log APNs errors.
+- Fixed UI overflow issues with OS settings table data.
+- Fixed regression for checking email used to get a signed CSR.
+- Fixed bugs on enrollment profiles when the organization name contains invalid XML characters.
+- Fixed an issue with cron profiles delivery failing if a Windows VM is enrolled twice.
+- Fixed issue where Fleet server could start when an expired ABM certificate was provided as server config.
 ## Fleet 4.56.0 (Sep 7, 2024)
 
 ### Endpoint operations
