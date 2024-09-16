@@ -14125,7 +14125,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		_, err := h.Write(installerBytes)
 		require.NoError(t, err)
 		spoofedSHA := hex.EncodeToString(h.Sum(nil))
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL+"/installer.zip")
 		require.NoError(t, err)
 		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", srv.URL+"/badinstaller")
 		return err
@@ -14183,13 +14183,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
-	require.Equal(t, mapp.Name, title.SoftwarePackage.Name)
+	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
 
 	// Check activity
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "%[1]s", "team_name": "%s", "team_id": %d, "self_service": true}`, mapp.Name, team.Name, team.ID),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "self_service": true}`, mapp.Name, team.Name, team.ID),
 		0,
 	)
 
@@ -14230,7 +14230,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
-	require.Equal(t, mapp.Name, title.SoftwarePackage.Name)
+	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(3))
 	require.NoError(t, err)
