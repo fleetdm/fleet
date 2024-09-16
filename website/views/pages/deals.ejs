@@ -1,0 +1,119 @@
+<div id="deals" v-cloak>
+  <div purpose="page-container">
+    <div class="d-flex flex-column" purpose="page-content" v-if="!showSuccessMessage">
+      <h2>Deal registration</h2>
+      <p>Register an opportunity below and a member of our team will get back to you shortly.</p>
+      <div purpose="form-card" class="card">
+        <h3>Your information</h3>
+        <ajax-form action="deliverDealRegistrationSubmission" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedForm()">
+          <div purpose="form-section">
+            <div class="row">
+              <div class="col-12 col-sm-6 pr-sm-2">
+                <div class="form-group">
+                  <label for="submitters-first-name">First name *</label>
+                  <input class="form-control" id="submitters-first-name" type="text"  :class="[formErrors.submittersFirstName ? 'is-invalid' : '']" v-model.trim="formData.submittersFirstName" autocomplete="first-name" @input="typeClearOneFormError('submittersFirstName')">
+                  <div class="invalid-feedback" v-if="formErrors.submittersFirstName">Please enter your first name.</div>
+                </div>
+              </div>
+              <div class="col-12 col-sm-6 pl-sm-2">
+                <div class="form-group">
+                  <label for="submitters-last-name">Last name *</label>
+                  <input class="form-control" id="submitters-last-name" type="text"  :class="[formErrors.submittersLastName ? 'is-invalid' : '']" v-model.trim="formData.submittersLastName" autocomplete="last-name" @input="typeClearOneFormError('submittersLastName')">
+                  <div class="invalid-feedback" v-if="formErrors.submittersLastName">Please enter your last name.</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="submitters-email-address">Email *</label>
+              <input class="form-control" id="submitters-email-address"  :class="[formErrors.submittersEmailAddress ? 'is-invalid' : '']" v-model.trim="formData.submittersEmailAddress" @input="typeClearOneFormError('submittersEmailAddress')">
+              <div class="invalid-feedback" v-if="formErrors.submittersEmailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+            </div>
+            <div class="form-group">
+              <label for="submitters-organization">Organization *</label>
+              <input class="form-control" id="submitters-organization" type="text" disabled  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="formData.submittersOrganization" @input="typeClearOneFormError('submittersOrganization')">
+              <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
+            </div>
+          </div>
+          <h3>Customer information</h3>
+          <div purpose="form-section">
+            <div class="row">
+              <div class="col-12 col-sm-6 pr-sm-2">
+                <div class="form-group">
+                  <label for="customer-first-name">First name *</label>
+                  <input class="form-control" id="customer-first-name" type="text"  :class="[formErrors.customersFirstName ? 'is-invalid' : '']" v-model.trim="formData.customersFirstName" autocomplete="first-name" @input="typeClearOneFormError('customersFirstName')">
+                  <div class="invalid-feedback" v-if="formErrors.customersFirstName">Please enter the customer's first name.</div>
+                </div>
+              </div>
+              <div class="col-12 col-sm-6 pl-sm-2">
+                <div class="form-group">
+                  <label for="customers-last-name">Last name *</label>
+                  <input class="form-control" id="customers-last-name" type="text"  :class="[formErrors.customersLastName ? 'is-invalid' : '']" v-model.trim="formData.customersLastName" autocomplete="last-name" @input="typeClearOneFormError('customersLastName')">
+                  <div class="invalid-feedback" v-if="formErrors.customersLastName">Please enter the customer's last name.</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="customers-email-address">Email *</label>
+              <input class="form-control" id="customers-email-address"  :class="[formErrors.customersEmailAddress ? 'is-invalid' : '']" v-model.trim="formData.customersEmailAddress" @input="typeClearOneFormError('customersEmailAddress')">
+              <div class="invalid-feedback" v-if="formErrors.customersEmailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+            </div>
+            <div class="form-group">
+              <label for="linkedin-url">LinkedIn URL</label>
+              <input class="form-control" id="linkedin-url" v-model.trim="formData.linkedinUrl" @input="typeClearOneFormError('linkedinUrl')">
+            </div>
+            <div class="form-group">
+              <label for="customer-organization">Organization *</label>
+              <input class="form-control" id="customer-organization"  :class="[formErrors.customersOrganization ? 'is-invalid' : '']" v-model.trim="formData.customersOrganization" @input="typeClearOneFormError('customersOrganization')">
+              <div class="invalid-feedback" v-if="formErrors.customersOrganization" focus-first>Please enter the customer's organization</div>
+            </div>
+          </div>
+          <div purpose="form-section">
+            <div class="form-group">
+              <label for="current-mdm">Current MDM provider</label>
+              <input class="form-control" id="current-mdm" v-model.trim="formData.customersCurrentMdm" @input="typeClearOneFormError('customersCurrentMdm')">
+            </div>
+            <div class="form-group">
+              <label for="other-mdm-evaluated">Other MDMs being evaluated</label>
+              <input class="form-control" id="other-mdm-evaluated" v-model.trim="formData.otherMdmEvaluated" @input="typeClearOneFormError('otherMdmEvaluated')">
+            </div>
+            <div class="form-group">
+              <label for="preferred-hosting">Preferred hosting</label>
+              <div purpose="hosting-selector" class="d-flex flex-row justify-content-between align-items-center form-control"
+                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{formData.preferredHosting ? formData.preferredHosting : 'Select'}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
+              </div>
+              <div purpose="hosting-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
+                <div class="dropdown-item" @click="clickChoosePreferredHosting('Self-hosted')">Self-hosted</div>
+                <div class="dropdown-item" @click="clickChoosePreferredHosting('Managed cloud')">Managed cloud</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="expected-deal-size">Expected deal size (USD) *</label>
+              <input class="form-control" id="expected-deal-size"  :class="[formErrors.expectedDealSize ? 'is-invalid' : '']" v-model.trim="formData.expectedDealSize" @input="typeClearOneFormError('expectedDealSize')">
+              <div class="invalid-feedback" v-if="formErrors.expectedDealSize" focus-first>Please provide an estimate of the deal size</div>
+            </div>
+            <div class="form-group">
+              <label for="expected-close-date">Expected close date *</label>
+              <input class="form-control" id="expected-close-date"  :class="[formErrors.expectedCloseDate ? 'is-invalid' : '']" v-model.trim="formData.expectedCloseDate" @input="typeClearOneFormError('expectedCloseDate')">
+              <div class="invalid-feedback" v-if="formErrors.expectedCloseDate" focus-first>Please provide an expected close date</div>
+            </div>
+            <div class="form-group">
+              <label for="notes">Notes</label>
+              <textarea class="form-control" id="notes" type="textarea" v-model.trim="formData.notes" @input="typeClearOneFormError('notes')"></textarea>
+            </div>
+          </div>
+          <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+          <p class="small">By submitting you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Submit</ajax-button>
+          <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
+        </ajax-form>
+      </div>
+    </div>
+    <div class="d-flex flex-column text-center" purpose="page-content" v-else>
+      <h2>Thanks for registering</h2>
+      <p>A member of our team will be in touch soon.</p>
+      <div class="btn btn-primary" purpose="submit-button" @click="clickResetForm()">Register another opportunity</div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

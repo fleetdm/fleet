@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -30,7 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, context.Context) {
+func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Service, context.Context) {
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	ctx := license.NewContext(context.Background(), lic)
@@ -42,7 +45,29 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 			AppleSCEPKeyBytes:  eeservice.TestKey,
 		},
 	}
-	var depStorage nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
+	depStorage := &nanodep_mock.Storage{}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/server/devices"):
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/session"):
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/profile"):
+			_, err := w.Write([]byte(`{"profile_uuid": "profile123"}`))
+			require.NoError(t, err)
+		}
+	}))
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{
+			BaseURL: ts.URL,
+		}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	t.Cleanup(func() { ts.Close() })
 
 	freeSvc, err := service.NewService(
 		ctx,
@@ -83,6 +108,7 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -91,7 +117,7 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 }
 
 func TestGetOrCreatePreassignTeam(t *testing.T) {
-	ds, svc, ctx := setupMockDatastorePremiumService()
+	ds, svc, ctx := setupMockDatastorePremiumService(t)
 
 	ssoSettings := fleet.SSOProviderSettings{
 		EntityID:    "foo",
@@ -199,8 +225,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
-		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-			return nil
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
 		}
 		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 		require.NoError(t, err)
@@ -208,14 +235,27 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-				fleet.MDMAssetABMCert:  {Name: fleet.MDMAssetABMCert, Value: certPEM},
-				fleet.MDMAssetABMKey:   {Name: fleet.MDMAssetABMKey, Value: keyPEM},
-				fleet.MDMAssetABMToken: {Name: fleet.MDMAssetABMToken, Value: tokenBytes},
-				fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
-				fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
-				fleet.MDMAssetCACert:   {Name: fleet.MDMAssetCACert, Value: certPEM},
-				fleet.MDMAssetCAKey:    {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+				fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+				fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+				fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+				fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+				fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
 			}, nil
+		}
+
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+		}
+		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+			return []string{"foobar"}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1}}, nil
+		}
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
 		}
 	}
 
@@ -318,11 +358,10 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		setupAsstByTeam := make(map[uint]*fleet.MDMAppleSetupAssistant)
 		globalSetupAsst := &fleet.MDMAppleSetupAssistant{
-			ID:          15,
-			TeamID:      nil,
-			Name:        "test asst",
-			Profile:     json.RawMessage(`{"foo": "bar"}`),
-			ProfileUUID: "abc-def",
+			ID:      15,
+			TeamID:  nil,
+			Name:    "test asst",
+			Profile: json.RawMessage(`{"foo": "bar"}`),
 		}
 		setupAsstByTeam[0] = globalSetupAsst
 		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -532,7 +571,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: "new team spec",
 			MDM: fleet.TeamSpecMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.0"),
 					Deadline:       optjson.SetString("2024-01-01"),
 				},

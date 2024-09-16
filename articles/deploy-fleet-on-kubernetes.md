@@ -1,6 +1,6 @@
 # Deploy Fleet on Kubernetes
 
-> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+> **This article was archived on May 16, 2024.** Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for the most up to date deployment method.
 
 ![Deploy Fleet on Kubernetes](../website/assets/images/articles/deploy-fleet-on-kubernetes-800x450@2x.png)
 

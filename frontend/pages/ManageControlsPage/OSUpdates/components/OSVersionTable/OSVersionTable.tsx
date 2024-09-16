@@ -20,6 +20,7 @@ interface IOSVersionTableProps {
   currentTeamId: number;
   isLoading: boolean;
   queryParams: ReturnType<typeof parseOSUpdatesCurrentVersionsQueryParams>;
+  hasNextPage: boolean;
 }
 
 const OSVersionTable = ({
@@ -28,6 +29,7 @@ const OSVersionTable = ({
   currentTeamId,
   isLoading,
   queryParams,
+  hasNextPage,
 }: IOSVersionTableProps) => {
   const columns = generateTableHeaders(currentTeamId);
 
@@ -104,6 +106,7 @@ const OSVersionTable = ({
         disableCount
         pageSize={queryParams.per_page}
         onQueryChange={onQueryChange}
+        disableNextPage={!hasNextPage}
       />
     </div>
   );

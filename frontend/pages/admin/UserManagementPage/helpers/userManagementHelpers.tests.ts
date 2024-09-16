@@ -1,4 +1,5 @@
-import { userStub, userTeamStub } from "test/stubs";
+import { userTeamStub } from "test/stubs";
+import createMockUser from "__mocks__/userMock";
 import { IUserUpdateBody } from "interfaces/user";
 
 import { IFormData, NewUserType } from "../components/UserForm/UserForm";
@@ -20,13 +21,13 @@ describe("userManagementHelpers module", () => {
       const formData: IFormData = {
         email: "newemail@test.com",
         sso_enabled: false,
-        name: "Gnar Mike",
+        name: "Test User",
         newUserType: NewUserType.AdminCreated, // TODO revisit test
         global_role: "admin",
         teams: [updatedTeam, newTeam],
       };
       const updatedData = userManagementHelpers.generateUpdateData(
-        userStub,
+        createMockUser({ role: "Observer", global_role: null }),
         formData
       );
 

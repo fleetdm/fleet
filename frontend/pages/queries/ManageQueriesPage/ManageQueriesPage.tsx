@@ -87,7 +87,6 @@ const ManageQueriesPage = ({
     setFilteredQueriesPath,
     filteredQueriesPath,
     isPremiumTier,
-    isSandboxMode,
     config,
   } = useContext(AppContext);
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
@@ -253,7 +252,6 @@ const ManageQueriesPage = ({
               currentUserTeams={userTeams}
               selectedTeamId={currentTeamId}
               onChange={handleTeamChange}
-              isSandboxMode={isSandboxMode}
             />
           );
         } else if (!isOnGlobalTeam && userTeams.length === 1) {

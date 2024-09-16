@@ -31,7 +31,6 @@ const baseClass = "run-script-modal";
 interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
-  scriptDetailsId: string;
   setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
   onClose: () => void;
 }
@@ -41,7 +40,6 @@ const EmptyComponent = () => <></>;
 const RunScriptModal = ({
   currentUser,
   host,
-  scriptDetailsId,
   setScriptDetailsId,
   onClose,
 }: IScriptsProps) => {
@@ -123,7 +121,6 @@ const RunScriptModal = ({
 
   if (!config) return null;
 
-  const isShowingScriptDetails = !!scriptDetailsId; // used to set css visibility for this modal to hidden when the script details modal is open
   const tableData = hostScriptResponse?.scripts;
 
   return (
@@ -132,7 +129,6 @@ const RunScriptModal = ({
       onExit={onClose}
       onEnter={onClose}
       className={`${baseClass}`}
-      isHidden={isShowingScriptDetails}
       isLoading={runScriptRequested || isFetching || isLoading}
     >
       <>

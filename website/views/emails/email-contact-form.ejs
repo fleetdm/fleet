@@ -1,0 +1,15 @@
+<% /* Note: This is NOT injected into an email layout` */ %>
+<div style="width: 100%; font-family: 'Inter','Helvetica','arial', sans-serif; box-sizing: border-box; padding: 0; margin: 0;">
+  <div style="color: #192147; font-size: 16px; box-sizing: border-box; padding: 40px 60px 80px 28px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;">
+    <div style="background: transparent; text-align: left;">
+      <a href="https://fleetdm.com"><img style="display: inline-block; width: 162px; height: 92px; width: auto;" alt="Logo" src="https://fleetdm.com/images/logo-blue-162x92@2x.png"/></a>
+    </div>
+    <div style="margin-bottom: 48px">
+      <p style="margin-bottom: 16px;"><strong>Message:</strong></p>
+      <pre ><code><%= message %></code></pre>
+      <p style="margin-bottom: 16px;"><strong>Submitter information:</strong></p>
+      <p style="margin-bottom: 16px;"><strong>Name:</strong> <%= firstName %> <%= lastName %></p>
+      <p style="margin-bottom: 16px;"><strong>Email address:</strong> <a href="mailto:<%= firstName %> <%= lastName %><<%= emailAddress %>>"><%= emailAddress %></a></p>
+    </div>
+  </div>
+</div>

@@ -165,6 +165,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
+	originalLabelName := label.Name
 	if payload.Name != nil {
 		// Check if the new name is a reserved label name
 		for name := range fleet.ReservedLabelNames() {
@@ -188,7 +189,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	// hostnames).
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual && payload.Hosts != nil {
 		spec := fleet.LabelSpec{
-			Name:                label.Name,
+			Name:                originalLabelName,
 			Description:         label.Description,
 			Query:               label.Query,
 			Platform:            label.Platform,
@@ -200,11 +201,16 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 			return nil, nil, err
 		}
 		spec.Hosts = hostnames
+		// Note: ApplyLabelSpecs cannot update label name since it uses the name as a key.
+		// So, we must handle it later.
 		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
 			return nil, nil, err
 		}
-
-		// must reload it to get the host counts information
+		// If the label name has changed, we must update it.
+		if originalLabelName != label.Name {
+			return svc.ds.SaveLabel(ctx, label, filter)
+		}
+		// Otherwise, simply reload label to get the host counts information
 		return svc.ds.Label(ctx, id, filter)
 	}
 	return svc.ds.SaveLabel(ctx, label, filter)

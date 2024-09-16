@@ -13,4 +13,5 @@ controls:
 policies:
 queries:
 software:
-  - url: ${SOFTWARE_INSTALLER_URL}/invalidtype.txt
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/invalidtype.txt

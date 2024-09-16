@@ -622,6 +622,7 @@ type CalendarConfig struct {
 func (c *CalendarConfig) AlwaysReloadEvent() bool {
 	return c.alwaysReloadEvent
 }
+
 func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 	c.alwaysReloadEvent = value
 }
@@ -714,8 +715,7 @@ func (m *MDMConfig) IsAppleBMSet() bool {
 	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
 }
 
-// AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
-// It parses and validates it if it hasn't been done yet.
+// AppleAPNs returns the parsed TLS certificate for Apple APNs.
 func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleAPNs == nil {
 		pair := x509KeyPairConfig{
@@ -735,8 +735,7 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
-// AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
-// It parses and validates it if it hasn't been done yet.
+// AppleSCEP returns the parsed TLS certificate for Apple SCEP.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleSCEP == nil {
 		pair := x509KeyPairConfig{
@@ -763,7 +762,7 @@ type ParsedAppleBM struct {
 	Token          *nanodep_client.OAuth1Tokens
 }
 
-func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+func decryptABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
 	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
@@ -776,14 +775,11 @@ func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPE
 	if err := json.Unmarshal(token, &jsonTok); err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
 	}
-	if jsonTok.AccessTokenExpiry.Before(time.Now()) {
-		return nil, errors.New("Apple BM configuration: token is expired")
-	}
 	return &jsonTok, nil
 }
 
-// AppleBM returns the parsed, validated and decrypted server token for Apple
-// Business Manager. It also parses and validates the Apple BM certificate and
+// AppleBM returns the parsed and decrypted server token for Apple
+// Business Manager. It also parses the Apple BM certificate and
 // private key in the process, in order to decrypt the token.
 func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 	if m.appleBMToken == nil {
@@ -801,7 +797,7 @@ func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		jsonTok, err := decryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
+		jsonTok, err := decryptABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
 			return nil, err
 		}

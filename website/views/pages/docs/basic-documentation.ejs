@@ -95,24 +95,22 @@
             <div class="container-fluid px-0 pt-4">
               <ul class="px-0 mb-0 pb-3">
                 <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
-                  <a :href="page.url" class="font-weight-bold">
+                  <span class="font-weight-bold">
                     {{page.title}}
-                  </a>
-                  <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
-                    <ul class="p-0 pl-2 mb-2" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                      <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
-                        <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
-                        <li v-for="subpage in section" :key="subpage.title">
-                          <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                            {{subpage.title}}
-                          </a>
-                        </li>
-                      </div>
+                  </span>
+                  <div purpose="expanded-nav" class="pt-3">
+                    <ul class="p-0 pl-2 mb-3" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                      <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                        <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                          {{subpage.title}}
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </li>
               </ul>
               <ul class="px-0 mb-0 pt-3" purpose="mobile-docs-nav-other-links">
+                <li class="px-0 mb-3"><a href="/guides">Guides</a></li>
                 <li class="px-0 mb-3"><a href="/tables">Data tables</a></li>
                 <li class="px-0 mb-3"><a href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a></li>
                 <li class="px-0 mb-3"><a href="https://github.com/fleetdm/fleet/releases" target="_blank">Releases</a></li>
@@ -137,23 +135,21 @@
         <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-3 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
-              <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
-              <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
-                <ul class="p-0 pl-2 mb-2">
-                  <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
-                    <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
-                    <li v-for="subpage in section" :key="subpage.title">
-                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                        {{subpage.title}}
-                      </a>
-                    </li>
-                  </div>
+              <span class="font-weight-bold pb-3">{{page.title}}</span>
+              <div purpose="expanded-nav" class="pt-3" >
+                <ul class="p-0 pl-2 mb-3">
+                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                      {{subpage.title}}
+                    </a>
+                  </li>
                 </ul>
               </div>
             </li>
           </ul>
-          <a class="pt-4 pb-3" target="_blank" href="/tables">Data tables</a>
-          <a class="pb-3" target="_blank" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
+          <a class="pt-4 pb-3" href="/guides">Guides</a>
+          <a class="pb-3" href="/tables">Data tables</a>
+          <a class="pb-3" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
           <a class="pb-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
           <a class="pb-3" target="_blank" href="/support">Support</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
@@ -210,15 +206,15 @@
               <h2>Try it out</h2>
               <p>See what Fleet can do</p>
               <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
-              <% } else if (['2 - Aware', '3 - Intrigued', '4 - Has use case'].includes(me.psychologicalStage)) {%>
+              <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
               <h2>Tried Fleet yet?</h2>
               <p>Continue getting started with Fleet</p>
               <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
-              <% } else if (me.psychologicalStage === '5 - Personally confident') {%>
+              <% } else if (me.psychologicalStage === '4 - Has use case') {%>
               <h2>Feeling confident?</h2>
               <p>Get set up with Fleet</p>
               <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
-              <% } else if (me.psychologicalStage === '6 - Has team buy-in') {%>
+              <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
                 <h2>Talk to the team</h2>
                 <p>Let’s get you set up!</p>
                 <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>

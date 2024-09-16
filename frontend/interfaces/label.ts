@@ -6,8 +6,8 @@ export default PropTypes.shape({
   id: PropTypes.oneOfType([PropTypes.number]),
   name: PropTypes.string,
   query: PropTypes.string,
-  label_type: PropTypes.string,
-  label_membership_type: PropTypes.string,
+  label_type: PropTypes.oneOf(["regular", "builtin"]),
+  label_membership_type: PropTypes.oneOf(["dynamic", "manual"]),
   hosts_count: PropTypes.number,
   display_text: PropTypes.string,
   count: PropTypes.number, // seems to be a repeat of hosts_count issue #1618

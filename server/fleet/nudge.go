@@ -44,7 +44,7 @@ type nudgeUpdateElements struct {
 	MainHeader       string `json:"mainHeader"`
 }
 
-func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
+func NewNudgeConfig(macOSUpdates AppleOSUpdateSettings) (*NudgeConfig, error) {
 	deadline, err := time.Parse("2006-01-02", macOSUpdates.Deadline.Value)
 	if err != nil {
 		return nil, err

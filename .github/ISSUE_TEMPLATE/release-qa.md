@@ -118,6 +118,15 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 7. Verify scripts display correctly in Activity feed.
 </td><td>pass/fail</td></tr>
 
+<tr><td>Software</td><td>Verify software library and install / download</td><td>
+
+1. Verify software library upload/download/delete.
+2. From Host details (Windows and macOS) run an install that should PASS, verify.
+3. From My Device (Windows and macOS) software tab should have self-service items available, verify.
+4. Verify UI loading state and statuses for installing software.
+6. Verify software installs display correctly in Activity feed.
+</td><td>pass/fail</td></tr>
+
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
 1. Verify able to configure Disk encryption.

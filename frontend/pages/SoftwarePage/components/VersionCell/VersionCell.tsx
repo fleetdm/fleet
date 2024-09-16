@@ -5,7 +5,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const generateText = <T extends { version: string }>(versions: T[] | null) => {
   if (!versions) {
-    return <TextCell value="---" grey italic />;
+    return <TextCell value="---" grey />;
   }
   const text =
     versions.length !== 1 ? `${versions.length} versions` : versions[0].version;

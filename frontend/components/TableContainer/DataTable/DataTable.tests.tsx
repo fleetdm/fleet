@@ -165,4 +165,69 @@ describe("DataTable - component", () => {
     expect(firstNameInTableCell).toHaveTextContent("bar user");
     expect(secondNameInTableCell).toHaveTextContent("foo user");
   });
+
+  it("does not render help text when no rows are present", () => {
+    const columns = [
+      {
+        title: "Name",
+        Header: "Name",
+        accessor: "name",
+        disableHidden: false,
+      },
+    ];
+
+    const data: any = [];
+
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        sortHeader="name"
+        sortDirection="desc"
+        isLoading
+        onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
+        renderTableHelpText={() => <div>Help text</div>}
+      />
+    );
+
+    const helpText = screen.queryByText("Help text");
+    expect(helpText).toBeNull();
+  });
+  it("renders help text when rows are present", () => {
+    const columns = [
+      {
+        title: "Name",
+        Header: "Name",
+        accessor: "name",
+        disableHidden: false,
+      },
+    ];
+
+    const data = [{ name: "Gabe" }];
+
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        sortHeader="name"
+        sortDirection="desc"
+        isLoading={false}
+        onSort={noop}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resultsTitle="users"
+        defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
+        renderTableHelpText={() => <div>Help text</div>}
+      />
+    );
+
+    const helpText = screen.getByText("Help text");
+    expect(helpText).toBeInTheDocument();
+  });
 });

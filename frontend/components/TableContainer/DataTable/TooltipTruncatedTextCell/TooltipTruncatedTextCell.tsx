@@ -49,7 +49,7 @@ const TooltipTruncatedTextCell = ({
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
 
   return (
-    <div ref={ref} className={classNames}>
+    <div className={classNames}>
       <div
         className="data-table__tooltip-truncated-text"
         data-tip
@@ -57,6 +57,7 @@ const TooltipTruncatedTextCell = ({
         data-tip-disable={isDefaultValue || tooltipDisabled}
       >
         <span
+          ref={ref}
           className={`data-table__tooltip-truncated-text--cell ${
             isDefaultValue ? "text-muted" : ""
           } ${tooltipDisabled ? "" : "truncated"}`}

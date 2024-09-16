@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/docker/go-units"
@@ -26,6 +29,7 @@ type uploadSoftwareInstallerRequest struct {
 	PreInstallQuery   string
 	PostInstallScript string
 	SelfService       bool
+	UninstallScript   string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -80,10 +84,10 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	// default is no team
 	val, ok := r.MultipartForm.Value["team_id"]
-	if ok && len(val) > 0 {
-		teamID, err := strconv.Atoi(val[0])
+	if ok {
+		teamID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid team_id: %s", val[0])}
 		}
 		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
@@ -91,6 +95,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	val, ok = r.MultipartForm.Value["install_script"]
 	if ok && len(val) > 0 {
 		decoded.InstallScript = val[0]
+	}
+
+	val, ok = r.MultipartForm.Value["uninstall_script"]
+	if ok && len(val) > 0 {
+		decoded.UninstallScript = val[0]
 	}
 
 	val, ok = r.MultipartForm.Value["pre_install_query"]
@@ -133,6 +142,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		InstallerFile:     ff,
 		Filename:          req.File.Filename,
 		SelfService:       req.SelfService,
+		UninstallScript:   req.UninstallScript,
 	}
 
 	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
@@ -184,23 +194,15 @@ type getSoftwareInstallerRequest struct {
 	TitleID uint   `url:"title_id"`
 }
 
-type getSoftwareInstallerResponse struct {
-	// meta *fleet.SoftwareInstaller // NOTE: API design currently only supports downloading the
-	Err error `json:"error,omitempty"`
+type downloadSoftwareInstallerRequest struct {
+	TitleID uint   `url:"title_id"`
+	Token   string `url:"token"`
 }
-
-func (r getSoftwareInstallerResponse) error() error { return r.Err }
 
 func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
-	downloadRequested := req.Alt == "media"
-	if !downloadRequested {
-		// TODO: confirm error handling
-		return getSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
-	}
-
-	payload, err := svc.DownloadSoftwareInstaller(ctx, req.TitleID, req.TeamID)
+	payload, err := svc.DownloadSoftwareInstaller(ctx, false, req.Alt, req.TitleID, req.TeamID)
 	if err != nil {
 		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
@@ -208,13 +210,64 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
 }
 
-func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
+func getSoftwareInstallerTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getSoftwareInstallerRequest)
+
+	token, err := svc.GenerateSoftwareInstallerToken(ctx, req.Alt, req.TitleID, req.TeamID)
+	if err != nil {
+		return getSoftwareInstallerTokenResponse{Err: err}, nil
+	}
+	return getSoftwareInstallerTokenResponse{Token: token}, nil
+}
+
+func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*downloadSoftwareInstallerRequest)
+
+	meta, err := svc.GetSoftwareInstallerTokenMetadata(ctx, req.Token, req.TitleID)
+	if err != nil {
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
+	}
+
+	payload, err := svc.DownloadSoftwareInstaller(ctx, true, "media", meta.TitleID, &meta.TeamID)
+	if err != nil {
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
+	}
+
+	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
+}
+
+func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, _ string, _ uint, _ *uint) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}
+
+func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, _ string, _ uint) (*fleet.SoftwareInstallerTokenMetadata,
+	error,
+) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
 }
+
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, _ bool, _ uint, _ *uint) (*fleet.SoftwareInstaller, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type getSoftwareInstallerTokenResponse struct {
+	Err   error  `json:"error,omitempty"`
+	Token string `json:"token"`
+}
+
+func (r getSoftwareInstallerTokenResponse) error() error { return r.Err }
 
 type orbitDownloadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
@@ -239,7 +292,10 @@ func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context
 	r.payload.Installer.Close()
 }
 
-func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, _ bool, _ string, _ uint,
+	_ *uint) (*fleet.DownloadSoftwareInstallerPayload,
+	error,
+) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -283,6 +339,28 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	return fleet.ErrMissingLicense
 }
 
+type uninstallSoftwareRequest struct {
+	HostID          uint `url:"host_id"`
+	SoftwareTitleID uint `url:"software_title_id"`
+}
+
+func uninstallSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uninstallSoftwareRequest)
+
+	err := svc.UninstallSoftwareTitle(ctx, req.HostID, req.SoftwareTitleID)
+	if err != nil {
+		return installSoftwareResponse{Err: err}, nil
+	}
+
+	return installSoftwareResponse{}, nil
+}
+
+func (svc *Service) UninstallSoftwareTitle(ctx context.Context, _ uint, _ uint) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return fleet.ErrMissingLicense
+}
+
 type getSoftwareInstallResultsRequest struct {
 	InstallUUID string `url:"install_uuid"`
 }
@@ -318,33 +396,33 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                           `json:"-" query:"team_name"`
+	TeamName string                           `json:"-" query:"team_name,optional"`
 	DryRun   bool                             `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Software []fleet.SoftwareInstallerPayload `json:"software"`
 }
 
 type batchSetSoftwareInstallersResponse struct {
-	Err error `json:"error,omitempty"`
+	Installers []fleet.SoftwareInstaller `json:"installers"`
+	Err        error                     `json:"error,omitempty"`
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
 
-func (r batchSetSoftwareInstallersResponse) Status() int { return http.StatusNoContent }
-
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)
-	if err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun); err != nil {
+	installers, err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun)
+	if err != nil {
 		return batchSetSoftwareInstallersResponse{Err: err}, nil
 	}
-	return batchSetSoftwareInstallersResponse{}, nil
+	return batchSetSoftwareInstallersResponse{Installers: installers}, nil
 }
 
-func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) ([]fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -399,4 +477,49 @@ func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *
 	}
 
 	return svc.ds.HasSelfServiceSoftwareInstallers(ctx, host.Platform, host.TeamID)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// VPP App Store Apps Batch Install
+//////////////////////////////////////////////////////////////////////////////
+
+type batchAssociateAppStoreAppsRequest struct {
+	TeamName string                  `json:"-" query:"team_name"`
+	DryRun   bool                    `json:"-" query:"dry_run,optional"`
+	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
+}
+
+func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if err := json.NewDecoder(r).Decode(b); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) {
+			return ctxerr.Wrap(ctx, fleet.NewUserMessageError(fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value), http.StatusBadRequest))
+		}
+	}
+
+	return nil
+}
+
+type batchAssociateAppStoreAppsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
+
+func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
+
+func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*batchAssociateAppStoreAppsRequest)
+	if err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun); err != nil {
+		return batchAssociateAppStoreAppsResponse{Err: err}, nil
+	}
+	return batchAssociateAppStoreAppsResponse{}, nil
+}
+
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

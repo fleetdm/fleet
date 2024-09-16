@@ -287,7 +287,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 
 func HostScriptTimeoutMessage(seconds *int) string {
 	var timeout int
-	if seconds == nil {
+	if seconds == nil || *seconds == 0 {
 		timeout = int(scripts.MaxHostExecutionTime.Seconds())
 	} else {
 		timeout = *seconds
@@ -372,6 +372,7 @@ type SoftwareInstallerPayload struct {
 	URL               string `json:"url"`
 	PreInstallQuery   string `json:"pre_install_query"`
 	InstallScript     string `json:"install_script"`
+	UninstallScript   string `json:"uninstall_script"`
 	PostInstallScript string `json:"post_install_script"`
 	SelfService       bool   `json:"self_service"`
 }

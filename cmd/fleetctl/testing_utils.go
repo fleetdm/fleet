@@ -127,24 +127,24 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	require.NoError(t, err)
 	ds.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
 		return map[fleet.MDMAssetName]string{
-			fleet.MDMAssetABMCert:  "abmcert",
-			fleet.MDMAssetABMKey:   "abmkey",
-			fleet.MDMAssetABMToken: "abmtoken",
-			fleet.MDMAssetAPNSCert: "apnscert",
-			fleet.MDMAssetAPNSKey:  "apnskey",
-			fleet.MDMAssetCACert:   "scepcert",
-			fleet.MDMAssetCAKey:    "scepkey",
+			fleet.MDMAssetABMCert:            "abmcert",
+			fleet.MDMAssetABMKey:             "abmkey",
+			fleet.MDMAssetABMTokenDeprecated: "abmtoken",
+			fleet.MDMAssetAPNSCert:           "apnscert",
+			fleet.MDMAssetAPNSKey:            "apnskey",
+			fleet.MDMAssetCACert:             "scepcert",
+			fleet.MDMAssetCAKey:              "scepkey",
 		}, nil
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-			fleet.MDMAssetABMCert:  {Name: fleet.MDMAssetABMCert, Value: certPEM},
-			fleet.MDMAssetABMKey:   {Name: fleet.MDMAssetABMKey, Value: keyPEM},
-			fleet.MDMAssetABMToken: {Name: fleet.MDMAssetABMToken, Value: tokenBytes},
-			fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
-			fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
-			fleet.MDMAssetCACert:   {Name: fleet.MDMAssetCACert, Value: certPEM},
-			fleet.MDMAssetCAKey:    {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+			fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+			fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+			fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+			fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+			fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+			fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+			fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
 		}, nil
 	}
 

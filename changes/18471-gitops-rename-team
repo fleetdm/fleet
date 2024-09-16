@@ -1,3 +1,0 @@
-- `fleetctl gitops` can now be used to rename teams -- simply change the team name in the YAML file
-  - The team name is changed if the YAML config is applied from the same filename as before
-  - `fleetctl gitops` needs to have previously run with this Fleet/fleetctl version or later

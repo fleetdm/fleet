@@ -1,9 +1,8 @@
 import React from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import { WithRouterProps } from "react-router";
 
-import mdmAPI, { IMDMSSOParams } from "services/entities/mdm";
+import mdmAPI from "services/entities/mdm";
 
 import SSOError from "components/MDM/SSOError";
 import Spinner from "components/Spinner/Spinner";
@@ -11,15 +10,10 @@ import { IMdmSSOReponse } from "interfaces/mdm";
 
 const baseClass = "mdm-apple-sso-page";
 
-const DEPSSOLoginPage = ({
-  location: { query },
-}: WithRouterProps<object, IMDMSSOParams>) => {
-  const { dep_device_info } = query;
-  localStorage.setItem("dep_device_info", dep_device_info || "");
-
-  const { error } = useQuery<IMdmSSOReponse, AxiosError>(
+const DEPSSOLoginPage = () => {
+  const { error } = useQuery<void, AxiosError, IMdmSSOReponse>(
     ["dep_sso"],
-    () => mdmAPI.initiateMDMAppleSSO(query),
+    () => mdmAPI.initiateMDMAppleSSO(),
     {
       retry: false,
       refetchOnWindowFocus: false,

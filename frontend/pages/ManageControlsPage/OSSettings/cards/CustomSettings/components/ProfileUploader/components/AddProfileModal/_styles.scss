@@ -57,10 +57,10 @@
     flex-direction: column;
     align-items: center;
     gap: $pad-small;
-  }
 
-  &__profile-graphic--message {
-    text-align: center;
+    &--message {
+      text-align: center;
+    }
   }
 
   &__button-wrap {

@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
+import { ApplePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -13,17 +14,13 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 
-import NudgePreview from "./components/NudgePreview";
+import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
 
-export type OSUpdatesSupportedPlatform =
-  | "darwin"
-  | "windows"
-  | "iOS"
-  | "iPadOS";
+export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
 const baseClass = "os-updates";
 
@@ -121,7 +118,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
             queryParams={queryParams}
           />
         </div>
-        <div className={`${baseClass}__taget-container`}>
+        <div className={`${baseClass}__target-container`}>
           <TargetSection
             key={teamIdForApi} // if the team changes, remount the target section
             appConfig={config}
@@ -135,7 +132,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
           />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview platform={selectedPlatform} />
+          <EndUserOSRequirementPreview platform={selectedPlatform} />
         </div>
       </div>
     </div>

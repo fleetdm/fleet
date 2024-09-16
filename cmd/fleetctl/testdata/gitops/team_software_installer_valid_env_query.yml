@@ -1,0 +1,25 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "ABC"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+policies:
+queries:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      install_script:
+        path: lib/install_ruby.sh
+      pre_install_query:
+        path: lib/query_ruby_env.yml
+      post_install_script:
+        path: lib/post_install_ruby.sh
+    - url: ${SOFTWARE_INSTALLER_URL}/other.deb
+      self_service: true

@@ -132,8 +132,28 @@
   },
   {
     "software": {
+      "name": ["/^intellij-idea(-ce)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["/^com\\.jetbrains\\.pycharm/"],
       "source": ["apps"]
+    },
+    "filter": {
+      "product": ["pycharm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^pycharm(-ce)?$/"],
+      "source": ["homebrew_packages"]
     },
     "filter": {
       "product": ["pycharm"],
@@ -386,6 +406,25 @@
       "product": ["linux_kernel"],
       "vendor": ["linux"],
       "part": "o"
+    }
+  },
+  {
+    "software": {
+      "name": ["git"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["git"],
+      "vendor": ["git"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["org.virtualbox.app.VirtualBox"]
+    },
+    "filter": {
+      "product": ["virtualbox"],
+      "vendor": ["oracle"]
     }
   }
 ]

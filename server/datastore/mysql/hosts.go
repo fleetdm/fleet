@@ -541,7 +541,8 @@ var additionalHostRefsByUUID = map[string]string{
 // the rows are not deleted when the host is deleted, only a soft delete is
 // performed by setting a timestamp column to the current time.
 var additionalHostRefsSoftDelete = map[string]string{
-	"host_script_results": "host_deleted_at",
+	"host_script_results":    "host_deleted_at",
+	"host_software_installs": "host_deleted_at",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -1038,17 +1039,31 @@ func (ds *Datastore) applyHostFilters(
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
-			// get the installer id
 			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-			if err != nil {
+			switch {
+			case fleet.IsNotFound(err):
+				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+				}
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+				}
+				softwareStatusJoin = vppAppJoin
+				joinParams = append(joinParams, vppAppParams...)
+
+			case err != nil:
 				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+			default:
+				installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+				}
+				softwareStatusJoin = installerJoin
+				joinParams = append(joinParams, installerParams...)
+
 			}
-			installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-			}
-			softwareStatusJoin = installerJoin
-			joinParams = append(joinParams, installerParams...)
 		} else {
 			softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
 			whereParams = append(whereParams, *opt.SoftwareTitleIDFilter)
@@ -1874,7 +1889,6 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-		last_enrolled_at = NOW(),
         team_id = ?
       WHERE id = ?`
 			_, err := tx.ExecContext(ctx, sqlUpdate,
@@ -2133,14 +2147,27 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
 func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	var err error
 	// nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
-		err = stmt.GetContext(ctx, dest, args...)
-	} else {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
+		err := stmt.GetContext(ctx, dest, args...)
+		if err == nil || !isMySQLUnknownStatement(err) {
+			return err
+		}
+
+		// if the statement is unknown to the MySQL server, delete it
+		// from the cache and fallback to the regular statement call
+		// bellow. This function will get called again eventually and
+		// we will store a new prepared statement in the cache.
+		//
+		// - see https://github.com/fleetdm/fleet/issues/20781 for an
+		// example of when this can happen.
+		//
+		// - see https://github.com/go-sql-driver/mysql/issues/1555 for
+		// a related open bug in the driver
+		ds.deleteCachedStmt(query)
 	}
-	return err
+
+	return sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
 }
 
 // LoadHostByNodeKey loads the whole host identified by the node key.
@@ -2258,7 +2285,6 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
-      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
@@ -2948,7 +2974,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	FROM policies p
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
-	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
+	WHERE (p.team_id IS NULL OR p.team_id = COALESCE((SELECT team_id FROM hosts WHERE id = ?), 0))
 	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
 	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
 
@@ -3629,78 +3655,31 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(
+func (ds *Datastore) UpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	enrolled bool,
+) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_mdm SET enrolled = ? WHERE host_id = ?`, enrolled, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host_mdm.enrolled")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
-	if fleetEnrollmentRef == "" {
-		return ctxerr.New(ctx, "missing fleet enroll ref to upsert host emails with mdm idp account")
-	}
-
 	var email *string
-	idp, err := ds.GetMDMIdPAccountByLegacyEnrollRef(ctx, fleetEnrollmentRef)
-	if err != nil {
-		return err
+	if fleetEnrollmentRef != "" {
+		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+		if err != nil {
+			return err
+		}
+		email = &idp.Email
 	}
-	email = &idp.Email
-
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
-		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
-	)
-}
-
-func (ds *Datastore) SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(
-	ctx context.Context,
-	hostUUID string,
-) error {
-	if hostUUID == "" {
-		return ctxerr.New(ctx, "missing host uuid to upsert host emails with mdm idp account")
-	}
-
-	var hid uint
-	var email string
-	host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting host by identifier to upsert host emails with mdm idp account")
-	}
-	hid = host.ID
-
-	idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
-	}
-	email = idp.Email
-
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
-		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hid, fleet.DeviceMappingMDMIdpAccounts,
-	)
-}
-
-func (ds *Datastore) SetOrUpdateEmailsFromMDMIdPAccountsByHostID(
-	ctx context.Context,
-	hostID uint,
-	hostUUID string,
-) error {
-	if hostID == 0 {
-		return ctxerr.New(ctx, "missing host id to upsert host emails with mdm idp account")
-	}
-	if hostUUID == "" {
-		return ctxerr.New(ctx, "missing host uuid to upsert host emails with mdm idp account")
-	}
-
-	var email string
-	idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
-	}
-	email = idp.Email
 
 	return ds.updateOrInsert(
 		ctx,
@@ -4990,7 +4969,7 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 		WHERE
 			hce.host_id = ?
 			AND
-			ce.start_time > NOW()	
+			ce.start_time > NOW()
 		ORDER BY ce.start_time
 	`
 
@@ -4999,20 +4978,6 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows from db")
 	}
 	return mws, nil
-}
-
-func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
-	const stmt = `
-          INSERT INTO host_disk_encryption_keys (host_id, reset_requested, base64_encrypted)
-            VALUES (?, ?, '')
-          ON DUPLICATE KEY UPDATE
-            reset_requested = VALUES(reset_requested)`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, status)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert disk encryption reset status")
-	}
-	return nil
 }
 
 // countHostNotResponding counts the hosts that haven't been submitting results for sent queries.
@@ -5080,6 +5045,18 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	}
 
 	return counts, nil
+}
+
+func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+		SELECT count(*) FROM host_orbit_info WHERE desktop_version IS NOT NULL
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
@@ -5194,8 +5171,8 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
     SELECT
       h.id,
       h.team_id,
-      COALESCE(h.osquery_host_id, '') AS osquery_host_id,
-      COALESCE(h.node_key, '') AS node_key,
+      h.osquery_host_id,
+      h.node_key,
       h.hostname,
       h.uuid,
       h.hardware_serial,

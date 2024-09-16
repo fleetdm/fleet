@@ -136,7 +136,7 @@ const OSSettingsErrorCell = ({
         tooltip={tooltip}
         value={value}
         // we dont want the default "w250" class so we pass in empty string
-        classes={""}
+        classes=""
         className={
           isFailed || showRefetchButton
             ? `${baseClass}__failed-message`

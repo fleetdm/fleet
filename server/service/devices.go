@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -529,74 +530,42 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
+	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	topic, err := svc.mdmPushCertTopic(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetSCEPChallenge,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	tmSecrets, err := svc.ds.GetEnrollSecrets(ctx, host.TeamID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "getting host team enroll secrets")
+	}
+	if len(tmSecrets) == 0 && host.TeamID != nil {
+		tmSecrets, err = svc.ds.GetEnrollSecrets(ctx, nil)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, err, "getting no team enroll secrets")
+		}
+	}
+	if len(tmSecrets) == 0 {
+		return nil, &fleet.BadRequestError{Message: "unable to find an enroll secret to generate enrollment profile"}
 	}
 
-	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
-		topic,
-	)
+	enrollSecret := tmSecrets[0].Secret
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
+		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
 	}
 
-	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
+	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
 	return signed, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Request a disk encryption reset
-////////////////////////////////////////////////////////////////////////////////
-
-type rotateEncryptionKeyRequest struct {
-	Token string `url:"token"`
-}
-
-func (r *rotateEncryptionKeyRequest) deviceAuthToken() string {
-	return r.Token
-}
-
-type rotateEncryptionKeyResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r rotateEncryptionKeyResponse) error() error { return r.Err }
-
-func rotateEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return rotateEncryptionKeyResponse{Err: err}, nil
-	}
-
-	if err := svc.RequestEncryptionKeyRotation(ctx, host.ID); err != nil {
-		return rotateEncryptionKeyResponse{Err: err}, nil
-	}
-	return rotateEncryptionKeyResponse{}, nil
-}
-
-func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
-	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
