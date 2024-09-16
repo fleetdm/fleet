@@ -79,26 +79,18 @@ module.exports = {
     // 'what-are-you-using-fleet-for':
     //  - (any option) = stage 2
     // 'have-you-ever-used-fleet':
-    //  - yes-deployed: » Stage 6
-    //  - yes-recently-deployed: » Stage 5
+    //  - yes-deployed: » Stage 6 » "How many hosts"
+    //  - yes-recently-deployed: » Stage 5 » "How many hosts"
     //  - yes-deployed-local: » Stage 3 (Tried Fleet but might not have a use case)
-    //  - yes-deployed-long-time: Stage 2 (Tried Fleet long ago but might not fully grasp)
-    //  - no: Stage 2 (Never tried Fleet and might not fully grasp)
-    // 'how-many-hosts': Stage 4/5/6
+    //  - yes-deployed-long-time: Stage 3 (Tried Fleet long ago but might not fully grasp)
+    //  - no: Stage 3 (Never tried Fleet and might not fully grasp)
+    // 'how-many-hosts': Stage 5/6
     // 'will-you-be-self-hosting': Stage 5/6
-    // 'what-are-you-working-on-eo-security'
-    //  - All other options » Stage 4
-    // 'what-does-your-team-manage-eo-it'
-    //  - All other options » Stage 4
-    // 'what-does-your-team-manage-vm'
-    //  - All other options » Stage 4
-    // 'what-do-you-manage-mdm'
-    //  - no-use-case-yet: » Stage 3
-    //  - All other options » Stage 4
-    // 'is-it-any-good': Stage 3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
+    // 'what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm' & 'what-do-you-manage-mdm': Stage 3
+    // 'is-it-any-good': Stage 3
     // 'what-did-you-think'
-    //  - host-fleet-for-me » Stage 5
-    //  - deploy-fleet-in-environment » Stage 5
+    //  - host-fleet-for-me » Stage 4
+    //  - deploy-fleet-in-environment » Stage 4
     //  - let-me-think-about-it »  Stage 2
     // FUTURE: Should the step about deploying fleet in your env be here?  (For same reason is-it-any-good is here: when navigating back then forwards?)
     // 'how-was-your-deployment'
@@ -108,10 +100,10 @@ module.exports = {
     //  - changed-mind-want-managed-deployment » Stage 5
     //  - decided-to-not-use-fleet » Stage 2
     // 'whats-left-to-get-you-set-up'
-    //  - need-premium-license-key » No change (Stage ??)
-    //  - help-show-fleet-to-my-team » No change (Stage ??)
-    //  - procurement-wants-some-stuff » No change (Stage ??)
-    //  - nothing » No change (Stage ??)
+    //  - need-premium-license-key » No change (Stage 5)
+    //  - help-show-fleet-to-my-team » No change (Stage 5)
+    //  - procurement-wants-some-stuff » No change (Stage 5)
+    //  - nothing » No change (Stage 5)
 
     let psychologicalStage = userRecord.psychologicalStage;
     let psychologicalStageLastChangedAt = userRecord.psychologicalStageLastChangedAt;
@@ -137,11 +129,7 @@ module.exports = {
       // Get the user's answer to the "Have you ever used Fleet?" question.
       let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
       if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
-        if(valueFromFormData === 'no-use-case-yet') {
           psychologicalStage = '3 - Intrigued';
-        } else {// Otherwise, they have a use case and will be set to stage 4.
-          psychologicalStage = '4 - Has use case';
-        }
         // When the user submits the step before the "Is it any good?" step, we will generate them a 30 day Trial key for Fleet Premium that they can use with fleetctl preview
         if(!userRecord.fleetPremiumTrialLicenseKey) {
           let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
@@ -158,25 +146,13 @@ module.exports = {
           });
         }
       } else if(currentStep === 'is-it-any-good') {
-        if(currentSelectedBuyingSituation === 'mdm') {
-          // Since the mdm use case question is the only buying situation-specific question where a use case can't
-          // be selected,  we'll check the user's previous answers before changing their psyStage
-          if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
-            // Check the user's answer to the have-you-ever-used-fleet question.
-            psychologicalStage = '3 - Intrigued';
-          } else {
-            psychologicalStage = '4 - Has use case';
-          }
-        } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
-          psychologicalStage = '4 - Has use case';
-          // FUTURE: check previous answers for other selected buying situations.
-        }
+        psychologicalStage = '3 - Intrigued';
       } else if(currentStep === 'what-did-you-think') {// (what did you think about [presumably after you actually did...] trying it locally)
         // If the user selects "Let me think about it", set their psyStage to 2.
         if(valueFromFormData === 'let-me-think-about-it') {
           psychologicalStage = '2 - Aware';
         } else if (['host-fleet-for-me', 'deploy-fleet-in-environment'].includes(valueFromFormData)) {
-          psychologicalStage = '5 - Personally confident';
+          psychologicalStage = '4 - Has use case';
         } else { require('assert')(false,'This should never happen.'); }
       } else if(currentStep === 'how-was-your-deployment') {
         if(valueFromFormData === 'decided-to-not-use-fleet') {
