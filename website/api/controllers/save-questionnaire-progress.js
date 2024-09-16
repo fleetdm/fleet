@@ -124,12 +124,10 @@ module.exports = {
       }
     } else {
       // If the user submitted any other step, we'll set variables using the answers to the previous questions.
-      // Get the user's selected primaryBuyingSiutation.
-      let currentSelectedBuyingSituation = questionnaireProgress['what-are-you-using-fleet-for'].primaryBuyingSituation;
       // Get the user's answer to the "Have you ever used Fleet?" question.
       let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
       if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
-          psychologicalStage = '3 - Intrigued';
+        psychologicalStage = '3 - Intrigued';
         // When the user submits the step before the "Is it any good?" step, we will generate them a 30 day Trial key for Fleet Premium that they can use with fleetctl preview
         if(!userRecord.fleetPremiumTrialLicenseKey) {
           let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
