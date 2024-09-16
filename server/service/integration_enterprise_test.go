@@ -11757,6 +11757,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	}
 
 	// create some install requests for the host
+	beforeInstall := time.Now()
 	installUUIDs := make([]string, 3)
 	titleIDs := []uint{titleID, titleID2, titleID3}
 	for i := 0; i < len(installUUIDs); i++ {
@@ -11783,6 +11784,8 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		assert.Equal(t, want.PreInstallQueryOutput, resp.Results.PreInstallQueryOutput)
 		assert.Equal(t, want.Output, resp.Results.Output)
 		assert.Equal(t, want.PostInstallScriptOutput, resp.Results.PostInstallScriptOutput)
+		assert.Less(t, beforeInstall, resp.Results.CreatedAt)
+		assert.Greater(t, time.Now(), resp.Results.CreatedAt)
 	}
 
 	s.Do("POST", "/api/fleet/orbit/software_install/result",

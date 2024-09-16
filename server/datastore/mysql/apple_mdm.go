@@ -917,6 +917,7 @@ func createHostFromMDMDB(
 	tx sqlx.ExtContext,
 	logger log.Logger,
 	devices []hostToCreateFromMDM,
+	fromADE bool,
 	macOSTeam, iosTeam, ipadTeam *uint,
 ) (int64, []fleet.Host, error) {
 	// NOTE: order of arguments for teams is important, see statement.
@@ -981,6 +982,7 @@ func createHostFromMDMDB(
 				h.platform,
 				h.hardware_model,
 				h.hardware_serial,
+				h.hostname,
 				COALESCE(hmdm.enrolled, 0) as enrolled
 			FROM hosts h
 			LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
@@ -1024,7 +1026,7 @@ func createHostFromMDMDB(
 		ctx,
 		tx,
 		appCfg.ServerSettings,
-		true,
+		fromADE,
 		unmanagedHostIDs...,
 	); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
@@ -1046,7 +1048,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				HardwareModel:  deviceInfo.Product,
 			},
 		}
-		_, _, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, teamID, teamID, teamID)
+		_, _, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
 		return ctxerr.Wrap(ctx, err, "creating host from OTA enrollment")
 	})
 }
@@ -1105,6 +1107,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			tx,
 			ds.logger,
 			htc,
+			true,
 			teamIDs[0], teamIDs[1], teamIDs[2],
 		)
 		if err != nil {
