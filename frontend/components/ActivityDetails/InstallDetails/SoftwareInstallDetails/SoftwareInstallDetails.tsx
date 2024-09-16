@@ -1,5 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
+import { formatDistanceToNow } from "date-fns";
 
 import { IActivityDetails } from "interfaces/activity";
 import {
@@ -29,7 +30,14 @@ export type IPackageInstallDetails = Pick<
 >;
 
 const StatusMessage = ({
-  result: { host_display_name, software_package, software_title, status },
+  result: {
+    host_display_name,
+    software_package,
+    software_title,
+    status,
+    updated_at,
+    created_at,
+  },
 }: {
   result: ISoftwareInstallResult;
 }) => {
@@ -38,13 +46,24 @@ const StatusMessage = ({
   ) : (
     "the host"
   );
+
+  const timeStamp = updated_at || created_at;
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    status || ""
+  )
+    ? ` (${formatDistanceToNow(new Date(timeStamp), {
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
+    : "";
   return (
     <div className={`${baseClass}__status-message`}>
       <Icon name={INSTALL_DETAILS_STATUS_ICONS[status]} />
       <span>
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
         ({software_package}) on {formattedHost}
-        {status === "pending" ? " when it comes online" : ""}.
+        {status === "pending_install" ? " when it comes online" : ""}
+        {displayTimeStamp}.
       </span>
     </div>
   );
@@ -104,7 +123,7 @@ export const SoftwareInstallDetails = ({
             result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
           }
         />
-        {result.status !== "pending" && (
+        {result.status !== "pending_install" && (
           <>
             {result.pre_install_query_output && (
               <Output displayKey="pre_install_query_output" result={result} />

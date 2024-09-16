@@ -96,7 +96,7 @@
   startedOn: "2024-02-09"
   frequency: "Daily"
   description: "Check event issues and complete steps."
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#book-an-event"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
   dri: "spokanemac"
 
 

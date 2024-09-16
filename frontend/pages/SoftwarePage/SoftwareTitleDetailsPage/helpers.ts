@@ -2,6 +2,7 @@ import {
   IAppStoreApp,
   ISoftwareTitleDetails,
   isSoftwarePackage,
+  aggregateInstallStatusCounts,
 } from "interfaces/software";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
@@ -24,7 +25,9 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
         ? packageData.version
         : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
     uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
-    status: packageData.status,
+    status: isSoftwarePackage(packageData)
+      ? aggregateInstallStatusCounts(packageData.status)
+      : packageData.status,
     isSelfService: packageData.self_service,
   };
 };

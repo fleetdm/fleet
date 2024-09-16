@@ -123,6 +123,7 @@ type distributionPkgRef struct {
 	BundleVersions    []distributionBundleVersion `xml:"bundle-version"`
 	MustClose         distributionMustClose       `xml:"must-close"`
 	PackageIdentifier string                      `xml:"packageIdentifier,attr"`
+	InstallKBytes     string                      `xml:"installKBytes,attr"`
 }
 
 // distributionBundleVersion represents the bundle-version element
@@ -223,21 +224,55 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
 	}
 
-	name, identifier, version := getDistributionInfo(&distXML)
+	name, identifier, version, packageIDs := getDistributionInfo(&distXML)
 	return &InstallerMetadata{
 		Name:             name,
 		Version:          version,
 		BundleIdentifier: identifier,
+		PackageIDs:       packageIDs,
 	}, nil
 
 }
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
-func getDistributionInfo(d *distributionXML) (name string, identifier string, version string) {
+func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
 	var appVersion string
 
+	// find the package ids that have an installation size
+	var packageIDSet = make(map[string]struct{}, 1)
+	for _, pkg := range d.PkgRefs {
+		if pkg.InstallKBytes != "" && pkg.InstallKBytes != "0" {
+			var id string
+			if pkg.PackageIdentifier != "" {
+				id = pkg.PackageIdentifier
+			} else if pkg.ID != "" {
+				id = pkg.ID
+			}
+			if id != "" {
+				packageIDSet[id] = struct{}{}
+			}
+		}
+	}
+	if len(packageIDSet) == 0 {
+		// if we didn't find any package IDs with installation size, then grab all of them
+		for _, pkg := range d.PkgRefs {
+			var id string
+			if pkg.PackageIdentifier != "" {
+				id = pkg.PackageIdentifier
+			} else if pkg.ID != "" {
+				id = pkg.ID
+			}
+			if id != "" {
+				packageIDSet[id] = struct{}{}
+			}
+		}
+	}
+	for id := range packageIDSet {
+		packageIDs = append(packageIDs, id)
+	}
+
 out:
-	// first, look in all the bundle versions for one that has a `path` attribute
+	// look in all the bundle versions for one that has a `path` attribute
 	// that is not nested, this is generally the case for packages that distribute
 	// `.app` files, which are ultimately picked up as an installed app by osquery
 	for _, pkg := range d.PkgRefs {
@@ -284,6 +319,11 @@ out:
 		identifier = d.Product.ID
 	}
 
+	// if package IDs are still empty, use the identifier as the package ID
+	if len(packageIDs) == 0 && identifier != "" {
+		packageIDs = append(packageIDs, identifier)
+	}
+
 	// for the name, try to use the title and fallback to the bundle
 	// identifier
 	if name == "" && d.Title != "" {
@@ -296,7 +336,7 @@ out:
 	// for the version, try to use the top-level product version, if not,
 	// fallback to any version definition alongside the name or the first
 	// version in a pkg-ref we find.
-	if version == "" && d.Product.Version != "" {
+	if d.Product.Version != "" {
 		version = d.Product.Version
 	}
 	if version == "" && appVersion != "" {
@@ -310,7 +350,7 @@ out:
 		}
 	}
 
-	return name, identifier, version
+	return name, identifier, version, packageIDs
 }
 
 // isValidAppFilePath checks if the given input is a file name ending with .app

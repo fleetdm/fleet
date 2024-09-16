@@ -25,3 +25,4 @@ flag_management:
 
 ignore:
   - "server/mock"
+  - "server/fleet/activities.go" # mostly contains code for documentation -- not interesting for tests

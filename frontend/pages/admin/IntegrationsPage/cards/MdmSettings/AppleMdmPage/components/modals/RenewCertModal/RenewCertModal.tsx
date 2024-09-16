@@ -65,7 +65,13 @@ const RenewCertModal = ({
   const onDownloadError = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (e: unknown) => {
-      renderFlash("error", "Something's gone wrong. Please try again.");
+      const msg = getErrorReason(e);
+
+      if (msg.toLowerCase().includes("email address is not valid")) {
+        renderFlash("error", msg);
+      } else {
+        renderFlash("error", "Something's gone wrong. Please try again.");
+      }
     },
     [renderFlash]
   );

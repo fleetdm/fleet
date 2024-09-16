@@ -556,6 +556,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// enable MDM flows
 	s.appleCoreCertsSetup()
 
+	// create a global enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: "global-secret"}},
+		},
+	}, http.StatusOK, &applyResp)
+
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 	s.T().Cleanup(s.appleITunesSrv.Close)
@@ -1045,6 +1053,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
+		HardwareModel:   "MacBookPro16,1",
 
 		UUID:           mdmDevice.UUID,
 		HardwareSerial: mdmDevice.SerialNumber,
@@ -1127,7 +1136,7 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
 
 	// valid token downloads the profile
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -1328,6 +1337,14 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusBadGateway, &errResp)
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
+
+	// Check that we return bad request if the website API does (it will do this in case of an
+	// invalid email address
+	s.FailNextCSRRequestWith(http.StatusUnprocessableEntity)
+	errResp = validationErrResp{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "this email address is not valid")
 
 	// Invalid APNS cert upload attempt
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", []byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.", nil)
@@ -5487,6 +5504,45 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	require.Equal(t, len(body), headerLen)
 
 	return s.verifyEnrollmentProfile(body, "")
+}
+
+func (s *integrationMDMTestSuite) downloadAndVerifyOTAEnrollmentProfile(path string) {
+	t := s.T()
+
+	resp := s.DoRaw("GET", path, nil, http.StatusOK)
+	rawProfile, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	require.Contains(t, resp.Header, "Content-Disposition")
+	require.Contains(t, resp.Header, "Content-Type")
+	require.Contains(t, resp.Header, "X-Content-Type-Options")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
+	require.NoError(t, err)
+	require.Equal(t, len(rawProfile), headerLen)
+
+	p7, err := pkcs7.Parse(rawProfile)
+	require.NoError(t, err)
+	rootCA := x509.NewCertPool()
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
+	require.NoError(t, err)
+
+	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
+	require.NoError(t, p7.VerifyWithChain(rootCA))
+
+	var otaEnrollmentProfile struct {
+		PayloadContent struct {
+			URL string `plist:"URL"`
+		} `plist:"PayloadContent"`
+	}
+	err = plist.Unmarshal(p7.Content, &otaEnrollmentProfile)
+	require.NoError(t, err)
+	require.Contains(t, otaEnrollmentProfile.PayloadContent.URL, s.getConfig().ServerSettings.ServerURL+"/api/v1/fleet/ota_enrollment")
 }
 
 func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
@@ -9820,7 +9876,10 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
 	var recordedPushes []*mdm.Push
+	var mu sync.Mutex
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
 		recordedPushes = pushes
 		return mockSuccessfulPush(pushes)
 	}
@@ -9966,8 +10025,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	})
 	require.NoError(t, err)
 
-	// No vpp token set, no association.
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+	// No vpp token set, but request is empty so it succeeds (clears VPP apps for the team).
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	// No vpp token set, try association
 	// FIXME
@@ -10707,7 +10766,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// attempt to install a VPP app on the non-MDM enrolled host
 	installResp := installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, macOSTitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", orbitHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusBadRequest, &installResp)
 
 	// Disable all teams token
@@ -10738,7 +10797,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
-	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, 99999), &installSoftwareRequest{},
+		http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.")
 
 	// Add app 1 as self-service
@@ -10757,7 +10817,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", vppRes.Token.ID), &deleteVPPTokenRequest{}, http.StatusNoContent)
 
@@ -10802,14 +10863,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			errApp.Name,
 			errApp.AdamID,
 			failedCmdUUID,
-			fleet.SoftwareInstallerFailed,
+			fleet.SoftwareInstallFailed,
 		),
 		0,
 	)
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 	countResp = countHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -10849,7 +10910,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			addedApp.Name,
 			addedApp.AdamID,
 			cmdUUID,
-			fleet.SoftwareInstallerInstalled,
+			fleet.SoftwareInstalled,
 		),
 		0,
 	)
@@ -10868,12 +10929,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
 	require.NotNil(t, got2.Status)
-	require.Equal(t, *got2.Status, fleet.SoftwareInstallerFailed)
+	require.Equal(t, *got2.Status, fleet.SoftwareInstallFailed)
 	require.NotNil(t, got2.AppStoreApp)
 	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
 	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
@@ -10895,7 +10956,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Empty(t, got1.AppStoreApp.Name)
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 
@@ -10988,7 +11049,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					&fleetSelfServiceSoftwareInstallRequest{}, http.StatusAccepted, &ssInstallResp)
 			} else {
 				installResp = installSoftwareResponse{}
-				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", installHost.ID, titleID),
+				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", installHost.ID, titleID),
 					&installSoftwareRequest{}, http.StatusAccepted, &installResp)
 			}
 			countResp = countHostsResponse{}
@@ -11026,7 +11087,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					app.Name,
 					app.AdamID,
 					cmdUUID,
-					fleet.SoftwareInstallerPending,
+					fleet.SoftwareInstallPending,
 					install.deviceToken != "",
 				),
 				string(*hostActivitiesResp.Activities[0].Details),
@@ -11054,7 +11115,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					app.Name,
 					app.AdamID,
 					cmdUUID,
-					fleet.SoftwareInstallerInstalled,
+					fleet.SoftwareInstalled,
 					install.deviceToken != "",
 				),
 				0,
@@ -11074,7 +11135,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(app.IconURL))
 					require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 					require.Equal(t, got1.AppStoreApp.Version, app.LatestVersion)
-					require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+					require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
 					require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
 					require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 					foundInstalledApp = true
@@ -11139,7 +11200,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
 	createHostAndDeviceToken(t, s.ds, token)
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
 
 	// automatic enrollment by token
 	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
@@ -11199,9 +11260,9 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 </plist>`)
 
 	// request with no enroll secret
-	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusBadRequest)
+	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusForbidden)
 	errMsg := extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "enroll_secret query parameter is required")
+	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 	require.NoError(t, httpResp.Body.Close())
 
 	// request with no body
@@ -11227,14 +11288,14 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	// request with invalid apple signature
 	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "forbidden")
+	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 	require.NoError(t, httpResp.Body.Close())
 
 	// request with invalid device signature
 	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "forbidden")
+	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 	require.NoError(t, httpResp.Body.Close())
 
 	// request without serial number
