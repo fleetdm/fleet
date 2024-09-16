@@ -39,6 +39,8 @@ const REGEX_DETAIL_PAGES = {
   PACK_NEW: /\/packs\/new/i,
   QUERIES_EDIT: /\/queries\/\d+/i,
   QUERIES_NEW: /\/queries\/new/i,
+  POLICY_EDIT: /\/policies\/\d+/i,
+  POLICY_NEW: /\/policies\/new/i,
   SOFTWARE_TITLES_DETAILS: /\/software\/titles\/\d+/i,
   SOFTWARE_VERSIONS_DETAILS: /\/software\/versions\/\d+/i,
 };

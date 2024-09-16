@@ -92,6 +92,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
+      // alwaysToPathname: true,
       withParams: { type: "query", names: ["team_id"] },
     },
   ];
