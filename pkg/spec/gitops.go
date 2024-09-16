@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -36,6 +37,16 @@ type Controls struct {
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 
 	Scripts []BaseItem `json:"scripts"`
+
+	Defined bool
+}
+
+func (c Controls) Set() bool {
+	return c.MacOSUpdates != nil || c.IOSUpdates != nil ||
+		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
+		c.MacOSSetup != nil || c.MacOSMigration != nil ||
+		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
+		c.EnableDiskEncryption != nil || len(c.Scripts) > 0
 }
 
 type Policy struct {
@@ -88,8 +99,10 @@ type GitOpsSoftware struct {
 	AppStoreApps []*fleet.TeamSpecAppStoreApp
 }
 
+type Logf func(format string, a ...interface{})
+
 // GitOpsFromFile parses a GitOps yaml file.
-func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig) (*GitOps, error) {
+func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig, logFn Logf) (*GitOps, error) {
 	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %s: %w", filePath, err)
@@ -126,17 +139,30 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
-	} else if teamOk && teamSettingsOk {
+	} else if teamOk {
 		multiError = parseName(teamRaw, result, multiError)
-		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+		if result.IsNoTeam() {
+			if teamSettingsOk {
+				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file: %q", filePath))
+			}
+			if filepath.Base(filePath) != "no-team.yml" {
+				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
+			}
+		} else {
+			if !teamSettingsOk {
+				multiError = multierror.Append(multiError, errors.New("'team_settings' is required when 'name' is provided"))
+			} else {
+				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+			}
+		}
 	} else {
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
 	// Validate the required top level options
 	multiError = parseControls(top, result, baseDir, multiError)
-	multiError = parseAgentOptions(top, result, baseDir, multiError)
-	multiError = parseQueries(top, result, baseDir, multiError)
+	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
+	multiError = parseQueries(top, result, baseDir, logFn, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
 		multiError = parseSoftware(top, result, baseDir, multiError)
@@ -160,6 +186,20 @@ func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error
 	result.TeamName = &normalized
 	return multiError
 }
+
+func (g *GitOps) global() bool {
+	return g.TeamName == nil || *g.TeamName == ""
+}
+
+func (g *GitOps) IsNoTeam() bool {
+	return g.TeamName != nil && isNoTeam(*g.TeamName)
+}
+
+func isNoTeam(teamName string) bool {
+	return strings.ToLower(teamName) == strings.ToLower(noTeam)
+}
+
+const noTeam = "No team"
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
@@ -314,9 +354,14 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	return multiError
 }
 
-func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	agentOptionsRaw, ok := top["agent_options"]
-	if !ok {
+	if result.IsNoTeam() {
+		if ok {
+			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.")
+		}
+		return multiError
+	} else if !ok {
 		return multierror.Append(multiError, errors.New("'agent_options' is required"))
 	}
 	var agentOptionsTop BaseItem
@@ -366,12 +411,14 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
-		return multierror.Append(multiError, errors.New("'controls' is required"))
+		// Nothing to do, return.
+		return multiError
 	}
 	var controlsTop Controls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
+	controlsTop.Defined = true
 	if controlsTop.Path == nil {
 		result.Controls = controlsTop
 	} else {
@@ -516,9 +563,14 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	return nil
 }
 
-func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	queriesRaw, ok := top["queries"]
-	if !ok {
+	if result.IsNoTeam() {
+		if ok {
+			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.")
+		}
+		return multiError
+	} else if !ok {
 		return multierror.Append(multiError, errors.New("'queries' key is required"))
 	}
 	var queries []Query
@@ -593,7 +645,11 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
-	if !ok {
+	if result.global() {
+		if ok && string(softwareRaw) != "null" {
+			return multierror.Append(multiError, errors.New("'software' cannot be set on global file"))
+		}
+	} else if !ok {
 		return multierror.Append(multiError, errors.New("'software' is required"))
 	}
 	var software Software

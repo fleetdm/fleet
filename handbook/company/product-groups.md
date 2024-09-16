@@ -835,5 +835,5 @@ Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com
 ##### High priority user stories and bugs
 Please see [handbook/company/communications/high-priority-user-stories-and-bugs](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs)
 
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🛩️ Product groups">

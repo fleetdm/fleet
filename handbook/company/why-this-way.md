@@ -71,10 +71,10 @@ Investing in people and providing generous, prioritized training, especially up 
 
 Here are a few examples of how Fleet prioritizes training:
 - the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
-- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of Business Operations will join this short daily meeting with them instead.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of Digital Experience will join this short daily meeting with them instead.
 - In their first few days, every new fleetie joins:
-  - hands-on contributor experience training session with the Head of Business Operations where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
-  - a short sightseeing tour with the Head of Business Operations and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+  - hands-on contributor experience training session with the Head of Digital Experience where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with the Head of Digital Experience and (pending availability) Fleet's CEO to show them around and welcome them to the company.
 
 
 ## Why direct responsibility?
@@ -167,7 +167,7 @@ Every group at Fleet maintains their own Slack channel, which all group members 
 
 Work is tracked in [GitHub issues](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+).
 
-Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
+Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-digital-experience-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
 
 1. **Intake:** Give people from anywhere in the world the ability to [request something](https://github.com/fleetdm/confidential/issues/new/choose) from a particular team, and give that team the ability to see and [respond quickly](https://fleetdm.com/handbook/company#results) to new requests.
 2. **Planning:** Give the team's manager and other team members a way to plan the [next three-week iteration](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate [DRI](https://fleetdm.com/handbook/company#why-direct-responsibility) can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
@@ -185,7 +185,7 @@ We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's
 3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
 4. Business people and developers must [work together daily](https://fleetdm.com/handbook/company/product-groups) throughout the project.
 5. Build projects around motivated individuals. Give them the environment and support they need, and trust them to get the job done.
-6. The most efficient and effective method of conveying information to and within a development team is [face-to-face conversation](https://fleetdm.com/handbook/business-operations#meetings).
+6. The most efficient and effective method of conveying information to and within a development team is [face-to-face conversation](https://fleetdm.com/handbook/communications#meetings).
 7. Working software is the primary measure of progress.
 8. Agile processes promote sustainable development. The sponsors, developers, and users should be able to maintain a constant pace indefinitely.
 9. Continuous attention to technical excellence and good design enhances agility.

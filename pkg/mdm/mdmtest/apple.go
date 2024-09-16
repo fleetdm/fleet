@@ -217,7 +217,7 @@ func (c *TestAppleMDMClient) Enroll() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
-	return c.fetchEnrollmentProfile(
+	return c.fetchOTAProfile(
 		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
 	)
 }
@@ -229,6 +229,53 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
+	return c.fetchOTAProfile(
+		"/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(c.otaEnrollSecret),
+	)
+}
+
+func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
+	request, err := http.NewRequest("GET", c.fleetServerURL+url, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	// #nosec (this client is used for testing only)
+	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: true,
+	}))
+	response, err := cc.Do(request)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+
+	p7, err := pkcs7.Parse(body)
+	if err != nil {
+		return fmt.Errorf("OTA profile is not XML nor PKCS7 parseable: %w", err)
+	}
+	err = p7.Verify()
+	if err != nil {
+		return fmt.Errorf("verifying OTA profile: %w", err)
+	}
+
+	var otaEnrollmentProfile struct {
+		PayloadContent struct {
+			URL string `plist:"URL"`
+		} `plist:"PayloadContent"`
+	}
+	err = plist.Unmarshal(p7.Content, &otaEnrollmentProfile)
+	if err != nil {
+		return fmt.Errorf("unmarshaling OTA enrollment response: %w", err)
+	}
+
 	rawDeviceInfo := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -260,7 +307,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
 
 		request, err := http.NewRequest(
 			"POST",
-			c.fleetServerURL+"/api/latest/fleet/ota_enrollment?enroll_secret="+c.otaEnrollSecret,
+			otaEnrollmentProfile.PayloadContent.URL,
 			bytes.NewReader(sig),
 		)
 		if err != nil {
@@ -297,7 +344,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
-	body, err := do(mockedCert, mockedKey)
+	body, err = do(mockedCert, mockedKey)
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
@@ -326,7 +373,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
 	if err != nil {
 		return fmt.Errorf("seconde OTA request: %w", err)
 	}
-	p7, err := pkcs7.Parse(body)
+	p7, err = pkcs7.Parse(body)
 	if err != nil {
 		return fmt.Errorf("enrollment profile is not XML nor PKCS7 parseable: %w", err)
 	}

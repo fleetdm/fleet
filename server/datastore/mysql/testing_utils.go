@@ -495,6 +495,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
+	tb.Helper()
 	err := fn(ds.primary)
 	require.NoError(tb, err)
 }
