@@ -51,8 +51,9 @@ const ManualEnrollMdmModal = ({
             profile.
           </li>
           <li>
-            Select <b>Enroll</b> then enter your password.
+            Select <b>Install...</b> then confirm again clicking <b>Install</b>.
           </li>
+          <li>Enter your password when you get a prompt.</li>
           <li>
             Select <b>Done</b> to close this window and select <b>Refetch</b> on
             your My device page to tell <br /> your organization that MDM is on.

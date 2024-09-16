@@ -512,29 +512,13 @@ the way that the Fleet server works.
 
 			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
-				if !config.MDM.IsAppleAPNsSet() {
-					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
-				} else if !config.MDM.IsAppleSCEPSet() {
-					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
-				}
-
 				if len(config.Server.PrivateKey) == 0 {
 					initFatal(errors.New("inserting MDM APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
-				// parse the APNs and SCEP assets from the config
-				_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
-				if err != nil {
-					initFatal(err, "parse Apple APNs certificate and key from config")
-				}
-				_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
-				if err != nil {
-					initFatal(err, "load Apple SCEP certificate and key from config")
-				}
-
 				// first we'll check if the APNs and SCEP assets are already in the database and
 				// only insert config values if they're not already present in the database
-				toInsert := make([]fleet.MDMConfigAsset, 0, 4)
+				toInsert := make(map[fleet.MDMAssetName]struct{}, 4)
 
 				// check DB for APNs assets
 				found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey})
@@ -542,7 +526,8 @@ the way that the Fleet server works.
 				case err != nil:
 					initFatal(err, "reading APNs assets from database")
 				case !found:
-					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSKey, Value: apnsKeyPEM})
+					toInsert[fleet.MDMAssetAPNSCert] = struct{}{}
+					toInsert[fleet.MDMAssetAPNSKey] = struct{}{}
 				default:
 					level.Warn(logger).Log("msg", "Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
@@ -553,16 +538,44 @@ the way that the Fleet server works.
 				case err != nil:
 					initFatal(err, "reading SCEP assets from database")
 				case !found:
-					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetCACert, Value: appleSCEPCertPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetCAKey, Value: appleSCEPKeyPEM})
+					toInsert[fleet.MDMAssetCACert] = struct{}{}
+					toInsert[fleet.MDMAssetCAKey] = struct{}{}
 				default:
 					level.Warn(logger).Log("msg", "Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
 				if len(toInsert) > 0 {
-					if len(config.Server.PrivateKey) == 0 {
-						initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+					if !config.MDM.IsAppleAPNsSet() {
+						initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
+					} else if !config.MDM.IsAppleSCEPSet() {
+						initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 					}
-					if err := ds.InsertMDMConfigAssets(context.Background(), toInsert); err != nil {
+
+					// parse the APNs and SCEP assets from the config
+					_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
+					if err != nil {
+						initFatal(err, "parse Apple APNs certificate and key from config")
+					}
+					_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
+					if err != nil {
+						initFatal(err, "load Apple SCEP certificate and key from config")
+					}
+
+					var args []fleet.MDMConfigAsset
+					for name := range toInsert {
+						switch name {
+						case fleet.MDMAssetAPNSCert:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: apnsCertPEM})
+						case fleet.MDMAssetAPNSKey:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: apnsKeyPEM})
+						case fleet.MDMAssetCACert:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: appleSCEPCertPEM})
+						case fleet.MDMAssetCAKey:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: appleSCEPKeyPEM})
+						}
+					}
+
+					if err := ds.InsertMDMConfigAssets(context.Background(), args); err != nil {
 						if mysql.IsDuplicate(err) {
 							// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
 							level.Debug(logger).Log("msg", "unexpected duplicate key error inserting MDM APNs and SCEP assets")
@@ -575,11 +588,6 @@ the way that the Fleet server works.
 
 			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleBMSet() {
-				// TODO: Confirm whether we should have any fatal license errors
-				if !license.IsPremium() {
-					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
-				}
-
 				if len(config.Server.PrivateKey) == 0 {
 					initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
@@ -589,7 +597,7 @@ the way that the Fleet server works.
 					initFatal(err, "parse Apple BM token, certificate and key from config")
 				}
 
-				toInsert := make([]fleet.MDMConfigAsset, 0, 4)
+				toInsert := make([]fleet.MDMConfigAsset, 0, 2)
 
 				found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetABMKey, fleet.MDMAssetABMCert})
 				switch {

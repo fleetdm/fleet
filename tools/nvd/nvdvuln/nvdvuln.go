@@ -69,6 +69,12 @@ func main() {
 		}
 	}
 
+	// All macOS apps are expected to have a bundle identifier, which influences CPE generation.
+	if softwareSource != nil && *softwareSource == "apps" && softwareBundleIdentifier != nil && *softwareBundleIdentifier == "" {
+		printf("Must set --software_bundle_identifier for macOS apps when specifying -software_source apps\n")
+		return
+	}
+
 	if err := os.MkdirAll(*dbDir, os.ModePerm); err != nil {
 		panic(err)
 	}
