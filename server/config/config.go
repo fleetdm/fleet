@@ -102,7 +102,6 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 		Addr:              s.Address,
 		Handler:           handler,
 		ReadTimeout:       25 * time.Second,
-		WriteTimeout:      40 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       5 * time.Minute,
 		MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)

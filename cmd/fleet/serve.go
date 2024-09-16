@@ -1208,32 +1208,11 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
-			liveQueryRestPeriod := 90 * time.Second // default (see #1798)
-			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
-				duration, err := time.ParseDuration(v)
-				if err != nil {
-					level.Error(logger).Log("live_query_rest_period_err", err)
-				} else {
-					liveQueryRestPeriod = duration
-				}
-			}
-
-			// The "GET /api/latest/fleet/queries/run" API requires
-			// WriteTimeout to be higher than the live query rest period
-			// (otherwise the response is not sent back to the client).
-			//
-			// We add 10s to the live query rest period to allow the writing
-			// of the response.
-			liveQueryRestPeriod += 10 * time.Second
-
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
 			handler = launcher.Handler(rootMux)
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
-			if liveQueryRestPeriod > srv.WriteTimeout {
-				srv.WriteTimeout = liveQueryRestPeriod
-			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
 			go func() {

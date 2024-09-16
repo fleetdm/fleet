@@ -1,0 +1,1 @@
+* Remove 100s write timeout on the server (to allow for long running `POST /api/latest/fleet/software/batch` requests).
