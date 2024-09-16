@@ -57,7 +57,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded := updateSoftwareInstallerRequest{}
 
 	// populate software title ID since we're overriding the decoder that would do it for us
-	titleID, err := uintFromRequest(r, "id")
+	titleID, err := uint32FromRequest(r, "id")
 	if err != nil {
 		return nil, badRequestErr("intFromRequest", err)
 	}

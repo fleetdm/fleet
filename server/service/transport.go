@@ -87,6 +87,19 @@ func uintFromRequest(r *http.Request, name string) (uint64, error) {
 	return u, nil
 }
 
+func uint32FromRequest(r *http.Request, name string) (uint32, error) {
+	vars := mux.Vars(r)
+	s, ok := vars[name]
+	if !ok {
+		return 0, errBadRoute
+	}
+	u, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, ctxerr.Wrap(r.Context(), err, "uint32FromRequest")
+	}
+	return uint32(u), nil
+}
+
 func intFromRequest(r *http.Request, name string) (int64, error) {
 	vars := mux.Vars(r)
 	s, ok := vars[name]
