@@ -420,10 +420,9 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_FILTERED_POLICIES_PATH: {
       const { filteredPoliciesPath } = action;
-      // TODO: if policies page is updated to support team_id=0, remove the replace below
       return {
         ...state,
-        filteredPoliciesPath: filteredPoliciesPath.replace("team_id=0", ""),
+        filteredPoliciesPath,
       };
     }
     default:
