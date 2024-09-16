@@ -237,7 +237,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	}
 
 	var postInstallScriptID *uint
-	if payload.PostInstallScript != nil && *payload.PostInstallScript != "" { // pointer because optional
+	if payload.PostInstallScript != nil { // pointer because optional
 		sid, err := ds.getOrGenerateScriptContentsID(ctx, *payload.PostInstallScript)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get or generate post-install script contents ID")
