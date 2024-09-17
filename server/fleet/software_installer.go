@@ -118,6 +118,17 @@ type SoftwareInstaller struct {
 	URL string `json:"url" db:"url"`
 }
 
+// SoftwarePackageResponse is the response type used when applying software by batch.
+type SoftwarePackageResponse struct {
+	// TeamID is the ID of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID *uint `json:"title_id" db:"title_id"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
+}
+
 // AuthzType implements authz.AuthzTyper.
 func (s *SoftwareInstaller) AuthzType() string {
 	return "installable_entity"

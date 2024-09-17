@@ -546,22 +546,22 @@ type batchSetSoftwareInstallersRequest struct {
 }
 
 type batchSetSoftwareInstallersResponse struct {
-	Installers []fleet.SoftwareInstaller `json:"installers"`
-	Err        error                     `json:"error,omitempty"`
+	Packages []fleet.SoftwarePackageResponse `json:"packages"`
+	Err      error                           `json:"error,omitempty"`
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
 
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)
-	installers, err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun)
+	packages, err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun)
 	if err != nil {
 		return batchSetSoftwareInstallersResponse{Err: err}, nil
 	}
-	return batchSetSoftwareInstallersResponse{Installers: installers}, nil
+	return batchSetSoftwareInstallersResponse{Packages: packages}, nil
 }
 
-func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) ([]fleet.SoftwareInstaller, error) {
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

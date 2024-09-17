@@ -969,7 +969,8 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 }
 
 func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executionID string, host *fleet.Host,
-	installer *fleet.SoftwareInstaller) error {
+	installer *fleet.SoftwareInstaller,
+) error {
 	if err := svc.ds.InsertSoftwareUninstallRequest(ctx, executionID, host.ID, installer.InstallerID); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting software uninstall request")
 	}
@@ -1114,7 +1115,7 @@ const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
 
 func (svc *Service) BatchSetSoftwareInstallers(
 	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
-) ([]fleet.SoftwareInstaller, error) {
+) ([]fleet.SoftwarePackageResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
