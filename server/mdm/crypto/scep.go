@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
 )
 
@@ -33,15 +34,21 @@ func (s *SCEPVerifier) Verify(cert *x509.Certificate) error {
 	}
 
 	// TODO(roberto): nano interfaces don't allow to pass a context to this function
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
-		fleet.MDMAssetCACert,
-	})
+	rootCert, err := assets.X509Cert(context.Background(), s.ds, fleet.MDMAssetCACert)
 	if err != nil {
 		return fmt.Errorf("loading existing assets from the database: %w", err)
 	}
+	opts.Roots.AddCert(rootCert)
 
-	if ok := opts.Roots.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value); !ok {
-		return errors.New("unable to append cerver SCEP cert to pool verifier")
+	// the default SCEP cert issued by fleet doesn't have any extra key
+	// usages, however, customers might configure the server with any
+	// certificate they want (generally for touchless MDM migrations)
+	//
+	// given that go verifies ext key usages on the whole chain, we relax
+	// the constraints when the provided certificate has any ext key usage
+	// that would cause a failure.
+	if hasOtherKeyUsages(rootCert, x509.ExtKeyUsageClientAuth) {
+		opts.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageAny}
 	}
 
 	if _, err := cert.Verify(opts); err != nil {
@@ -49,4 +56,13 @@ func (s *SCEPVerifier) Verify(cert *x509.Certificate) error {
 	}
 
 	return nil
+}
+
+func hasOtherKeyUsages(cert *x509.Certificate, usage x509.ExtKeyUsage) bool {
+	for _, u := range cert.ExtKeyUsage {
+		if u != usage {
+			return true
+		}
+	}
+	return false
 }

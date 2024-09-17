@@ -16,7 +16,6 @@ import {
 import { IUser, IUserRole } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
-import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 type OnTeamChangeFuncShouldStripParam = (
   teamIdForApi: number | undefined
@@ -329,7 +328,7 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
-      // TODO: This results in a warning that TableProvider is being updated while rendering while
+      // TODO: This results in a warning that TableProvider is being updated while
       // rendering a different component (the component that invokes the useTeamIdParam hook).
       // This requires further investigation but is not currently causing any known issues.
       if (resetSelectedRowsOnTeamChange) {
@@ -394,6 +393,7 @@ export const useTeamIdParam = ({
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     currentTeamSummary: currentTeam,
+    // not including the 'No team' "team", whose id of 0 is falsey
     isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
     isAllTeamsSelected:
       !isAnyTeamSelected(currentTeam?.id) && currentTeam?.id !== 0,
@@ -413,7 +413,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
-    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: team_id=0 for No team (same as currentTeamId), undefined for All teams
     userTeams,
     handleTeamChange,
   };

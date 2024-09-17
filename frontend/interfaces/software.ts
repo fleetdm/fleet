@@ -221,6 +221,19 @@ export const isValidSoftwareInstallStatus = (
 ): s is SoftwareInstallStatus =>
   !!s && SOFTWARE_INSTALL_STATUSES.includes(s as SoftwareInstallStatus);
 
+export const SOFTWARE_AGGREGATE_STATUSES = [
+  "installed",
+  "pending",
+  "failed",
+] as const;
+
+export type SoftwareAggregateStatus = typeof SOFTWARE_AGGREGATE_STATUSES[number];
+
+export const isValidSoftwareAggregateStatus = (
+  s: string | undefined | null
+): s is SoftwareAggregateStatus =>
+  !!s && SOFTWARE_AGGREGATE_STATUSES.includes(s as SoftwareAggregateStatus);
+
 export const isSoftwareUninstallStatus = (
   s: string | undefined | null
 ): s is SoftwareUninstallStatus =>
@@ -327,6 +340,14 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
     INSTALL_STATUS_PREDICATES.pending
   );
 };
+
+export const aggregateInstallStatusCounts = (
+  packageStatuses: ISoftwarePackage["status"]
+) => ({
+  installed: packageStatuses.installed,
+  pending: packageStatuses.pending_install + packageStatuses.pending_uninstall,
+  failed: packageStatuses.failed_install + packageStatuses.failed_uninstall,
+});
 
 export const INSTALL_STATUS_ICONS: Record<
   SoftwareInstallStatus | "pending" | "failed",
