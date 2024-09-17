@@ -86,7 +86,6 @@ const AdvancedOptionsFields = ({
       <Editor
         label="Post-install script"
         focus
-        error={errors.postInstallScript}
         wrapEnabled
         name="post-install-script-editor"
         maxLines={10}

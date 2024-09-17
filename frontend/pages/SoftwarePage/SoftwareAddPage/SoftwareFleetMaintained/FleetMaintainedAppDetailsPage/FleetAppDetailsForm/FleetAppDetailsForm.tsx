@@ -126,7 +126,9 @@ const FleetAppDetailsForm = ({
             installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
             postInstallScriptHelpText="Currently, shell scripts are supported."
             uninstallScriptHelpText="Currently, shell scripts are supported."
-            errors={{}}
+            errors={{
+              preInstallQuery: formValidation.preInstallQuery?.message,
+            }}
             preInstallQuery={formData.preInstallQuery}
             installScript={formData.installScript}
             postInstallScript={formData.postInstallScript}
