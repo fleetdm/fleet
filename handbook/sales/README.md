@@ -145,7 +145,7 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
 
 ### Conduct a technical evaluation (aka proof of value, or POV)
 
-Think of taking a prospect that is doing a tech evaluation as if you were a guide taking a customer on an expedition. If not planned well, expeditions can take a long time, can be relatively costly, and can result in folks getting lost. 
+We use the "tech eval test plan" as a guide when conducting a "POV" (Proof of Value) with a prospect. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. 
 
 To avoid these problems at Fleet, Tech evals are guided by the tech eval test plan. The tech eval test plan is the main document that
 will track success criteria for the tech eval. Before the Solutions Consultant (SC) creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________),
