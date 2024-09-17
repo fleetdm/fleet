@@ -1222,7 +1222,7 @@ Generated when a software installer is updated in Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
-- "software_package": Filename of the installer. `null` if the installer package was not modified.
+- "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
