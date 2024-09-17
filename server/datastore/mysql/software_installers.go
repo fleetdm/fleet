@@ -1026,8 +1026,12 @@ WHERE global_or_team_id = ?
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
 			}
+			upsertQuery := insertNewOrEditedInstaller
+			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
+				upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+			}
 
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedInstaller, args...); err != nil {
+			if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
 			}
 

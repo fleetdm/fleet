@@ -11033,6 +11033,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusOK, "team_name", tm.Name)
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	titleResponse := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse, "team_id", strconv.Itoa(int(tm.ID)))
+	uploadedAt := titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt
 
 	// create a host that doesn't have fleetd installed
 	h, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -11080,10 +11083,15 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		{URL: srv.URL, PreInstallQuery: "SELECT * FROM os_version"},
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedPreinstallQuery}, http.StatusOK, "team_name", tm.Name)
-	titleResponse := getSoftwareTitleResponse{}
+	titleResponse = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, "SELECT * FROM os_version", titleResponse.SoftwareTitle.SoftwarePackage.PreInstallQuery)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
+
+	// install should no longer be pending
+	afterPreinstallHostResp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &afterPreinstallHostResp)
+	require.Nil(t, afterPreinstallHostResp.Software[0].Status)
 
 	// install software fully
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titlesResp.SoftwareTitles[0].ID), nil, http.StatusAccepted, &installResp)
@@ -11102,25 +11110,42 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
 
+	// install should show as complete
+	hostResp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, fleet.SoftwareInstalled, *hostResp.Software[0].Status)
+
 	// update install script
 	withUpdatedInstallScript := []fleet.SoftwareInstallerPayload{
 		{URL: srv.URL, InstallScript: "apt install ruby"},
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusOK, "team_name", tm.Name)
 
-	// ensure install count is the same
+	// ensure install count is the same, and uploaded_at hasn't changed
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
+	require.Equal(t, uploadedAt, titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt)
+
+	// install should still show as complete
+	hostResp = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, fleet.SoftwareInstalled, *hostResp.Software[0].Status)
 
 	trailer = " " // add a character to the response for the installer HTTP call to ensure the file hashes differently
 	// update package
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusOK, "team_name", tm.Name)
 
-	// ensure install count is zeroed
+	// ensure install count is zeroed and uploaded_at HAS changed
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
+	require.NotEqual(t, uploadedAt, titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt)
+
+	// install should be nulled out
+	hostResp = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Software[0].Status)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPoliciesAssociated() {
