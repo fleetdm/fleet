@@ -619,7 +619,8 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
   To send the weekly update follow these steps:  
   
 1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-2. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
+2. Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and [document performance feedback](https://fleetdm.com/handbook/digital-experience#document-performance-feedback).
+3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
 
 <img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
 

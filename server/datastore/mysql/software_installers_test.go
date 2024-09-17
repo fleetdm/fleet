@@ -55,6 +55,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
 		InstallerFile:     bytes.NewReader([]byte("hello")),
 		StorageID:         "storage1",
 		Filename:          "file1",
@@ -146,6 +147,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID1, exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 	require.False(t, exec1.SelfService)
+	assert.Equal(t, "goodbye", exec1.UninstallScript)
 
 	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, true)
 	require.NoError(t, err)

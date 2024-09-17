@@ -155,9 +155,10 @@ const generateTableHeaders = (
                   </ReactTooltip5>
                 </div>
               )}
-              {viewingTeamPolicies && !cellProps.row.original.team_id && (
-                <InheritedBadge tooltipContent="This policy runs on all hosts." />
-              )}
+              {viewingTeamPolicies &&
+                cellProps.row.original.team_id === null && (
+                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                )}
             </>
           }
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
@@ -274,7 +275,7 @@ const generateTableHeaders = (
     tableHeaders.unshift({
       id: "selection",
       Header: (headerProps: any) => {
-        // When viewing team policies select all checkbox accounts for not selecting inherited policies
+        // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) => row.original.team_id !== null,
@@ -301,7 +302,7 @@ const generateTableHeaders = (
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const inheritedPolicy = !cellProps.row.original.team_id;
+        const inheritedPolicy = cellProps.row.original.team_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,

@@ -12,7 +12,7 @@ import Editor from "components/Editor";
 import CustomLink from "components/CustomLink";
 import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
-import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
+import { IPackageFormData } from "../PackageForm/PackageForm";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   return `Currently, ${
@@ -58,11 +58,11 @@ const getUninstallHelpText = (pkgType: PackageType) => {
   );
 };
 
-const baseClass = "add-package-advanced-options";
+const baseClass = "package-advanced-options";
 
-interface IAddPackageAdvancedOptionsProps {
+interface IPackageAdvancedOptionsProps {
   errors: { preInstallQuery?: string; postInstallScript?: string };
-  selectedPackage: IAddPackageFormData["software"];
+  selectedPackage: IPackageFormData["software"];
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
@@ -73,7 +73,7 @@ interface IAddPackageAdvancedOptionsProps {
   onChangeUninstallScript: (value?: string) => void;
 }
 
-const AddPackageAdvancedOptions = ({
+const PackageAdvancedOptions = ({
   errors,
   selectedPackage,
   preInstallQuery,
@@ -84,7 +84,7 @@ const AddPackageAdvancedOptions = ({
   onChangeInstallScript,
   onChangePostInstallScript,
   onChangeUninstallScript,
-}: IAddPackageAdvancedOptionsProps) => {
+}: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const renderAdvancedOptions = () => {
@@ -176,4 +176,4 @@ const AddPackageAdvancedOptions = ({
   );
 };
 
-export default AddPackageAdvancedOptions;
+export default PackageAdvancedOptions;

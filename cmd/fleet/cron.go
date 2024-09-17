@@ -1226,9 +1226,9 @@ func newMDMAPNsPusher(
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "invalid duration provided in env var FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL")
+			level.Warn(logger).Log("msg", "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
+			interval = 1 * time.Minute
 		}
-
 	}
 
 	logger = kitlog.With(logger, "cron", name)

@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -6,10 +6,11 @@ import Card from "components/Card";
 import { GraphicNames } from "components/graphics";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
+import FileDetails from "components/FileDetails";
 
 const baseClass = "file-uploader";
 
-type ISupportedGraphicNames = Extract<
+export type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
   | "file-sh"
@@ -23,29 +24,6 @@ type ISupportedGraphicNames = Extract<
   | "file-vpp"
 >;
 
-export const FileDetails = ({
-  details: { name, platform },
-  graphicName = "file-pkg",
-}: {
-  details: {
-    name: string;
-    platform?: string;
-  };
-  graphicName?: ISupportedGraphicNames;
-}) => (
-  <div className={`${baseClass}__selected-file`}>
-    <Graphic name={graphicName} />
-    <div className={`${baseClass}__selected-file--details`}>
-      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
-      {platform && (
-        <div className={`${baseClass}__selected-file--details--platform`}>
-          {platform}
-        </div>
-      )}
-    </div>
-  </div>
-);
-
 interface IFileUploaderProps {
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: string;
@@ -53,8 +31,8 @@ interface IFileUploaderProps {
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
   /** Disables the upload button */
-  diabled?: boolean;
-  /** A comma seperated string of one or more file types accepted to upload.
+  disabled?: boolean;
+  /** A comma separated string of one or more file types accepted to upload.
    * This is the same as the html accept attribute.
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept
    */
@@ -69,33 +47,36 @@ interface IFileUploaderProps {
    * @default "button"
    */
   buttonType?: "button" | "link";
-  /** If provided FileUploader will display this component when the file is
-   * selected. This is used for previewing the file before uploading.
-   */
-  filePreview?: ReactNode; // TODO: refactor this to be a function that returns a ReactNode?
   onFileUpload: (files: FileList | null) => void;
+  /** renders the current file with the edit pencil button */
+  canEdit?: boolean;
+  fileDetails?: {
+    name: string;
+    platform?: string;
+  };
 }
 
 /**
- * A component that encapsulates the UI for uploading a file.
+ * A component that encapsulates the UI for uploading a file and a file selected.
  */
 export const FileUploader = ({
   graphicName: graphicNames,
   message,
   additionalInfo,
   isLoading = false,
-  diabled = false,
+  disabled = false,
   accept,
-  filePreview,
   className,
   buttonMessage = "Upload",
   buttonType = "button",
   onFileUpload,
+  canEdit = false,
+  fileDetails,
 }: IFileUploaderProps) => {
-  const [isFileSelected, setIsFileSelected] = useState(false);
+  const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
 
   const classes = classnames(baseClass, className, {
-    [`${baseClass}__file-preview`]: filePreview !== undefined && isFileSelected,
+    [`${baseClass}__file-preview`]: isFileSelected,
   });
   const buttonVariant = buttonType === "button" ? "brand" : "text-icon";
 
@@ -119,35 +100,47 @@ export const FileUploader = ({
     ));
   };
 
+  const renderFileUploader = () => {
+    return (
+      <>
+        <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+        <p className={`${baseClass}__message`}>{message}</p>
+        {additionalInfo && (
+          <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+        )}
+        <Button
+          className={`${baseClass}__upload-button`}
+          variant={buttonVariant}
+          isLoading={isLoading}
+          disabled={disabled}
+        >
+          <label htmlFor="upload-file">
+            {buttonType === "link" && <Icon name="upload" />}
+            <span>{buttonMessage}</span>
+          </label>
+        </Button>
+        <input
+          accept={accept}
+          id="upload-file"
+          type="file"
+          onChange={onFileSelect}
+        />
+      </>
+    );
+  };
+
   return (
     <Card color="gray" className={classes}>
-      {isFileSelected && filePreview ? (
-        filePreview
+      {isFileSelected && fileDetails ? (
+        <FileDetails
+          graphicNames={graphicNames}
+          fileDetails={fileDetails}
+          canEdit={canEdit}
+          onFileSelect={onFileSelect}
+          accept={accept}
+        />
       ) : (
-        <>
-          <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-          <p className={`${baseClass}__message`}>{message}</p>
-          {additionalInfo && (
-            <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
-          )}
-          <Button
-            className={`${baseClass}__upload-button`}
-            variant={buttonVariant}
-            isLoading={isLoading}
-            disabled={diabled}
-          >
-            <label htmlFor="upload-file">
-              {buttonType === "link" && <Icon name="upload" />}
-              <span>{buttonMessage}</span>
-            </label>
-          </Button>
-          <input
-            accept={accept}
-            id="upload-file"
-            type="file"
-            onChange={onFileSelect}
-          />
-        </>
+        renderFileUploader()
       )}
     </Card>
   );

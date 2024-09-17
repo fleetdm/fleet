@@ -12,16 +12,16 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 
-import AddPackageForm from "../AddPackageForm";
-import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
+import PackageForm from "../PackageForm";
+import { IPackageFormData } from "../PackageForm/PackageForm";
 import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
 
 // 8 minutes + 15 seconds to account for extra roundtrip time.
-const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
-const MAX_FILE_SIZE_MB = 500;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+export const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
+export const MAX_FILE_SIZE_MB = 500;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 interface IAddPackageProps {
   teamId: number;
@@ -66,7 +66,7 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddPackageFormData) => {
+  const onAddPackage = async (formData: IPackageFormData) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -79,6 +79,7 @@ const AddPackage = ({
       return;
     }
 
+    // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId, UPLOAD_TIMEOUT);
@@ -128,7 +129,7 @@ const AddPackage = ({
 
   return (
     <div className={baseClass}>
-      <AddPackageForm
+      <PackageForm
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}
