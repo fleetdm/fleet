@@ -10,7 +10,7 @@
 				<key>PayloadType</key>
 				<string>com.apple.Safari</string>
 				<key>PayloadIdentifier</key>
-				<string>com.fleetdm.cis-Ensure Show Status Bar Is Enabled</string>
+				<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
 				<key>PayloadUUID</key>
 				<string>708B39DB-E2B7-405C-A523-88F3DDC8DFFC</string>
 				<key>ShowOverlayStatusBar</key>
