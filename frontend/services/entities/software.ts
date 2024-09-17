@@ -11,7 +11,7 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -205,7 +205,7 @@ export default {
   },
 
   addSoftwarePackage: (
-    data: IAddPackageFormData,
+    data: IPackageFormData,
     teamId?: number,
     timeout?: number
   ) => {
@@ -236,7 +236,32 @@ export default {
       true
     );
   },
+  editSoftwarePackage: (
+    data: IPackageFormData,
+    softwareId: number,
+    teamId: number,
+    timeout?: number
+  ) => {
+    const { EDIT_SOFTWARE_PACKAGE } = endpoints;
 
+    const formData = new FormData();
+    formData.append("team_id", teamId.toString());
+    data.software && formData.append("software", data.software);
+    formData.append("self_service", data.selfService.toString());
+    formData.append("install_script", data.installScript);
+    formData.append("pre_install_query", data.preInstallQuery || "");
+    formData.append("post_install_script", data.postInstallScript || "");
+    formData.append("uninstall_script", data.uninstallScript || "");
+
+    return sendRequest(
+      "PATCH",
+      EDIT_SOFTWARE_PACKAGE(softwareId),
+      formData,
+      undefined,
+      timeout,
+      true
+    );
+  },
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(

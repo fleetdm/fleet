@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
 
@@ -7,10 +7,7 @@ import { getErrorReason } from "interfaces/errors";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import {
-  FileUploader,
-  FileDetails,
-} from "components/FileUploader/FileUploader";
+import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import DownloadCSR from "../../../../../../../components/DownloadFileButtons/DownloadCSR";
 
@@ -118,14 +115,7 @@ const RenewCertModal = ({
                 graphicName="file-pem"
                 message="APNs certificate (.pem)"
                 onFileUpload={onSelectFile}
-                filePreview={
-                  certFile && (
-                    <FileDetails
-                      details={{ name: certFile.name }}
-                      graphicName="file-pem"
-                    />
-                  )
-                }
+                fileDetails={certFile ? { name: certFile.name } : undefined}
               />
             </p>
           </li>

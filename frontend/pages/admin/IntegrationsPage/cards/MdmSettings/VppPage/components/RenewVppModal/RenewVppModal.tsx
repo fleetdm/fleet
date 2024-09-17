@@ -5,10 +5,7 @@ import { getErrorReason } from "interfaces/errors";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Button from "components/buttons/Button";
-import {
-  FileUploader,
-  FileDetails,
-} from "components/FileUploader/FileUploader";
+import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
@@ -82,14 +79,7 @@ const RenewVppModal = ({
           graphicName="file-vpp"
           buttonType="link"
           buttonMessage="Upload"
-          filePreview={
-            tokenFile && (
-              <FileDetails
-                details={{ name: tokenFile.name }}
-                graphicName="file-vpp"
-              />
-            )
-          }
+          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}
         />
         <div className="modal-cta-wrap">
