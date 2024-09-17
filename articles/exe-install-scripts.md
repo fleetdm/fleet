@@ -316,3 +316,9 @@ Exit $LASTEXITCODE
     Exit 1
 }
 ```
+
+<meta name="category" value="guides">
+<meta name="authorFullName" value="Victor Lyuboslavsky">
+<meta name="authorGitHubUsername" value="getvictor">
+<meta name="publishedOn" value="2024-09-20">
+<meta name="articleTitle" value="Windows EXE install scripts">
