@@ -4410,7 +4410,8 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
-	declarationLabels []fleet.ConfigurationProfileLabel) (updatedDB bool, err error) {
+	declarationLabels []fleet.ConfigurationProfileLabel,
+) (updatedDB bool, err error) {
 	if len(declarationLabels) == 0 {
 		return false, nil
 	}
@@ -4618,7 +4619,8 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 }
 
 func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int,
-	status *fleet.MDMDeliveryStatus) ([]string, bool, error) {
+	status *fleet.MDMDeliveryStatus,
+) ([]string, bool, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
 	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)

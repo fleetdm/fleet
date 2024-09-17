@@ -314,7 +314,7 @@ type MDMAppleProfilePayload struct {
 // FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
 // therefore is not, as far as Fleet knows, currently on the host).
 func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
-	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
+	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
 }
 
 func (p MDMAppleProfilePayload) Equal(other MDMAppleProfilePayload) bool {
