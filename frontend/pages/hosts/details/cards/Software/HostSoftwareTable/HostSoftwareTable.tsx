@@ -114,7 +114,7 @@ const HostSoftwareTable = ({
         options={DROPDOWN_OPTIONS}
         searchable={false}
         onChange={handleFilterDropdownChange}
-        tableFilterDropdown
+        iconName="filter"
       />
     );
   }, [handleFilterDropdownChange, hostSoftwareFilter]);

@@ -300,7 +300,7 @@ const SoftwareTable = ({
             options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
             searchable={false}
             onChange={handleCustomFilterDropdownChange}
-            tableFilterDropdown
+            iconName="filter"
           />
         )}
         <Slider
