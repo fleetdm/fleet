@@ -2,31 +2,33 @@
 
 ## What are EXE install scripts?
 
-EXE install scripts are a way to install software on Windows. EXE installers, such as `Figma-124.3.2.exe`, are self-contained packages that include all the files and instructions needed to install software on a Windows device. EXE installers are fully customizable and do not follow the same installation process as MSI installers.
+EXE install scripts are a way to install software on Windows. EXE installers, such as `Figma-124.3.2.exe`, are self-contained packages with all the files and instructions needed to install software on a Windows device. EXE installers are fully customizable and do not follow the same installation process as MSI installers.
 
-For EXE installers, there is no unique script or command that will work for all installers. Because of that, we advise using MSI installers whenever possible.
+For EXE installers, there is no unique script or command that will work for all installers. MSI installers are typically preferred over EXE installers because they provide a standardized installation process, easier silent deployment, and better integration with Windows Installer Service. If available, MSI installers offer more predictable results in enterprise environments.
 
 Some EXE installers and uninstallers require additional switches or flags to run silently. Common flags include `/S`, `/q`, `/quiet`, `/silent`, or `--silent`.
 
 ## Device-scoped install scripts
 
-The recommended way to install software on Windows devices is to use device-scoped install scripts. The software is installed for all users of the device, and the installation process is run with administrator privileges.
+The recommended way to install software on Windows devices is to use device-scoped install scripts. These scripts install the software for all users on the device and run the installation process with administrator privileges.
 
-Fleet defaults to a device-scoped install scripts when you add software using an EXE installer.
+Fleet defaults to a device-scoped install script when you add software using an EXE installer.
 
 ## User-scoped install scripts
 
-Some software can only be installed for a specific user. In this case, you can use user-scoped install scripts. The software is installed only for the user who is currently logged in, and the installation process is run with the user's privileges.
+Some software can only be installed for a specific user. In this case, you can use user-scoped install scripts. The software is installed only for the user currently logged in, and the installation process is run with the user's privileges.
 
 ### Example user-scoped install script
 
-The install script creates a scheduled task that will automatically be run as the current (logged-in) user. The EXE installer is copied to a public directory accessible by the user. After the task is done, the installer and the task are both deleted.
+The install script creates a scheduled task that will automatically be run as the current (logged-in) user. The EXE installer is copied to a public directory accessible by the user, ensuring that even non-administrator users can run the scheduled task to complete the installation. After the task finishes, the installer and the task are deleted.
 
-Since the installation is run by the current user, the script does not output the messages from the installer to the console. If you need to see the output, you can modify the script to redirect the output to a file and append it to the script output.
+The use of scheduled tasks allows the installer to run with user-level permissions, which is especially useful when installing software for non-admin users without requiring administrator credentials at the time of execution.
+
+Since the installation is run by the current user, the script does not output the installer's messages to the console. If you need to see the output, you can modify the script to redirect it to a file and append it to the script output.
 
 ```powershell
 # Some installers require a flag to run silently.
-# Each installer might use different argument (usually it's "/S" or "/s")
+# Each installer might use a different argument (usually it's "/S" or "/s")
 $installArgs = "/S"
 
 $exeFilePath = "${env:INSTALLER_PATH}"
@@ -35,13 +37,13 @@ $exitCode = 0
 
 try {
 
-# Copy the installer to public folder so that it can be accessed by all
+# Copy the installer to a public folder so that all can access it
 # users
 $exeFilename = Split-Path $exeFilePath -leaf
 Copy-Item -Path $exeFilePath -Destination "${env:PUBLIC}" -Force
 $exeFilePath = "${env:PUBLIC}\$exeFilename"
 
-# Task properties. Task will be started by logged in user
+# Task properties. The task will be started by the logged in user
 $action = New-ScheduledTaskAction -Execute "$exeFilePath" `
     -Argument "$installArgs"
 $trigger = New-ScheduledTaskTrigger -AtLogOn
@@ -49,7 +51,7 @@ $userName = Get-CimInstance -ClassName Win32_ComputerSystem |
         Select-Object -expand UserName
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
 
-# Create task object with properties defined above
+# Create a task object with the properties defined above
 $task = New-ScheduledTask -Action $action -Trigger $trigger `
     -Settings $settings
 
@@ -57,7 +59,7 @@ $task = New-ScheduledTask -Action $action -Trigger $trigger `
 $taskName = "fleet-install-$exeFilename"
 Register-ScheduledTask "$taskName" -InputObject $task -User "$userName"
 
-# keep track of start time, to cancel if taking too long to start
+# keep track of the start time to cancel if taking too long to start
 $startDate = Get-Date
 
 # Start the task now that it is ready
@@ -112,25 +114,25 @@ Exit $exitCode
 
 ### Example user-scoped uninstall script
 
-The uninstall script creates a scheduled task that will automatically be run as the current (logged-in) user. The uninstaller creates a separate PowerShell script for the user. After the task is done, the script and the task are both deleted.
+The uninstall script creates a scheduled task that will automatically be run as the current (logged-in) user. The uninstaller creates a separate PowerShell script for the user. After the task finishes, the script and the task are deleted.
 
-Since the uninstall script is run by the current user, that script does not output its messages to the console. If you need to see the output, you can modify the main script to redirect the output to a file and append it to the output.
+Since the uninstall script is run by the current user, it does not output its messages to the console. If you need to see the output, you can modify the main script to redirect it to a file and append it to the output.
 
 ```powershell
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
+# Fleet extracts the name from the installer (EXE) and saves it to PACKAGE_ID
 # variable
 $softwareName = $PACKAGE_ID
 
-# Script to uninstall software as the current logged in user.
+# Script to uninstall software as the current logged-in user.
 $userScript = @'
 $softwareName = $PACKAGE_ID
 
-# It is recommended to use exact software name here if possible to avoid
+# Using the exact software name here is recommended to avoid
 # uninstalling unintended software.
 $softwareNameLike = "*$softwareName*"
 
 # Some uninstallers require additional flags to run silently.
-# Each uninstaller might use different argument (usually it's "/S" or "/s")
+# Each uninstaller might use a different argument (usually it's "/S" or "/s")
 $uninstallArgs = "/S"
 
 $uninstallCommand = ""
@@ -186,7 +188,7 @@ foreach ($key in $uninstallKeys) {
             $processOptions.ArgumentList = "$uninstallArgs"
         }
 
-        # Start process and track exit code
+        # Start the process and track the exit code
         $process = Start-Process @processOptions
         $exitCode = $process.ExitCode
 
@@ -212,13 +214,13 @@ Exit $exitCode
 
 $exitCode = 0
 
-# Create script in public folder so that it can be accessed by all users.
+# Create a script in a public folder so that it can be accessed by all users.
 $uninstallScriptPath = "${env:PUBLIC}/uninstall-$softwareName.ps1"
 $taskName = "fleet-uninstall-$softwareName"
 try {
     Set-Content -Path $uninstallScriptPath -Value $userScript -Force
 
-    # Task properties. Task will be started by logged in user
+    # Task properties. The task will be started by the logged in user
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
         -Argument "$uninstallScriptPath"
     $trigger = New-ScheduledTaskTrigger -AtLogOn
@@ -226,14 +228,14 @@ try {
             Select-Object -expand UserName
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
 
-    # Create task object with properties defined above
+    # Create a task object with the properties defined above
     $task = New-ScheduledTask -Action $action -Trigger $trigger `
         -Settings $settings
 
     # Register the task
     Register-ScheduledTask "$taskName" -InputObject $task -User "$userName"
 
-    # keep track of start time, to cancel if taking too long to start
+    # keep track of the start time to cancel if taking too long to start
     $startDate = Get-Date
 
     # Start the task now that it is ready
@@ -288,7 +290,7 @@ Exit $exitCode
 
 ## Install script for raw executables
 
-If you have a raw executable that does not come with an installer, you can use the following script to install it. This script copies the executable to Program Files accessible by all users.
+Raw executables without installers are less common but may be used in specific scenarios, such as when a vendor provides a standalone binary file for a lightweight application. In these cases, ensuring all necessary dependencies are in place is important. Additionally, consider cleaning up the source executable after installation to avoid leaving unnecessary files on the system. If you have a raw executable that does not come with an installer, you can use the following script to install it. This script copies the executable to Program Files, which are accessible by all users.
 
 ```powershell
 $exeFilePath = "${env:INSTALLER_PATH}"
@@ -316,9 +318,17 @@ Exit $LASTEXITCODE
     Exit 1
 }
 ```
+## Conclusion
+
+EXE install scripts provide a flexible solution for installing software on Windows devices when MSI installers are unavailable. By leveraging the power of PowerShell and scheduled tasks, IT administrators can easily automate both device-scoped and user-scoped installations. Whether you're deploying software for all users on a device or targeting a specific logged-in user, the provided scripts offer a robust starting point for handling EXE installations.
+
+Always verify the EXE installer's specific flags for silent installation for smoother operations, ensure proper permissions are in place, and consider implementing logging for troubleshooting. While MSI installers are generally preferred for their standardized behavior, these scripts allow you to manage even the most customized EXE installs in enterprise environments.
+
+Following this guide will enable you to manage software deployments using EXE install scripts, improving efficiency and ensuring a seamless installation experience across your Windows devices.
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="publishedOn" value="2024-09-20">
 <meta name="articleTitle" value="Windows EXE install scripts">
+<meta name="description" value="This guide will walk you through adding software to Fleet using EXE installers.">
