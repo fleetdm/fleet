@@ -21,11 +21,6 @@
   &__os_settings-dropdown,
   &__macsettings-dropdown,
   &__sw-install-status-dropdown {
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-    }
-
     .dropdown__select {
       border: 1px solid #e2e4ea;
     }
