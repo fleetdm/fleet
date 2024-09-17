@@ -475,14 +475,14 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
-				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = "pending_uninstall"
+				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
 			)`, installerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
-			   WHERE software_installer_id = ? AND status IN("pending_install", "pending_uninstall")`, installerID)
+			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
 		}
