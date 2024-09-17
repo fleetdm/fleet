@@ -89,7 +89,11 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 
 func testListAvailableApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
 		Token:            "maintained1",
 		Version:          "1.0.0",
@@ -117,7 +121,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		Name:             "Maintained3",
 		Token:            "maintained3",
 		Version:          "1.0.0",
-		Platform:         fleet.MacOSPlatform,
+		Platform:         fleet.IOSPlatform,
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
 		BundleIdentifier: "fleet.maintained3",
@@ -126,4 +130,30 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	expectedApps := []fleet.FleetMaintainedAppAvailable{
+		{
+			ID:       "1",
+			Name:     "Maintained1",
+			Version:  "1.0.0",
+			Platform: fleet.MacOSPlatform,
+		},
+		{
+			ID:       "2",
+			Name:     "Maintained2",
+			Version:  "1.0.0",
+			Platform: fleet.MacOSPlatform,
+		},
+		{
+			ID:       "3",
+			Name:     "Maintained3",
+			Version:  "1.0.0",
+			Platform: fleet.IOSPlatform,
+		},
+	}
+
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, apps, 3)
+	require.Equal(t, expectedApps, apps)
+	require.False(t, meta.HasNextResults)
 }

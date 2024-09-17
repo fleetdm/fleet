@@ -53,7 +53,7 @@ ON DUPLICATE KEY UPDATE
 	})
 }
 
-func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt *fleet.ListOptions) ([]fleet.FleetMaintainedAppAvailable, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.FleetMaintainedAppAvailable, *fleet.PaginationMetadata, error) {
 	stmt := `
 SELECT
 	fla.id,
@@ -82,7 +82,7 @@ LEFT JOIN
 WHERE
 	st.name IS NULL
 `
-	stmt, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, opt)
+	stmt, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
 
 	var avail []fleet.FleetMaintainedAppAvailable
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmt, args...); err != nil {

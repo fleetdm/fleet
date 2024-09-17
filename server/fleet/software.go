@@ -438,8 +438,8 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type FleetMaintainedAppAvailable struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Version  string `json:"version"`
-	Platform string `json:"platform"`
+	ID       string              `json:"id"`
+	Name     string              `json:"name"`
+	Version  string              `json:"version"`
+	Platform AppleDevicePlatform `json:"platform"`
 }
