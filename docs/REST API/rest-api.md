@@ -4282,7 +4282,7 @@ Resends a configuration profile for the specified host.
       "software_package": null
       "app_store_app": {
         "app_store_id": "1091189122",
-        "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
         "version": "2.04",
         "self_service": false,
         "last_install": {
