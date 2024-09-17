@@ -13,9 +13,8 @@ Fleet allows its users to upload trusted software installation files to be insta
 
 ## Step-by-step instructions
 
-1. **Adding software**: Add any software to be available for installation. Follow this document with instructions how to do it. Note that all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
+1. **Adding software**: Add any software to be available for installation. Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) document with instructions how to do it. Note that all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
 
-   Learn more about [deploying software](https://fleetdm.com/guides/deploy-security-agents).
 
 ![Add software](../website/assets/images/articles/automatic-software-install-add-software.png)
 
