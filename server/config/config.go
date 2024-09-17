@@ -99,9 +99,12 @@ type ServerConfig struct {
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
 	return &http.Server{
-		Addr:              s.Address,
-		Handler:           handler,
-		ReadTimeout:       25 * time.Second,
+		Addr:        s.Address,
+		Handler:     handler,
+		ReadTimeout: 25 * time.Second,
+		// WriteTimeout is set for security purposes.
+		// If we don't set it, (bugy or malignant) clients making long running
+		// requests could DDOS Fleet.
 		WriteTimeout:      40 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       5 * time.Minute,

@@ -52,6 +52,8 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - Engage engineering to gain insight into technical costs and feasibility.
 
+- If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
+
 >**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
@@ -88,10 +90,11 @@ You'll know it's time for expedited drafting when:
 - A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
-1. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. Decision to allow the user story to make it into the sprint is up to the release DRI.
-2. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
-3. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
-4. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
+1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
+2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
+3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
+5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
 
 ### Correctly prioritize a bug

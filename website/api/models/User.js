@@ -261,6 +261,16 @@ without necessarily having a billing card.`
       description: 'A JS timestamp of when the stage 5 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
     },
 
+    fleetPremiumTrialLicenseKey: {
+      type: 'string',
+      description: 'A Fleet Premium license key that was generated for this user when they progressed through the get started questionnaire.',
+    },
+
+    fleetPremiumTrialLicenseKeyExpiresAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s Fleet Premium trial license key expires.',
+    },
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

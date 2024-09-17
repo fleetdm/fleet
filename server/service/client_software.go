@@ -28,7 +28,7 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 	return responseBody.SoftwareTitles, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwareInstaller, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/software/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
@@ -38,5 +38,5 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 	if err := c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, &resp, query.Encode()); err != nil {
 		return nil, err
 	}
-	return resp.Installers, nil
+	return resp.Packages, nil
 }

@@ -32,6 +32,7 @@ No requirements.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_alb_access_logs"></a> [alb\_access\_logs](#input\_alb\_access\_logs) | n/a | `map(string)` | `{}` | no |
 | <a name="input_alb_target_group_arn"></a> [alb\_target\_group\_arn](#input\_alb\_target\_group\_arn) | n/a | `string` | n/a | yes |
 | <a name="input_base_url"></a> [base\_url](#input\_base\_url) | n/a | `string` | n/a | yes |
 | <a name="input_cookie_max_age"></a> [cookie\_max\_age](#input\_cookie\_max\_age) | n/a | `string` | `"1h"` | no |
@@ -53,6 +54,7 @@ No requirements.
 |------|-------------|
 | <a name="output_fleet_extra_execution_policies"></a> [fleet\_extra\_execution\_policies](#output\_fleet\_extra\_execution\_policies) | n/a |
 | <a name="output_lb"></a> [lb](#output\_lb) | n/a |
+| <a name="output_lb_security_group"></a> [lb\_security\_group](#output\_lb\_security\_group) | n/a |
 | <a name="output_lb_target_group_arn"></a> [lb\_target\_group\_arn](#output\_lb\_target\_group\_arn) | Keep for legacy support for now |
 | <a name="output_name"></a> [name](#output\_name) | n/a |
 | <a name="output_secretsmanager_secret_id"></a> [secretsmanager\_secret\_id](#output\_secretsmanager\_secret\_id) | n/a |

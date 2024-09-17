@@ -7,7 +7,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
 import CustomLink from "components/CustomLink";
-import { FileDetails } from "components/FileUploader/FileUploader";
 import DownloadABMKey from "pages/admin/components/DownloadFileButtons/DownloadABMKey";
 import { getErrorMessage } from "./helpers";
 
@@ -135,14 +134,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
           graphicName={"file-p7m"}
           buttonType="link"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          filePreview={
-            tokenFile && (
-              <FileDetails
-                details={{ name: tokenFile.name }}
-                graphicName="file-p7m"
-              />
-            )
-          }
+          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}
         />
         <div className="modal-cta-wrap">
