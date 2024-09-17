@@ -8,8 +8,7 @@ Fleet allows its users to upload trusted software installation files to be insta
 
 ## Prerequisites
 
-* Fleet premium. 
-* Admin permissions for all three services above.
+* Fleet premium with Admin permissions.
 * Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or greater.
 
 ## Step-by-step instructions
