@@ -651,7 +651,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }
 
-func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
   (name, source, browser)
@@ -752,16 +752,7 @@ ON DUPLICATE KEY UPDATE
 
 	const loadInsertedSoftwareInstallers = `
 SELECT
-  id,
   team_id,
-  storage_id,
-  filename,
-  version,
-  install_script_content_id,
-  pre_install_query,
-  post_install_script_content_id,
-  platform,
-  self_service,
   title_id,
   url
 FROM
@@ -775,7 +766,7 @@ WHERE global_or_team_id = ?
 		globalOrTeamID = *tmID
 	}
 
-	var insertedSoftwareInstallers []fleet.SoftwareInstaller
+	var insertedSoftwareInstallers []fleet.SoftwarePackageResponse
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
@@ -953,7 +944,8 @@ func (ds *Datastore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context)
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,
-	payload fleet.UploadSoftwareInstallerPayload) error {
+	payload fleet.UploadSoftwareInstallerPayload,
+) error {
 	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
