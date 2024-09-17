@@ -239,6 +239,7 @@ interface ISoftwarePackageCardProps {
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
   router: InjectedRouter;
+  refetchSoftwareTitle: () => void;
 }
 
 // NOTE: This component is dependent on having either a software package
@@ -255,6 +256,7 @@ const SoftwarePackageCard = ({
   teamId,
   onDelete,
   router,
+  refetchSoftwareTitle,
 }: ISoftwarePackageCardProps) => {
   const {
     isGlobalAdmin,
@@ -389,6 +391,7 @@ const SoftwarePackageCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
           setAddedSoftwareToken={noop}
+          refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}
       {showDeleteModal && (
