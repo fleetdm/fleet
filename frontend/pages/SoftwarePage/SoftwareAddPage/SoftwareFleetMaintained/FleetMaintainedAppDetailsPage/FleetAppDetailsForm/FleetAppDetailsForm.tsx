@@ -53,7 +53,7 @@ const FleetAppDetailsForm = ({
     uninstallScript: defaultUninstallScript,
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: false,
+    isValid: true,
     preInstallQuery: { isValid: false },
   });
 
@@ -111,7 +111,7 @@ const FleetAppDetailsForm = ({
           Self-service
         </TooltipWrapper>
       </Checkbox>
-      <div>
+      <div className={`${baseClass}__advanced-options-section`}>
         <RevealButton
           className={`${baseClass}__accordion-title`}
           isShowing={showAdvancedOptions}
@@ -122,6 +122,7 @@ const FleetAppDetailsForm = ({
         />
         {showAdvancedOptions && (
           <AdvancedOptionsFields
+            className={`${baseClass}__advanced-options-fields`}
             showSchemaButton={showSchemaButton}
             installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
             postInstallScriptHelpText="Currently, shell scripts are supported."
