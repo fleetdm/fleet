@@ -94,11 +94,7 @@ Configuring the end user migration workflow requires a few additional steps.
 
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
-<<<<<<< HEAD
 #### End user workflow
-=======
-## Migrate automatically enrolled (ADE) hosts
->>>>>>> main
 
 > Available in Fleet Premium
 
@@ -188,11 +184,7 @@ Configuring the end user migration workflow requires a few additional steps.
 
 > Available in Fleet Premium
 
-<<<<<<< HEAD
 The end user migration workflow is supported for automatically enrolled (ADE) and manually enrolled hosts.
-=======
-The end user migration workflow is supported for automatically enrolled (ADE) hosts.
->>>>>>> main
 
 To watch a GIF that walks through the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
@@ -235,45 +227,7 @@ Once you've configured the end user workflow, send [these guided instructions](#
 
 To see a report of which hosts have successfully migrated to Fleet, have MDM features off, or are still enrolled to your old MDM solution head to the **Dashboard** page by clicking the icon on the left side of the top navigation bar.
 
-<<<<<<< HEAD
 Then, scroll down to the **Mobile device management (MDM)** section of the Dashboard, you'll see a breakdown of which hosts have successfully migrated to Fleet, which have MDM features disabled, and which are still enrolled in the previous MDM solution.
-=======
-Then, scroll down to the **Mobile device management (MDM)** section.
-
-## FileVault recovery keys
-
-_Available in Fleet Premium_
-
-When migrating from a previous MDM, end users need to restart or logout of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions to reset their key. 
-
-To start, enforce FileVault (disk encryption) and escrow in Fleet. Learn how [here](https://fleetdm.com/guides/enforce-disk-encryption). 
-
-After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
-
-## Activation Lock
-
-In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (ADE) hosts.
-
-In 2024, Apple added the ability to manage activation lock in Apple Business Manager (ABM). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
-
-If a device is not available in ABM and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
-
-This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac.
-
-However, Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
-   
-### How to turn on disk encryption
-
-1. Select the Fleet icon in your menu bar and select **My device**.
-
-![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
-
-2. On your **My device** page, follow the disk encryption instructions in the yellow banner. 
-  - If you don’t see the yellow banner, select the purple **Refetch** button at the top of the page. 
-  - If you still don't see the yellow banner after a couple minutes or if the **My device** page presents you with an error, please contact your IT administrator.
-
-<img width="1399" alt="My device page - turn on disk encryption" src="https://user-images.githubusercontent.com/5359586/229950451-cfcd2314-a993-48db-aecf-11aac576d297.png">
->>>>>>> main
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
