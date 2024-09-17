@@ -670,7 +670,7 @@ For recurring business expenses paid by credit card, there are four accounts pay
 | Business spend | Business tax, insurance, IT, SaaS, other | CEO |
 | Individualized spend | Flowers, swag, and other internal gifting for Fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Head of Finance |
 | Infrastructure spend | AWS and other production/cloud infrastructure related to hosting Fleet for customers or load testing customer scale | CTO |
-| Marketing program spend | Ads, events, sponsorship, etc. | Head of Demand | 
+| Marketing program spend | Ads, events, sponsorship, etc. | Head of Marketing | 
 
 
 
