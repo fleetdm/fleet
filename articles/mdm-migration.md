@@ -100,7 +100,7 @@ Configuring the end user migration workflow requires a few additional steps.
 
 To watch an animation of the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
-In Fleet, you can configure the end user workflow using the Fleet UI or fleetctl command-line tool.
+In Fleet, you can configure the end user workflow using the Fleet UI or with GitOps using the `fleetctl` tool.
 
 Fleet UI:
 
@@ -114,58 +114,14 @@ Fleet UI:
 Head to **Settings** > **Organization settings** >
 **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
 
-fleetctl CLI:
+GitOps:
 
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_migration:
-      enable: true
-      mode: "voluntary"
-      webhook_url: "https://example.com"
-  ...
-```
+To manage your organization's logo for dark and light backgrounds using Fleet's best practice GitOps, check out the `org_info` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info).
 
-2. Fill in the above keys under the `mdm.macos_migration` key.
 
-To learn about each option, in the Fleet UI, select the avatar on the right side of the top navigation, select **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
-
-3. During the end user migration workflow, the window will show the Fleet logo on top of a dark and light background (appearance configured by end user).
-
-If you would like to add your organization's logo, you can optionally set a logo for each background:
-
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  org_info:
-    org_logo_url: https://fleetdm.com/images/press-kit/fleet-blue-logo.png
-    org_logo_url_light_background: https://fleetdm.com/images/press-kit/fleet-white-logo.png
-  ...
-```
-
-Add URLs to your logos that are visible on a dark background and light background in the `org_logo_url` and `org_logo_url_light_background` keys respectively. If you only set a logo for one, the Fleet logo will be used for the other.
-
-1. Run the fleetctl `apply -f fleet-config.yml` command to add your configuration.
-
-2. Confirm that your configuration was saved by running `fleetctl get config`.
-
-3. Send [these guided instructions](#how-to-turn-on-mdm-end-user-manual-migration) to your end users to complete the final few steps via Fleet Desktop.
-
-##### How to turn on MDM (end user)
-
-1. Select the Fleet icon in your menu bar and select **Migrate to Fleet**.
-
-2. Select **Start** in the **Migrate to Fleet** popup.
-
-2. On your **My device** page, select the **Turn on MDM** button in the yellow banner and follow the instructions.
-    * If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page.
-    * If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
-
+Once you've configured the end user workflow, send [these guided instructions](#how-to-turn-on-mdm-end-user) to your end users to complete the final few steps via Fleet Desktop.
 
 ## Migrate automatically enrolled (ADE) hosts
 
@@ -204,11 +160,11 @@ Configuring the end user migration workflow requires a few additional steps.
 
 ##### End user experience
 
-1. The end user will receive a "Device Enrollment: &lt;organization&gt; can automatically configure your Mac." system notification within the macOS Notifications Center.
+1. The end user will see a system "Remote Management" modal appear over the screen.
 
-2. After the end user clicks on the system notification, macOS will open the **System Settings > Profiles** and ask the user to "Allow Device Enrollment: &lt;organization&gt; can automatically configure your Mac based on settings provided by your System Administrator."
+2. After the end user clicks "Enroll" on the system modal, macOS will prompt them for their password and begin the enrollment process.
 
-3. If the end user does not install the profile, the system notification will continue to prompt the end user until the setting has been allowed.
+3. If the user clicks "Not now" on the system modal, the modal will be shown every 3 minutes until the user finishes the enrollment.
 
 4. Once this setting has been approved, the MDM enrollment profile cannot be removed by the end user.
 
@@ -232,7 +188,7 @@ The end user migration workflow is supported for automatically enrolled (ADE) an
 
 To watch a GIF that walks through the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
-In Fleet, you can configure the end user workflow using the Fleet UI or fleetctl command-line tool.
+In Fleet, you can configure the end user workflow using the Fleet UI or with GitOps using the `fleetctl` command-line tool.
 
 Fleet UI:
 
@@ -246,45 +202,14 @@ Fleet UI:
 Head to **Settings** > **Organization settings** >
 **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
 
-fleetctl CLI:
+GitOps:
 
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    macos_migration:
-      enable: true
-      mode: "voluntary"
-      webhook_url: "https://example.com"
-  ...
-```
+To manage your organization's logo for dark and light backgrounds using Fleet's best practice GitOps, check out the `org_info` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info).
 
-2. Fill in the above keys under the `mdm.macos_migration` key.
 
-To learn about each option, in the Fleet UI, select the avatar on the right side of the top navigation, select **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
-
-3. During the end user migration workflow, the window will show the Fleet logo on top of a dark and light background (appearance configured by end user).
-
-If you would like to add a your organization's logo, you can optionally set a logo for each background:
-
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  org_info:
-    org_logo_url: https://fleetdm.com/images/press-kit/fleet-blue-logo.png
-    org_logo_url_light_background: https://fleetdm.com/images/press-kit/fleet-white-logo.png
-  ...
-```
-
-Add URLs to your logos that are visible on a dark background and light background in the `org_logo_url` and `org_logo_url_light_background` keys respectively. If you only set a logo for one, the Fleet logo will be used for the other.
-
-1. Run the fleetctl `apply -f fleet-config.yml` command to add your configuration.
-
-2. Confirm that your configuration was saved by running `fleetctl get config`.
+Once you've configured the end user workflow, send [these guided instructions](#how-to-turn-on-mdm-end-user) to your end users to complete the final few steps via Fleet Desktop.
 
 3. Send [these guided instructions](#how-to-turn-on-mdm-end-user) to your end users to complete the final few steps via Fleet Desktop.
 
