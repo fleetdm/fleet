@@ -230,7 +230,7 @@ class Dropdown extends Component {
           onClose={onMenuClose}
           autoFocus={autoFocus}
           arrowRenderer={renderCustomDropdownArrow}
-          valueComponent={iconName ? () => renderWithIcon() : undefined}
+          valueComponent={iconName ? renderWithIcon : undefined}
         />
       </FormField>
     );
