@@ -62,35 +62,37 @@ SELECT
 	fla.platform
 FROM
 	fleet_library_apps fla
-LEFT JOIN
-	software_titles st
-	ON fla.name = st.name
-LEFT JOIN
-	software_installers si
-	ON si.title_id = st.id
-	AND si.platform = fla.platform
-	AND si.global_or_team_id = ?
-LEFT JOIN
-	vpp_apps va
-	ON va.title_id = st.id
-	AND va.platform = fla.platform
-LEFT JOIN
-	vpp_apps_teams vat
-	ON va.adam_id = vat.adam_id
-	AND vat.platform = va.platform
-	AND vat.global_or_team_id = ?
-WHERE
-	st.name IS NULL
-`
-	stmt, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
+WHERE NOT EXISTS (
+	SELECT
+		1
+	FROM
+		software_titles st
+	LEFT JOIN
+		software_installers si
+		ON si.title_id = st.id
+	LEFT JOIN
+		vpp_apps va
+		ON va.title_id = st.id
+	LEFT JOIN
+		vpp_apps_teams vat
+		ON vat.adam_id = va.adam_id
+	WHERE
+		st.bundle_identifier = fla.bundle_identifier
+	AND (
+		(si.platform = fla.platform AND si.team_id = ?)
+		OR
+		(va.platform = fla.platform AND vat.team_id = ?)
+	)
+)`
+
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
 
 	var avail []fleet.FleetMaintainedAppAvailable
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmt, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}
 
-	var meta *fleet.PaginationMetadata
-	meta = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
 	if len(avail) > int(opt.PerPage) {
 		meta.HasNextResults = true
 		avail = avail[:len(avail)-1]

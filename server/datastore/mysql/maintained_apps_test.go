@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -90,7 +91,10 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 func testListAvailableApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	user := test.NewUser(t, ds, "Zaphod Beeblebrox", "zaphod@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
+
 	require.NoError(t, err)
 
 	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -121,7 +125,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		Name:             "Maintained3",
 		Token:            "maintained3",
 		Version:          "1.0.0",
-		Platform:         fleet.IOSPlatform,
+		Platform:         fleet.MacOSPlatform,
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
 		BundleIdentifier: "fleet.maintained3",
@@ -147,13 +151,171 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 			ID:       "3",
 			Name:     "Maintained3",
 			Version:  "1.0.0",
-			Platform: fleet.IOSPlatform,
+			Platform: fleet.MacOSPlatform,
 		},
 	}
 
-	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, team.ID, fleet.ListOptions{})
+	// Testing pagination
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.Equal(t, expectedApps, apps)
 	require.False(t, meta.HasNextResults)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, expectedApps[:1], apps)
+	require.True(t, meta.HasNextResults)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, expectedApps[1:2], apps)
+	require.True(t, meta.HasNextResults)
+	require.True(t, meta.HasPreviousResults)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, Page: 2, IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, expectedApps[2:3], apps)
+	require.False(t, meta.HasNextResults)
+	require.True(t, meta.HasPreviousResults)
+
+	//
+	// Test excluding results for existing apps (installers)
+
+	/// Irrelevant package
+	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Irrelevant Software",
+		TeamID:           &team1.ID,
+		InstallScript:    "nothing",
+		Filename:         "foo.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: "irrelevant_1",
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 3)
+	require.Equal(t, expectedApps, apps)
+
+	/// Correct package on a different team
+	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Maintained1",
+		TeamID:           &team2.ID,
+		InstallScript:    "nothing",
+		Filename:         "foo.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 3)
+	require.Equal(t, expectedApps, apps)
+
+	/// Correct package on the right team with the wrong platform
+	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Maintained1",
+		TeamID:           &team1.ID,
+		InstallScript:    "nothing",
+		Filename:         "foo.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.IOSPlatform),
+		BundleIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 3)
+	require.Equal(t, expectedApps, apps)
+
+	/// Correct team and platform
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET platform = ? WHERE platform = ?", fleet.MacOSPlatform, fleet.IOSPlatform)
+		return err
+	})
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Equal(t, expectedApps[1:], apps)
+
+	//
+	// Test excluding results for existing apps (VPP)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	// irrelevant vpp app
+	vppIrrelevant := &fleet.VPPApp{
+		Name: "irrelevant_app",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: "irrelevant_2",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID)
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Equal(t, expectedApps[1:], apps)
+
+	// right vpp app, wrong team
+	vppMaintained2 := &fleet.VPPApp{
+		Name: "Maintained 2",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: "fleet.maintained2",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Equal(t, expectedApps[1:], apps)
+
+	// right vpp app, right team
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, expectedApps[2:], apps)
+
+	// right app, right team, wrong platform
+	vppMaintained3 := &fleet.VPPApp{
+		Name: "Maintained 3",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "3",
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		BundleIdentifier: "fleet.maintained3",
+	}
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID)
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, expectedApps[2:], apps)
 }

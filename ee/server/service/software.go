@@ -21,7 +21,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, _ b
 func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.FleetMaintainedAppAvailable, *fleet.PaginationMetadata, error) {
 	svc.authz.SkipAuthorization(ctx)
 
-	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, &opts)
+	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet managed apps")
 	}
