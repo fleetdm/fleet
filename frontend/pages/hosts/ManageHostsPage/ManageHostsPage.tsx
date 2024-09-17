@@ -1441,7 +1441,7 @@ const ManageHostsPage = ({
           options={getHostSelectStatuses(isSandboxMode)}
           searchable={false}
           onChange={handleStatusDropdownChange}
-          tableFilterDropdown
+          iconName="filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}

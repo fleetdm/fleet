@@ -49,10 +49,8 @@ class Dropdown extends Component {
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
     autoFocus: PropTypes.bool,
-    /** Includes styled filter icon */
-    tableFilterDropdown: PropTypes.bool,
-    /** Includes styled filter icon */
-    hostsFilterBlock: PropTypes.bool,
+    /** Includes styled icon */
+    iconName: PropTypes.string,
     helpText: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.arrayOf(PropTypes.string),
@@ -73,8 +71,7 @@ class Dropdown extends Component {
     parseTarget: false,
     tooltip: "",
     autoFocus: false,
-    tableFilterDropdown: false,
-    hostsFilterBlock: false,
+    iconName: "",
   };
 
   onMenuOpen = () => {
@@ -158,19 +155,16 @@ class Dropdown extends Component {
     );
   };
 
-  // Adds styled filter icon to dropdown
-  renderCustomTableFilter = (hostsFilterBlock) => {
-    const { options, value } = this.props;
+  // Adds styled icon to dropdown
+  renderWithIcon = () => {
+    const { options, value, iconName } = this.props;
     const customLabel = options
       .filter((option) => option.value === value)
       .map((option) => option.label);
 
     return (
       <div className={`${baseClass}__custom-value`}>
-        <Icon
-          name={hostsFilterBlock ? "filter-alt" : "filter"}
-          className={`${baseClass}__icon`}
-        />
+        <Icon name={iconName} className={`${baseClass}__icon`} />
         <div className={`${baseClass}__custom-value-label`}>{customLabel}</div>
       </div>
     );
@@ -183,7 +177,7 @@ class Dropdown extends Component {
       onMenuOpen,
       onMenuClose,
       renderCustomDropdownArrow,
-      renderCustomTableFilter,
+      renderWithIcon,
     } = this;
     const {
       error,
@@ -198,8 +192,7 @@ class Dropdown extends Component {
       wrapperClassName,
       searchable,
       autoFocus,
-      tableFilterDropdown,
-      hostsFilterBlock,
+      iconName,
     } = this.props;
 
     const formFieldProps = pick(this.props, [
@@ -237,11 +230,7 @@ class Dropdown extends Component {
           onClose={onMenuClose}
           autoFocus={autoFocus}
           arrowRenderer={renderCustomDropdownArrow}
-          valueComponent={() => {
-            return tableFilterDropdown || hostsFilterBlock
-              ? renderCustomTableFilter(hostsFilterBlock)
-              : undefined;
-          }}
+          valueComponent={iconName ? () => renderWithIcon() : undefined}
         />
       </FormField>
     );
