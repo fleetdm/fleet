@@ -1668,6 +1668,22 @@ type Datastore interface {
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
 
+	// ProcessInstallerUpdateSideEffects handles, in a transaction, the following based on whether metadata
+	// or package are dirty:
+	// 1. If metadata or package were updated, removes host_software_installer and queued script records for
+	// pending non-VPP installs and uninstalls for an installer by its ID. See implementation for caveats.
+	// 2. If package was updated, marks host software installer rows for the supplied installer
+	// as removed, hiding them from stats calculations (note that this will null out installer statuses due
+	// to how the virtual column works).
+	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
+	// for which fields must be set.
+	SaveInstallerUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
+
+	// UpdateInstallerSelfServiceFlag sets an installer's self-service flag without modifying anything else
+	UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error
+
 	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPApp, error)
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
 	// specified team and title ids.

@@ -78,6 +78,7 @@ export enum ActivityType {
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   AddedSoftware = "added_software",
+  EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
   UninstalledSoftware = "uninstalled_software",
