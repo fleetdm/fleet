@@ -11018,6 +11018,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 		_, err = io.Copy(w, file)
+		require.NoError(t, err)
 		_, err = w.Write([]byte(trailer))
 		require.NoError(t, err)
 	})
