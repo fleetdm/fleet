@@ -17,22 +17,17 @@ Fleet allows admins to edit software items directly, offering greater control ov
 
 For most cases, Fleet handles the uninstall process automatically, with the uninstall script conveniently located under “Advanced options.” However, Fleet stands out by allowing administrators to view and tweak the script if needed. This flexibility is beneficial when a host is in a unique state or the automatic uninstall process encounters issues. Fleet strives to provide full transparency into what’s under the hood, enabling IT teams to make necessary adjustments for specific scenarios. These updates enhance the efficiency of software management while maintaining flexibility, reflecting Fleet’s commitment to providing user-centric and adaptable solutions.
 
-
 ### Policy automation: install software
 
 Admins can automatically trigger software installations when a policy fails, adding a proactive approach to maintaining compliance and security. This feature is handy when a device is found to have a vulnerable version of software installed. If a policy detects this vulnerability, Fleet can automatically install a secure, updated version of the software to remediate the issue and bring the host back into compliance. This automation helps IT teams address vulnerabilities quickly and efficiently, without manual intervention, ensuring that devices across the fleet remain secure and up-to-date. It highlights Fleet’s commitment to streamlining device management and enhancing security through automation.
-
 
 ### iPhone/iPad BYOD
 
 Fleet now supports Bring Your Own Device (BYOD) enrollment for iPhone (iOS) and iPad (iPadOS) devices, providing organizations with a more flexible approach to managing employee-owned devices. This feature allows employees to enroll personal iPhones and iPads into Fleet’s Mobile Device Management (MDM) system, enabling IT teams to enforce security policies, manage configurations, and ensure compliance without needing complete control over the entire device. With BYOD enrollment, companies can balance security and privacy, seamlessly managing work-related configurations on personal devices while respecting the end user’s control over their personal data. This update enhances Fleet’s capabilities for managing various devices and supports organizations with modern, flexible workforce environments.
 
-
 ### GitLab pipelines for GitOps
 
 Fleet now supports GitLab pipelines for its [GitOps integration](https://github.com/fleetdm/fleet-gitops), expanding the flexibility of how organizations manage their device configurations and policies through version control. With GitLab pipelines, IT teams can automate the deployment and management of Fleet configurations directly from their GitLab repositories, streamlining workflows and ensuring that changes are tracked, tested, and deployed consistently across their fleet. This integration enhances the automation and reliability of device management, enabling teams to adopt a more scalable and auditable approach to managing their Fleet environment. By supporting both GitLab and existing CI/CD tools, Fleet continues to empower organizations to implement modern, efficient workflows for managing configurations and policies.
-
-
 
 ## Changes
 
