@@ -152,6 +152,7 @@ const SoftwareTitleDetailsPage = ({
           teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
           onDelete={onDeleteInstaller}
           router={router}
+          refetchSoftwareTitle={refetchSoftwareTitle}
         />
       );
     }
