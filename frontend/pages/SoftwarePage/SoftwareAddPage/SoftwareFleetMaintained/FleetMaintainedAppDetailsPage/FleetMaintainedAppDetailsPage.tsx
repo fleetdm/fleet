@@ -101,35 +101,13 @@ const FleetMaintainedAppDetailsPage = ({
           />
           <h1>{data.name}</h1>
           <FleetAppDetailsForm
+            showSchemaButton={isSidePanelOpen}
             defaultInstallScript={data.install_script}
             defaultPostInstallScript={data.post_install_script}
             defaultUninstallScript={data.uninstall_script}
+            onClickShowSchema={() => setSidePanelOpen(true)}
             onCancel={onCancel}
             onSubmit={onSubmit}
-          />
-          <AdvancedOptionsFields
-            showSchemaButton={isSidePanelOpen}
-            installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
-            postInstallScriptHelpText="Currently, shell scripts are supported."
-            uninstallScriptHelpText="Currently, shell scripts are supported."
-            errors={{}}
-            preInstallQuery={data.pre_install_script}
-            installScript={data.install_script}
-            postInstallScript={data.post_install_script}
-            uninstallScript={data.uninstall_script}
-            onClickShowSchema={() => setSidePanelOpen(true)}
-            onChangePreInstallQuery={(value?: string) => {
-              console.log(value);
-            }}
-            onChangeInstallScript={(value: string) => {
-              console.log(value);
-            }}
-            onChangePostInstallScript={(value?: string) => {
-              console.log(value);
-            }}
-            onChangeUninstallScript={(value?: string) => {
-              console.log(value);
-            }}
           />
         </>
       );

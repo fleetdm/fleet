@@ -2,10 +2,12 @@ import React, { useState } from "react";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
-
-import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
+
+import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+
+import { generateFormValidation } from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
@@ -17,12 +19,9 @@ export interface IFleetMaintainedAppFormData {
   uninstallScript?: string;
 }
 
-interface IFormValidation {
+export interface IFormValidation {
   isValid: boolean;
-  software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
-  postInstallScript?: { isValid: boolean; message?: string };
-  selfService?: { isValid: boolean };
 }
 
 interface IFleetAppDetailsFormProps {
@@ -55,15 +54,17 @@ const FleetAppDetailsForm = ({
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
-    software: { isValid: false },
+    preInstallQuery: { isValid: false },
   });
-
-  const onChangeInstallScript = (value: string) => {
-    setFormData({ ...formData, installScript: value });
-  };
 
   const onChangePreInstallQuery = (value?: string) => {
     const newData = { ...formData, preInstallQuery: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onChangeInstallScript = (value: string) => {
+    const newData = { ...formData, installScript: value };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
