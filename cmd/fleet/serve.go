@@ -1208,7 +1208,11 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
-			liveQueryRestPeriod := 90 * time.Second // default (see #1798)
+			// NOTE(lucas): It seems we missed updating this value from 90s (see #1798) to 25s after we
+			// decided to make the synchronous live query API to take up to 25 seconds.
+			// Not changing this to not break any long running requests (like when uploading software
+			// packages via GitOps).
+			liveQueryRestPeriod := 90 * time.Second
 			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
 				duration, err := time.ParseDuration(v)
 				if err != nil {
