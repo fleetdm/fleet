@@ -397,8 +397,8 @@ func (c *Client) ApplyGroup(
 	logf func(format string, args ...interface{}),
 	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
-) (map[string]uint, map[string][]fleet.SoftwareInstaller, error) {
-	teamSoftwareInstallers := make(map[string][]fleet.SoftwareInstaller)
+) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, error) {
+	teamSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -1470,7 +1470,7 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 
-	var teamSoftwareInstallers []fleet.SoftwareInstaller
+	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
 	if config.TeamName != nil {
 		if !config.IsNoTeam() {
 			if len(teamIDsByName) != 1 {
@@ -1510,8 +1510,8 @@ func (c *Client) DoGitOps(
 	return teamAssumptions, nil
 }
 
-func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) ([]fleet.SoftwareInstaller, error) {
-	var softwareInstallers []fleet.SoftwareInstaller
+func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+	var softwareInstallers []fleet.SoftwarePackageResponse
 	if config.IsNoTeam() && appconfig != nil && appconfig.License.IsPremium() {
 		packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
 		for _, software := range config.Software.Packages {
@@ -1538,7 +1538,7 @@ func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, app
 	return softwareInstallers, nil
 }
 
-func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwareInstaller, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
 	var teamID *uint // Global policies (nil)
 	switch {
 	case config.TeamID != nil: // Team policies
@@ -1550,14 +1550,14 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 	if teamID != nil {
 		softwareTitleURLs := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
-			if softwareInstaller.URL == "" {
-				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
-				logFn("[!] software installer without url: %s\n", softwareInstaller.Name)
-				continue
-			}
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
-				logFn("[!] software installer without title id: %s\n", softwareInstaller.Name)
+				logFn("[!] software installer without title id: team_id=%d, url=%s\n", *teamID, softwareInstaller.URL)
+				continue
+			}
+			if softwareInstaller.URL == "" {
+				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
+				logFn("[!] software installer without url: team_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue
 			}
 			softwareTitleURLs[softwareInstaller.URL] = *softwareInstaller.TitleID

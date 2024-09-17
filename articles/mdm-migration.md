@@ -39,7 +39,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
-## Migrate automatically enrolled (DEP) hosts
+## Migrate automatically enrolled (ADE) hosts
 
 > Automatic enrollment is available in Fleet Premium or Ultimate
 
@@ -100,7 +100,7 @@ Configuring the end user migration workflow requires a few additional steps.
 
 > Available in Fleet Premium or Ultimate
 
-The end user migration workflow is supported for automatically enrolled (DEP) hosts.
+The end user migration workflow is supported for automatically enrolled (ADE) hosts.
 
 To watch a GIF that walks through the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
@@ -188,7 +188,7 @@ After turning on disk encryption in Fleet, share [these guided instructions](#ho
 
 ## Activation Lock
 
-In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (DEP) hosts.
+In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (ADE) hosts.
 
 In 2024, Apple added the ability to manage activation lock in Apple Business Manager (ABM). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
 

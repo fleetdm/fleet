@@ -160,6 +160,8 @@ export default {
   SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
+  EDIT_SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
