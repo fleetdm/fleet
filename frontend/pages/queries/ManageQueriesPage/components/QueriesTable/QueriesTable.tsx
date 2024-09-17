@@ -272,7 +272,7 @@ const QueriesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
         onChange={handlePlatformFilterDropdownChange}
-        tableFilterDropdown
+        iconName="filter"
       />
     );
   }, [platform, queryParams, router]);
