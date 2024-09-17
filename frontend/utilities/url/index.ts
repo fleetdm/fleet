@@ -10,6 +10,7 @@ import {
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
 import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -121,9 +122,7 @@ export const reconcileSoftwareParams = ({
   if (
     isValidSoftwareAggregateStatus(softwareStatus) &&
     softwareTitleId &&
-    // TODO - update if supporting 'No team' for software status filter
-    teamId &&
-    teamId > 0
+    teamId !== API_ALL_TEAMS_ID
   ) {
     return {
       software_title_id: softwareTitleId,
