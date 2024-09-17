@@ -2,7 +2,7 @@
 
 ![Top Image](../website/assets/images/articles/automatic-software-install-top-image.png)
 
-Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using previously uploaded installation images and based on previously programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
+Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
 
