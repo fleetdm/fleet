@@ -15,7 +15,7 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
-import { SoftwareInstallStatus } from "interfaces/software";
+import { SoftwareAggregateStatus } from "interfaces/software";
 
 import {
   HOSTS_QUERY_PARAMS,
@@ -72,7 +72,7 @@ interface IHostsFilterBlockProps {
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
-    softwareStatus?: SoftwareInstallStatus;
+    softwareStatus?: SoftwareAggregateStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -88,7 +88,7 @@ interface IHostsFilterBlockProps {
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => void;
   onChangeSoftwareInstallStatusFilter: (
-    newStatus: SoftwareInstallStatus
+    newStatus: SoftwareAggregateStatus
   ) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
