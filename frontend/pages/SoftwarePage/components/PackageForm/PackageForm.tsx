@@ -1,3 +1,4 @@
+// Used in AddPackageModal.tsx and EditSoftwareModal.tsx
 import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
@@ -7,29 +8,26 @@ import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import {
-  FileUploader,
-  FileDetails,
-} from "components/FileUploader/FileUploader";
+import FileUploader from "components/FileUploader";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
+import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
 import { generateFormValidation } from "./helpers";
 
-export const baseClass = "add-package-form";
+export const baseClass = "package-form";
 
 const UploadingSoftware = () => {
   return (
     <div className={`${baseClass}__uploading-message`}>
       <Spinner centered={false} />
-      <p>Adding software. This may take a few minutes to finish.</p>
+      <p>Uploading software. This may take a few minutes to finish.</p>
     </div>
   );
 };
 
-export interface IAddPackageFormData {
+export interface IPackageFormData {
   software: File | null;
   preInstallQuery?: string;
   installScript: string;
@@ -43,30 +41,48 @@ export interface IFormValidation {
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
+  uninstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
 }
 
-interface IAddPackageFormProps {
+interface IPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
-  onSubmit: (formData: IAddPackageFormData) => void;
+  onSubmit: (formData: IPackageFormData) => void;
+  isEditingSoftware?: boolean;
+  defaultSoftware?: any; // TODO
+  defaultInstallScript?: string;
+  defaultPreInstallQuery?: string;
+  defaultPostInstallScript?: string;
+  defaultUninstallScript?: string;
+  defaultSelfService?: boolean;
 }
 
-const AddPackageForm = ({
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
+
+const PackageForm = ({
   isUploading,
   onCancel,
   onSubmit,
-}: IAddPackageFormProps) => {
+  isEditingSoftware = false,
+  defaultSoftware,
+  defaultInstallScript,
+  defaultPreInstallQuery,
+  defaultPostInstallScript,
+  defaultUninstallScript,
+  defaultSelfService,
+}: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [formData, setFormData] = useState<IAddPackageFormData>({
-    software: null,
-    preInstallQuery: undefined,
-    installScript: "",
-    postInstallScript: undefined,
-    uninstallScript: undefined,
-    selfService: false,
-  });
+  const initialFormData = {
+    software: defaultSoftware || null,
+    installScript: defaultInstallScript || "",
+    preInstallQuery: defaultPreInstallQuery || "",
+    postInstallScript: defaultPostInstallScript || "",
+    uninstallScript: defaultUninstallScript || "",
+    selfService: defaultSelfService || false,
+  };
+  const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
     software: { isValid: false },
@@ -76,30 +92,37 @@ const AddPackageForm = ({
     if (files && files.length > 0) {
       const file = files[0];
 
-      let defaultInstallScript: string;
-      try {
-        defaultInstallScript = getDefaultInstallScript(file.name);
-      } catch (e) {
-        renderFlash("error", `${e}`);
-        return;
-      }
+      // Only populate default install/uninstall scripts when adding (but not editing) software
+      if (isEditingSoftware) {
+        const newData = { ...formData, software: file };
+        setFormData(newData);
+        setFormValidation(generateFormValidation(newData));
+      } else {
+        let newDefaultInstallScript: string;
+        try {
+          newDefaultInstallScript = getDefaultInstallScript(file.name);
+        } catch (e) {
+          renderFlash("error", `${e}`);
+          return;
+        }
 
-      let defaultUninstallScript: string;
-      try {
-        defaultUninstallScript = getDefaultUninstallScript(file.name);
-      } catch (e) {
-        renderFlash("error", `${e}`);
-        return;
-      }
+        let newDefaultUninstallScript: string;
+        try {
+          newDefaultUninstallScript = getDefaultUninstallScript(file.name);
+        } catch (e) {
+          renderFlash("error", `${e}`);
+          return;
+        }
 
-      const newData = {
-        ...formData,
-        software: file,
-        installScript: defaultInstallScript,
-        uninstallScript: defaultUninstallScript,
-      };
-      setFormData(newData);
-      setFormValidation(generateFormValidation(newData));
+        const newData = {
+          ...formData,
+          software: file,
+          installScript: newDefaultInstallScript || "",
+          uninstallScript: newDefaultUninstallScript || "",
+        };
+        setFormData(newData);
+        setFormValidation(generateFormValidation(newData));
+      }
     }
   };
 
@@ -109,7 +132,9 @@ const AddPackageForm = ({
   };
 
   const onChangeInstallScript = (value: string) => {
-    setFormData({ ...formData, installScript: value });
+    const newData = { ...formData, installScript: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onChangePreInstallQuery = (value?: string) => {
@@ -141,21 +166,20 @@ const AddPackageForm = ({
   return (
     <div className={baseClass}>
       {isUploading ? (
-        <UploadingSoftware />
+        <UploadingSoftware /> // Note: Sarah is replacing uploading state as subsequent 4.57 feature
       ) : (
         <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
           <FileUploader
+            canEdit={isEditingSoftware}
             graphicName={"file-pkg"}
-            accept=".pkg,.msi,.exe,.deb"
+            accept={ACCEPTED_EXTENSIONS}
             message=".pkg, .msi, .exe, or .deb"
             onFileUpload={onFileSelect}
             buttonMessage="Choose file"
             buttonType="link"
             className={`${baseClass}__file-uploader`}
-            filePreview={
-              formData.software && (
-                <FileDetails details={getFileDetails(formData.software)} />
-              )
+            fileDetails={
+              formData.software ? getFileDetails(formData.software) : undefined
             }
           />
           <Checkbox
@@ -173,7 +197,7 @@ const AddPackageForm = ({
               Self-service
             </TooltipWrapper>
           </Checkbox>
-          <AddPackageAdvancedOptions
+          <PackageAdvancedOptions
             selectedPackage={formData.software}
             errors={{
               preInstallQuery: formValidation.preInstallQuery?.message,
@@ -190,7 +214,7 @@ const AddPackageForm = ({
           />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
-              Add software
+              {isEditingSoftware ? "Save" : "Add software"}
             </Button>
             <Button onClick={onCancel} variant="inverse">
               Cancel
@@ -202,4 +226,5 @@ const AddPackageForm = ({
   );
 };
 
-export default AddPackageForm;
+// Allows form not to re-render as long as its props don't change
+export default React.memo(PackageForm);

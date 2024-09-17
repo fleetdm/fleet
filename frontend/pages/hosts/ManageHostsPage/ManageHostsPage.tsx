@@ -51,8 +51,8 @@ import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import {
-  isValidSoftwareInstallStatus,
-  SoftwareInstallStatus,
+  isValidSoftwareAggregateStatus,
+  SoftwareAggregateStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
@@ -170,6 +170,7 @@ const ManageHostsPage = ({
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
       // remove the software status filter when selecting all teams
+      // TODO - update if supporting 'No teams' for this filter
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) => !newTeamId,
     },
   });
@@ -242,10 +243,12 @@ const ManageHostsPage = ({
     queryParams?.software_title_id !== undefined
       ? parseInt(queryParams.software_title_id, 10)
       : undefined;
-  const softwareStatus = isValidSoftwareInstallStatus(
+  const softwareStatus = isValidSoftwareAggregateStatus(
     queryParams?.[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]
   )
-    ? (queryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] as SoftwareInstallStatus)
+    ? (queryParams[
+        HOSTS_QUERY_PARAMS.SOFTWARE_STATUS
+      ] as SoftwareAggregateStatus)
     : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
@@ -736,7 +739,7 @@ const ManageHostsPage = ({
   };
 
   const handleSoftwareInstallStatausChange = (
-    newStatus: SoftwareInstallStatus
+    newStatus: SoftwareAggregateStatus
   ) => {
     handleResetPageIndex();
 
@@ -846,7 +849,8 @@ const ManageHostsPage = ({
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
         if (softwareStatus && teamIdForApi && teamIdForApi > 0) {
-          // software_status is only valid when software_title_id is present and a team is selected
+          // software_status is only valid when software_title_id is present and a team (other than
+          // 'No team') is selected
           newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
         }
       } else if (mdmId) {

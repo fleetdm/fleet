@@ -16,8 +16,7 @@ var installExeScript string
 //go:embed scripts/install_deb.sh
 var installDebScript string
 
-// GetInstallScript returns a script that can be used to install the
-// the given extension
+// GetInstallScript returns a script that can be used to install the given extension
 func GetInstallScript(extension string) string {
 	switch extension {
 	case "msi":

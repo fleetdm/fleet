@@ -1,15 +1,11 @@
 import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import {
-  FileUploader,
-  FileDetails,
-} from "components/FileUploader/FileUploader";
+import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 
 import { getErrorMessage } from "./helpers";
@@ -106,14 +102,7 @@ const RenewAbmModal = ({
                 graphicName="file-p7m"
                 message="ABM token (.p7m)"
                 onFileUpload={onSelectFile}
-                filePreview={
-                  tokenFile && (
-                    <FileDetails
-                      details={{ name: tokenFile.name }}
-                      graphicName="file-p7m"
-                    />
-                  )
-                }
+                fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
               />
             </p>
           </li>
