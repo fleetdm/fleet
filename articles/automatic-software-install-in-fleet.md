@@ -19,7 +19,7 @@ Fleet allows its users to upload trusted software installation files to be insta
 ![Add software](../website/assets/images/articles/automatic-software-install-add-software.png)
 
 Current supported software deployment formats:
-- macOS: .pkg, [App Store (VPP)](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet)
+- macOS: .pkg
 - Windows: .msi, .exe
 - Linux: .deb
 
