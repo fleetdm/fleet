@@ -54,7 +54,7 @@ import {
   isValidSoftwareAggregateStatus,
   SoftwareAggregateStatus,
 } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -169,9 +169,9 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
-      // remove the software status filter when selecting all teams
-      // TODO - update if supporting 'No teams' for this filter
-      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) => !newTeamId,
+      // remove the software status filter when selecting All teams
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
+        newTeamId === API_ALL_TEAMS_ID,
     },
   });
 
@@ -738,7 +738,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleSoftwareInstallStatausChange = (
+  const handleSoftwareInstallStatusChange = (
     newStatus: SoftwareAggregateStatus
   ) => {
     handleResetPageIndex();
@@ -848,9 +848,8 @@ const ManageHostsPage = ({
         newQueryParams.software_version_id = softwareVersionId;
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
-        if (softwareStatus && teamIdForApi && teamIdForApi > 0) {
-          // software_status is only valid when software_title_id is present and a team (other than
-          // 'No team') is selected
+        if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
+          // software_status is only valid when software_title_id is present and a subset of hosts ('No team' or a team) is selected
           newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
         }
       } else if (mdmId) {
@@ -1379,7 +1378,10 @@ const ManageHostsPage = ({
       teamId: teamIdForApi,
     };
 
-    if (queryParams.team_id) {
+    if (
+      queryParams.team_id !== API_ALL_TEAMS_ID &&
+      queryParams.team_id !== ""
+    ) {
       options.teamId = queryParams.team_id;
     }
 
@@ -1554,7 +1556,6 @@ const ManageHostsPage = ({
       softwareId ||
       softwareTitleId ||
       softwareVersionId ||
-      softwareStatus ||
       osName ||
       osVersionId ||
       osVersion ||
@@ -1726,7 +1727,7 @@ const ManageHostsPage = ({
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onChangeSoftwareInstallStatusFilter={
-              handleSoftwareInstallStatausChange
+              handleSoftwareInstallStatusChange
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
