@@ -379,6 +379,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
+	// WriteTimeout is set for security purposes.
+	// If we don't set it, (bugy or malignant) clients making long running
+	// requests could DDOS Fleet.
+	require.NotZero(t, server.Config.WriteTimeout)
 	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
 		server.Config = opts[0].HTTPServerConfig
 		// make sure we use the application handler we just created
