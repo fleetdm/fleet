@@ -22,7 +22,7 @@
 		<key>PayloadDisplayName</key>
 		<string>Ensure Show Status Bar Is Enabled</string>
 		<key>PayloadIdentifier</key>
-		<string>com.fleetdm.cis-Ensure Show Status Bar Is Enabled</string>
+		<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
 		<key>PayloadRemovalDisallowed</key>
 		<false/>
 		<key>PayloadScope</key>
