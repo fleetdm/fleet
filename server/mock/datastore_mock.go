@@ -1048,6 +1048,12 @@ type GetSoftwareInstallersWithoutPackageIDsFunc func(ctx context.Context) (map[u
 
 type UpdateSoftwareInstallerWithoutPackageIDsFunc func(ctx context.Context, id uint, payload fleet.UploadSoftwareInstallerPayload) error
 
+type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
+
+type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
+
+type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
+
 type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error)
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
@@ -2624,6 +2630,15 @@ type DataStore struct {
 
 	UpdateSoftwareInstallerWithoutPackageIDsFunc        UpdateSoftwareInstallerWithoutPackageIDsFunc
 	UpdateSoftwareInstallerWithoutPackageIDsFuncInvoked bool
+
+	ProcessInstallerUpdateSideEffectsFunc        ProcessInstallerUpdateSideEffectsFunc
+	ProcessInstallerUpdateSideEffectsFuncInvoked bool
+
+	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
+	SaveInstallerUpdatesFuncInvoked bool
+
+	UpdateInstallerSelfServiceFlagFunc        UpdateInstallerSelfServiceFlagFunc
+	UpdateInstallerSelfServiceFlagFuncInvoked bool
 
 	GetVPPAppByTeamAndTitleIDFunc        GetVPPAppByTeamAndTitleIDFunc
 	GetVPPAppByTeamAndTitleIDFuncInvoked bool
@@ -6275,6 +6290,27 @@ func (s *DataStore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context
 	s.UpdateSoftwareInstallerWithoutPackageIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateSoftwareInstallerWithoutPackageIDsFunc(ctx, id, payload)
+}
+
+func (s *DataStore) ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
+	s.mu.Lock()
+	s.ProcessInstallerUpdateSideEffectsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ProcessInstallerUpdateSideEffectsFunc(ctx, installerID, wasMetadataUpdated, wasPackageUpdated)
+}
+
+func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+	s.mu.Lock()
+	s.SaveInstallerUpdatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveInstallerUpdatesFunc(ctx, payload)
+}
+
+func (s *DataStore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
+	s.mu.Lock()
+	s.UpdateInstallerSelfServiceFlagFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateInstallerSelfServiceFlagFunc(ctx, selfService, id)
 }
 
 func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
