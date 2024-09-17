@@ -21,6 +21,7 @@ func TestMaintainedApps(t *testing.T) {
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"IngestWithBrew", testIngestWithBrew},
+		{"ListAvailableApps", testListAvailableApps},
 	}
 
 	for _, c := range cases {
@@ -84,4 +85,45 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")
 	})
 	require.ElementsMatch(t, expectedTokens, actualTokens)
+}
+
+func testListAvailableApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Token:            "maintained1",
+		Version:          "1.0.0",
+		Platform:         fleet.MacOSPlatform,
+		InstallerURL:     "http://example.com/main1",
+		SHA256:           "DEADBEEF",
+		BundleIdentifier: "fleet.maintained1",
+		InstallScript:    "echo installed",
+		UninstallScript:  "echo uninstalled",
+	})
+	require.NoError(t, err)
+	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained2",
+		Token:            "maintained2",
+		Version:          "1.0.0",
+		Platform:         fleet.MacOSPlatform,
+		InstallerURL:     "http://example.com/main1",
+		SHA256:           "DEADBEEF",
+		BundleIdentifier: "fleet.maintained2",
+		InstallScript:    "echo installed",
+		UninstallScript:  "echo uninstalled",
+	})
+	require.NoError(t, err)
+	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained3",
+		Token:            "maintained3",
+		Version:          "1.0.0",
+		Platform:         fleet.MacOSPlatform,
+		InstallerURL:     "http://example.com/main1",
+		SHA256:           "DEADBEEF",
+		BundleIdentifier: "fleet.maintained3",
+		InstallScript:    "echo installed",
+		UninstallScript:  "echo uninstalled",
+	})
+	require.NoError(t, err)
+
 }
