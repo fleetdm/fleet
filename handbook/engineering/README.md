@@ -130,7 +130,7 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 
 3. **osquery**: Latest release
 - Check the [latest version of osquery](https://github.com/osquery/osquery/releases).
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/ceb4e4602ba9a90ebf0e33e1eddef770c9a8d8b5/.github/workflows/generate-osqueryd-targets.yml#L27).
+- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/generate-osqueryd-targets.yml#L27).
 - If the latest release of osquery is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
 - Do not add the `~release blocker` label. 
 - Update the bug description to note that changes to [osquery command-line flags](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) require updates to Fleet's flag validation and related documentation [as shown in this pull request](https://github.com/fleetdm/fleet/pull/16239/files). 

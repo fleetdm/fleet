@@ -321,8 +321,9 @@ print_reminder () {
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "Make sure to install fleetd with '--osqueryd-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         fi
-    else
+    elif [[ $ACTION != "update-timestamp" ]]; then
         echo "Unsupported action: $ACTION"
+        exit 1
     fi
 }
 

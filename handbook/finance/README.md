@@ -285,7 +285,6 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
 
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for finance](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
-- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice](https://fleetdm.com/handbook/finance#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
 
 ## Rituals

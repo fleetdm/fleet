@@ -386,8 +386,8 @@ Requests are weighed by:
 
 ### After the feature is accepted
 
-After the 🎁🗣 Feature Fest meeting, the Feature prioritization DRI  will clear the Feature Fest board as follows:
-**Prioritized features:** Remove `feature fest` label, add `:product` label, and move the issue to the "Ready" column in the drafting board. The request will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+After the "🎁🗣 Feature fest" meeting, the feature prioritization DRI will clear the ["🎁 Feature fest" board](https://github.com/fleetdm/fleet/issues#workspaces/feature-fest-651b2962605ba29209324c57/board) as follows:
+**Prioritized features:** Remove the `~feature fest` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 **Put to the side features:** Remove `feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature.
@@ -692,9 +692,7 @@ Design consultations are scheduled as needed with the relevant participants, typ
 
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team), [CTO](https://fleetdm.com/handbook/engineering#team), and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API.
 
-Design reviews operate in "Feedback" mode on Mondays and "Final review" mode all other days of the week:
-  - **Feedback** mode — contributor knows the design is not ready for final review, but would like to get early feedback. Anyone at Fleet can attend and provide feedback.
-  - **Final review** mode — contributor is 70% sure the design is 100% done. Only Head of Product Design + CTO + Product Designers give feedback. Anyone at Fleet can attend as a shadow. This helps the team iterate and move designs to ready for dev faster. 
+Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster. 
 
 > In addition to design reviews, Fleeties or community member can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
@@ -705,16 +703,12 @@ After the meeting, the contributor applies revisions and attends again the next 
 Here are some tips for making this meeting effective:
 - Say the user story out loud to remind participants of what it is.
 - Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
+- Make clear whether we're in "final review" or "feedback" mode:
+  - Final review: contributor is 70% sure the design is 100% done.
+  — Feedback: the design is not ready for final review, but contributor would like to get early feedback.
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
-
-### Weekly bug review
-
-QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
-
-QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
-
 
 ### Group weeklies
 
@@ -742,7 +736,16 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
   - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
+ 
+### New customer promise(s)
 
+The Chief Revenue Office (CRO) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
+
+**Participants:** CRO, CEO, CTO, VP of Customer Success, and Head of Product Design.
+
+**Agenda:**
+- Discuss new promises
+- Decide if we know enough to say yes/no or go back to the customer for more digging
 
 ## Development best practices
 

@@ -1012,7 +1012,6 @@ func verifyDiskEncryptionKeys(
 	logger kitlog.Logger,
 	ds fleet.Datastore,
 ) error {
-
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		logger.Log("err", "unable to get app config", "details", err)
@@ -1219,17 +1218,16 @@ func newMDMAPNsPusher(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
-
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
-	var interval = 1 * time.Minute
+	interval := 1 * time.Minute
 	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "invalid duration provided in env var FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL")
+			level.Warn(logger).Log("msg", "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
+			interval = 1 * time.Minute
 		}
-
 	}
 
 	logger = kitlog.With(logger, "cron", name)
