@@ -110,16 +110,19 @@ const AddPackage = ({
       ) {
         renderFlash(
           "error",
-          `${reason}. ${(
+          <>
+            {reason}{" "}
             <CustomLink
               newTab
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
               text="Learn more"
+              iconColor="core-fleet-white"
             />
-          )} `
+          </>
         );
+      } else {
+        renderFlash("error", getErrorMessage(e));
       }
-      renderFlash("error", getErrorMessage(e));
     }
 
     onExit();
