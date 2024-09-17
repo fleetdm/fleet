@@ -93,7 +93,7 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
 }
 
-func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwareInstaller, error) {
+func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/software/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
@@ -104,7 +104,7 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 	if err := c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, &resp, query.Encode()); err != nil {
 		return nil, err
 	}
-	return resp.Installers, nil
+	return resp.Packages, nil
 }
 
 func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {

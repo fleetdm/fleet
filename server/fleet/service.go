@@ -645,7 +645,7 @@ type Service interface {
 
 	// BatchSetSoftwareInstallers replaces the software installers for a specified team.
 	// Returns the metadata of inserted software installers.
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) ([]SoftwareInstaller, error)
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) ([]SoftwarePackageResponse, error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user

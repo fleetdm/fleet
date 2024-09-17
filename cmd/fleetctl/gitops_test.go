@@ -229,7 +229,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 
@@ -373,7 +373,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -804,7 +804,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return nil
 	}
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		appliedSoftwareInstallers = installers
 		return nil, nil
 	}
@@ -1055,7 +1055,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
@@ -1317,7 +1317,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
@@ -1442,6 +1442,20 @@ software:
 `)
 	require.NoError(t, err)
 
+	noTeamFilePathPoliciesCalendarPath := filepath.Join(t.TempDir(), "no-team.yml")
+	noTeamFilePathPoliciesCalendar, err := os.Create(noTeamFilePathPoliciesCalendarPath)
+	require.NoError(t, err)
+	_, err = noTeamFilePathPoliciesCalendar.WriteString(`
+controls:
+policies:
+  - name: Foobar
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+    calendar_events_enabled: true
+name: No team
+software:
+`)
+	require.NoError(t, err)
+
 	noTeamFilePathWithControls := filepath.Join(t.TempDir(), "no-team.yml")
 	noTeamFileWithControls, err := os.Create(noTeamFilePathWithControls)
 	require.NoError(t, err)
@@ -1480,16 +1494,25 @@ software:
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
 	// Real run, both global and no-team.yml define controls.
-	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithControls.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithControls.Name()})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
+
+	// Dry run, both global and no-team.yml defines policy with calendar events enabled.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFile.Name(), "-f", noTeamFilePathPoliciesCalendar.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on \"No team\" policies: \"Foobar\""), err.Error())
+	// Real run, both global and no-team.yml define controls.
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFile.Name(), "-f", noTeamFilePathPoliciesCalendar.Name()})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on \"No team\" policies: \"Foobar\""), err.Error())
 
 	// Dry run, controls should be defined somewhere, either in no-team.yml or global.
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithoutControls.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "'controls' must be set on global config or no-team.yml"))
 	// Real run, both global and no-team.yml define controls.
-	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithoutControls.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFile.Name(), "-f", noTeamFileWithoutControls.Name()})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "'controls' must be set on global config or no-team.yml"))
 
@@ -1645,7 +1668,7 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		if installers[0].PreInstallQuery != "select IT_WORKS" {
 			return nil, fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
@@ -2158,7 +2181,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 
