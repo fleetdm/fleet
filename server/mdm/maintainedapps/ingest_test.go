@@ -97,8 +97,8 @@ func TestIngestValidations(t *testing.T) {
 
 	ctx := context.Background()
 	ds := new(mock.Store)
-	ds.UpsertMaintainedAppFunc = func(ctx context.Context, app *fleet.MaintainedApp) error {
-		return nil
+	ds.UpsertMaintainedAppFunc = func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+		return nil, nil
 	}
 
 	cases := []struct {
