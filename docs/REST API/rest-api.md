@@ -9170,19 +9170,19 @@ List available Fleet-maintained apps.
 {
   "fleet_maintained_apps": [
     {
-      "id": "1",
+      "id": 1,
       "name": "1Password",
       "version": "8.10.40",
       "platform": "darwin"
     },
     {
-      "id": "2",
+      "id": 2,
       "name": "Adobe Acrobat Reader",
       "version": "24.002.21005",
       "platform": "darwin"
     },
     {
-      "id": "3",
+      "id": 3,
       "name": "Box Drive",
       "version": "2.39.179",
       "platform": "darwin"
@@ -9246,7 +9246,7 @@ Add Fleet-maintained app so it's available for install.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| fleet_maintained_app_id   | string | body | **Required.** The ID of Fleet-maintained app. |
+| fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
 | team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
