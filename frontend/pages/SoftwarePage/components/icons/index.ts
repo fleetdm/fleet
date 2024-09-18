@@ -23,6 +23,16 @@ import Falcon from "./Falcon";
 import AppStore from "./AppStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import TeamViewer from "./TeamViewer";
+import Box from "./Box";
+import Brave from "./Brave";
+import Cloudflare from "./Cloudflare";
+import Docker from "./Docker";
+import Edge from "./Edge";
+import Figma from "./Figma";
+import Notion from "./Notion";
+import WindowsDefender from "./WindowsDefender";
+import WhatsApp from "./WhatsApp";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -50,6 +60,16 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  whatsapp: WhatsApp,
+  notion: Notion,
+  figma: Figma,
+  edge: Edge,
+  docker: Docker,
+  cloudflare: Cloudflare,
+  brave: Brave,
+  box: Box,
+  "team viewer": TeamViewer,
+  "windows defender": WindowsDefender,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 

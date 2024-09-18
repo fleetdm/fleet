@@ -325,7 +325,11 @@ export default {
 
     return new Promise((resolve) => {
       resolve({
-        fleet_maintained_apps: [createMockFleetMaintainedApp()],
+        fleet_maintained_apps: [
+          createMockFleetMaintainedApp({
+            name: "edge",
+          }),
+        ],
         count: 1,
         counts_updated_at: "2021-09-01T00:00:00Z",
         meta: {
@@ -344,7 +348,9 @@ export default {
 
     return new Promise((resolve) => {
       resolve({
-        fleet_maintained_app: createMockFleetMaintainedAppDetails(),
+        fleet_maintained_app: createMockFleetMaintainedAppDetails({
+          name: "edge",
+        }),
       });
     });
 
