@@ -214,8 +214,8 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Cross-platform MDM support
-  description: macOS, Windows, and Linux.
-  documentationUrl: https://fleetdm.com/announcements/fleet-introduces-windows-mdm
+  description: Apple, Windows, and Linux.
+  documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
