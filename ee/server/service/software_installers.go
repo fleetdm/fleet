@@ -175,10 +175,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle: existingInstaller.SoftwareTitle,
-		TeamName:      teamName,
-		TeamID:        payload.TeamID,
-		SelfService:   existingInstaller.SelfService,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+		SelfService:     existingInstaller.SelfService,
+		SoftwarePackage: &existingInstaller.Name,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
