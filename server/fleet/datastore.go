@@ -1719,7 +1719,7 @@ type Datastore interface {
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
-	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) error
+	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

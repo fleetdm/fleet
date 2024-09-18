@@ -1084,7 +1084,7 @@ type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPP
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
-type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) error
+type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -6413,7 +6413,7 @@ func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint) (*flee
 	return s.GetMaintainedAppByIDFunc(ctx, appID)
 }
 
-func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) error {
+func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	s.mu.Lock()
 	s.UpsertMaintainedAppFuncInvoked = true
 	s.mu.Unlock()

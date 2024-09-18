@@ -51,7 +51,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, listSavedApps())
 
 	// upsert the figma app, changing the version
-	err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:         "Figma",
 		Token:        "figma",
 		InstallerURL: "https://desktop.figma.com/mac-arm/Figma-999.9.9.zip",
@@ -90,8 +90,7 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	expApp := &fleet.MaintainedApp{
-		ID:               uint(1),
+	expApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "foo",
 		Token:            "foo",
 		Version:          "1.0.0",
@@ -101,46 +100,12 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "abc",
 		InstallScript:    "foo",
 		UninstallScript:  "foo",
-	}
-
-	var appID int64
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		insertQuery := `
-INSERT INTO 
-	fleet_library_apps (
-		name, 
-		token, 
-		version, 
-		platform, 
-		installer_url, 
-		sha256, 
-		bundle_identifier, 
-		install_script_content_id, 
-		uninstall_script_content_id
-	)
-VALUES 
-	( ?, ?, ?, ?, ?, ?, ?, ?, ? )`
-
-		res, err := insertScriptContents(ctx, q, expApp.InstallScript)
-		if err != nil {
-			return err
-		}
-		isID, _ := res.LastInsertId()
-		res, err = insertScriptContents(ctx, q, expApp.UninstallScript)
-		if err != nil {
-			return err
-		}
-		usID, _ := res.LastInsertId()
-		res, err = q.ExecContext(ctx, insertQuery, "foo", "foo", "1.0.0", "darwin", "https://example.com/foo.zip", "abc", "abc", isID, usID)
-		if err != nil {
-			return err
-		}
-		appID, _ = res.LastInsertId()
-		return nil
 	})
+	require.NoError(t, err)
+	t.Logf("expApp: %+v\n", expApp)
 
-	app, err := ds.GetMaintainedAppByID(ctx, uint(appID))
+	gotApp, err := ds.GetMaintainedAppByID(ctx, expApp.ID)
 	require.NoError(t, err)
 
-	require.Equal(t, expApp, app)
+	require.Equal(t, expApp, gotApp)
 }

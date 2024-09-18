@@ -41,7 +41,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, "", fleet.NewInvalidArgumentError(
 				"fleet_maintained_app.url",
-				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
+				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d GB", installerURL, maxSize/(1024*1024*1024)),
 			)
 		}
 

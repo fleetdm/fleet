@@ -14105,16 +14105,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		return id
 	}
 
-	getScriptContentsByID := func(scriptContentID uint) string {
-		var contents string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &contents, "SELECT contents FROM script_contents WHERE id = ?", scriptContentID)
-		})
-		return contents
-	}
-
 	// Non-existent maintained app
-	s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
 	maintainedapps.IngestMaintainedApps(t, s.ds)
@@ -14146,7 +14138,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", req, http.StatusOK, &addMAResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
 	// Validate software installer fields
@@ -14159,11 +14151,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
-	install := getScriptContentsByID(i.InstallScriptContentID)
-	require.Equal(t, req.InstallScript, install)
+	install, err := s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
-	postinstall := getScriptContentsByID(*i.PostInstallScriptContentID)
-	require.Equal(t, req.PostInstallScript, postinstall)
+	postinstall, err := s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.PostInstallScript, string(postinstall))
 
 	// The maintained app should now be in software titles
 	var resp listSoftwareTitlesResponse
@@ -14194,7 +14188,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	)
 
 	// Should return an error; SHAs don't match up
-	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
+	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
 
 	// Add a maintained app to no team
@@ -14208,7 +14202,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 
 	addMAResp = addFleetMaintainedAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained", req, http.StatusOK, &addMAResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
 	resp = listSoftwareTitlesResponse{}
@@ -14239,9 +14233,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
-	install = getScriptContentsByID(i.InstallScriptContentID)
-	require.Equal(t, req.InstallScript, install)
+	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
-	postinstall = getScriptContentsByID(*i.PostInstallScriptContentID)
-	require.Equal(t, req.PostInstallScript, postinstall)
+	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.PostInstallScript, string(postinstall))
 }

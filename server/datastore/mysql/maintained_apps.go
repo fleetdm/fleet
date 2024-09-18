@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) error {
+func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
 INSERT INTO
 	fleet_library_apps (
@@ -31,7 +31,8 @@ ON DUPLICATE KEY UPDATE
 	uninstall_script_content_id = VALUES(uninstall_script_content_id)
 `
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var appID uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
 		// ensure the install script exists
@@ -49,10 +50,18 @@ ON DUPLICATE KEY UPDATE
 		uninstallScriptID, _ := uninstallRes.LastInsertId()
 
 		// upsert the maintained app
-		_, err = tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
+		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
 			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
+		id, _ := res.LastInsertId()
+		appID = uint(id)
 		return ctxerr.Wrap(ctx, err, "upsert maintained app")
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	app.ID = appID
+	return app, nil
 }
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
