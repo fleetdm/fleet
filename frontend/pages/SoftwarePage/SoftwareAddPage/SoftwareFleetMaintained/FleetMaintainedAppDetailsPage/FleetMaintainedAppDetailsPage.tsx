@@ -18,11 +18,47 @@ import DataError from "components/DataError";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+import Card from "components/Card";
+
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 
 const baseClass = "fleet-maintained-app-details-page";
+
+interface ISoftwareSummaryProps {
+  name: string;
+  platform: string;
+  version: string;
+}
+
+const FleetAppSummary = ({
+  name,
+  platform,
+  version,
+}: ISoftwareSummaryProps) => {
+  return (
+    <Card
+      className={`${baseClass}__fleet-app-summary`}
+      borderRadiusSize="medium"
+    >
+      <SoftwareIcon size="medium" />
+      <div className={`${baseClass}__fleet-app-summary--details`}>
+        <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
+        <div className={`${baseClass}__fleet-app-summary--info`}>
+          <div className={`${baseClass}__fleet-app-summary--details--platform`}>
+            {platform}
+          </div>
+          &bull;
+          <div className={`${baseClass}__fleet-app-summary--details--version`}>
+            {version}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
 
 export interface IFleetMaintainedAppDetailsQueryParams {
   team_id?: string;
@@ -100,15 +136,22 @@ const FleetMaintainedAppDetailsPage = ({
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{data.name}</h1>
-          <FleetAppDetailsForm
-            showSchemaButton={isSidePanelOpen}
-            defaultInstallScript={data.install_script}
-            defaultPostInstallScript={data.post_install_script}
-            defaultUninstallScript={data.uninstall_script}
-            onClickShowSchema={() => setSidePanelOpen(true)}
-            onCancel={onCancel}
-            onSubmit={onSubmit}
-          />
+          <div className={`${baseClass}__page-content`}>
+            <FleetAppSummary
+              name={data.name}
+              platform={data.platform}
+              version={data.version}
+            />
+            <FleetAppDetailsForm
+              showSchemaButton={isSidePanelOpen}
+              defaultInstallScript={data.install_script}
+              defaultPostInstallScript={data.post_install_script}
+              defaultUninstallScript={data.uninstall_script}
+              onClickShowSchema={() => setSidePanelOpen(true)}
+              onCancel={onCancel}
+              onSubmit={onSubmit}
+            />
+          </div>
         </>
       );
     }
