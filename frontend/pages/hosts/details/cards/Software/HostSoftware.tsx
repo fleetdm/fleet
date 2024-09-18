@@ -24,7 +24,7 @@ import Spinner from "components/Spinner";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getErrorMessage } from "./helpers";
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -190,7 +190,7 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        renderFlash("error", getErrorMessage(e));
+        renderFlash("error", getInstallErrorMessage(e));
       }
       setSoftwareIdActionPending(null);
       refetchSoftware();
@@ -211,7 +211,7 @@ const HostSoftware = ({
           </>
         );
       } catch (e) {
-        renderFlash("error", "Couldn't uninstall. Please try again.");
+        renderFlash("error", getUninstallErrorMessage(e));
       }
       setSoftwareIdActionPending(null);
       refetchSoftware();
