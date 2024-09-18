@@ -46,7 +46,10 @@ const InstallIconWithTooltip = ({
               .
             </>
           ) : (
-            "Software can be installed on Host details page."
+            <>
+              Install manually on <b>Host details</b> page or automatically with
+              policy automations.
+            </>
           )}
         </span>
       </ReactTooltip>
