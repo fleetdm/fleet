@@ -2,7 +2,6 @@ package maintainedapps
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -17,7 +16,7 @@ import (
 )
 
 // DownloadInstaller downloads the maintained app installer located at the given URL.
-func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) ([]byte, string, error) {
+func DownloadInstaller(ctx context.Context, installerURL string) ([]byte, string, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
@@ -28,7 +27,6 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
-	client.Transport = fleethttp.NewSizeLimitTransport(maxSize)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
@@ -37,14 +35,6 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 
 	resp, err := client.Do(req)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
-			return nil, "", fleet.NewInvalidArgumentError(
-				"fleet_maintained_app.url",
-				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d GB", installerURL, maxSize/(1024*1024*1024)),
-			)
-		}
-
 		return nil, "", ctxerr.Wrapf(ctx, err, "performing request for URL %s", installerURL)
 	}
 	defer resp.Body.Close()
@@ -82,15 +72,6 @@ func DownloadInstaller(ctx context.Context, installerURL string, maxSize int64) 
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// the max size error can be received either at client.Do or here when
-		// reading the body if it's caught via a limited body reader.
-		var maxBytesErr *http.MaxBytesError
-		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
-			return nil, "", fleet.NewInvalidArgumentError(
-				"fleet_maintained_app.url",
-				fmt.Sprintf("Couldn't download maintained app installer. URL (%q). The maximum file size is %d MB", installerURL, maxSize/(1024*1024)),
-			)
-		}
 		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
 	}
 

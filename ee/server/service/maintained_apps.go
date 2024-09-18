@@ -12,8 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
-const maxMaintainedInstallerSizeBytes int64 = 1024 * 1024 * 1024 * 3 // 3GB
-
 func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript string, selfService bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -30,7 +28,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	}
 
 	// Download installer from the URL
-	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, maxMaintainedInstallerSizeBytes)
+	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
 	}

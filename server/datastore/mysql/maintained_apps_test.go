@@ -102,7 +102,6 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 		UninstallScript:  "foo",
 	})
 	require.NoError(t, err)
-	t.Logf("expApp: %+v\n", expApp)
 
 	gotApp, err := ds.GetMaintainedAppByID(ctx, expApp.ID)
 	require.NoError(t, err)
