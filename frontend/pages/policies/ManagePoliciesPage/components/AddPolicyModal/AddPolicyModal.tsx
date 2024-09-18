@@ -183,7 +183,7 @@ const AddPolicyModal = ({
           options={PLATFORM_FILTER_OPTIONS}
           searchable={false}
           onChange={onPlatformFilterChange}
-          tableFilterDropdown
+          iconName="filter"
         />
         <div className={`${baseClass}__policy-selection`}>
           {filteredPoliciesCount > 0 ? filteredPoliciesList : renderNoResults()}

@@ -7,7 +7,12 @@ import {
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 /**
- * Generates the data needed to render the package card.
+ * Generates the data needed to render the package card. It differentiates between
+ * software packages and app store apps and returns the appropriate data.
+ *
+ * FIXME: This function ought to be refactored or renamed to better reflect its purpose.
+ * "PackageCard" is a bit ambiguous in this context (it refers to the card that displays
+ * package or app information, as applicable).
  */
 // eslint-disable-next-line import/prefer-default-export
 export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
@@ -17,9 +22,11 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
     ? softwareTitle.software_package
     : (softwareTitle.app_store_app as IAppStoreApp);
 
+  const isPackage = isSoftwarePackage(packageData);
+
   return {
-    softwarePackage: isSoftwarePackage(packageData) ? packageData : undefined,
-    name: softwareTitle.name,
+    softwarePackage: isPackage ? packageData : undefined,
+    name: (isPackage && packageData.name) || softwareTitle.name,
     version:
       (isSoftwarePackage(packageData)
         ? packageData.version

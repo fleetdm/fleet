@@ -1,0 +1,1 @@
+* Allow custom SCEP CA certificates with any kind of extendedKeyUsage attributes. 

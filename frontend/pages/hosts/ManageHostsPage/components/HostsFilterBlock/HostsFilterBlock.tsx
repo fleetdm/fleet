@@ -251,6 +251,8 @@ const HostsFilterBlock = ({
           className={`${baseClass}__macsettings-dropdown`}
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
+          searchable={false}
+          iconName="filter-alt"
         />
         <FilterPill
           label={label}
@@ -414,6 +416,8 @@ const HostsFilterBlock = ({
           className={`${baseClass}__os_settings-dropdown`}
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
+          searchable={false}
+          iconName="filter-alt"
         />
         <FilterPill
           label={label}
@@ -472,7 +476,9 @@ const HostsFilterBlock = ({
           value={softwareStatus}
           className={`${baseClass}__sw-install-status-dropdown`}
           options={OPTIONS}
+          searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
+          iconName="filter-alt"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>

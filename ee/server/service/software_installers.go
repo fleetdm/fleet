@@ -175,10 +175,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle: existingInstaller.SoftwareTitle,
-		TeamName:      teamName,
-		TeamID:        payload.TeamID,
-		SelfService:   existingInstaller.SelfService,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+		SelfService:     existingInstaller.SelfService,
+		SoftwarePackage: &existingInstaller.Name,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -241,16 +242,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 		if installScript != existingInstaller.InstallScript {
 			dirty["InstallScript"] = true
-			payload.InstallScript = &installScript
 		}
+		payload.InstallScript = &installScript
 	}
 
 	if payload.PostInstallScript != nil {
 		postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
 		if postInstallScript != existingInstaller.PostInstallScript {
 			dirty["PostInstallScript"] = true
-			payload.PostInstallScript = &postInstallScript
 		}
+		payload.PostInstallScript = &postInstallScript
 	}
 
 	if payload.UninstallScript != nil {
@@ -270,10 +271,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 		preProcessUninstallScript(payloadForUninstallScript)
 		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
-			uninstallScript = payloadForUninstallScript.UninstallScript
 			dirty["UninstallScript"] = true
-			payload.UninstallScript = &uninstallScript
 		}
+		uninstallScript = payloadForUninstallScript.UninstallScript
+		payload.UninstallScript = &uninstallScript
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
@@ -969,7 +970,8 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 }
 
 func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executionID string, host *fleet.Host,
-	installer *fleet.SoftwareInstaller) error {
+	installer *fleet.SoftwareInstaller,
+) error {
 	if err := svc.ds.InsertSoftwareUninstallRequest(ctx, executionID, host.ID, installer.InstallerID); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting software uninstall request")
 	}
@@ -1114,7 +1116,7 @@ const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
 
 func (svc *Service) BatchSetSoftwareInstallers(
 	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
-) ([]fleet.SoftwareInstaller, error) {
+) ([]fleet.SoftwarePackageResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}

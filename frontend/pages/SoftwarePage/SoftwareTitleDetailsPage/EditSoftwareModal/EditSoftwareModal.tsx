@@ -32,6 +32,7 @@ interface IEditSoftwareModalProps {
   teamId: number;
   router: InjectedRouter;
   software?: any; // TODO
+  refetchSoftwareTitle: () => void;
 
   onExit: () => void;
   setAddedSoftwareToken: (token: string) => void;
@@ -44,6 +45,7 @@ const EditSoftwareModal = ({
   software,
   onExit,
   setAddedSoftwareToken,
+  refetchSoftwareTitle,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -134,18 +136,8 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
-      const newQueryParams: QueryParams = { team_id: teamId };
-      if (formData.selfService) {
-        newQueryParams.self_service = true;
-      } else {
-        newQueryParams.available_for_install = true;
-      }
-      // any unique string - triggers SW refetch
-      setAddedSoftwareToken(`${Date.now()}`);
       onExit();
-      router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
-      );
+      refetchSoftwareTitle();
     } catch (e) {
       const reason = getErrorReason(e);
       if (reason.includes("Fleet couldn't read the version from")) {
@@ -210,6 +202,7 @@ const EditSoftwareModal = ({
         className={editSoftwareModalClasses}
         title="Edit software"
         onExit={onExit}
+        width="large"
       >
         <PackageForm
           isEditingSoftware
