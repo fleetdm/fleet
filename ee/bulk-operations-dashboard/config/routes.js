@@ -15,7 +15,7 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /profiles': { action: 'profiles/view-profiles' },
   'GET /scripts': { action: 'scripts/view-scripts' },
-
+  'GET /software': { action: 'software/view-software' },
   'GET /email/confirm':      { action: 'entrance/confirm-email' },
   'GET /email/confirmed':    { action: 'entrance/view-confirmed-email' },
 
