@@ -68,6 +68,7 @@
           } &::placeholder {
             font-size: 16px;
             line-height: 24px;
+            color: #8B8FA2;
           }
         .input-group {
           border-top-left-radius: 6px;
@@ -80,9 +81,12 @@
         .input-group:focus-within {
           border: 1px solid @core-vibrant-blue;
         }
-        .docsearch-input {
-          height: 100%;
-          width: 98%;
+        .form-control {
+          border-radius: 6px;
+          padding: 6px;
+          height: 36px;
+          margin: 0;
+          width: 212px;
         }
         .docsearch-input:focus-visible {
           outline: none;
@@ -548,6 +552,18 @@
     [purpose='article-content'] {
       padding-bottom: 0px;
     }
+    [purpose='breadcrumbs-and-search'] {
+      [purpose='breadcrumbs'] {
+        margin-bottom: 24px;
+        margin-right: auto;
+      }
+      [purpose='search'] {
+        width: 100%;
+        .DocSearch-Button {
+          width: 100%;
+        }
+      }
+    }
   }
 
   @media (max-width: 769px) {
@@ -569,11 +585,8 @@
       }
     }
     [purpose='breadcrumbs-and-search'] {
-      padding-top: 40px;
-      [purpose='breadcrumbs'] {
-        margin-bottom: 24px;
-        margin-right: auto;
-      }
+      padding-top: 32px;
+
     }
 
   }

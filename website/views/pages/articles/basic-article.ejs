@@ -1,6 +1,6 @@
 <div id="basic-article" v-cloak>
   <div class="container-fluid px-0">
-    <div purpose="breadcrumbs-and-search" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+    <div purpose="breadcrumbs-and-search" class="d-flex flex-lg-row flex-column justify-content-between align-items-lg-center align-items-start">
       <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
         <div>
           <a purpose="breadcrumbs-category" :href="'/'+articleCategorySlug">{{articleCategorySlug}}</a>/
@@ -9,8 +9,21 @@
           <span>{{thisPage.meta.articleTitle}}</span>
         </div>
       </div>
-      <div>
-        <div id="docsearch-query" purpose="search"></div>
+      <div purpose="search" id="docsearch-query" class="d-flex">
+        <div purpose="disabled-search" class="d-flex w-100">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pl-3" >
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
+            </div>
+            <div class="form-control border-0 ">
+            <input class="docsearch-input pr-1"
+              placeholder="Search" aria-label="Search the handbook"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div purpose="article-container">
