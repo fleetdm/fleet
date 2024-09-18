@@ -1,1 +1,0 @@
-* Fixed a bug when a cached prepared statement gets deleted in the MySQL server itself without Fleet knowing. 

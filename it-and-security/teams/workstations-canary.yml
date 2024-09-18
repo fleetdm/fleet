@@ -87,6 +87,7 @@ controls:
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
       - path: ../lib/configuration-profiles/passcode-settings-ddm.json
+      - path: ../lib/configuration-profiles/macos-ensure-show-status-bar-is-enabled.mobileconfig
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -117,7 +118,7 @@ policies:
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
+    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
     critical: false
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
@@ -146,3 +147,8 @@ queries:
   - path: ../lib/collect-software-permissions-user.queries.yml
   - path: ../lib/collect-crowdstrike-info.queries.yml
 software:
+  app_store_apps:
+      - app_store_id: '803453959' # Slack Desktop
+      - app_store_id: '1333542190' # 1Password 7 Desktop
+      - app_store_id: '1477376905' # GitHub
+      - app_store_id: '1152747299' # Figma

@@ -116,11 +116,11 @@ const TeamManagementPage = (): JSX.Element => {
             setBackendValidators({
               name: "A team with this name already exists",
             });
-          } else if (createError.data.errors[0].reason.includes("all teams")) {
+          } else if (createError.data.errors[0].reason.includes("All teams")) {
             setBackendValidators({
               name: `"All teams" is a reserved team name. Please try another name.`,
             });
-          } else if (createError.data.errors[0].reason.includes("no team")) {
+          } else if (createError.data.errors[0].reason.includes("No team")) {
             setBackendValidators({
               name: `"No team" is a reserved team name. Please try another name.`,
             });

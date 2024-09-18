@@ -234,6 +234,19 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 func TestAppleMDMAuthorization(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{
+			{
+				Secret: "abcd",
+				TeamID: nil,
+			},
+			{
+				Secret: "efgh",
+				TeamID: nil,
+			},
+		}, nil
+	}
+
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
 

@@ -262,6 +262,16 @@ controls:
 - `deadline_days` (default: null)
 - `grace_period_days` (default: null)
 
+#### ios_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `minimum_version` specifies the minimum required iOS version (default: `""`).
+
+#### ipados_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+
 #### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
@@ -327,6 +337,8 @@ software:
 #### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
+
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string. 
 
 ### org_settings and team_settings
 

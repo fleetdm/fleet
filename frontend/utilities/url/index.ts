@@ -9,7 +9,8 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { isValidSoftwareInstallStatus } from "interfaces/software";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -119,10 +120,9 @@ export const reconcileSoftwareParams = ({
   | "softwareStatus"
 >) => {
   if (
-    isValidSoftwareInstallStatus(softwareStatus) &&
+    isValidSoftwareAggregateStatus(softwareStatus) &&
     softwareTitleId &&
-    teamId &&
-    teamId > 0
+    teamId !== API_ALL_TEAMS_ID
   ) {
     return {
       software_title_id: softwareTitleId,

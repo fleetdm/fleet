@@ -279,6 +279,36 @@ func (e PermissionError) PermissionError() []map[string]string {
 	return forbidden
 }
 
+// OTAForbiddenError is a special kind of forbidden error that intentionally
+// exposes information about the error so it can be shown in iPad/iPhone native
+// dialogs during OTA enrollment.
+//
+// I couldn't find any documentation but the way it works is:
+//
+// - if the response has a status code 403
+// - and the body has a `message` field
+//
+// the content of `message` will be displayed to the end user.
+type OTAForbiddenError struct {
+	ErrorWithUUID
+	InternalErr error
+}
+
+func (e OTAForbiddenError) Error() string {
+	return "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin."
+}
+
+func (e OTAForbiddenError) StatusCode() int {
+	return http.StatusForbidden
+}
+
+func (e OTAForbiddenError) Internal() string {
+	if e.InternalErr == nil {
+		return ""
+	}
+	return e.InternalErr.Error()
+}
+
 // licenseError is returned when the application is not properly licensed.
 type licenseError struct {
 	ErrorWithUUID

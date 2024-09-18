@@ -1,2 +1,0 @@
-- During vulnerability scanning, use 'macos' SW target for CPEs of homebrew packages
-- During vulnerability scanning, don't ignore software with non-ASCII en dash and em dash characters

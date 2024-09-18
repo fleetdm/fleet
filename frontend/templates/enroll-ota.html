@@ -167,7 +167,11 @@
       document.addEventListener("DOMContentLoaded", function () {
         const userAgent = navigator.userAgent;
         const isIPhone = /iPhone/.test(userAgent);
-        const isIPad = /iPad/.test(userAgent);
+        const isIPad =
+          /iPad/.test(userAgent) ||
+          (/Macintosh/i.test(navigator.userAgent) &&
+            navigator.maxTouchPoints &&
+            navigator.maxTouchPoints > 1);
 
         // update text content for device type
         let deviceType = "iPhone or iPad";

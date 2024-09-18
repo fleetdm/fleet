@@ -15,7 +15,7 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
-import { SoftwareInstallStatus } from "interfaces/software";
+import { SoftwareAggregateStatus } from "interfaces/software";
 
 import {
   HOSTS_QUERY_PARAMS,
@@ -72,7 +72,7 @@ interface IHostsFilterBlockProps {
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
-    softwareStatus?: SoftwareInstallStatus;
+    softwareStatus?: SoftwareAggregateStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -88,7 +88,7 @@ interface IHostsFilterBlockProps {
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => void;
   onChangeSoftwareInstallStatusFilter: (
-    newStatus: SoftwareInstallStatus
+    newStatus: SoftwareAggregateStatus
   ) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
@@ -251,6 +251,8 @@ const HostsFilterBlock = ({
           className={`${baseClass}__macsettings-dropdown`}
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
+          searchable={false}
+          iconName="filter-alt"
         />
         <FilterPill
           label={label}
@@ -414,6 +416,8 @@ const HostsFilterBlock = ({
           className={`${baseClass}__os_settings-dropdown`}
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
+          searchable={false}
+          iconName="filter-alt"
         />
         <FilterPill
           label={label}
@@ -472,7 +476,9 @@ const HostsFilterBlock = ({
           value={softwareStatus}
           className={`${baseClass}__sw-install-status-dropdown`}
           options={OPTIONS}
+          searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
+          iconName="filter-alt"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>

@@ -48,7 +48,7 @@ echo
 echo "To start the local demo:"
 echo
 echo "1. Start Docker Desktop"
-echo "2. Run  ~/.fleetctl/fleetctl preview"
+echo "2. To access your Fleet Premium trial, head to fleetdm.com/try-fleet and run the command in step 2."
 
 # Verify if the binary is executable
 if [[ ! -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]]; then
