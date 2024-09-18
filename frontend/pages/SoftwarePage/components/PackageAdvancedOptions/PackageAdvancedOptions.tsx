@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { noop } from "lodash";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -106,7 +107,7 @@ const PackageAdvancedOptions = ({
         installScript={installScript}
         postInstallScript={postInstallScript}
         uninstallScript={uninstallScript}
-        onClickShowSchema={() => {}}
+        onClickShowSchema={noop}
         onChangePreInstallQuery={onChangePreInstallQuery}
         onChangeInstallScript={onChangeInstallScript}
         onChangePostInstallScript={onChangePostInstallScript}
