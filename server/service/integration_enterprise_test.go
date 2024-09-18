@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -37,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -14224,4 +14226,166 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	hostVanillaOsquery5Team1LastInstall, err := s.ds.GetHostLastInstallData(ctx, hostVanillaOsquery5Team1.ID, dummyInstallerPkgInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
+}
+
+func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
+	t := s.T()
+	ctx := context.Background()
+
+	installerBytes := []byte("abc")
+	// Mock server to serve the "installers"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/badinstaller":
+			_, _ = w.Write([]byte("badinstaller"))
+		default:
+			_, _ = w.Write(installerBytes)
+		}
+	}))
+	defer srv.Close()
+
+	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_library_app_id = ?", mappID)
+		})
+
+		return id
+	}
+
+	// Non-existent maintained app
+	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+
+	// Insert the list of maintained apps
+	maintainedapps.IngestMaintainedApps(t, s.ds)
+
+	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		h := sha256.New()
+		_, err := h.Write(installerBytes)
+		require.NoError(t, err)
+		spoofedSHA := hex.EncodeToString(h.Sum(nil))
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL+"/installer.zip")
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", srv.URL+"/badinstaller")
+		return err
+	})
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	// Add an ingested app to the team
+	var addMAResp addFleetMaintainedAppResponse
+	req := &addFleetMaintainedAppRequest{
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
+	require.Nil(t, addMAResp.Err)
+
+	// Validate software installer fields
+	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)
+	require.NoError(t, err)
+	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
+	require.NoError(t, err)
+	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
+	require.Equal(t, mapp.SHA256, i.StorageID)
+	require.Equal(t, "darwin", i.Platform)
+	require.NotEmpty(t, i.InstallScriptContentID)
+	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
+	install, err := s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.InstallScript, string(install))
+	require.NotNil(t, i.PostInstallScriptContentID)
+	postinstall, err := s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.PostInstallScript, string(postinstall))
+
+	// The maintained app should now be in software titles
+	var resp listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title := resp.SoftwareTitles[0]
+	require.NotNil(t, title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
+	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
+
+	// Check activity
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "self_service": true}`, mapp.Name, team.Name, team.ID),
+		0,
+	)
+
+	// Should return an error; SHAs don't match up
+	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
+	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
+
+	// Add a maintained app to no team
+
+	req = &addFleetMaintainedAppRequest{
+		AppID:             3,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+	}
+
+	addMAResp = addFleetMaintainedAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
+	require.Nil(t, addMAResp.Err)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", "0",
+	)
+
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.NotNil(t, title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
+	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+
+	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(3))
+	require.NoError(t, err)
+	require.Equal(t, ptr.Uint(3), i.FleetLibraryAppID)
+	require.Equal(t, mapp.SHA256, i.StorageID)
+	require.Equal(t, "darwin", i.Platform)
+	require.NotEmpty(t, i.InstallScriptContentID)
+	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
+	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.InstallScript, string(install))
+	require.NotNil(t, i.PostInstallScriptContentID)
+	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, req.PostInstallScript, string(postinstall))
 }

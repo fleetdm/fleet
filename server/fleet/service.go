@@ -1114,6 +1114,12 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Fleet-maintained apps
+
+	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript string, selfService bool) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows
 

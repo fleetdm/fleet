@@ -21,6 +21,7 @@ func TestMaintainedApps(t *testing.T) {
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"IngestWithBrew", testIngestWithBrew},
+		{"GetMaintainedAppByID", testGetMaintainedAppByID},
 	}
 
 	for _, c := range cases {
@@ -50,7 +51,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, listSavedApps())
 
 	// upsert the figma app, changing the version
-	err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:         "Figma",
 		Token:        "figma",
 		InstallerURL: "https://desktop.figma.com/mac-arm/Figma-999.9.9.zip",
@@ -84,4 +85,26 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")
 	})
 	require.ElementsMatch(t, expectedTokens, actualTokens)
+}
+
+func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	expApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "foo",
+		Token:            "foo",
+		Version:          "1.0.0",
+		Platform:         "darwin",
+		InstallerURL:     "https://example.com/foo.zip",
+		SHA256:           "abc",
+		BundleIdentifier: "abc",
+		InstallScript:    "foo",
+		UninstallScript:  "foo",
+	})
+	require.NoError(t, err)
+
+	gotApp, err := ds.GetMaintainedAppByID(ctx, expApp.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, expApp, gotApp)
 }
