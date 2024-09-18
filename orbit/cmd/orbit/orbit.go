@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -1994,6 +1995,8 @@ func checkAndPatchCertificate(rootDir string) {
 		enableDesktopDarwin()
 	case "linux":
 		enableDesktopLinux()
+	case "windows":
+		enableDesktopWindows()
 	}
 
 	log.Error().Msg("enable Fleet Desktop probably failed")
@@ -2146,6 +2149,37 @@ ORBIT_DESKTOP_CHANNEL=stable
 	}
 
 	// Exit the process and let systemd bring it back up with the new values
+	log.Info().Msg("Desktop enabled. Restarting.")
+	os.Exit(0)
+}
+
+func enableDesktopWindows() {
+	// Get the existing service configuration
+	scQuery := exec.Command("sc.exe", "qc", "Fleet osquery")
+	out, err := scQuery.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("sc.exe qc \"Fleet osquery\"")
+	if err != nil {
+		return
+	}
+
+	match := regexp.MustCompile("BINARY_PATH_NAME\\s+:\\s+(.+)\r").FindSubmatch(out)
+	if len(match) != 2 {
+		log.Error().Int("count", len(match)).Msg("Expected 2 regexp matches")
+		return
+	}
+	binPath := string(match[1])
+	log.Info().Msg(string(binPath))
+	binPath += " --fleet-desktop=\"True\""
+
+	// Set the new service configuration, adding desktop flags
+	scConfig := exec.Command("sc.exe", "config", "Fleet osquery", "binPath=", binPath)
+	out, err = scConfig.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("sc.exe config \"Fleet osquery\"" + string(binPath))
+	if err != nil {
+		return
+	}
+
+	// Exit the process and allow it to be restarted.
 	log.Info().Msg("Desktop enabled. Restarting.")
 	os.Exit(0)
 }
