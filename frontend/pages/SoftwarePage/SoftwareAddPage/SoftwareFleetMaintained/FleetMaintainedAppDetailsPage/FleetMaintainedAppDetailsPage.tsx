@@ -9,6 +9,9 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
+import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import BackLink from "components/BackLink";
@@ -49,7 +52,7 @@ const FleetAppSummary = ({
         <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
         <div className={`${baseClass}__fleet-app-summary--info`}>
           <div className={`${baseClass}__fleet-app-summary--details--platform`}>
-            {platform}
+            {PLATFORM_DISPLAY_NAMES[platform as Platform]}
           </div>
           &bull;
           <div className={`${baseClass}__fleet-app-summary--details--version`}>
@@ -75,7 +78,9 @@ interface IFleetMaintainedAppDetailsPageProps {
   routeParams: IFleetMaintainedAppDetailsRouteParams;
 }
 
-export type IAddFleetMaintainedFormData = IFleetMaintainedAppFormData & {
+/** This type includes the editable form data as well as the fleet maintained
+ * app id */
+export type IAddFleetMaintainedData = IFleetMaintainedAppFormData & {
   appId: number;
 };
 
@@ -87,6 +92,7 @@ const FleetMaintainedAppDetailsPage = ({
   const teamId = location.query.team_id;
   const appId = parseInt(routeParams.id, 10);
 
+  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -132,7 +138,7 @@ const FleetMaintainedAppDetailsPage = ({
         appId,
       });
     } catch (error) {
-      console.log(error);
+      renderFlash("error", getErrorReason(error)); // TODO: handle error messages
     }
 
     setShowAddFleetAppSoftwareModal(false);

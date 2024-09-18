@@ -18,7 +18,7 @@ import {
   createMockFleetMaintainedApp,
   createMockFleetMaintainedAppDetails,
 } from "__mocks__/softwareMock";
-import { IAddFleetMaintainedFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
+import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -353,7 +353,7 @@ export default {
 
   addFleetMaintainedApp: (
     teamId: number,
-    formData: IAddFleetMaintainedFormData
+    formData: IAddFleetMaintainedData
   ) => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
 
