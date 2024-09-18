@@ -1502,9 +1502,13 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 
-	err = c.doGitOpsQueries(config, logFn, dryRun)
-	if err != nil {
-		return nil, err
+	// We currently don't support queries for "No team" thus
+	// we just do GitOps for queries for global and team files.
+	if !config.IsNoTeam() {
+		err = c.doGitOpsQueries(config, logFn, dryRun)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return teamAssumptions, nil
