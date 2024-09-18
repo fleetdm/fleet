@@ -9240,7 +9240,7 @@ _Available in Fleet Premium._
 
 Add Fleet-maintained app so it's available for install.
 
-`POST /api/v1/fleet/software/fleet_maintained`
+`POST /api/v1/fleet/software/fleet_maintained_apps`
 
 #### Parameters
 
@@ -9249,13 +9249,13 @@ Add Fleet-maintained app so it's available for install.
 | fleet_maintained_app_id   | string | body | **Required.** The ID of Fleet-maintained app. |
 | team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
-| pre_install_query  | string | bodybody | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
-`POST /api/v1/fleet/software/fleet_maintained`
+`POST /api/v1/fleet/software/fleet_maintained_apps`
 
 ##### Request body
 
