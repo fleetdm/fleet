@@ -242,16 +242,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 		if installScript != existingInstaller.InstallScript {
 			dirty["InstallScript"] = true
-			payload.InstallScript = &installScript
 		}
+		payload.InstallScript = &installScript
 	}
 
 	if payload.PostInstallScript != nil {
 		postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
 		if postInstallScript != existingInstaller.PostInstallScript {
 			dirty["PostInstallScript"] = true
-			payload.PostInstallScript = &postInstallScript
 		}
+		payload.PostInstallScript = &postInstallScript
 	}
 
 	if payload.UninstallScript != nil {
@@ -271,10 +271,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 		preProcessUninstallScript(payloadForUninstallScript)
 		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
-			uninstallScript = payloadForUninstallScript.UninstallScript
 			dirty["UninstallScript"] = true
-			payload.UninstallScript = &uninstallScript
 		}
+		uninstallScript = payloadForUninstallScript.UninstallScript
+		payload.UninstallScript = &uninstallScript
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
