@@ -44,6 +44,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     inst.contents AS install_script,
+    uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
   FROM
     host_software_installs hsi
@@ -53,6 +54,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
+  LEFT OUTER JOIN
+    script_contents uninst
+    ON uninst.id = si.uninstall_script_content_id
   LEFT OUTER JOIN
     script_contents pisnt
     ON pisnt.id = si.post_install_script_content_id
