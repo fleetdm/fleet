@@ -21,7 +21,7 @@ import (
 // It returns the expected results of the ingestion as a slice of
 // fleet.MaintainedApps with only a few fields filled - the result of
 // unmarshaling the testdata/expected_apps.json file.
-func IngestMaintainedApps(t *testing.T, ds fleet.Datastore) []*fleet.MaintainedApp {
+func IngestMaintainedApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	_, filename, _, _ := runtime.Caller(0)
 	base := filepath.Dir(filename)
 	testdataDir := filepath.Join(base, "testdata")
@@ -50,7 +50,7 @@ func IngestMaintainedApps(t *testing.T, ds fleet.Datastore) []*fleet.MaintainedA
 	err := Refresh(context.Background(), ds, log.NewNopLogger())
 	require.NoError(t, err)
 
-	var expected []*fleet.MaintainedApp
+	var expected []fleet.MaintainedApp
 	b, err := os.ReadFile(filepath.Join(testdataDir, "expected_apps.json"))
 	require.NoError(t, err)
 	err = json.Unmarshal(b, &expected)

@@ -264,7 +264,7 @@ type listFleetMaintainedAppsResponse struct {
 func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
 
 func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
-	req := request.(listFleetMaintainedAppsRequest)
+	req := request.(*listFleetMaintainedAppsRequest)
 
 	req.IncludeMetadata = true
 
