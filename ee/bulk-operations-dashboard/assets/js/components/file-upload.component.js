@@ -141,6 +141,36 @@ parasails.registerComponent('fileUpload', {
         </div>
       </div>
     </div>
+    <div v-else-if="mode === 'software'">
+      <div purpose="script-upload-input" v-if="isEmpty">
+        <div class="d-flex flex-column align-items-center">
+          <!-- <input id='file-upload' type="file" > -->
+          <div class="d-flex flex-row justify-content-center mb-2">
+            <img style="height: 40px; width: 34px; margin-right: 16px;" src="/images/script-icon-sh-34x40@2x.png">
+          </div>
+          <!-- <p class="mb-2">Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows</p> -->
+          <p style="color: #8B8FA2" class="muted">.pkg, .msi, .exe, or .deb</p>
+          <div class="btn-and-tips-if-relevant">
+            <label purpose="file-upload" for="file-upload-input">
+              <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose file
+            </label>
+            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" accept=".exe,.pkg,.deb,.msi" @change="changeFileInput($event)"/>
+          </div>
+        </div>
+      </div>
+      <div purpose="software-information" v-else>
+        <div class="d-flex flex-row justify-content-start">
+          <img style="height: 40px; width: 34px;" src="/images/script-icon-ps1-34x40@2x.png" v-if="_.endsWith(selectedFileName, 'ps1')">
+          <img style="height: 40px; width: 34px;" src="/images/script-icon-sh-34x40@2x.png" v-else>
+          <div class="d-flex flex-column">
+            <p><strong>{{selectedFileName}}</strong></p>
+            <p class="muted" v-if="_.endsWith(selectedFileName, '.exe') || _.endsWith(selectedFileName, '.msi')">Windows</p>
+            <p class="muted" v-else-if="_.endsWith(selectedFileName, '.pkg')">macOS</p>
+            <p class="muted" v-else-if="_.endsWith(selectedFileName, '.deb')">Linux</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   `,
 

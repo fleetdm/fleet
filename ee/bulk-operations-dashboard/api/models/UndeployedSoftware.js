@@ -23,7 +23,8 @@ module.exports = {
       description: 'The type of operating system this software is for.',
       required: true,
       isIn: [
-        'macOS & Linux',
+        'macOS',
+        'Linux',
         'Windows'
       ],
     },
