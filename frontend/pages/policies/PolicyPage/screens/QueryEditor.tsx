@@ -198,7 +198,7 @@ const QueryEditor = ({
 
     const updateAPIRequest = () => {
       // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
-      const team_id = storedPolicy?.team_id;
+      const team_id = storedPolicy?.team_id ?? undefined;
 
       return team_id !== undefined
         ? teamPoliciesAPI.update(policyIdForEdit, {
