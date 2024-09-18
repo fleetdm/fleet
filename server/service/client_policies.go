@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 

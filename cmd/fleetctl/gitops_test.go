@@ -2399,7 +2399,6 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				t.Log(out)
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -2420,10 +2419,10 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 		},
 		{
