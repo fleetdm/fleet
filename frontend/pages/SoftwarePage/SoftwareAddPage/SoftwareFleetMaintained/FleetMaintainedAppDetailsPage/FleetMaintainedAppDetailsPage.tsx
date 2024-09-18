@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { Location } from "history";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -24,6 +24,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
+import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -74,23 +75,31 @@ interface IFleetMaintainedAppDetailsPageProps {
   routeParams: IFleetMaintainedAppDetailsRouteParams;
 }
 
+export type IAddFleetMaintainedFormData = IFleetMaintainedAppFormData & {
+  appId: number;
+};
+
 const FleetMaintainedAppDetailsPage = ({
   location,
   router,
   routeParams,
 }: IFleetMaintainedAppDetailsPageProps) => {
   const teamId = location.query.team_id;
-  const id = parseInt(routeParams.id, 10);
+  const appId = parseInt(routeParams.id, 10);
 
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
+  const [
+    showAddFleetAppSoftwareModal,
+    setShowAddFleetAppSoftwareModal,
+  ] = useState(false);
 
   const { data, isLoading, isError } = useQuery(
-    ["fleet-maintained-app", id],
-    () => softwareAPI.getFleetMainainedApp(id),
+    ["fleet-maintained-app", appId],
+    () => softwareAPI.getFleetMainainedApp(appId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -110,8 +119,23 @@ const FleetMaintainedAppDetailsPage = ({
     router.push(backToAddSoftwareUrl);
   };
 
-  const onSubmit = (formData: IFleetMaintainedAppFormData) => {
+  const onSubmit = async (formData: IFleetMaintainedAppFormData) => {
+    // this should not happen but we need to handle the type correctly
+    if (!teamId) return;
+
     console.log(formData);
+    setShowAddFleetAppSoftwareModal(true);
+
+    try {
+      await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
+        ...formData,
+        appId,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
+    setShowAddFleetAppSoftwareModal(false);
   };
 
   const renderContent = () => {
@@ -174,6 +198,7 @@ const FleetMaintainedAppDetailsPage = ({
           />
         </SidePanelContent>
       )}
+      {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
     </>
   );
 };

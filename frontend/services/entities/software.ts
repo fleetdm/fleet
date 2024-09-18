@@ -18,6 +18,7 @@ import {
   createMockFleetMaintainedApp,
   createMockFleetMaintainedAppDetails,
 } from "__mocks__/softwareMock";
+import { IAddFleetMaintainedFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -120,6 +121,15 @@ export interface ISoftwareFleetMaintainedAppsResponse {
 
 export interface IFleetMaintainedAppResponse {
   fleet_maintained_app: IFleetMaintainedAppDetails;
+}
+
+interface IAddFleetMaintainedAppPostBody {
+  team_id: number;
+  fleet_maintained_app_id: number;
+  pre_install_query?: string;
+  install_script?: string;
+  post_install_script?: string;
+  self_service?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -339,5 +349,23 @@ export default {
     });
 
     // return sendRequest("GET", path);
+  },
+
+  addFleetMaintainedApp: (
+    teamId: number,
+    formData: IAddFleetMaintainedFormData
+  ) => {
+    const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
+
+    const body: IAddFleetMaintainedAppPostBody = {
+      team_id: teamId,
+      fleet_maintained_app_id: formData.appId,
+      pre_install_query: formData.preInstallQuery,
+      install_script: formData.installScript,
+      post_install_script: formData.postInstallScript,
+      self_service: formData.selfService,
+    };
+
+    return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
   },
 };
