@@ -9455,7 +9455,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	}
 
 	// Test case where the profile never makes it to the host at all
-	host, mdmDevice = createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host, _ = createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	ident = uuid.NewString()
 
 	globalProfiles = [][]byte{
