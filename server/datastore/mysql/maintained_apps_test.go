@@ -136,19 +136,19 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 
 	expectedApps := []fleet.FleetMaintainedAppAvailable{
 		{
-			ID:       "1",
+			ID:       1,
 			Name:     "Maintained1",
 			Version:  "1.0.0",
 			Platform: fleet.MacOSPlatform,
 		},
 		{
-			ID:       "2",
+			ID:       2,
 			Name:     "Maintained2",
 			Version:  "1.0.0",
 			Platform: fleet.MacOSPlatform,
 		},
 		{
-			ID:       "3",
+			ID:       3,
 			Name:     "Maintained3",
 			Version:  "1.0.0",
 			Platform: fleet.MacOSPlatform,
