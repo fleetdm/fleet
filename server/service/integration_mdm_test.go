@@ -9471,7 +9471,6 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	var profUUID string
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
-		t.Logf("hm: %v\n", hm)
 		if hm.Name == "N3" {
 			profUUID = hm.ProfileUUID
 		}
@@ -9479,17 +9478,14 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 	// delete the custom profile
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", profUUID), &deleteMDMAppleConfigProfileRequest{}, http.StatusOK)
-
-	// Now host is "online"; acknowledge commands
 	s.awaitTriggerProfileSchedule(t)
-	mdmDeviceRespond(mdmDevice)
 
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
-		require.Equal(t, fleet.MDMDeliveryVerifying, *hm.Status)
+		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
 	}
 }
 

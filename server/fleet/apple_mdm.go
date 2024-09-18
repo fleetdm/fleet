@@ -311,9 +311,9 @@ type MDMAppleProfilePayload struct {
 	CommandUUID       string             `db:"command_uuid"`
 }
 
-// FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
+// DidNotInstallOnHost indicates whether this profile was not installed on the host (and
 // therefore is not, as far as Fleet knows, currently on the host).
-func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
+func (p *MDMAppleProfilePayload) DidNotInstallOnHost() bool {
 	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
 }
 

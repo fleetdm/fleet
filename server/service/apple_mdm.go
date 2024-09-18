@@ -3298,8 +3298,8 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
-		if p.FailedToInstallOnHost() {
-			// then we shouldn't send an additional remove command since it failed to install on the
+		if p.DidNotInstallOnHost() {
+			// then we shouldn't send an additional remove command since it wasn't installed on the
 			// host.
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue

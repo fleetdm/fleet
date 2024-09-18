@@ -2087,11 +2087,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
 		}
-		// If the installation failed, then we do not want to change the operation to "Remove".
+		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
 		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
-		if p.FailedToInstallOnHost() {
+		if p.DidNotInstallOnHost() {
 			continue
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
