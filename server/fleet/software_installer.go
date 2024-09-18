@@ -116,6 +116,19 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+}
+
+// SoftwarePackageResponse is the response type used when applying software by batch.
+type SoftwarePackageResponse struct {
+	// TeamID is the ID of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID *uint `json:"title_id" db:"title_id"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -311,6 +324,7 @@ type UploadSoftwareInstallerPayload struct {
 	SelfService       bool
 	UserID            uint
 	URL               string
+	FleetLibraryAppID *uint
 	PackageIDs        []string
 	UninstallScript   string
 	Extension         string

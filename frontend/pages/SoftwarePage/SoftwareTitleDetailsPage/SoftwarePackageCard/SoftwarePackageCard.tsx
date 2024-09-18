@@ -9,7 +9,7 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
+import { ISoftwarePackage } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -104,7 +104,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />
-        &quot;installed&quot; status won&apos;t be updated.
+        &quot;Installed&quot; status won&apos;t be updated.
       </>
     ),
   },
@@ -239,6 +239,7 @@ interface ISoftwarePackageCardProps {
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
   router: InjectedRouter;
+  refetchSoftwareTitle: () => void;
 }
 
 // NOTE: This component is dependent on having either a software package
@@ -255,6 +256,7 @@ const SoftwarePackageCard = ({
   teamId,
   onDelete,
   router,
+  refetchSoftwareTitle,
 }: ISoftwarePackageCardProps) => {
   const {
     isGlobalAdmin,
@@ -389,6 +391,7 @@ const SoftwarePackageCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
           setAddedSoftwareToken={noop}
+          refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}
       {showDeleteModal && (

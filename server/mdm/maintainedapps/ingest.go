@@ -140,7 +140,7 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	installScript := installScriptForApp(app, &cask)
 	uninstallScript := uninstallScriptForApp(app, &cask)
 
-	err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	_, err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:    cask.Name[0],
 		Token:   cask.Token,
 		Version: cask.Version,

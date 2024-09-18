@@ -1715,7 +1715,7 @@ type Datastore interface {
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
-	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]SoftwareInstaller, error)
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]SoftwarePackageResponse, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
@@ -1730,9 +1730,16 @@ type Datastore interface {
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Fleet-maintained apps
+	//
+
+	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
+	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
+
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
-	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) error
+	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

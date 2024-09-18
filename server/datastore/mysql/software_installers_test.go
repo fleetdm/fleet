@@ -653,12 +653,14 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		PreInstallQuery: "foo",
 		UserID:          user1.ID,
 		Platform:        "darwin",
+		URL:             "https://example.com",
 	}})
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
-	require.Equal(t, ins0, softwareInstallers[0].Name)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
 	require.NotNil(t, softwareInstallers[0].TitleID)
-	require.Equal(t, "darwin", softwareInstallers[0].Platform)
+	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 	})
@@ -678,6 +680,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			PreInstallQuery: "select 0 from foo;",
 			UserID:          user1.ID,
 			Platform:        "darwin",
+			URL:             "https://example.com",
 		},
 		{
 			InstallScript:     "install",
@@ -691,16 +694,19 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
 			Platform:          "darwin",
+			URL:               "https://example2.com",
 		},
 	})
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 2)
-	require.Equal(t, ins0, softwareInstallers[0].Name)
 	require.NotNil(t, softwareInstallers[0].TitleID)
-	require.Equal(t, "darwin", softwareInstallers[0].Platform)
-	require.Equal(t, ins1, softwareInstallers[1].Name)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
+	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
 	require.NotNil(t, softwareInstallers[1].TitleID)
-	require.Equal(t, "darwin", softwareInstallers[1].Platform)
+	require.NotNil(t, softwareInstallers[1].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
+	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 		{Name: ins1, Source: "apps", Browser: ""},
@@ -723,8 +729,9 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
-	require.Equal(t, ins1, softwareInstallers[0].Name)
 	require.NotNil(t, softwareInstallers[0].TitleID)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Empty(t, softwareInstallers[0].URL)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
