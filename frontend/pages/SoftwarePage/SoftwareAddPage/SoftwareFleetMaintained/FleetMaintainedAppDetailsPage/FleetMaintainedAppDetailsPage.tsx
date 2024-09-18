@@ -47,7 +47,7 @@ const FleetAppSummary = ({
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
     >
-      <SoftwareIcon size="medium" />
+      <SoftwareIcon name={name} size="medium" />
       <div className={`${baseClass}__fleet-app-summary--details`}>
         <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
         <div className={`${baseClass}__fleet-app-summary--info`}>
