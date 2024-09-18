@@ -181,8 +181,9 @@ const AppleOSTargetForm = ({
   const getMinimumVersionTooltip = () => {
     return (
       <>
-        If an already enrolled host is below the minimum version, the
-        <br /> host is updated to exactly the minimum version.
+        If an already enrolled host is below the minimum version,
+        <br /> the host is updated to exactly the minimum version if it&apos;s
+        <br /> available from Apple.
         <br />
         <br /> If a new or wiped host is below the minimum version and
         <br /> automatically enrolls (DEP), the host is updated to Apple&apos;s
