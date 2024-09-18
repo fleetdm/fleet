@@ -98,7 +98,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
 	require.NoError(t, err)
 
-	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
 		Token:            "maintained1",
 		Version:          "1.0.0",
@@ -110,7 +110,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		UninstallScript:  "echo uninstalled",
 	})
 	require.NoError(t, err)
-	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	maintained2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained2",
 		Token:            "maintained2",
 		Version:          "1.0.0",
@@ -122,7 +122,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		UninstallScript:  "echo uninstalled",
 	})
 	require.NoError(t, err)
-	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained3",
 		Token:            "maintained3",
 		Version:          "1.0.0",
@@ -137,22 +137,22 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 
 	expectedApps := []fleet.MaintainedApp{
 		{
-			ID:       1,
-			Name:     "Maintained1",
-			Version:  "1.0.0",
-			Platform: fleet.MacOSPlatform,
+			ID:       maintained1.ID,
+			Name:     maintained1.Name,
+			Version:  maintained1.Version,
+			Platform: maintained1.Platform,
 		},
 		{
-			ID:       2,
-			Name:     "Maintained2",
-			Version:  "1.0.0",
-			Platform: fleet.MacOSPlatform,
+			ID:       maintained2.ID,
+			Name:     maintained2.Name,
+			Version:  maintained2.Version,
+			Platform: maintained2.Platform,
 		},
 		{
-			ID:       3,
-			Name:     "Maintained3",
-			Version:  "1.0.0",
-			Platform: fleet.MacOSPlatform,
+			ID:       maintained3.ID,
+			Name:     maintained3.Name,
+			Version:  maintained3.Version,
+			Platform: maintained3.Platform,
 		},
 	}
 
