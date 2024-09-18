@@ -47,7 +47,7 @@ However, Activation Lock bypass codes can only be retrieved from the Mac up to 3
 
 ## Migrate manually enrolled hosts
 
-- **Manual Enrollment**: Devices that were manually enrolled in the previous MDM and need to be individually migrated to Fleet.
+- **Manual enrollment**: Devices that were manually enrolled in the previous MDM and need to be individually migrated to Fleet.
 - **Automatic Enrollment**: Devices enrolled via Apple Business Manager’s automated device enrollment, which can be migrated more seamlessly.
 
 To migrate manually enrolled hosts, we will do the following steps:
