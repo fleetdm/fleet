@@ -14,6 +14,11 @@ $machineKey = `
  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = `
  'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+
+$exitCode = 0
+
+try {
+
 [array]$uninstallKeys = Get-ChildItem `
     -Path @($machineKey, $machineKey32on64) `
     -ErrorAction SilentlyContinue |
@@ -32,6 +37,24 @@ foreach ($key in $uninstallKeys) {
         } else {
             $key.UninstallString
         }
+
+        # The uninstall command may contain command and args, like:
+        # "C:\Program Files\Software\uninstall.exe" --uninstall --silent
+        # Split the command and args
+        $splitArgs = $uninstallCommand.Split('"')
+        if ($splitArgs.Length -gt 1) {
+            if ($splitArgs.Length -eq 3) {
+                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
+            } elseif ($splitArgs.Length -gt 3) {
+                Throw `
+                    "Uninstall command contains multiple quoted strings. " +
+                        "Please update the uninstall script.`n" +
+                        "Uninstall command: $uninstallCommand"
+            }
+            $uninstallCommand = $splitArgs[1]
+        }
+        Write-Host "Uninstall command: $uninstallCommand"
+        Write-Host "Uninstall args: $uninstallArgs"
 
         $processOptions = @{
             FilePath = $uninstallCommand
@@ -55,6 +78,14 @@ foreach ($key in $uninstallKeys) {
 
 if (-not $foundUninstaller) {
     Write-Host "Uninstaller for '$softwareName' not found."
+    # Change exit code to 0 if you don't want to fail if uninstaller is not
+    # found. This could happen if program was already uninstalled.
     $exitCode = 1
 }
+
+} catch {
+    Write-Host "Error: $_"
+    $exitCode = 1
+}
+
 Exit $exitCode
