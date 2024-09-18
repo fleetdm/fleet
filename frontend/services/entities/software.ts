@@ -349,7 +349,7 @@ export default {
     return new Promise((resolve) => {
       resolve({
         fleet_maintained_app: createMockFleetMaintainedAppDetails({
-          name: "edge",
+          name: "box",
         }),
       });
     });
