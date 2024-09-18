@@ -53,7 +53,7 @@ ON DUPLICATE KEY UPDATE
 	})
 }
 
-func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.FleetMaintainedAppAvailable, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	stmt := `
 SELECT
 	fla.id,
@@ -87,7 +87,7 @@ WHERE NOT EXISTS (
 
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
 
-	var avail []fleet.FleetMaintainedAppAvailable
+	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}

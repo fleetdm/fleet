@@ -604,7 +604,7 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet Managed Apps
-	ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt ListOptions) ([]FleetMaintainedAppAvailable, *PaginationMetadata, error)
+	ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore

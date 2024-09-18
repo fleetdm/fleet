@@ -134,7 +134,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	expectedApps := []fleet.FleetMaintainedAppAvailable{
+	expectedApps := []fleet.MaintainedApp{
 		{
 			ID:       1,
 			Name:     "Maintained1",

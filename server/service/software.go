@@ -256,9 +256,9 @@ type listFleetMaintainedAppsRequest struct {
 }
 
 type listFleetMaintainedAppsResponse struct {
-	FleetMaintainedApps []fleet.FleetMaintainedAppAvailable `json:"fleet_maintained_apps"`
-	Meta                *fleet.PaginationMetadata           `json:"meta"`
-	Err                 error                               `json:"error,omitempty"`
+	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
+	Meta                *fleet.PaginationMetadata `json:"meta"`
+	Err                 error                     `json:"error,omitempty"`
 }
 
 func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
@@ -276,7 +276,7 @@ func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service
 	return listFleetMaintainedAppsResponse{FleetMaintainedApps: apps, Meta: meta}, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.FleetMaintainedAppAvailable, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, nil, fleet.ErrMissingLicense

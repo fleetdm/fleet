@@ -18,8 +18,12 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, _ b
 	return svc.Service.SoftwareByID(ctx, id, teamID, true)
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.FleetMaintainedAppAvailable, *fleet.PaginationMetadata, error) {
-	svc.authz.SkipAuthorization(ctx)
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+		TeamID: &teamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
 
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
 	if err != nil {
