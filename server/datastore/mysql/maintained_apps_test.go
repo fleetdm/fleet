@@ -93,8 +93,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 
 	user := test.NewUser(t, ds, "Zaphod Beeblebrox", "zaphod@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
-
 	require.NoError(t, err)
 
 	err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
