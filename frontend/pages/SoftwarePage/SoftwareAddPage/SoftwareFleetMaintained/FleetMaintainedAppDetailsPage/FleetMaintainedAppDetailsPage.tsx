@@ -129,7 +129,6 @@ const FleetMaintainedAppDetailsPage = ({
     // this should not happen but we need to handle the type correctly
     if (!teamId) return;
 
-    console.log(formData);
     setShowAddFleetAppSoftwareModal(true);
 
     try {
@@ -137,6 +136,18 @@ const FleetMaintainedAppDetailsPage = ({
         ...formData,
         appId,
       });
+      renderFlash(
+        "success",
+        <>
+          <b>{data?.name}</b> successfully added.
+        </>
+      );
+      router.push(
+        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+          team_id: teamId,
+          available_for_install: true,
+        })}`
+      );
     } catch (error) {
       renderFlash("error", getErrorReason(error)); // TODO: handle error messages
     }
