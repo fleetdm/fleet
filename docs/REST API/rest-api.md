@@ -6364,7 +6364,7 @@ None.
       },
       {
         "name": "🔳🏢 Company-owned iPads",
-        "team_id" 4
+        "id" 4
       }
     ],
   }
