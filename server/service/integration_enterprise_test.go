@@ -14315,6 +14315,15 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
 	require.Equal(t, listMAResp.FleetMaintainedApps[4:6], listMAResp2.FleetMaintainedApps)
 
+	// Check individual app fetch
+	var getMAResp getFleetMaintainedAppResponse
+	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
+	// TODO this will change when actual install scripts are created.
+	actualApp := listMAResp.FleetMaintainedApps[0]
+	actualApp.InstallScript = "install"
+	actualApp.UninstallScript = "uninstall"
+	require.Equal(t, actualApp, *getMAResp.FleetMaintainedApp)
+
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
 	req := &addFleetMaintainedAppRequest{

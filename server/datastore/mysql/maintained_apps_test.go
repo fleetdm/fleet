@@ -326,14 +326,14 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 
 	expApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "foo",
-		Token:            "foo",
+		Token:            "token",
 		Version:          "1.0.0",
 		Platform:         "darwin",
 		InstallerURL:     "https://example.com/foo.zip",
-		SHA256:           "abc",
-		BundleIdentifier: "abc",
-		InstallScript:    "foo",
-		UninstallScript:  "foo",
+		SHA256:           "sha",
+		BundleIdentifier: "bundle",
+		InstallScript:    "install",
+		UninstallScript:  "uninstall",
 	})
 	require.NoError(t, err)
 

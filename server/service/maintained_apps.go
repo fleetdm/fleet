@@ -65,13 +65,15 @@ func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service
 }
 
 func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, nil, fleet.ErrMissingLicense
 }
 
 type getFleetMaintainedAppRequest struct {
-	AppID uint `query:"app_id"`
+	AppID uint `url:"app_id"`
 }
 
 type getFleetMaintainedAppResponse struct {
@@ -93,6 +95,8 @@ func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) 
 }
 
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
