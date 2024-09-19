@@ -2087,11 +2087,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
 		}
-		// If the installation failed, then we do not want to change the operation to "Remove".
+		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
 		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
-		if p.FailedToInstallOnHost() {
+		if p.DidNotInstallOnHost() {
 			continue
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
@@ -4410,7 +4410,8 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
-	declarationLabels []fleet.ConfigurationProfileLabel) (updatedDB bool, err error) {
+	declarationLabels []fleet.ConfigurationProfileLabel,
+) (updatedDB bool, err error) {
 	if len(declarationLabels) == 0 {
 		return false, nil
 	}
@@ -4618,7 +4619,8 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 }
 
 func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int,
-	status *fleet.MDMDeliveryStatus) ([]string, bool, error) {
+	status *fleet.MDMDeliveryStatus,
+) ([]string, bool, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
 	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
