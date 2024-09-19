@@ -32,9 +32,8 @@ Coming soon:
 SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
-`
 Note: In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query SELECT * from apps;
-`
+
 
 3. **Manage automation**: Open Manage Automations: Policies Tab --> top right "Manage automations" --> "Install software".
 
