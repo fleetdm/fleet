@@ -6356,7 +6356,7 @@ None.
       },
       {
         "name": "💻🐣 Workstations (canary)",
-        "team_id": 2
+        "id": 2
       },
       {
         "name": "📱🏢 Company-owned iPhones",
