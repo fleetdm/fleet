@@ -269,7 +269,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2024-12-31) #customer-rosner
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31) #customer-rosner
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
