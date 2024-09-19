@@ -589,7 +589,7 @@ Can only be configured for all teams (`org_settings`).
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
-- `ios_team` the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
 - `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
 
 ##### Example
