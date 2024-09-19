@@ -560,6 +560,7 @@ module.exports.routes = {
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
+  'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
 
   // Sitemap
   // =============================================================================================================
