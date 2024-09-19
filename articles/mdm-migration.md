@@ -46,9 +46,9 @@ Once a host is unenrolled from the old MDM solution, the end user will be given 
 
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
-If the host is in ABM, the end user will be prompted w/ Apple's **Remote Management** full-screen popup.
+If the host is in ABM, the end user will be prompted with Apple's **Remote Management** full-screen popup.
 
-TODO image of full-screen popup
+<img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
 
 To kick off the default workflow, in your current MDM solution, unenroll the hosts to be migrated. macOS does not allow a host to be connected to multiple MDM solutions at once.
 
