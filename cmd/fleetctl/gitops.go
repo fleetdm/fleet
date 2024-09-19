@@ -82,15 +82,19 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// We need to extract the controls from no-team.yml to be able to apply them when applying the global app config.
-			var noTeamControls spec.Controls
+			var (
+				noTeamControls spec.Controls
+				noTeamPresent  bool
+			)
 			for _, flFilename := range flFilenames.Value() {
 				if filepath.Base(flFilename) == "no-team.yml" {
 					baseDir := filepath.Dir(flFilename)
-					config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
+					config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
 					if err != nil {
 						return err
 					}
 					noTeamControls = config.Controls
+					noTeamPresent = true
 					break
 				}
 			}
@@ -145,7 +149,7 @@ func gitopsCommand() *cli.Command {
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
-				if isGlobalConfig && totalFilenames > 1 {
+				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
@@ -192,6 +196,7 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 				}
+
 				if flDryRun {
 					incomingSecrets := fleetClient.GetGitOpsSecrets(config)
 					for _, secret := range incomingSecrets {
@@ -201,6 +206,7 @@ func gitopsCommand() *cli.Command {
 						secrets[secret] = struct{}{}
 					}
 				}
+
 				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig)
 				if err != nil {
 					return err
@@ -349,7 +355,7 @@ func applyABMTokenAssignmentIfNeeded(
 	if usesLegacyConfig {
 		appleBMDefaultTeam := abmTeamNames[0]
 		if !slices.Contains(teamNames, appleBMDefaultTeam) {
-			return fmt.Errorf("apple_bm_default_team %s not found in team configs", appleBMDefaultTeam)
+			return fmt.Errorf("apple_bm_default_team team %q not found in team configs", appleBMDefaultTeam)
 		}
 		appConfigUpdate = map[string]map[string]any{
 			"mdm": {
@@ -359,7 +365,7 @@ func applyABMTokenAssignmentIfNeeded(
 	} else {
 		for _, abmTeam := range abmTeamNames {
 			if !slices.Contains(teamNames, abmTeam) {
-				return fmt.Errorf("apple_business_manager team %s not found in team configs", abmTeam)
+				return fmt.Errorf("apple_business_manager team %q not found in team configs", abmTeam)
 			}
 		}
 
