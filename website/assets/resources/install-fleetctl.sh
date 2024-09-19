@@ -28,8 +28,8 @@ version_gt() {
 OS="$(uname -s)"
 
 case "${OS}" in
-    Linux*)     OS='linux';;
-    Darwin*)    OS='macos';;
+    Linux*)     OS='Linux';;
+    Darwin*)    OS='macOS';;
     *)          echo "Unsupported operating system: ${OS}"; exit 1;;
 esac
 
