@@ -68,14 +68,14 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fle
 	const stmt = `
 SELECT
 	fla.id,
-	fla.name, 
-	fla.token, 
-	fla.version, 
-	fla.platform, 
-	fla.installer_url, 
-	fla.sha256, 
-	fla.bundle_identifier, 
-	sc1.contents AS install_script, 
+	fla.name,
+	fla.token,
+	fla.version,
+	fla.platform,
+	fla.installer_url,
+	fla.sha256,
+	fla.bundle_identifier,
+	sc1.contents AS install_script,
 	sc2.contents AS uninstall_script
 FROM fleet_library_apps fla
 JOIN script_contents sc1 ON sc1.id = fla.install_script_content_id
