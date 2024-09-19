@@ -340,7 +340,7 @@ software:
 
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
-For App Store apps that are supported on iOS and/or iPadOS, self-service is set to false. For example, if the app is supported on macOS, iOS, and iPadOS, and self_service is set to true, it will only be applied for macOS.
+`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
 ### org_settings and team_settings
 
