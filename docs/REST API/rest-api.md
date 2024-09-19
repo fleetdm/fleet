@@ -6318,7 +6318,7 @@ None.
     },
     "ipados_team": {
       "name": "🔳🏢 Company-owned iPads",
-      "team_id": 3
+      "id": 3
     }
   }
 ]
