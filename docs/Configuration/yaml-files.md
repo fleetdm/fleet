@@ -301,15 +301,15 @@ software:
   packages:
    - url: https://github.com/organinzation/repository/package-1.pkg
      install_script:
-       path: /lib/crowdstrike-install.sh 
-      pre_install_query: 
-        path: /lib/check-crowdstrike-configuration-profile.queries.yml
-      post_install_script:
-        path: /lib/crowdstrike-post-install.sh 
-      uninstall_script:
-        path: /lib/crowdstrike-uninstall.sh 
-      self_service: true
-    - url: https://github.com/organinzation/repository/package-2.msi
+       path: ../lib/crowdstrike-install.sh 
+     pre_install_query: 
+       path: ../lib/check-crowdstrike-configuration-profile.queries.yml
+     post_install_script:
+       path: ../lib/crowdstrike-post-install.sh 
+     uninstall_script:
+       path: ../lib/crowdstrike-uninstall.sh 
+     self_service: true
+   - url: https://github.com/organinzation/repository/package-2.msi
   app_store_apps:
    - app_store_id: '1091189122'
 ```
