@@ -8489,7 +8489,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
 - [Delete package or App Store app](#delete-package-or-app-store-app)
-- [Batch apply software](#batch-apply-software)
+- [Batch-apply software](#batch-apply-software)
 - [Batch-apply app store apps](#batch-apply-app-store-apps)
 - [Get token to download package](#get-token-to-download-package)
 - [Download package using a token](#download-package-using-a-token)
