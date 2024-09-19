@@ -8490,6 +8490,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Download package](#download-package)
 - [Delete package or App Store app](#delete-package-or-app-store-app)
 - [Batch apply software](#batch-apply-software)
+- [Batch-apply app store apps](#batch-apply-app-store-apps)
+- [Get token to download package](#get-token-to-download-package)
+- [Download package using a token](#download-package-using-a-token)
 
 ### List software
 
@@ -9288,6 +9291,89 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 ##### Default response
 
 `Status: 204`
+
+### Batch-apply app store apps
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/app_store_apps/batch`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                                                                            |
+|-----------------|---------|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_name       | integer | query | **Required**. The name of the team to add the app to.                                                                                                                                  |
+| dry_run         | bool    | query | If `true`, will validate the provided apps and return any validation errors, but will not apply the changes.                                                                           |
+| apps_store_apps | list    | body  | The list of objects containing `app_store_id`: a string representation of the app's App ID, `self_service`: a bool indicating if the app's installation can be initiated by end users. |
+
+> Note that this endpoint replaces all apps associated with a team.
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store_apps/batch`
+
+#### Default response
+
+`Status: 204`
+
+### Get token to download package
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+
+The returned token is a one-time use token that expires after 10 minutes.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                      |
+|-------------------|---------|-------|------------------------------------------------------------------|
+| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| team_id           | integer | query | **Required**. The team ID containing the software package.       |
+| alt               | integer | query | **Required**. Must be specified and set to "media".              |
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
+}
+```
+
+### Download package using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                              |
+|-------------------|---------|------|--------------------------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
+| token             | string  | path | **Required**. The token to download the software package.                |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
 
 
 ## Vulnerabilities
