@@ -10,11 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -3304,7 +3302,6 @@ func ReconcileAppleProfiles(
 			// then we shouldn't send an additional remove command since it wasn't installed on the
 			// host.
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-			slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: didnotinstall returned true ", "ident", p.ProfileIdentifier, "hostprofilestocleanup", hostProfilesToCleanup, "commandUUID", p.CommandUUID)
 			continue
 		}
 

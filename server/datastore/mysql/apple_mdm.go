@@ -12,10 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -2094,7 +2092,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
 		if p.DidNotInstallOnHost() {
-			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { _, file, _, _ := runtime.Caller(1); return file }()).Info("JVE_LOG: did not install on host returned true", "ident", p.ProfileIdentifier)
 			continue
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
