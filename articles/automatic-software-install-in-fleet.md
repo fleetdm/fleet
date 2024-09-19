@@ -29,9 +29,11 @@ Coming soon:
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
 ```
-
 SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
+```
 
+```
+Note: In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query SELECT * from apps;
 ```
 
 3. **Manage automation**: Open Manage Automations: Policies Tab --> top right "Manage automations" --> "Install software".
