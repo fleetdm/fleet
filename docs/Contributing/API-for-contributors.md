@@ -927,7 +927,7 @@ Content-Type: application/octet-stream
   "location": "https://example.com/mdm/apple/mdm",
   "renew_date": "2025-10-20T00:00:00Z",
   "terms_expired": false,
-  "teams": ["Workstations", "Company-owned iPhones", "Company-owned iPads"]
+  "teams": [1, 2, 3]
 }
 ```
 
