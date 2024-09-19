@@ -2875,29 +2875,103 @@ func subqueryOSSettingsStatusMac() (string, []any, error) {
 }
 
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	subquery, args, err := subqueryOSSettingsStatusMac()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building os settings subquery")
-	}
-
-	sqlFmt := `
+	stmt := `
 SELECT
-  %s as status,
-  COUNT(id) as count
+	COUNT(id) AS count,
+	CASE WHEN (prof_failed
+		OR decl_failed
+		OR fv_failed) THEN
+		:failed
+	WHEN (prof_pending
+		OR decl_pending
+		-- special case for filevault, it's pending if the profile is
+		-- pending OR the profile is verified or verifying but we still
+		-- don't have an encryption key.
+		OR(fv_pending
+			OR((fv_verifying
+				OR fv_verified)
+			AND (base64_encrypted IS NULL OR (decryptable IS NOT NULL AND decryptable != 1))))) THEN
+		:pending
+	WHEN (prof_verifying
+		OR decl_verifying
+		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
+		OR(fv_verifying
+			AND base64_encrypted IS NOT NULL AND (decryptable IS NULL OR decryptable = 1))
+		-- special case when fv profile is verified, but we didn't verify the encryption key, we treat as verifying
+		OR(fv_verified
+			AND base64_encrypted IS NOT NULL AND decryptable IS NULL)) THEN
+		:verifying
+	WHEN (prof_verified
+		OR decl_verified
+		OR(fv_verified
+			AND base64_encrypted IS NOT NULL AND decryptable = 1)) THEN
+		:verified
+	END AS status
 FROM
-  hosts h
-WHERE platform = 'darwin' OR platform = 'ios' OR platform = 'ipados'
-GROUP BY status, team_id HAVING status IN (?, ?, ?, ?) AND %s`
+	hosts h
+	LEFT JOIN (
+		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		-- filevault profiles are treated separately
+		SELECT
+			host_uuid,
+			MAX( IF((status IS NULL OR status = :pending) AND profile_identifier != :filevault, 1, 0)) AS prof_pending,
+			MAX( IF(status = :failed AND profile_identifier != :filevault, 1, 0)) AS prof_failed,
+			MAX( IF(status = :verifying AND profile_identifier != :filevault AND operation_type = :install, 1, 0)) AS prof_verifying,
+			MAX( IF(status = :verified AND profile_identifier != :filevault AND operation_type = :install, 1, 0)) AS prof_verified,
+			MAX( IF((status IS NULL OR status = :pending) AND profile_identifier = :filevault, 1, 0)) AS fv_pending,
+			MAX( IF(status = :failed AND profile_identifier = :filevault, 1, 0)) AS fv_failed,
+			MAX( IF(status = :verifying AND profile_identifier = :filevault AND operation_type = :install, 1, 0)) AS fv_verifying,
+			MAX( IF(status = :verified AND profile_identifier = :filevault AND operation_type = :install, 1, 0)) AS fv_verified
+		FROM
+			host_mdm_apple_profiles
+		GROUP BY
+			host_uuid) hmap ON h.uuid = hmap.host_uuid
+	LEFT JOIN (
+		-- declaration statuses grouped by host uuid, boolean value will be 1 if host has any declaration with the given status
+		SELECT
+			host_uuid,
+			MAX( IF((status IS NULL OR status = :pending), 1, 0)) AS decl_pending,
+			MAX( IF(status = :failed, 1, 0)) AS decl_failed,
+			MAX( IF(status = :verifying, 1, 0)) AS decl_verifying,
+			MAX( IF(status = :verified, 1, 0)) AS decl_verified
+		FROM
+			host_mdm_apple_declarations
+		WHERE
+			operation_type = :install AND declaration_name NOT IN(:macosUpdates, :iosUpdates, :ipadOSUpdates)
+		GROUP BY
+			host_uuid) hmad ON h.uuid = hmad.host_uuid
+	LEFT JOIN (
+		-- status of host disk encryption key, decryptable value can be null, 0, or 1
+		SELECT
+			host_id,
+			base64_encrypted,
+			decryptable
+		FROM
+			host_disk_encryption_keys) hdek ON h.id = hdek.host_id
+WHERE
+	platform IN('darwin', 'ios', 'ipad_os') AND %s
+GROUP BY
+	status HAVING status IS NOT NULL`
 
-	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
+	named := map[string]any{
+		"pending":       fleet.MDMDeliveryPending,
+		"failed":        fleet.MDMDeliveryFailed,
+		"verifying":     fleet.MDMDeliveryVerifying,
+		"verified":      fleet.MDMDeliveryVerified,
+		"filevault":     mobileconfig.FleetFileVaultPayloadIdentifier,
+		"install":       fleet.MDMOperationTypeInstall,
+		"macosUpdates":  fleetmdm.FleetMacOSUpdatesProfileName,
+		"iosUpdates":    fleetmdm.FleetIOSUpdatesProfileName,
+		"ipadOSUpdates": fleetmdm.FleetIPadOSUpdatesProfileName,
+	}
 
 	teamFilter := "team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = "team_id = ?"
-		args = append(args, *teamID)
+		teamFilter = "team_id = :teamID"
+		named["teamID"] = *teamID
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subquery, teamFilter)
+	stmt, args, err := sqlx.Named(fmt.Sprintf(stmt, teamFilter), named)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
