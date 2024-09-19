@@ -603,6 +603,10 @@ type Datastore interface {
 	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Fleet Managed Apps
+	ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
 	// GetHostOperatingSystem returns the operating system information

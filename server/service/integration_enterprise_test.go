@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -14257,7 +14259,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	maintainedapps.IngestMaintainedApps(t, s.ds)
+	expectedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
 
 	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -14276,6 +14278,43 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
+	// Check apps returned
+	var listMAResp listFleetMaintainedAppsResponse
+	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK, &listMAResp, "team_id", strconv.Itoa(int(team.ID)))
+	require.Nil(t, listMAResp.Err)
+	require.False(t, listMAResp.Meta.HasPreviousResults)
+	require.False(t, listMAResp.Meta.HasNextResults)
+	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
+	var listAppsNoID []fleet.MaintainedApp
+	for _, app := range listMAResp.FleetMaintainedApps {
+		app.ID = 0
+		listAppsNoID = append(listAppsNoID, app)
+	}
+	slices.SortFunc(listAppsNoID, func(a, b fleet.MaintainedApp) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	require.Equal(t, expectedApps, listAppsNoID)
+
+	var listMAResp2 listFleetMaintainedAppsResponse
+	s.DoJSON(
+		http.MethodGet,
+		"/api/latest/fleet/software/fleet_maintained_apps",
+		listFleetMaintainedAppsRequest{},
+		http.StatusOK,
+		&listMAResp2,
+		"team_id", strconv.Itoa(int(team.ID)),
+		"per_page", "2",
+		"page", "2",
+	)
+	require.Nil(t, listMAResp2.Err)
+	require.True(t, listMAResp2.Meta.HasPreviousResults)
+	require.True(t, listMAResp2.Meta.HasNextResults)
+	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
+	require.Equal(t, listMAResp.FleetMaintainedApps[4:6], listMAResp2.FleetMaintainedApps)
+
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
 	req := &addFleetMaintainedAppRequest{
@@ -14288,6 +14327,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
+
+	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK, &listMAResp, "team_id", strconv.Itoa(int(team.ID)))
+	require.Nil(t, listMAResp.Err)
+	require.False(t, listMAResp.Meta.HasPreviousResults)
+	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps)-1)
 
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)

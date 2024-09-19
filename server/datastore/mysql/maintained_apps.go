@@ -95,3 +95,51 @@ WHERE
 
 	return &app, nil
 }
+
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	stmt := `
+SELECT
+	fla.id,
+	fla.name,
+	fla.version,
+	fla.platform
+FROM
+	fleet_library_apps fla
+WHERE NOT EXISTS (
+	SELECT
+		1
+	FROM
+		software_titles st
+	LEFT JOIN
+		software_installers si
+		ON si.title_id = st.id
+	LEFT JOIN
+		vpp_apps va
+		ON va.title_id = st.id
+	LEFT JOIN
+		vpp_apps_teams vat
+		ON vat.adam_id = va.adam_id
+	WHERE
+		st.bundle_identifier = fla.bundle_identifier
+	AND (
+		(si.platform = fla.platform AND si.team_id = ?)
+		OR
+		(va.platform = fla.platform AND vat.team_id = ?)
+	)
+)`
+
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
+
+	var avail []fleet.MaintainedApp
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+	}
+
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+	if len(avail) > int(opt.PerPage) {
+		meta.HasNextResults = true
+		avail = avail[:len(avail)-1]
+	}
+
+	return avail, meta, nil
+}

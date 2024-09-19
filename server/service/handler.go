@@ -389,6 +389,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Fleet-maintained apps
 	ue.POST("/api/_version_/fleet/software/fleet_maintained_apps", addFleetMaintainedAppEndpoint, addFleetMaintainedAppRequest{})
+	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedApps, listFleetMaintainedAppsRequest{})
 
 	// Vulnerabilities
 	ue.GET("/api/_version_/fleet/vulnerabilities", listVulnerabilitiesEndpoint, listVulnerabilitiesRequest{})
