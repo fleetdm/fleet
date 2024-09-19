@@ -130,7 +130,7 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 
 3. **osquery**: Latest release
 - Check the [latest version of osquery](https://github.com/osquery/osquery/releases).
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/ceb4e4602ba9a90ebf0e33e1eddef770c9a8d8b5/.github/workflows/generate-osqueryd-targets.yml#L27).
+- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/generate-osqueryd-targets.yml#L27).
 - If the latest release of osquery is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
 - Do not add the `~release blocker` label. 
 - Update the bug description to note that changes to [osquery command-line flags](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) require updates to Fleet's flag validation and related documentation [as shown in this pull request](https://github.com/fleetdm/fleet/pull/16239/files). 
@@ -463,7 +463,7 @@ When this occurs, we will begin receiving the following error message when attem
 
 2. Log in using the credentials stored in 1Password under "Apple developer account".
 
-3. Contact the Head of Business Operations to determine which phone number to use for 2FA.
+3. Contact the Head of Digital Experience to determine which phone number to use for 2FA.
 
 4. Complete the 2FA process to log in.
 
@@ -491,7 +491,7 @@ The certificate signing request (CSR) certificate expires every year. It needs t
 
 Steps to renew the certificate:
 
-1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+1. Visit the [Apple developer account login page](https://developer.apple.com/account).
 2. Log in using the credentials stored in 1Password under **Apple developer account**.
 3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
 4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
@@ -535,7 +535,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 
 ### Ship approved equipment
 
-Once the Business Operations department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
+Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. package equipment for shipment and include Yubikeys (if requested).

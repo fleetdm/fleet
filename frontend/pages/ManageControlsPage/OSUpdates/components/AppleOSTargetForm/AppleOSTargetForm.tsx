@@ -178,16 +178,18 @@ const AppleOSTargetForm = ({
     }
   };
 
-  const getMinimumVersionTooltip = (platform: ApplePlatform) => {
-    switch (platform) {
-      case "darwin":
-        return "The end user sees the window until their macOS is at or above this version.";
-      case "ios":
-      case "ipados":
-        return "If the end user's host is below the minimum version, they see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.";
-      default:
-        return "";
-    }
+  const getMinimumVersionTooltip = () => {
+    return (
+      <>
+        If an already enrolled host is below the minimum version,
+        <br /> the host is updated to exactly the minimum version if it&apos;s
+        <br /> available from Apple.
+        <br />
+        <br /> If a new or wiped host is below the minimum version and
+        <br /> automatically enrolls (ADE), the host is updated to Apple&apos;s
+        <br /> lastest version during Setup Assistant.
+      </>
+    );
   };
 
   const getDeadlineTooltip = (platform: ApplePlatform) => {
@@ -206,7 +208,7 @@ const AppleOSTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
-        tooltip={getMinimumVersionTooltip(applePlatform)}
+        tooltip={getMinimumVersionTooltip()}
         helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
         placeholder={getMinimumVersionPlaceholder(applePlatform)}
         value={minOsVersion}

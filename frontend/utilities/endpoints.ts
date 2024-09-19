@@ -52,7 +52,9 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/software/install/${softwareId}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
+  HOST_SOFTWARE_PACKAGE_UNINSTALL: (hostId: number, softwareId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
 
@@ -158,6 +160,8 @@ export default {
   SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
+  EDIT_SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
@@ -165,7 +169,7 @@ export default {
   SOFTWARE_PACKAGE_TOKEN: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
-    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
+    `/${API_VERSION}/fleet/software/install/${uuid}/results`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
   SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>

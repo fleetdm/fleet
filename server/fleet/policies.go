@@ -77,6 +77,9 @@ var (
 	errPolicyInvalidPlatform = errors.New("invalid policy platform")
 )
 
+// PolicyNoTeamID is the team ID of "No team" policies.
+const PolicyNoTeamID = uint(0)
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
 	if p.QueryID != nil {

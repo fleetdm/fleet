@@ -1,1 +1,0 @@
-* Fixed an issue with the scheduling of cron jobs at startup if the job has never run, which caused it to be delayed.

@@ -557,6 +557,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if appConfig.MDM.VolumePurchasingProgram.Set && appConfig.MDM.VolumePurchasingProgram.Valid {
 		for tokenID, tokenTeams := range vppAssignments {
 			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
+				if errors.As(err, &errTokConstraint) {
+					return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+				}
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 			}
 		}

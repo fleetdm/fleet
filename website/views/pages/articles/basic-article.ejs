@@ -1,32 +1,60 @@
 <div id="basic-article" v-cloak>
-  <div style="max-width: 800px;" class="container-fluid px-0">
-    <div purpose="article-title">
-      <h1><%=thisPage.meta.articleTitle %></h1>
-      <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
-    </div>
-    <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
-      <div purpose="article-details" class="d-flex flex-row align-items-center">
-      <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
-      <span class="px-2">|</span>
-      <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-      <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+  <div class="container-fluid px-0">
+    <div purpose="breadcrumbs-and-search" class="d-flex flex-lg-row flex-column justify-content-between align-items-lg-center align-items-start">
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" :href="'/'+articleCategorySlug">{{articleCategorySlug}}</a>/
+        </div>
+        <div purpose="breadcrumbs-title">
+          <span>{{thisPage.meta.articleTitle}}</span>
+        </div>
       </div>
-      <div class="d-flex flex-row align-items-center justify-content-sm-end pt-3 pt-sm-1">
-      <a purpose="rss-button" @click="clickCopyRssLink(articleCategorySlug)"><span>Subscribe</span></a>
-      <a purpose="edit-button" class="d-flex flex-row align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+      <div purpose="search" id="docsearch-query" class="d-flex">
+        <div purpose="disabled-search" class="d-flex w-100">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pl-3" >
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
+            </div>
+            <div class="form-control border-0 ">
+            <input class="docsearch-input pr-1"
+              placeholder="Search" aria-label="Search the handbook"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div purpose="article-content" class="d-flex flex-column" parasails-has-no-page-script>
-      <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
-    </div>
-    <hr>
-    <div purpose="bottom-cta" class="d-block">
-      <h3 style="font-size: 24px; line-height: 32px;">Get started</h3>
-      <div class="d-flex flex-sm-row flex-column align-items-center">
-        <a href="/register" class="d-flex btn btn-primary justify-content-center align-items-center" purpose="next-steps-button">
-          Start now
-        </a>
-        <animated-arrow-button class="ml-sm-4" href="/contact">Talk to us</animated-arrow-button>
+    <div purpose="article-container">
+      <div purpose="article-title">
+        <h1><%=thisPage.meta.articleTitle %></h1>
+        <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
+      </div>
+      <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
+        <div purpose="article-details" class="d-flex flex-row align-items-center">
+        <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+        <span class="px-2">|</span>
+        <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+        <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+        </div>
+        <div class="d-flex flex-row align-items-center justify-content-sm-end pt-3 pt-sm-1">
+        <a purpose="rss-button" @click="clickCopyRssLink(articleCategorySlug)"><span>Subscribe</span></a>
+        <a purpose="edit-button" class="d-flex flex-row align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+        </div>
+      </div>
+      <div purpose="article-content" class="d-flex flex-column" parasails-has-no-page-script>
+        <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+      </div>
+      <hr>
+      <div purpose="bottom-cta" class="d-block">
+        <h3 style="font-size: 24px; line-height: 32px;">Get started</h3>
+        <div class="d-flex flex-sm-row flex-column align-items-center">
+          <a href="/register" class="d-flex btn btn-primary justify-content-center align-items-center" purpose="next-steps-button">
+            Start now
+          </a>
+          <animated-arrow-button class="ml-sm-4" href="/contact">Talk to us</animated-arrow-button>
+        </div>
       </div>
     </div>
   </div>
