@@ -10,13 +10,15 @@ import (
 	"path"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// InstallerTimeout is the timeout duration for downloading and adding a maintained app.
+const InstallerTimeout = 15 * time.Minute
+
 // DownloadInstaller downloads the maintained app installer located at the given URL.
-func DownloadInstaller(ctx context.Context, installerURL string) ([]byte, string, error) {
+func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) ([]byte, string, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
@@ -25,8 +27,6 @@ func DownloadInstaller(ctx context.Context, installerURL string) ([]byte, string
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) is invalid", installerURL),
 		)
 	}
-
-	client := fleethttp.NewClient(fleethttp.WithTimeout(15 * time.Minute))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
