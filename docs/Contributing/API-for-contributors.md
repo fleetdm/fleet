@@ -671,9 +671,9 @@ Content-Type: application/octet-stream
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2024-10-20T00:00:00Z",
   "terms_expired": false,
-  "macos_team": "",
-  "ios_team": "",
-  "ipados_team": ""
+  "macos_team": null,
+  "ios_team": null,
+  "ipados_team": null
 }
 ```
 
