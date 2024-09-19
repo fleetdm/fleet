@@ -103,7 +103,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 }
 
 func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
 		TeamID: &teamID,
 	}, fleet.ActionRead); err != nil {
 		return nil, nil, err
@@ -118,7 +118,7 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, op
 }
 
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
 		TeamID: nil,
 	}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fle
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "get fleet maintained app")
 	}
 
 	return app, nil
