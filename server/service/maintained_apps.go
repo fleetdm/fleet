@@ -37,3 +37,63 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 
 	return fleet.ErrMissingLicense
 }
+
+type listFleetMaintainedAppsRequest struct {
+	fleet.ListOptions
+	TeamID uint `query:"team_id"`
+}
+
+type listFleetMaintainedAppsResponse struct {
+	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
+	Meta                *fleet.PaginationMetadata `json:"meta"`
+	Err                 error                     `json:"error,omitempty"`
+}
+
+func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
+
+func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*listFleetMaintainedAppsRequest)
+
+	req.IncludeMetadata = true
+
+	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
+	if err != nil {
+		return listFleetMaintainedAppsResponse{Err: err}, nil
+	}
+
+	return listFleetMaintainedAppsResponse{FleetMaintainedApps: apps, Meta: meta}, nil
+}
+
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, nil, fleet.ErrMissingLicense
+}
+
+type getFleetMaintainedAppRequest struct {
+	AppID uint `query:"app_id"`
+}
+
+type getFleetMaintainedAppResponse struct {
+	FleetMaintainedApp *fleet.MaintainedApp `json:"fleet_maintained_app"`
+	Err                error                `json:"error,omitempty"`
+}
+
+func (r getFleetMaintainedAppResponse) error() error { return r.Err }
+
+func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*getFleetMaintainedAppRequest)
+
+	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID)
+	if err != nil {
+		return getFleetMaintainedAppResponse{Err: err}, nil
+	}
+
+	return getFleetMaintainedAppResponse{FleetMaintainedApp: app}, nil
+}
+
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
