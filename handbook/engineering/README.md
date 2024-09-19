@@ -544,6 +544,7 @@ Once the Digital Experience department approves inventory to be shipped from Fle
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
+
 ### Provide 0-day support for major version macOS releases
 
 Beginning with macOS 16, Fleet will offer 0-day support for all major version macOS releases. 
@@ -554,6 +555,7 @@ Beginning with macOS 16, Fleet will offer 0-day support for all major version ma
 4. Confirm all automated tests are passing.
 5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
 6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet 0-day support for the new major release.
+
 
 ## Rituals
 
