@@ -712,7 +712,7 @@ Content-Type: application/octet-stream
 {
   "macos_team_id": 1,
   "ios_team_id": 2,
-  "ipados_team_id": 3,
+  "ipados_team_id": 3
 }
 ```
 
