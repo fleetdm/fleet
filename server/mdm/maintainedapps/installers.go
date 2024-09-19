@@ -26,7 +26,7 @@ func DownloadInstaller(ctx context.Context, installerURL string) ([]byte, string
 		)
 	}
 
-	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
+	client := fleethttp.NewClient(fleethttp.WithTimeout(15 * time.Minute))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
