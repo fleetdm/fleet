@@ -2972,6 +2972,9 @@ GROUP BY
 	}
 
 	stmt, args, err := sqlx.Named(fmt.Sprintf(stmt, teamFilter), named)
+	if err != nil {
+		return nil, err
+	}
 
 	var dest []struct {
 		Count  uint   `db:"count"`
