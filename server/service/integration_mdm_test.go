@@ -9383,32 +9383,34 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 	ident := uuid.NewString()
 
+	mdmDeviceRespond := func(device *mdmtest.TestAppleMDMClient) {
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+				if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
+					var errChain []mdm.ErrorChain
+					errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
+					cmd, err = device.Err(cmd.CommandUUID, errChain)
+					require.NoError(t, err)
+					continue
+				}
+			}
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", ident),
 		mobileconfigForTest("N2", "I2"),
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
-
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		if cmd.Command.RequestType == "InstallProfile" {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
-				var errChain []mdm.ErrorChain
-				errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
-				cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
-				require.NoError(t, err)
-				continue
-			}
-		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-
+	mdmDeviceRespond(mdmDevice)
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
@@ -9416,24 +9418,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 	// Do another trigger + command fetching cycle, since we retry when a profile fails on install.
 	s.awaitTriggerProfileSchedule(t)
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		if cmd.Command.RequestType == "InstallProfile" {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
-				var errChain []mdm.ErrorChain
-				errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
-				cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
-				require.NoError(t, err)
-				continue
-			}
-		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
+	mdmDeviceRespond(mdmDevice)
 
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
@@ -9467,6 +9452,40 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 3) // This would be 4 if we hadn't deleted the profile that failed to install.
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		require.NotEqual(t, "N1", hm.Name)
+	}
+
+	// Test case where the profile never makes it to the host at all
+	host, _ = createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	ident = uuid.NewString()
+
+	globalProfiles = [][]byte{
+		mobileconfigForTest("N3", ident),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
+	var profUUID string
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
+		if hm.Name == "N3" {
+			profUUID = hm.ProfileUUID
+		}
+	}
+
+	// delete the custom profile
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", profUUID), &deleteMDMAppleConfigProfileRequest{}, http.StatusOK)
+	s.awaitTriggerProfileSchedule(t)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
 	}
 }
 
