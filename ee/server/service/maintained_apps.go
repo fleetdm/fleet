@@ -101,3 +101,13 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 
 	return nil
 }
+
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+		TeamID: nil,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}

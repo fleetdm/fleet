@@ -281,3 +281,31 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, op
 
 	return nil, nil, fleet.ErrMissingLicense
 }
+
+type getFleetMaintainedAppRequest struct {
+	AppID uint `query:"app_id"`
+}
+
+type getFleetMaintainedAppResponse struct {
+	FleetMaintainedApp *fleet.MaintainedApp `json:"fleet_maintained_app"`
+	Err                error                `json:"error,omitempty"`
+}
+
+func (r getFleetMaintainedAppResponse) error() error { return r.Err }
+
+func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*getFleetMaintainedAppRequest)
+
+	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID)
+	if err != nil {
+		return getFleetMaintainedAppResponse{Err: err}, nil
+	}
+
+	return getFleetMaintainedAppResponse{FleetMaintainedApp: app}, nil
+}
+
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
