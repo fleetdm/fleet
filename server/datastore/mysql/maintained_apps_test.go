@@ -37,8 +37,8 @@ func TestMaintainedApps(t *testing.T) {
 func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	listSavedApps := func() []*fleet.MaintainedApp {
-		var apps []*fleet.MaintainedApp
+	listSavedApps := func() []fleet.MaintainedApp {
+		var apps []fleet.MaintainedApp
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &apps, "SELECT name, version, platform FROM fleet_library_apps ORDER BY token")
 		})
@@ -63,9 +63,9 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// change the expected app data for figma
-	for _, app := range expectedApps {
-		if app.Name == "Figma" {
-			app.Version = "999.9.9"
+	for idx := range expectedApps {
+		if expectedApps[idx].Name == "Figma" {
+			expectedApps[idx].Version = "999.9.9"
 			break
 		}
 	}
