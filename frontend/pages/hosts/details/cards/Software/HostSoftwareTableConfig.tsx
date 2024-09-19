@@ -31,7 +31,7 @@ import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTa
 import InstallStatusCell from "./InstallStatusCell";
 import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
 
-const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
+export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
   { value: "install", label: "Install", disabled: false },
   { value: "uninstall", label: "Uninstall", disabled: false },
@@ -51,14 +51,7 @@ type IInstalledVersionsCellProps = CellProps<
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
-const generateActions = ({
-  userHasSWWritePermission,
-  hostScriptsEnabled,
-  softwareIdActionPending,
-  softwareId,
-  status,
-  app_store_app,
-}: {
+export interface generateActionsProps {
   userHasSWWritePermission: boolean;
   hostScriptsEnabled: boolean;
   hostCanWriteSoftware: boolean;
@@ -67,7 +60,16 @@ const generateActions = ({
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
-}) => {
+}
+
+export const generateActions = ({
+  userHasSWWritePermission,
+  hostScriptsEnabled,
+  softwareIdActionPending,
+  softwareId,
+  status,
+  app_store_app,
+}: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
   const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
@@ -88,8 +90,9 @@ const generateActions = ({
   }
 
   if (!userHasSWWritePermission) {
-    actions.splice(indexInstallAction, 1);
+    // Reverse order to not change index of subsequent array element before removal
     actions.splice(indexUninstallAction, 1);
+    actions.splice(indexInstallAction, 1);
   } else {
     // if host's scripts are disabled, disable install/uninstall with tooltip
     if (!hostScriptsEnabled) {
