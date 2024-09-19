@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -23,6 +24,8 @@ func (r addFleetMaintainedAppResponse) error() error { return r.Err }
 
 func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	defer cancel()
 	err := svc.AddFleetMaintainedApp(ctx, req.TeamID, req.AppID, req.InstallScript, req.PreInstallQuery, req.PostInstallScript, req.SelfService)
 	if err != nil {
 		return &addFleetMaintainedAppResponse{Err: err}, nil
