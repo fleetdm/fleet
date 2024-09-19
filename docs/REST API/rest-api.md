@@ -6310,7 +6310,7 @@ None.
     "terms_expired": false,
     "macos_team": {
       "name": "💻 Workstations",
-      "team_id" 1
+      "id" 1
     },
     "ios_team": {
       "name": "📱🏢 Company-owned iPhones",
