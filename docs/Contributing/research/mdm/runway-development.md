@@ -10,7 +10,6 @@
 6. Run script success or failure
 
 
-
 ### Development required for both options
 
 1. Holding release until fleet desktop is installed and running and swift dialog is downloaded and
@@ -30,8 +29,28 @@ Policy option 1 (file existence)
 * Bloat what we are already doing w/ migration and add more files that signal to fleet if setup software needs to install.
   * Policy becomes `if {filepath/filename} exists`
   * Potential problems
- .   * All current hosts that didn't go through this process will also fail this policy and have software queued.
+    * All current hosts that didn't go through this process will also fail this policy and have software queued.
+    * Can't take the upcoming activities / past activities to be the full list of setup experience
+      tasks since the script will have to be queued after software has finished.
 
+
+Policy option 2 (Software existence)
+* Initial thoughts would be difficulty in managing when to create / delete the policy
+   * Policy becomes `if {app} not in installed apps` (we have heard this may be a bit flaky from
+     eops development of the feature this week.)
+   * This policy would still install on all hosts not just new ones.
+
+Policy work
+* Development creating the policies that would map to the runway
+* Making sure when the software or script is removed or changed from the list to remove the
+  associated policy.
+* prevent admins from deleting the policy assiciated w/ runway.
+* Modify Upcoming / past activities to be able to filter for runway items to validate status and
+  release.
+* OR create a new list endpoint like below that is backed by activities but will be for a specific
+  subset of activities.
+* Holding the swift dialog while policies first run and potential activities are enqueued even
+  though it will look `done` from the start until everything is added in.
 
 
 ### Development Option 2 (Simple execution)
