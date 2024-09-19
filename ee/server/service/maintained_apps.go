@@ -124,5 +124,10 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fle
 		return nil, err
 	}
 
-	return nil, nil
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+
+	return app, nil
 }
