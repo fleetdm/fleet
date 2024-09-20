@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 Fleet UI:
 
@@ -18,12 +18,12 @@ Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-ap
 
 ### macOS
 
-When a minimum version is enforced, the end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes, and then every 10 minutes.   
+When a minimum version is enforced, the end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.   
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
 For macOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
-minimum version, it will be required to update to the very latest OS version during ADE before
+minimum version, it will be required to update to the latest OS version during ADE before
 device setup and enrollment can proceed.
 
 ### macOS (below version 14.0)
@@ -40,7 +40,7 @@ End users are encouraged to update macOS (via [Nudge](https://github.com/macadmi
 
 ### iOS and iPadOS
 
-When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
+End users will see a notification in their Notification Center after the deadline when a minimum version is enforced. They can’t use their iPhone or iPad until the OS update is installed.
 
 ### iOS and iPadOS (version 17.0 and above)
 
@@ -49,7 +49,7 @@ minimum version, it will be required to update to the very latest OS version dur
 
 ### Available versions for Apple hosts
 
-The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource to obtain a list of publicly available updates, upgrades and Rapid Security Responses. Make sure to use versions available in GDMF, otherwise the update will not be scheduled.
+The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource for obtaining a list of publicly available updates, upgrades, and Rapid Security Responses. Make sure to use versions available in GDMF; otherwise, the update will not be scheduled.
 
 ### Windows
 
