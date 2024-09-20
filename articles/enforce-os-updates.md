@@ -49,7 +49,7 @@ minimum version, it will be required to update to the very latest OS version dur
 
 ### Available versions for Apple hosts
 
-The Apple Software Lookup Service (available at https://gdmf.apple.com/v2/pmv) is the official resource to obtain a list of publicly available updates, upgrades and Rapid Security Responses. Make sure to use versions available in GDMF, otherwise the update will not be scheduled.
+The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource to obtain a list of publicly available updates, upgrades and Rapid Security Responses. Make sure to use versions available in GDMF, otherwise the update will not be scheduled.
 
 ### Windows
 
