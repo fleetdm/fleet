@@ -22,31 +22,16 @@ When a minimum version is enforced, the end users see a native macOS notificatio
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
-For macOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
-minimum version, it will be required to update to the latest OS version during ADE before
-device setup and enrollment can proceed.
-
-### macOS (below version 14.0)
-
-End users are encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
-
-![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
-
-|                                      | > 1 day before deadline | < 1 day before deadline | Past deadline         |
-| ------------------------------------ | ----------------------- | ----------------------- | --------------------- |
-| Nudge window frequency               | Once a day at 8pm GMT   | Once every 2 hours      | Immediately on login  |
-| End user can defer                   | ✅                      | ✅                      | ❌                    |
-| Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
+For macOS devices that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest [available version](#available-macos-ios-and-ipados-versions) during ADE before device setup and enrollment can proceed.
 
 ### iOS and iPadOS
 
 End users will see a notification in their Notification Center after the deadline when a minimum version is enforced. They can’t use their iPhone or iPad until the OS update is installed.
 
-
 For iOS and iPadOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
-minimum version, it will be required to update to the very latest OS version during ADE before device setup and enrollment can proceed.
+minimum version, it will be required to update to the latest [available version](#available-macos-ios-and-ipados-versions) during ADE before device setup and enrollment can proceed.
 
-### Available versions for Apple hosts
+### Available macOS, iOS, and iPadOS versions
 
 The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource for obtaining a list of publicly available updates, upgrades, and Rapid Security Responses. Make sure to use versions available in GDMF; otherwise, the update will not be scheduled.
 
@@ -61,6 +46,18 @@ End users are encouraged to update Windows via the native Windows dialog.
 If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
 
 Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
+
+### macOS (below version 14.0)
+
+End users are encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
+
+![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
+
+|                                      | > 1 day before deadline | < 1 day before deadline | Past deadline         |
+| ------------------------------------ | ----------------------- | ----------------------- | --------------------- |
+| Nudge window frequency               | Once a day at 8pm GMT   | Once every 2 hours      | Immediately on login  |
+| End user can defer                   | ✅                      | ✅                      | ❌                    |
+| Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
