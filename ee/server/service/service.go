@@ -30,6 +30,7 @@ type Service struct {
 	softwareInstallStore  fleet.SoftwareInstallerStore
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore
 	distributedLock       fleet.Lock
+	keyValueStore         fleet.KeyValueStore
 }
 
 func NewService(
@@ -46,6 +47,7 @@ func NewService(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	distributedLock fleet.Lock,
+	keyValueStore fleet.KeyValueStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -67,6 +69,7 @@ func NewService(
 		softwareInstallStore:  softwareInstallStore,
 		bootstrapPackageStore: bootstrapPackageStore,
 		distributedLock:       distributedLock,
+		keyValueStore:         keyValueStore,
 	}
 
 	// Override methods that can't be easily overriden via
