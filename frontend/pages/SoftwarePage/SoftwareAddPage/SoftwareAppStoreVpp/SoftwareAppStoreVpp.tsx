@@ -71,7 +71,7 @@ const SoftwareAppStoreVpp = ({
           router={router}
           teamId={currentTeamId}
           hasVppToken={hasVppToken}
-          vppApps={vppApps}
+          vppApps={[]}
         />
       </div>
     );
