@@ -81,6 +81,7 @@ import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
 import SoftwarePackage from "pages/SoftwarePage/SoftwareAddPage/SoftwarePackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
+import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -286,6 +287,10 @@ const routes = (
               <Route path="package" component={SoftwarePackage} />
               <Route path="app-store" component={SoftwareAppStore} />
             </Route>
+            <Route
+              path="add/fleet-maintained/:id"
+              component={FleetMaintainedAppDetailsPage}
+            />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
