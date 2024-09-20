@@ -585,16 +585,44 @@ Can only be configured for all teams (`org_settings`).
 
 #### mdm
 
-The `mdm` section lets you enable MDM features in Fleet.
+##### apple_business_manager
 
-- `apple_bm_default_team` - is name of the team that macOS hosts in Apple Business Manager automatically enroll to when they're first set up. If empty, hosts will enroll to "No team" (default: `""`).
+- `organization_name` is the organization name associated with the Apple Business Manager account.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
 
 ##### Example
 
 ```yaml
 org_settings:
   mdm:
-    apple_bm_default_team: "Workstations" # Available in Fleet Premium
+    apple_business_manager: # Available in Fleet Premium
+    - organization_name: Fleet Device Management Inc.
+      macos_team: "💻 Workstations" 
+      ios_team: "📱🏢 Company-owned iPhones"
+      ipados_team: "🔳🏢 Company-owned iPads"
+```
+
+> Apple Business Manager settings can only be configured for all teams (`org_settings`).
+
+##### volume_purchasing_program
+
+- `location` is the name of the location in the Apple Business Manager account.
+- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    volume_purchasing_program: # Available in Fleet Premium
+    - location: Fleet Device Management Inc.
+      teams: 
+      - "💻 Workstations" 
+      - "💻🐣 Workstations (canary)"
+      - "📱🏢 Company-owned iPhones"
+      - "🔳🏢 Company-owned iPads"
 ```
 
 Can only be configured for all teams (`org_settings`).
