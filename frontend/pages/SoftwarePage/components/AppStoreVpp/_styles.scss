@@ -36,26 +36,6 @@
     gap: $pad-small;
   }
 
-  &__no-software {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
-    align-items: center;
-    padding: $pad-xxlarge 48px;
-    font-size: $x-small;
-  }
-
-  &__no-software-title {
-    font-weight: $bold;
-    margin: 0;
-  }
-
-  &__no-software-description {
-    margin: 0;
-    color: $ui-fleet-black-75;
-    text-align: center;
-  }
-
   &__error {
     margin: $pad-xxlarge 0;
   }
@@ -64,19 +44,6 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
-  }
-
-  &__enable-vpp {
-    display: flex;
-    flex-direction: column;
-    min-height: 149px;
-    align-items: center;
-    justify-content: center;
-    gap: $pad-small;
-
-    p {
-      margin: 0;
-    }
   }
 
   &__help-text {

@@ -2,11 +2,7 @@
   display: flex;
   gap: $pad-xxlarge;
 
-  &__action-buttons {
-    display: flex;
-    gap: $pad-medium;
-  }
-
+  // enable and no software message styles
   &__enable-vpp-message, &__no-software-message {
     display: flex;
     flex-direction: column;
@@ -14,14 +10,64 @@
     align-items: center;
   }
 
-  &__no-software-title {
+  &__enable-vpp-title, &__no-software-title {
     font-weight: $bold;
     margin: 0;
   }
 
-  &__no-software-description {
+  &__enable-vpp-description, &__no-software-description {
     margin: 0;
     color: $ui-fleet-black-75;
-    text-align: center;
+  }
+
+  // list styles
+  &__list-container {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-medium;
+  }
+
+  &__list {
+    max-height: 315px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__list-item {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    .app-platform {
+      font-size: $x-small;
+      color: $ui-fleet-black-50;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__app-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__help-text {
+    @include help-text;
+
+    .custom-link {
+      font-size: $xx-small;
+    }
+  }
+
+  // button styles
+  &__action-buttons {
+    display: flex;
+    gap: $pad-medium;
   }
 }

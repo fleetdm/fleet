@@ -23,7 +23,7 @@ const EnableVppCard = () => {
     <Card paddingSize="xxlarge" borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp-message`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
+          Volume Purchasing Program (VPP) isn&apos;t enabled
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
           To add App Store apps, first enable VPP.
@@ -187,31 +187,29 @@ const AddSoftwareVppForm = ({
 
       return (
         <form>
-          <div className={`${baseClass}__modal-body`}>
-            <VppAppList
-              apps={vppApps}
-              selectedApp={selectedApp}
-              onSelect={onSelectApp}
-            />
-            <div className={`${baseClass}__help-text`}>
-              These apps were added in Apple Business Manager (ABM). To add more
-              apps, head to{" "}
-              <CustomLink url="https://business.apple.com" text="ABM" newTab />
-            </div>
-            <Checkbox
-              value={isSelfService}
-              onChange={(newVal: boolean) => setIsSelfService(newVal)}
-              className={`${baseClass}__self-service-checkbox`}
-              tooltipContent={
-                <>
-                  End users can install from <b>Fleet Desktop</b> {">"}{" "}
-                  <b>Self-service</b>.
-                </>
-              }
-            >
-              Self-service
-            </Checkbox>
+          <VppAppList
+            apps={vppApps}
+            selectedApp={selectedApp}
+            onSelect={onSelectApp}
+          />
+          <div className={`${baseClass}__help-text`}>
+            These apps were added in Apple Business Manager (ABM). To add more
+            apps, head to{" "}
+            <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
+          <Checkbox
+            value={isSelfService}
+            onChange={(newVal: boolean) => setIsSelfService(newVal)}
+            className={`${baseClass}__self-service-checkbox`}
+            tooltipContent={
+              <>
+                End users can install from <b>Fleet Desktop</b> {">"}{" "}
+                <b>Self-service</b>.
+              </>
+            }
+          >
+            Self-service
+          </Checkbox>
         </form>
       );
     }
