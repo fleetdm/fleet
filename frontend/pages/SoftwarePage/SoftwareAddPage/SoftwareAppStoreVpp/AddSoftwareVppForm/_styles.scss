@@ -1,6 +1,37 @@
 .add-software-vpp-form {
-  display: flex;
-  gap: $pad-xxlarge;
+  position: relative;
+
+  &__overlay {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    z-index: 1000;
+  }
+
+  &__content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__content-disabled {
+    transition: opacity 150ms ease-in-out;
+    opacity: 0.5; // this adds a disabled effect to the modal content
+  }
+
+  &__form-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+
 
   // enable and no software message styles
   &__enable-vpp-message, &__no-software-message {

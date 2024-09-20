@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import classnames from "classnames";
 
 import PATHS from "router/paths";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
@@ -133,6 +134,7 @@ const AddSoftwareVppForm = ({
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [isSelfService, setIsSelfService] = useState(false);
 
   const goBackToSoftwareTitles = (availableInstall?: boolean) => {
@@ -149,10 +151,13 @@ const AddSoftwareVppForm = ({
     setSelectedApp(app);
   };
 
-  const onAddSoftware = async () => {
+  const onAddSoftware = async (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
     if (!selectedApp) {
       return;
     }
+
+    setIsUploading(true);
 
     try {
       await mdmAppleAPI.addVppApp(
@@ -164,8 +169,7 @@ const AddSoftwareVppForm = ({
       renderFlash(
         "success",
         <>
-          <b>{selectedApp.name}</b> successfully added. Go to Host details page
-          to install software.
+          <b>{selectedApp.name}</b> successfully added.
         </>
       );
 
@@ -173,6 +177,8 @@ const AddSoftwareVppForm = ({
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }
+
+    setIsUploading(false);
   };
 
   const renderContent = () => {
@@ -186,7 +192,7 @@ const AddSoftwareVppForm = ({
       }
 
       return (
-        <form>
+        <div className={`${baseClass}__form-fields`}>
           <VppAppList
             apps={vppApps}
             selectedApp={selectedApp}
@@ -210,28 +216,38 @@ const AddSoftwareVppForm = ({
           >
             Self-service
           </Checkbox>
-        </form>
+        </div>
       );
     }
 
     return null;
   };
 
+  const contentWrapperClasses = classnames(`${baseClass}__content-wrapper`, {
+    [`${baseClass}__content-disabled`]: isUploading,
+  });
+
   return (
-    <form className={baseClass}>
-      <div className={`${baseClass}__content`}>{renderContent()}</div>
-      <div className={`${baseClass}__action-buttons`}>
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={isSubmitDisabled}
-          onClick={onAddSoftware}
-        >
-          Add software
-        </Button>
-        <Button onClick={goBackToSoftwareTitles} variant="inverse">
-          Cancel
-        </Button>
+    <form className={baseClass} onSubmit={onAddSoftware}>
+      {isUploading && <div className={`${baseClass}__overlay`} />}
+      <div className={contentWrapperClasses}>
+        <p>Apple App Store apps purchased via Apple Business Manager:</p>
+        <div className={`${baseClass}__form-content`}>
+          <>{renderContent()}</>
+          <div className={`${baseClass}__action-buttons`}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isSubmitDisabled}
+              isLoading={isUploading}
+            >
+              Add software
+            </Button>
+            <Button onClick={goBackToSoftwareTitles} variant="inverse">
+              Cancel
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

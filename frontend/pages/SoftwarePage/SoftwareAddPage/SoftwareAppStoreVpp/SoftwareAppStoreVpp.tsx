@@ -67,7 +67,6 @@ const SoftwareAppStoreVpp = ({
 
     return (
       <div className={`${baseClass}__content`}>
-        <p>Apple App Store apps purchased via Apple Business Manager:</p>
         <AddSoftwareVppForm
           router={router}
           teamId={currentTeamId}
