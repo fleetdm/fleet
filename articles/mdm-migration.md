@@ -19,12 +19,12 @@ To migrate hosts, we will do the following steps:
 
 ### Step 1: enroll hosts to Fleet
 
-1. First your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
+1. First enroll your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
 ### Step 2: assign hosts in Apple Business Manager (ABM) to Fleet
 
-1. In ABM, unassign the your hosts from your current MDM solution: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
+1. In ABM, unassign your hosts from your current MDM solution: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
 2. Assign these hosts to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 
@@ -62,7 +62,7 @@ Configuration:
 
 - In Fleet, you can configure the end user workflow using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-- After your configured the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
+- After you configure the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
 
 - Fleet UI:
 1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**.
