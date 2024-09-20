@@ -9,6 +9,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import TabsWrapper from "components/TabsWrapper";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "software-add-page";
 
@@ -71,9 +72,15 @@ const SoftwareAddPage = ({
     [location, router]
   );
 
-  // Quick exit if no team id. This page must have a team id to function
-  // correctly. TODO: what do we want to show here?
+  // Quick exit if no team_id param. This page must have a team id to function
+  // correctly. We redirect to the same page with the "No team" context if it
+  // is not provieded.
   if (!location.query.team_id) {
+    router.replace(
+      `${location.pathname}?${buildQueryStringFromParams({
+        team_id: APP_CONTEXT_NO_TEAM_ID,
+      })}`
+    );
     return null;
   }
 
