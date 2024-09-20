@@ -1,10 +1,9 @@
 import React from "react";
 
-import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 
-const baseClass = "automatic-enrollment-card";
+import SectionCard from "../../SectionCard";
 
 interface IAppleAutomaticEnrollmentCardProps {
   isAppleMdmOn: boolean;
@@ -17,36 +16,31 @@ const AppleAutomaticEnrollmentCard = ({
   viewDetails,
   configured,
 }: IAppleAutomaticEnrollmentCardProps) => {
-  let icon = "";
-  let msg =
-    "To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM.";
-  if (isAppleMdmOn && !configured) {
-    msg =
-      "Add an Apple Business Manager (ABM) connection to automatically enroll newly " +
-      "purchased Apple hosts when they're first unboxed and set up by your end users.";
-  } else if (isAppleMdmOn && configured) {
-    msg = "Automatic enrollment for Apple (macOS, iOS, iPadOS) is enabled.";
-    icon = "success";
-  }
+  const appleMdmDiabledCard = (
+    <SectionCard header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.">
+      To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first
+      turn on Apple MDM.
+    </SectionCard>
+  );
 
-  return (
-    <Card className={baseClass} color="gray">
-      <div>
-        {!icon && (
-          <h3>Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.</h3>
-        )}
-        <p>
-          {icon ? (
-            <span>
-              <Icon name="success" />
-              {msg}
-            </span>
-          ) : (
-            msg
-          )}
-        </p>
-      </div>
-      {isAppleMdmOn && !configured && (
+  const isAbmConfiguredCard = (
+    <SectionCard
+      iconName="success"
+      cta={
+        <Button onClick={viewDetails} variant="text-icon">
+          <Icon name="pencil" />
+          Edit
+        </Button>
+      }
+    >
+      Automatic enrollment for Apple (macOS, iOS, iPadOS) is enabled.
+    </SectionCard>
+  );
+
+  const isAbmNotConfiguredCard = (
+    <SectionCard
+      header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts."
+      cta={
         <Button
           className="add-abm-button"
           onClick={viewDetails}
@@ -54,15 +48,19 @@ const AppleAutomaticEnrollmentCard = ({
         >
           Add ABM
         </Button>
-      )}
-      {isAppleMdmOn && configured && (
-        <Button onClick={viewDetails} variant="text-icon">
-          <Icon name="pencil" />
-          Edit
-        </Button>
-      )}
-    </Card>
+      }
+    >
+      Add an Apple Business Manager (ABM) connection to automatically enroll
+      newly purchased Apple hosts when they&apos;re first unboxed and set up by
+      your end users.
+    </SectionCard>
   );
+
+  if (!isAppleMdmOn) {
+    return appleMdmDiabledCard;
+  }
+
+  return configured ? isAbmConfiguredCard : isAbmNotConfiguredCard;
 };
 
 export default AppleAutomaticEnrollmentCard;

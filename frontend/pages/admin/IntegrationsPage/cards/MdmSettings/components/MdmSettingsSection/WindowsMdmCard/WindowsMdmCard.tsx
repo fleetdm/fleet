@@ -5,43 +5,50 @@ import { AppContext } from "context/app";
 import Card from "components/Card/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import SectionCard from "../../SectionCard";
 
 const baseClass = "windows-mdm-card";
 
-interface ITurnOnWindowsMdmProps {
+interface ITurnOnWindowsMdmCardProps {
   onClickTurnOn: () => void;
 }
 
-const TurnOnWindowsMdm = ({ onClickTurnOn }: ITurnOnWindowsMdmProps) => {
+const TurnOnWindowsMdmCard = ({
+  onClickTurnOn,
+}: ITurnOnWindowsMdmCardProps) => {
   return (
-    <div className={`${baseClass}__turn-on-windows`}>
-      <div>
-        <h3>Turn on Windows MDM</h3>
-        <p>Turn MDM on for Windows hosts with fleetd.</p>
-      </div>
-      <Button variant="brand" onClick={onClickTurnOn}>
-        Turn on
-      </Button>
-    </div>
+    <SectionCard
+      header="Turn on Windows MDM"
+      cta={
+        <Button variant="brand" onClick={onClickTurnOn}>
+          Turn on
+        </Button>
+      }
+    >
+      Turn MDM on for Windows hosts with fleetd.
+    </SectionCard>
   );
 };
 
-interface ITurnOffWindowsMdmProps {
+interface ITurnOffWindowsMdmCardProps {
   onClickEdit: () => void;
 }
 
-const TurnOffWindowsMdm = ({ onClickEdit }: ITurnOffWindowsMdmProps) => {
+const TurnOffWindowsMdmCard = ({
+  onClickEdit,
+}: ITurnOffWindowsMdmCardProps) => {
   return (
-    <div className={`${baseClass}__turn-off-windows`}>
-      <div>
-        <Icon name="success" />
-        <p>Windows MDM turned on (servers excluded).</p>
-      </div>
-      <Button onClick={onClickEdit} variant="text-icon">
-        <Icon name="pencil" />
-        Edit
-      </Button>
-    </div>
+    <SectionCard
+      iconName="success"
+      cta={
+        <Button onClick={onClickEdit} variant="text-icon">
+          <Icon name="pencil" />
+          Edit
+        </Button>
+      }
+    >
+      Windows MDM turned on (servers excluded).
+    </SectionCard>
   );
 };
 
@@ -59,14 +66,10 @@ const WindowsMdmCard = ({
   const isWindowsMdmEnabled =
     config?.mdm?.windows_enabled_and_configured ?? false;
 
-  return (
-    <Card className={baseClass} color="gray">
-      {isWindowsMdmEnabled ? (
-        <TurnOffWindowsMdm onClickEdit={editWindowsMdm} />
-      ) : (
-        <TurnOnWindowsMdm onClickTurnOn={turnOnWindowsMdm} />
-      )}
-    </Card>
+  return isWindowsMdmEnabled ? (
+    <TurnOffWindowsMdmCard onClickEdit={editWindowsMdm} />
+  ) : (
+    <TurnOnWindowsMdmCard onClickTurnOn={turnOnWindowsMdm} />
   );
 };
 
