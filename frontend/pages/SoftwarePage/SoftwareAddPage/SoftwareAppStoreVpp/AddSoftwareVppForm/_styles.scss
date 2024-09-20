@@ -34,6 +34,10 @@
 
 
   // enable and no software message styles
+  &__enable-vpp-card, &__no-software-card {
+    padding: $pad-xxxlarge auto;
+  }
+
   &__enable-vpp-message, &__no-software-message {
     display: flex;
     flex-direction: column;

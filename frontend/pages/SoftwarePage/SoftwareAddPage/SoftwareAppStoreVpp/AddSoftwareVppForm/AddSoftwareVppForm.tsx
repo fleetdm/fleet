@@ -21,7 +21,7 @@ const baseClass = "add-software-vpp-form";
 
 const EnableVppCard = () => {
   return (
-    <Card paddingSize="xxlarge" borderRadiusSize="medium">
+    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
       <div className={`${baseClass}__enable-vpp-message`}>
         <p className={`${baseClass}__enable-vpp-title`}>
           Volume Purchasing Program (VPP) isn&apos;t enabled
@@ -40,7 +40,7 @@ const EnableVppCard = () => {
 };
 
 const NoVppAppsCard = () => (
-  <Card paddingSize="xxlarge" borderRadiusSize="medium">
+  <Card borderRadiusSize="medium" paddingSize="xxxlarge">
     <div className={`${baseClass}__no-software-message`}>
       <p className={`${baseClass}__no-software-title`}>
         You don&apos;t have any App Store apps
