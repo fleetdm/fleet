@@ -3061,6 +3061,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 }
 ```
 
+### Get status of software batch-apply request
 _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/batch/{request_uuid}`
