@@ -1,0 +1,36 @@
+.section-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $pad-xlarge;
+
+  &__content-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: $pad-small;
+    margin: 0;
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
+
+  .button {
+    height: auto;
+    white-space: nowrap;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    font-size: $x-small;
+
+    h3 {
+      font-size: $x-small;
+      font-weight: $bold;
+      margin: 0 0 $pad-xsmall;
+    }
+  }
+}
