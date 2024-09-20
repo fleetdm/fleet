@@ -25,6 +25,20 @@ parasails.registerPage('basic-article', {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
       ol.style.counterReset = 'custom-counter ' + startValue;
     });
+    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        container: '#docsearch-query',
+        placeholder: 'Search',
+        debug: false,
+        clickAnalytics: true,
+        searchParameters: {
+          facetFilters: ['section:docs']
+        },
+      });
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

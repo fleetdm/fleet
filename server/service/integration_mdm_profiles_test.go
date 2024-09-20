@@ -1159,18 +1159,16 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// useful for debugging
-	//mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	//	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-	//	return nil
-	//})
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
+	// 	return nil
+	// })
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		mdmHost: {
 			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 

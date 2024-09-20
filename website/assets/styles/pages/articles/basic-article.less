@@ -10,8 +10,126 @@
     width: 100%;
   }
 
+  [purpose='breadcrumbs-and-search'] {
+    padding-top: 64px;
+    max-width: 1072px;
+    margin: auto;
+    font-size: 14px;
+    [purpose='breadcrumbs'] {
+      margin-right: 24px;
+    }
+    [purpose='search'] {
+      // Note: We're using classes here to override the default Docsearch styles;
+      button {
+        width: 100%;
+        cursor: text;
+        margin: 0;
+      }
+      .DocSearch-Button {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        border: 1px solid @core-fleet-black-25;
+        background-color: #FFF;
+        padding: 6px;
+        height: 36px;
+        margin: 0;
+        width: 256px;
+      }
+      .DocSearch-Button:hover {
+        box-shadow: none;
+        border: 1px solid @core-fleet-black-25;
+        color: @core-fleet-black-50;
+      }
+      .DocSearch-Search-Icon {
+        margin-left: 10px;
+        height: 16px;
+        width: 16px;
+        color: @core-fleet-black-50;
+        stroke-width: 3px;
+      }
+      .DocSearch-Button-Keys {
+        display: none;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-vibrant-blue;
+      }
+      .DocSearch-Button-Placeholder {
+        font-size: 16px;
+        font-weight: 400;
+        padding-left: 12px;
+      }
+      [purpose='disabled-search'] {
+        input {
+          padding-top: 6px;
+          padding-bottom: 6px;
+          border: none;
+          } &::placeholder {
+            font-size: 16px;
+            line-height: 24px;
+            color: #8B8FA2;
+          }
+        .input-group {
+          border-top-left-radius: 6px;
+          border-bottom-left-radius: 6px;
+          border-top-right-radius: 6px;
+          border-bottom-right-radius: 6px;
+          border: 1px solid @core-fleet-black-25;
+          background: #FFF;
+        }
+        .input-group:focus-within {
+          border: 1px solid @core-vibrant-blue;
+        }
+        .form-control {
+          border-radius: 6px;
+          padding: 6px;
+          height: 36px;
+          margin: 0;
+          width: 212px;
+        }
+        .docsearch-input:focus-visible {
+          outline: none;
+        }
+        .ds-input:focus {
+          outline: rgba(0, 0, 0, 0);
+        }
+        .input-group-text {
+          color: @core-fleet-black-50;
+        }
+        .form-control {
+          height: 36px;
+          padding: 0px;
+          font-size: 16px;
+        } &:focus {
+          border: none;
+        }
+      }
+    }
+
+    [purpose='breadcrumbs-category'] {
+      color: #8B8FA2;
+      text-transform: capitalize;
+      margin-right: 8px;
+      &:hover {
+        color: #192147;
+        text-decoration: none;
+      }
+    }
+    [purpose='breadcrumbs-title'] {
+      margin-left: 8px;
+    }
+
+  }
+  [purpose='article-container'] {
+    max-width: 800px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+
+  }
   [purpose='article-title'] {
-    padding-top: 80px;
+    padding-top: 64px;
     margin-bottom: 28px;
     h1 {
       margin-bottom: 4px;
@@ -107,8 +225,8 @@
     }
   }
   [purpose='article-content'] {
-    padding-top: 24px;
-    padding-bottom: 24px;
+    padding-top: 40px;
+    padding-bottom: 40px;
     word-wrap: break-word;
     h1:first-of-type {
       display: none;
@@ -126,8 +244,13 @@
       padding: 24px 0px 16px 0px;
     }
     a {
-      color: @core-vibrant-blue;
+      color: @core-fleet-black-75;
       word-break: break-word;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      &:hover {
+        color: @core-fleet-black-75;
+      }
     }
     h2 {
       font-size: 24px;
@@ -429,6 +552,18 @@
     [purpose='article-content'] {
       padding-bottom: 0px;
     }
+    [purpose='breadcrumbs-and-search'] {
+      [purpose='breadcrumbs'] {
+        margin-bottom: 24px;
+        margin-right: auto;
+      }
+      [purpose='search'] {
+        width: 100%;
+        .DocSearch-Button {
+          width: 100%;
+        }
+      }
+    }
   }
 
   @media (max-width: 769px) {
@@ -448,6 +583,10 @@
         top: 4px;
         margin-bottom: 16px;
       }
+    }
+    [purpose='breadcrumbs-and-search'] {
+      padding-top: 32px;
+
     }
 
   }
