@@ -45,6 +45,7 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft teams": Teams,
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
+  "google chrome": ChromeApp,
   darwin: MacOS,
   windows: WindowsOS,
   chrome: ChromeOS,
@@ -113,8 +114,6 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name === "zoom":
       return Zoom;
-    case name === "google chrome":
-      return ChromeApp;
     default:
       return null;
   }

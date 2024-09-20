@@ -1,0 +1,2 @@
+- Fixes a bug where a profile wouldn't be removed from a host if it was deleted or if the host was
+  moved to another team before the profile was installed on the host.
