@@ -10,13 +10,13 @@ Fleet [v4.50.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.50.0) int
 
 * `fleetd` 1.25.0 deployed via MDM or built with the `--scripts-enabled` flag.
 
+> `fleetd` prior to 1.33.0 will use a hard-coded uninstall script to clean up from a failed install. As of 1.33.0, the (default or customized) uninstall script will be used to clean up failed installs.
+
 * An S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the installers.
 
 * Increase any load balancer timeouts to at least 5 minutes for the following endpoints:
 
     * [Add software](https://fleetdm.com/docs/rest-api/rest-api#add-software).
-
-    * [Batch-apply software](https://fleetdm.com/docs/rest-api/rest-api#add-software).
 
 ## Step-by-step instructions
 
@@ -27,6 +27,8 @@ To access and manage software in Fleet:
 * **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
 * **Select a team**: Click on the dropdown at the top left of the page.
+
+> Software packages are tied to a specific team. This allows you to, for example, test a newer release of an application within your IT team before rolling it out to the rest of your organization, or deploy the appropriate architecture-specific installer to both Intel and Apple Silicon Macs.
 
 * **Find your software**: using the filters on the top of the table, you can choose between:
 
@@ -44,9 +46,9 @@ To access and manage software in Fleet:
 
 > Software cannot be added to "All teams."
 
-* Click the “Add Software” button in the top right corner, and a modal will appear.
+* Click the “Add Software” button in the top right corner, and a dialog will appear.
 
-* Choose a file to upload. `.pkg`, `.msi`, `.exe`, or `.deb` files are supported.
+* Choose a file to upload. `.pkg`, `.msi`, `.exe`, and `.deb` files are supported.
 
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
@@ -56,11 +58,11 @@ To access and manage software in Fleet:
 
     * **Install script**: After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process, this script can be edited. Learn more about [install scripts](https://fleetdm.com/learn-more-about/install-scripts).
 
-    * **Post-install script** A post-install script will run after the installation, allowing you to configure the security agent right after installation. If this script returns a non-zero exit code, the installation will fail, and `fleetd` will attempt to uninstall the software.
+    * **Post-install script** A post-install script will run after the installation, allowing you to, for example, configure the security agent right after installation. If this script returns a non-zero exit code, the installation will fail, and `fleetd` will attempt to uninstall the software.
 
     * **Uninstall script** An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process. Learn more about [uninstall scripts](https://fleetdm.com/learn-more-about/uninstall-scripts).
 
-> After the initial package upload, all of these options, including the self-service setting, pre-install query, scripts, and even the software file, can be modified.
+> After the initial package upload, all of these options, including the self-service setting, pre-install query, scripts, and even the software package file, can be modified.
 
 ### Install a software package on a host
 
@@ -86,7 +88,7 @@ After a software package is added to a team, it can be installed on hosts via th
 
 * **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
-* **Select a team**: Select a team or the "No team" team to add a software package.
+* **Select a team**: Select a team (or "No team") to switch to the team whose software you want to edit.
 
 * **Find your software**: using the filters on the top of the table, you can choose between:
 
@@ -98,7 +100,7 @@ After a software package is added to a team, it can be installed on hosts via th
 
 * **Edit software package**: From the Actions menu, select "Edit."
 
-> If a new software package is uploaded, all software statuses and their respective counts will reset. Editing the pre-install query, install script, post-install script, or uninstall script will reset all pending installations and uninstallations.
+> Editing the pre-install query, install script, post-install script, or uninstall script cancels all pending installations and uninstallations for that package, except for installs and uninstalls that are currently running on a host. If a new software package is uploaded, in addition to cancelling pending installs and uninstalls, host counts (for installs, as well as pending and failed installs and uninstalls) will be reset to zero, so counts reflect the currently uploaded version of the package.
 
 ### Uninstall a software package on a host
 
@@ -124,7 +126,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 * **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
-* **Select a team**: Select a team or the "No team" team to add a software package.
+* **Select a team**: Select a team (or "No team") to switch to the team whose software you want to remove.
 
 * **Find your software**: using the filters on the top of the table, you can choose between:
 
@@ -134,9 +136,9 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 * **Select software package**: Click on a software package to view details.
 
-* **Remove software package**: From the Actions menu, select "Delete." Click the "Delete" button on the modal.
+* **Remove software package**: From the Actions menu, select "Delete." Click the "Delete" button on the dialog.
 
-> Removing a software package from a team will not uninstall the software from the existing host(s).
+> Removing a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software, but will not uninstall the software from hosts where it is already installed.
 
 ### Manage software with the REST API
 
@@ -148,6 +150,8 @@ Software packages can be managed via `fleetctl` using [GitOps](https://fleetdm.c
 
 Please refer to the documentation for [managing software with GitOps](https://fleetdm.com/docs/using-fleet/gitops#software), for a real-world example, [see how we manage software at Fleet](https://github.com/fleetdm/fleet/tree/main/it-and-security/teams).
 
+> When managing software installers via GitOps, the Fleet server receiving GitOps requests (**not** the machine running fleetctl as part of the GitOps workflow) will download installers from the specified URLs directly.
+
 ## Conclusion
 
 Managing software with Fleet is straightforward and ensures your hosts are equipped with the latest tools. This guide has outlined how to access, add, edit, and remove software packages from a team, install and uninstall from specific hosts, and use the REST API and `fleetctl` to manage software packages. You can effectively maintain software packages across your fleet by following these steps.
@@ -158,6 +162,6 @@ For more information on advanced setups and features, explore Fleet’s [documen
 <meta name="authorFullName" value="Roberto Dip">
 <meta name="authorGitHubUsername" value="roperzh">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-05">
+<meta name="publishedOn" value="2024-09-20">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-security-agents-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through adding and editing software packages in Fleet.">
