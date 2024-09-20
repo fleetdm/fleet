@@ -1,6 +1,6 @@
 ## Orbit 1.33.0 (Sep 20, 2024)
 
-During software install flow, if installer's post-install script fails, run the uninstall script to attempt to roll back.
+* Added support to run the configured uninstall script when installer's post-install script fails.
 
 * Updated Go to go1.23.1
 
