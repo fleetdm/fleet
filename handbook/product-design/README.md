@@ -38,7 +38,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - If the story requires API, YAML file, or other reference documentation changes, open a pull request to the reference docs release branch (e.g. `docs-v4.58.0`) with the proposed design. Mark the PR ready for review as soon as it's ready for feedback from the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
 
-- Add links to the user story as specified in the current [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
+- Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
 - Draft changes to the Fleet product that solve the problem specified in the story. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
 
