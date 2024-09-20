@@ -19,12 +19,12 @@ To migrate hosts, we will do the following steps:
 
 ### Step 1: enroll hosts to Fleet
 
-1. First enroll your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
+1. First, enroll your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
 ### Step 2: assign hosts in Apple Business Manager (ABM) to Fleet
 
-1. In ABM, unassign your hosts from your current MDM solution: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
+1. In ABM, unassign your hosts from your current MDM solution by selecting **Devices** and then selecting **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
 2. Assign these hosts to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 
@@ -34,13 +34,13 @@ There are two migration workflows in Fleet: default and end user.
 
 The default migration workflow requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
 
-The end user migration workflow allows the end user to kick off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet. This reduces the gap in MDM coverage.
+The end user migration workflow allows the user to kick off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet, reducing the gap in MDM coverage.
 
 #### Default workflow
 
 End user experience:
 
-- After a host is unenrolled from your current MDM solution, if the host is assigned to Fleet in ABM, the end user will be prompted with Apple's **Remote Management** full-screen popup.
+- After a host is unenrolled from your current MDM solution, the end user will be prompted with Apple's **Remote Management** full-screen popup if the host is assigned to Fleet in ABM.
 <img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
 - If the host is not assigned to Fleet in ABM (manual enrollment), the end user will be given the option to download the MDM enrollment profile on their **My device page**.
 <img width="1600" alt="Fleet icon in menu bar" src="https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
@@ -48,7 +48,7 @@ End user experience:
 
 Configuration:
 
-- To kick off the default workflow, in your current MDM solution, unenroll the hosts to be migrated. macOS does not allow a host to be connected to multiple MDM solutions at once.
+- To kick off the default workflow, unenroll the hosts to be migrated in your current MDM solution. MacOS does not allow a host to be connected to multiple MDM solutions at once.
 
 #### End user workflow
 
@@ -56,19 +56,19 @@ Configuration:
 
 End user experience:
 
-- To watch an animation of the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
+- To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section.
 
 Configuration:
 
 - In Fleet, you can configure the end user workflow using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-- After you configure the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
+- After configuring the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
 
 - Fleet UI:
 1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**.
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
-3. Under **Mode** choose a mode and enter the webhook URL for your automation tool (ex. Tines) under **Webhook URL** and select **Save**.
-4. During the end user migration workflow, an end user's device will have their selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
+3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
+4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
 Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
 - Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
 - GitOps:
@@ -79,13 +79,13 @@ Head to **Settings** > **Organization settings** > **Organization info**, add UR
 
 To see a report of which hosts have successfully migrated to Fleet, have MDM features off, or are still enrolled to your old MDM solution head to the **Dashboard** page by clicking the icon on the left side of the top navigation bar.
 
-Then, scroll down to the **Mobile device management (MDM)** section of the Dashboard, you'll see a breakdown of which hosts have successfully migrated to Fleet, which have MDM features disabled, and which are still enrolled in the previous MDM solution.
+Then, scroll down to the **Mobile device management (MDM)** section of the Dashboard. You'll see a breakdown of which hosts have successfully migrated to Fleet, which have MDM features disabled, and which are still enrolled in the previous MDM solution.
 
 ## FileVault recovery keys
 
 _Available in Fleet Premium_
 
-When migrating from a previous MDM, end users need to restart or logout of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions to reset their key.
+When migrating from a previous MDM, end users must restart or log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
 
 To start, enforce FileVault disk encryption and escrow recovery keys in Fleet. Learn how [here](https://fleetdm.com/guides/enforce-disk-encryption).
 
@@ -111,7 +111,7 @@ In 2024, Apple added the ability to manage activation lock in Apple Business Man
 
 If a device is not available in ABM and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
 
-This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac.
+If the Activation Lock is enabled, you will need the Activation Lock bypass code to wipe and reuse the Mac successfully.
 
 However, Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
 
