@@ -42,7 +42,6 @@ End users are encouraged to update macOS (via [Nudge](https://github.com/macadmi
 
 End users will see a notification in their Notification Center after the deadline when a minimum version is enforced. They can’t use their iPhone or iPad until the OS update is installed.
 
-### iOS and iPadOS (version 17.0 and above)
 
 For iOS and iPadOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
 minimum version, it will be required to update to the very latest OS version during ADE before device setup and enrollment can proceed.
