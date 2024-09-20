@@ -1,0 +1,15 @@
+.scep-page {
+  &__back-to-mdm {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-xxlarge;
+    font-size: $x-large;
+  }
+
+  p {
+    font-size: $x-small;
+    margin: 0 0 $pad-large;
+  }
+}
