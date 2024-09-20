@@ -14,10 +14,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Checkbox from "components/forms/fields/Checkbox";
 import { InjectedRouter } from "react-router";
 import { buildQueryStringFromParams } from "utilities/url";
-import {
-  getErrorMessage,
-  getUniqueAppId,
-} from "pages/SoftwarePage/components/AppStoreVpp/helpers";
+import { getErrorMessage, getUniqueAppId } from "./helpers";
 
 const baseClass = "add-software-vpp-form";
 
@@ -42,8 +39,8 @@ const EnableVppCard = () => {
 };
 
 const NoVppAppsCard = () => (
-  <Card borderRadiusSize="medium">
-    <div className={`${baseClass}__no-software`}>
+  <Card paddingSize="xxlarge" borderRadiusSize="medium">
+    <div className={`${baseClass}__no-software-message`}>
       <p className={`${baseClass}__no-software-title`}>
         You don&apos;t have any App Store apps
       </p>

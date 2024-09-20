@@ -7,10 +7,21 @@
     gap: $pad-medium;
   }
 
-  &__enable-vpp-message {
+  &__enable-vpp-message, &__no-software-message {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
     align-items: center;
+  }
+
+  &__no-software-title {
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__no-software-description {
+    margin: 0;
+    color: $ui-fleet-black-75;
+    text-align: center;
   }
 }

@@ -71,6 +71,12 @@ const SoftwareAddPage = ({
     [location, router]
   );
 
+  // Quick exit if no team id. This page must have a team id to function
+  // correctly. TODO: what do we want to show here?
+  if (!location.query.team_id) {
+    return null;
+  }
+
   const backUrl = `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
     team_id: location.query.team_id,
   })}`;
@@ -102,7 +108,7 @@ const SoftwareAddPage = ({
         </TabsWrapper>
         {React.cloneElement(children, {
           router,
-          currentTeamId: location.query.team_id,
+          currentTeamId: parseInt(location.query.team_id, 10),
         })}
       </>
     </MainContent>
