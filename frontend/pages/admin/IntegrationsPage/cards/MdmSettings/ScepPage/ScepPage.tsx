@@ -101,21 +101,23 @@ const useSetCertificate = ({
   return turnOnWindowsMdm;
 };
 
-interface IWindowsMdmOnContentProps {
+interface IScepCertificateContentProps {
   router: InjectedRouter;
   onFileUpload: () => void;
+  onFormSubmit: () => void;
   isUploading: boolean;
   formData: any; // TODO
   onInputChange: ({ name, value }: IFormField) => void;
 }
 
-const WindowsMdmOnContent = ({
+const ScepCertificateContent = ({
   router,
   onFileUpload,
+  onFormSubmit,
   isUploading,
   formData,
   onInputChange,
-}: IWindowsMdmOnContentProps) => {
+}: IScepCertificateContentProps) => {
   const turnOnWindowsMdm = useSetCertificate({
     enable: true,
     successMessage: "Windows MDM turned on (servers excluded).",
@@ -129,17 +131,16 @@ const WindowsMdmOnContent = ({
       <p>
         Add a SCEP connection to enable Fleet to get SCEP certificates from your
         custom SCEP server and install them on macOS hosts.
-      </p>
-      <p>
+        <br />
+        <br />
         Fleet currently supports Microsoft&apos;s Network Device Enrollment
         Service (NDES) as a custom SCEP server.
       </p>
       <div>
-        <ol className={`${baseClass}__setup-instructions-list`}>
+        <ol className={`${baseClass}__steps`}>
           <li>
-            <span>1. </span>
-            <span>Configure your NDES admin account using the form below:</span>
-            <div className={`${baseClass}__url-inputs-wrapper`}>
+            Configure your NDES admin account using the form below:
+            <form onSubmit={onFormSubmit} autoComplete="off">
               <InputField
                 inputWrapperClass={`${baseClass}__url-input`}
                 label="URL"
@@ -148,7 +149,6 @@ const WindowsMdmOnContent = ({
                 value={formData.url}
                 onInputChange={onInputChange}
                 placeholder="https://url.example.com"
-                enableCopy
               />
               <InputField
                 inputWrapperClass={`${baseClass}__url-input`}
@@ -158,7 +158,6 @@ const WindowsMdmOnContent = ({
                 value={formData.username}
                 onInputChange={onInputChange}
                 placeholder="NDES admin username"
-                enableCopy
               />
               <InputField
                 inputWrapperClass={`${baseClass}__url-input`}
@@ -169,10 +168,17 @@ const WindowsMdmOnContent = ({
                 onInputChange={onInputChange}
                 placeholder="NDES admin password"
               />
-            </div>
+              <Button
+                type="submit"
+                variant="brand"
+                className="button-wrap"
+                isLoading={isUploading} // TODO
+              >
+                Save
+              </Button>
+            </form>
           </li>
           <li>
-            <span>2. </span>
             <span>
               Follow instructions to get your signing certificate from NDES{" "}
               <CustomLink
@@ -183,9 +189,7 @@ const WindowsMdmOnContent = ({
             </span>
           </li>
           <li>
-            <span>3. </span>
-            <span>Upload your certificate (.pfx file) below.</span>
-            <br />
+            Upload your certificate (.pfx file) below.
             <FileUploader
               className={`${baseClass}__file-uploader ${
                 isUploading ? `${baseClass}__file-uploader--loading` : ""
@@ -194,8 +198,8 @@ const WindowsMdmOnContent = ({
               buttonMessage={isUploading ? "Uploading..." : "Upload"}
               buttonType="link"
               disabled={isUploading}
-              graphicName="file-pem"
-              message="APNs certificate (.pem)"
+              graphicName="file-pfx"
+              message="Signing certificate (.pfx)"
               onFileUpload={onFileUpload}
             />
           </li>
@@ -209,22 +213,20 @@ interface IWindowsMdmOffContentProps {
   router: InjectedRouter;
 }
 
-const WindowsMdmOffContent = ({ router }: IWindowsMdmOffContentProps) => {
-  const turnOffWindowsMdm = useSetCertificate({
+// TODO: Confirm as this is not in Figma
+const UploadCertificateContent = ({ router }: IWindowsMdmOffContentProps) => {
+  const removeScepCertificate = useSetCertificate({
     enable: false,
-    successMessage: "Windows MDM turned off.",
-    errorMessage: "Unable to turn off Windows MDM. Please try again.",
+    successMessage: "SCEP certificate was removed.",
+    errorMessage: "Unable to remove SCEP certificate. Please try again.",
     router,
   });
 
   return (
     <>
-      <h1>Turn off Windows MDM</h1>
-      <p>
-        MDM will no longer be turned on for Windows hosts that enroll to Fleet.
-      </p>
-      <p>Hosts with MDM already turned on MDM will not have MDM removed.</p>
-      <Button onClick={turnOffWindowsMdm}>Turn off MDM</Button>
+      <h1>Remove SCEP certificate</h1>
+      <p>TODO</p>
+      <Button onClick={removeScepCertificate}>Remove SCEP</Button>
     </>
   );
 };
@@ -232,6 +234,7 @@ const WindowsMdmOffContent = ({ router }: IWindowsMdmOffContentProps) => {
 interface IScepPageProps {
   router: InjectedRouter;
   onFileUpload: () => void;
+  onSaveNdes: () => void;
   isUploading: boolean;
 }
 
@@ -246,7 +249,12 @@ export interface IFormField {
   value: string;
 }
 
-const ScepPage = ({ router, onFileUpload, isUploading }: IScepPageProps) => {
+const ScepPage = ({
+  router,
+  onFileUpload,
+  onSaveNdes,
+  isUploading,
+}: IScepPageProps) => {
   const { config } = useContext(AppContext);
 
   const ndesInfoReturnedFromApi = {
@@ -283,11 +291,12 @@ const ScepPage = ({ router, onFileUpload, isUploading }: IScepPageProps) => {
           className={`${baseClass}__back-to-mdm`}
         />
         {isScepCertificateUploaded ? (
-          <WindowsMdmOffContent router={router} />
+          <UploadCertificateContent router={router} />
         ) : (
-          <WindowsMdmOnContent
+          <ScepCertificateContent
             router={router}
             onFileUpload={onFileUpload}
+            onFormSubmit={onSaveNdes}
             isUploading={isUploading}
             formData={formData}
             onInputChange={onInputChange}

@@ -18,6 +18,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-py"
   | "file-script"
   | "file-pdf"
+  | "file-pfx"
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
