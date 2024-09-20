@@ -1,0 +1,16 @@
+.add-software-vpp-form {
+  display: flex;
+  gap: $pad-xxlarge;
+
+  &__action-buttons {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__enable-vpp-message {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
+  }
+}

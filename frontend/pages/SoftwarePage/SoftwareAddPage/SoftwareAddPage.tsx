@@ -23,12 +23,12 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
   },
   {
-    name: "Package",
-    pathname: PATHS.SOFTWARE_ADD_PACKAGE,
-  },
-  {
     name: "App store (VPP)",
     pathname: PATHS.SOFTWARE_ADD_APP_STORE,
+  },
+  {
+    name: "Custom Package",
+    pathname: PATHS.SOFTWARE_ADD_PACKAGE,
   },
 ];
 
@@ -62,7 +62,7 @@ const SoftwareAddPage = ({
     (i: number): void => {
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
-        team_id: location?.query.team_id,
+        team_id: location.query.team_id,
       });
 
       const navPath = addSoftwareSubNav[i].pathname.concat(`?${teamIdParam}`);
@@ -71,12 +71,16 @@ const SoftwareAddPage = ({
     [location, router]
   );
 
+  const backUrl = `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+    team_id: location.query.team_id,
+  })}`;
+
   return (
     <MainContent className={baseClass}>
       <>
         <BackLink
           text="Back to software"
-          path={PATHS.SOFTWARE_TITLES}
+          path={backUrl}
           className={`${baseClass}__back-to-software`}
         />
         <h1>Add Software</h1>
