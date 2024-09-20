@@ -1,3 +1,9 @@
+## Orbit 1.33.0 (Sep 20, 2024)
+
+During software install flow, if installer's post-install script fails, run the uninstall script to attempt to roll back.
+
+* Updated Go to go1.23.1
+
 ## Orbit 1.32.0 (Aug 29, 2024)
 
 * Bumped macadmins extension to use SOFA feed sofafeed.macadmins.io
