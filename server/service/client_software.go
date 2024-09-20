@@ -56,7 +56,7 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 			return nil, err
 		}
 		switch {
-		case resp.Status == fleet.BatchSetSoftwareInstallersStatusPending:
+		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(5 * time.Second)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
 			return nil, errors.New(resp.Message)

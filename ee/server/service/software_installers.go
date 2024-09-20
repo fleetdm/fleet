@@ -1114,7 +1114,10 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	return meta.Extension, nil
 }
 
-const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
+const (
+	maxInstallerSizeBytes int64 = 1024 * 1024 * 500
+	batchSoftwarePrefix         = "software_batch_"
+)
 
 func (svc *Service) BatchSetSoftwareInstallers(
 	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
@@ -1166,8 +1169,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	const keyExpireTime = 24 * time.Hour
 
 	requestUUID := uuid.NewString()
-	if err := svc.keyValueStore.Set(ctx, requestUUID, batchSetPending, keyExpireTime); err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetPending)
+	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
 	}
 
 	svc.logger.Log(
@@ -1189,7 +1192,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 }
 
 const (
-	batchSetPending      = "pending"
+	batchSetProcessing   = "processing"
 	batchSetCompleted    = "completed"
 	batchSetFailedPrefix = "failed:"
 )
@@ -1220,7 +1223,7 @@ func (svc *Service) softwareBatchUpload(
 		)
 		logger.Log("msg", "software batch done")
 		// Give 10m for the client to read the result (it overrides the previos expiration time).
-		if err := svc.keyValueStore.Set(ctx, requestUUID, status, 10*time.Minute); err != nil {
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, status, 10*time.Minute); err != nil {
 			logger.Log("msg", "failed to set result", "err", err)
 		}
 	}(time.Now())
@@ -1240,7 +1243,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", url, maxInstallerSizeBytes/(1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MiB", url, maxInstallerSizeBytes/(1024*1024)),
 				)
 			}
 
@@ -1251,12 +1254,12 @@ func (svc *Service) softwareBatchUpload(
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", url),
+				fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", url),
 			)
 		}
 
 		// Allow all 2xx and 3xx status codes in this pass.
-		if resp.StatusCode > 400 {
+		if resp.StatusCode >= 400 {
 			return nil, nil, fleet.NewInvalidArgumentError(
 				"software.url",
 				fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", url, resp.StatusCode),
@@ -1271,7 +1274,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", url, maxInstallerSizeBytes/(1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MiB", url, maxInstallerSizeBytes/(1024*1024)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
@@ -1373,10 +1376,13 @@ func (svc *Service) softwareBatchUpload(
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
-	// Authorization check happened already in BatchSetSoftwareInstallers.
-	svc.authz.SkipAuthorization(ctx)
+	// We've already authorized in the POST /api/latest/fleet/software/batch,
+	// but adding it here so we don't need to worry about a special case endpoint.
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return "", "", nil, err
+	}
 
-	result, err := svc.keyValueStore.Get(ctx, requestUUID)
+	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
 	if err != nil {
 		return "", "", nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
@@ -1388,9 +1394,9 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	case *result == batchSetCompleted:
 		if dryRun {
 			return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, nil
-		}
-	case *result == batchSetPending:
-		return fleet.BatchSetSoftwareInstallersStatusPending, "", nil, nil
+		} // this will fall through to retrieving software packages if not a dry run.
+	case *result == batchSetProcessing:
+		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
 		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
 		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil
@@ -1398,13 +1404,26 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return "", "", nil, ctxerr.New(ctx, "invalid status")
 	}
 
-	teamID := uint(0)
+	var (
+		teamID    uint  // GetSoftwareInstallers uses 0 for "No team"
+		ptrTeamID *uint // Authorize uses *uint for "No team" teamID
+	)
 	if tmName != "" {
 		team, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
 			return "", "", nil, ctxerr.Wrap(ctx, err, "load team by name")
 		}
 		teamID = team.ID
+		ptrTeamID = &team.ID
+	}
+
+	// We've already authorized in the POST /api/latest/fleet/software/batch,
+	// but adding it here so we don't need to worry about a special case endpoint.
+	//
+	// We use fleet.ActionWrite because this method is the counterpart of the POST
+	// /api/latest/fleet/software/batch.
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
+		return "", "", nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
