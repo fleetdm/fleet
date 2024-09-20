@@ -38,10 +38,18 @@ End users are encouraged to update macOS (via [Nudge](https://github.com/macadmi
 | End user can defer                   | ✅                      | ✅                      | ❌                    |
 | Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
 
+### iOS and iPadOS
+
+When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
+
 ### iOS and iPadOS (version 17.0 and above)
 
 For iOS and iPadOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
 minimum version, it will be required to update to the very latest OS version during ADE before device setup and enrollment can proceed.
+
+### Available versions for Apple hosts
+
+The Apple Software Lookup Service (available at https://gdmf.apple.com/v2/pmv) is the official resource to obtain a list of publicly available updates, upgrades and Rapid Security Responses. Make sure to use versions available in GDMF, otherwise the update will not be scheduled.
 
 ### Windows
 
@@ -54,10 +62,6 @@ End users are encouraged to update Windows via the native Windows dialog.
 If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
 
 Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
-
-### iOS and iPadOS
-
-When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
