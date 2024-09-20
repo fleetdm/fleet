@@ -18,9 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 func TestMDMAppleConfigProfile(t *testing.T) {

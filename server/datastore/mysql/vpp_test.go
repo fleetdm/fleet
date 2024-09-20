@@ -981,8 +981,10 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{team.ID})
 	assert.Error(t, err)
+	assert.ErrorContains(t, err, "\"Kritters\" team already has a VPP token.")
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{0})
 	assert.Error(t, err)
+	assert.ErrorContains(t, err, "\"No team\" team already has a VPP token.")
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)

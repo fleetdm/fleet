@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -955,7 +956,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1232,20 +1233,100 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
-	hostID uint,
+	host *fleet.Host,
 	results *fleet.OsqueryDistributedQueryResults,
 	statuses *map[string]fleet.OsqueryStatus,
 	messages *map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
+	//
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
-		preProcessSoftwareExtraResults(fullQueryName, hostID, results, statuses, messages, query, logger)
+		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
+
+	// Filter out python packages that are also deb packages on ubuntu
+	pythonPackageFilter(host.Platform, results, statuses)
+}
+
+// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu.
+// python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
+func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+	const pythonPrefix = "python3-"
+	const pythonSource = "python_packages"
+	const debSource = "deb_packages"
+	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
+
+	// Return early if platform is not Ubuntu
+	// We may need to add more platforms in the future
+	if platform != "ubuntu" {
+		return
+	}
+
+	// Check the 'software_linux' result and status
+	sw, ok := (*results)[linuxSoftware]
+	if !ok {
+		return
+	}
+	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
+		return
+	}
+
+	// Extract the Python and Debian packages from the software list for filtering
+	// pre-allocating space for 40 packages based on number of package found in
+	// a fresh ubuntu 24.04 install
+	pythonPackages := make(map[string]int, 40)
+	debPackages := make(map[string]struct{}, 40)
+
+	// Track indexes of rows to remove
+	indexesToRemove := []int{}
+
+	for i, row := range sw {
+		switch row["source"] {
+		case pythonSource:
+			loweredName := strings.ToLower(row["name"])
+			pythonPackages[loweredName] = i
+			row["name"] = loweredName
+		case debSource:
+			// Only append python3 deb packages
+			if strings.HasPrefix(row["name"], pythonPrefix) {
+				debPackages[row["name"]] = struct{}{}
+			}
+		}
+	}
+
+	// Return early if there are no Python packages to process
+	if len(pythonPackages) == 0 {
+		return
+	}
+
+	// Loop through pythonPackages map to identify any that should be removed
+	for name, index := range pythonPackages {
+		convertedName := pythonPrefix + name
+
+		// Filter out Python packages that are also Debian packages
+		if _, found := debPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
+		} else {
+			// Update remaining Python package names to match OVAL definitions
+			sw[index]["name"] = convertedName
+		}
+	}
+
+	// Sort indexes to remove in descending order
+	sort.Sort(sort.Reverse(sort.IntSlice(indexesToRemove)))
+
+	// Remove rows from sw in descending order of indexes
+	for _, index := range indexesToRemove {
+		sw = append(sw[:index], sw[index+1:]...)
+	}
+
+	// Store the updated software result back in the results map
+	(*results)[linuxSoftware] = sw
 }
 
 func preProcessSoftwareExtraResults(
@@ -1623,9 +1704,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		// We do not want to queue software installations on vanilla osquery hosts.
 		return nil
 	}
+
+	var policyTeamID uint
 	if hostTeamID == nil {
-		// TODO(lucas): Support hosts in "No team".
-		return nil
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
 	}
 
 	// Filter out results that are not failures (we are only interested on failing policies,
@@ -1643,7 +1727,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 
 	// Get policies with associated installers for the team.
-	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, *hostTeamID, incomingFailingPoliciesIDs)
+	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, policyTeamID, incomingFailingPoliciesIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
 	}
@@ -1713,7 +1797,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 		// hostLastInstall.Status == nil can happen when a software is installed by Fleet and later removed.
 		if hostLastInstall != nil && hostLastInstall.Status != nil &&
-			*hostLastInstall.Status == fleet.SoftwareInstallerPending {
+			*hostLastInstall.Status == fleet.SoftwareInstallPending {
 			// There's a pending install for this host and installer,
 			// thus we do not queue another install request.
 			level.Debug(svc.logger).Log(

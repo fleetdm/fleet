@@ -487,7 +487,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
-		if policy.Team != "" {
+		if policy.Team != "" && policy.Team != "No team" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned

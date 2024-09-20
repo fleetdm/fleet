@@ -18,6 +18,7 @@ import FleetIcon from "components/icons/FleetIcon";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
@@ -40,6 +41,10 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
     appInstallDetails,
@@ -105,6 +110,9 @@ const ActivityFeed = ({
         break;
       case ActivityType.InstalledSoftware:
         setPackageInstallDetails({ ...details });
+        break;
+      case ActivityType.UninstalledSoftware:
+        setPackageUninstallDetails({ ...details });
         break;
       case ActivityType.InstalledAppStoreApp:
         setAppInstallDetails({ ...details });
@@ -203,6 +211,12 @@ const ActivityFeed = ({
         <SoftwareInstallDetailsModal
           details={packageInstallDetails}
           onCancel={() => setPackageInstallDetails(null)}
+        />
+      )}
+      {packageUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          details={packageUninstallDetails}
+          onCancel={() => setPackageUninstallDetails(null)}
         />
       )}
       {appInstallDetails && (

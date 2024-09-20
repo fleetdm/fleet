@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, ReactNode } from "react";
+import React, { createContext, useReducer, useMemo, ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
@@ -32,12 +32,15 @@ export const TableContext = createContext<InitialStateType>(initialState);
 const TableProvider = ({ children }: Props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const value = {
-    resetSelectedRows: state.resetSelectedRows,
-    setResetSelectedRows: (resetSelectedRows: boolean) => {
-      dispatch({ type: actions.RESET_SELECTED_ROWS, resetSelectedRows });
-    },
-  };
+  const value = useMemo(
+    () => ({
+      resetSelectedRows: state.resetSelectedRows,
+      setResetSelectedRows: (resetSelectedRows: boolean) => {
+        dispatch({ type: actions.RESET_SELECTED_ROWS, resetSelectedRows });
+      },
+    }),
+    [state.resetSelectedRows]
+  );
 
   return (
     <TableContext.Provider value={value}>{children}</TableContext.Provider>

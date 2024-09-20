@@ -441,7 +441,6 @@ const HostSummary = ({
   };
 
   const renderSummary = () => {
-    console.log(hostMdmProfiles);
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
     // response for windows hosts.

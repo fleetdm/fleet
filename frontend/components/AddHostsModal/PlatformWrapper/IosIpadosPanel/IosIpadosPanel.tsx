@@ -6,7 +6,9 @@ import { AppContext } from "context/app";
 import InputField from "components/forms/fields/InputField";
 
 const generateUrl = (serverUrl: string, enrollSecret: string) => {
-  return `${serverUrl}/enroll?enroll_secret=${enrollSecret}`;
+  return `${serverUrl}/enroll?enroll_secret=${encodeURIComponent(
+    enrollSecret
+  )}`;
 };
 
 const baseClass = "ios-ipados-panel";

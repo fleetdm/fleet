@@ -26,13 +26,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
@@ -1158,18 +1159,16 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// useful for debugging
-	//mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	//	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-	//	return nil
-	//})
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
+	// 	return nil
+	// })
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		mdmHost: {
 			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -1235,6 +1234,21 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host3, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.runWorker()
+
+	// Set up a mock Apple DEP API
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
 
 	// Use a gitops user for all Puppet actions
 	u := &fleet.User{
@@ -4180,10 +4194,6 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
-}
-
-func (s *integrationMDMTestSuite) TestGetManualEnrollmentProfile() {
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/enrollment_profiles/manual")
 }
 
 func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {

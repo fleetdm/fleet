@@ -24,6 +24,7 @@ const (
 	CronAppleMDMIPhoneIPadRefetcher CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher          CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                    CronScheduleName = "calendar"
+	CronUninstallSoftwareMigration  CronScheduleName = "uninstall_software_migration"
 )
 
 type CronSchedulesService interface {

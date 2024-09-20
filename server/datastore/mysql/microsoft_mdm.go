@@ -172,7 +172,7 @@ func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx s
 func (ds *Datastore) mdmWindowsInsertHostCommandDB(ctx context.Context, tx sqlx.ExecerContext, hostUUIDOrDeviceID, commandUUID string) error {
 	stmt := `
 INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-VALUES ((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ?), ?)
+VALUES ((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1), ?)
 `
 
 	if _, err := tx.ExecContext(ctx, stmt, hostUUIDOrDeviceID, hostUUIDOrDeviceID, commandUUID); err != nil {
@@ -1901,7 +1901,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT 
+			SELECT
 				profile_uuid,
 				host_uuid,
 				status,

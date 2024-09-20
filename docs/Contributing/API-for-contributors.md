@@ -3029,7 +3029,6 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 `Status: 204`
 
-## Software
 
 ### Run live script
 
