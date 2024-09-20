@@ -11,7 +11,7 @@
 - [Scripts](#scripts)
 - [Software](#software)
 
-> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
+> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality..
 
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
