@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -360,6 +362,10 @@ func TestInstallerRun(t *testing.T) {
 			if len(executedScripts) == 2 {
 				return execOutput, 1, &exec.ExitError{}
 			}
+			// good exit on rollback uninstall script
+			if len(executedScripts) == 3 {
+				return []byte("all good"), 0, nil
+			}
 			return execOutput, execExitCode, execErr
 		}
 
@@ -374,7 +380,9 @@ func TestInstallerRun(t *testing.T) {
 		require.Equal(t, 0, *savedInstallerResult.InstallScriptExitCode)
 		require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
 		require.Equal(t, 1, *savedInstallerResult.PostInstallScriptExitCode)
-		require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
+		require.NotNil(t, savedInstallerResult.PostInstallScriptOutput)
+		numPostInstallMatches := strings.Count(*savedInstallerResult.PostInstallScriptOutput, string(execOutput))
+		assert.Equal(t, 1, numPostInstallMatches, *savedInstallerResult.PostInstallScriptOutput)
 	})
 
 	t.Run("failed rollback script", func(t *testing.T) {
@@ -402,7 +410,8 @@ func TestInstallerRun(t *testing.T) {
 		require.Equal(t, 0, *savedInstallerResult.InstallScriptExitCode)
 		require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
 		require.Equal(t, 1, *savedInstallerResult.PostInstallScriptExitCode)
-		require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
+		numPostInstallMatches := strings.Count(*savedInstallerResult.PostInstallScriptOutput, string(execOutput))
+		assert.Equal(t, 2, numPostInstallMatches)
 	})
 }
 

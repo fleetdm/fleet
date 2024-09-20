@@ -1,19 +1,19 @@
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
+import { IPackageFormData, IFormValidation } from "./PackageForm";
 
-type IAddPackageFormValidatorKey = Exclude<
-  keyof IAddPackageFormData,
+type IPackageFormValidatorKey = Exclude<
+  keyof IPackageFormData,
   "installScript" | "uninstallScript"
 >;
 
-type IMessageFunc = (formData: IAddPackageFormData) => string;
+type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 
 interface IValidation {
   name: string;
-  isValid: (formData: IAddPackageFormData) => boolean;
+  isValid: (formData: IPackageFormData) => boolean;
   message?: IValidationMessage;
 }
 
@@ -21,7 +21,7 @@ interface IValidation {
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IAddPackageFormValidatorKey,
+  IPackageFormValidatorKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -57,7 +57,7 @@ const FORM_VALIDATION_CONFIG: Record<
 };
 
 const getErrorMessage = (
-  formData: IAddPackageFormData,
+  formData: IPackageFormData,
   message?: IValidationMessage
 ) => {
   if (message === undefined || typeof message === "string") {
@@ -66,7 +66,7 @@ const getErrorMessage = (
   return message(formData);
 };
 
-export const generateFormValidation = (formData: IAddPackageFormData) => {
+export const generateFormValidation = (formData: IPackageFormData) => {
   const formValidation: IFormValidation = {
     isValid: true,
     software: {

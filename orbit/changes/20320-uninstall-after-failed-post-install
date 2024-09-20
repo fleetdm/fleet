@@ -1,0 +1,1 @@
+During software install flow, if installer's post-install script fails, run the uninstall script to attempt to roll back.

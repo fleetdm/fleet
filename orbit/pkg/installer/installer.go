@@ -242,13 +242,24 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
 			ext := filepath.Ext(installerPath)
 			ext = strings.TrimPrefix(ext, ".")
-			uninstallScript := file.GetRemoveScript(ext)
-			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath, "rollback-script")
+			uninstallScript := installer.UninstallScript
+			var builder strings.Builder
+			builder.WriteString(*payload.PostInstallScriptOutput)
+			builder.WriteString("\nAttempting rollback by running uninstall script...\n")
+			if uninstallScript == "" {
+				// The Fleet server is < v4.57.0, so we need to use the old method.
+				// If all customers have updated to v4.57.0 or later, we can remove this method.
+				uninstallScript = file.GetRemoveScript(ext)
+			}
+			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
+				"rollback-script"+scriptExtension)
 			log.Info().Msgf(
 				"rollback staus: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
 			)
-
+			builder.WriteString(fmt.Sprintf("Uninstall script exit code: %d\n", uninstallExitCode))
+			builder.WriteString(uninstallOutput)
+			payload.PostInstallScriptOutput = ptr.String(builder.String())
 			return payload, uninstallErr
 		}
 	}

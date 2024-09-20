@@ -19,10 +19,10 @@
     labels: [ "#g-finance" ] 
     repo: "confidential"
 -
-  task: "KPI roundup" 
+  task: "Complete Finance KPI inputs" 
   startedOn: "2024-02-16" 
   frequency: "Weekly"
-  description: "Create the weekly KPI issue, complete the finance update." 
+  description: "Create the weekly team KPI issue, complete the finance update." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#update-weekly-kpis"
   dri: "ireedy"
   autoIssue:   
@@ -64,7 +64,7 @@
   frequency: "Monthly"
   description: "Create the monthly close GitHub issue and walk through the steps. This process includes fulfilling the monthly reporting requirement for SVB." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#process-monthly-accounting"
-  dri: "hollidayn" 
+  dri: "ireedy" 
   autoIssue:   
     labels: [ "#g-finance" ] 
     repo: "confidential"
@@ -128,7 +128,7 @@
   frequency: "Quarterly"
   description: "Provide updated metrics for CRV in Chronograph." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#report-quarterly-numbers-in-chronograph"
-  dri: "hollidayn"
+  dri: "ireedy"
 -
   task: "Quartlery finance check" 
   startedOn: "2024-03-31" 
@@ -149,4 +149,4 @@
   frequency: "Annually"
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
-  dri: "hollidayn"
+  dri: "jostableford"

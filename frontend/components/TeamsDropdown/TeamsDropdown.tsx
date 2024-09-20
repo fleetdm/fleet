@@ -8,8 +8,6 @@ import {
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,

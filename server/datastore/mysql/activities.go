@@ -343,7 +343,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'software_package', si.filename,
 				'install_uuid', hsi.execution_id,
 				'status', CAST(hsi.status AS CHAR),
-				'self_service', si.self_service IS TRUE
+				'self_service', hsi.self_service IS TRUE
 			) as details
 		FROM
 			host_software_installs hsi
