@@ -19,14 +19,14 @@ To migrate hosts, we will do the following steps:
 
 ### Step 1: enroll hosts to Fleet
 
-1. First [enroll](https://fleetdm.com/guides/enroll-hosts) them in Fleet with [fleetd and Fleet Desktop](https://fleetdm.com/guides/enroll-hosts#fleet-desktop).
+1. First your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
 ### Step 2: assign hosts in Apple Business Manager (ABM) to Fleet
 
-1. In ABM, unassign the existing hosts' MDM server from the old MDM solution: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
+1. In ABM, unassign the your hosts from your current MDM solution: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
-2. Assign these hosts' MDM server to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
+2. Assign these hosts to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 
 ### Step 3: choose migration workflow and migrate hosts
 
@@ -40,17 +40,15 @@ The end user migration workflow allows the end user to kick off migration by une
 
 End user experience:
 
-Once a host is unenrolled from the old MDM solution, the end user will be given the option to download the MDM enrollment profile on their **My device page**.
-
-![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
-
+- After a host is unenrolled from your current MDM solution, if the host is assigned to Fleet in ABM, the end user will be prompted with Apple's **Remote Management** full-screen popup.
+<img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
+- If the host is not assigned to Fleet in ABM (manual enrollment), the end user will be given the option to download the MDM enrollment profile on their **My device page**.
+<img width="1600" alt="Fleet icon in menu bar" src="https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
-If the host is in ABM, the end user will be prompted with Apple's **Remote Management** full-screen popup.
+Configuration:
 
-<img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
-
-To kick off the default workflow, in your current MDM solution, unenroll the hosts to be migrated. macOS does not allow a host to be connected to multiple MDM solutions at once.
+- To kick off the default workflow, in your current MDM solution, unenroll the hosts to be migrated. macOS does not allow a host to be connected to multiple MDM solutions at once.
 
 #### End user workflow
 
@@ -58,28 +56,24 @@ To kick off the default workflow, in your current MDM solution, unenroll the hos
 
 End user experience:
 
-To watch an animation of the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
+- To watch an animation of the end user experience during the migration workflow, in the Fleet UI, head to **Settings > Integrations > Mobile device management (MDM)**, and scroll down to the **End user migration workflow** section.
 
-In Fleet, you can configure the end user workflow using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
+Configuration:
 
-After your configured the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
+- In Fleet, you can configure the end user workflow using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-Fleet UI:
+- After your configured the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
 
+- Fleet UI:
 1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**.
-
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
-
 3. Under **Mode** choose a mode and enter the webhook URL for your automation tool (ex. Tines) under **Webhook URL** and select **Save**.
-
 4. During the end user migration workflow, an end user's device will have their selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
 Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
-
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
-
-GitOps:
-- To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
-- To manage your organization's logo for dark and light backgrounds using Fleet's best practice GitOps, check out the `org_info` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info).
+- Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
+- GitOps:
+  - To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
+  - To manage your organization's logo for dark and light backgrounds using Fleet's best practice GitOps, check out the `org_info` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info).
 
 ## Check migration progress
 
