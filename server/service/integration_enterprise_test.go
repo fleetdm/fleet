@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -14233,11 +14235,15 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	ctx := context.Background()
 
 	installerBytes := []byte("abc")
+
 	// Mock server to serve the "installers"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/badinstaller":
 			_, _ = w.Write([]byte("badinstaller"))
+		case "/timeout":
+			time.Sleep(3 * time.Second)
+			_, _ = w.Write([]byte("timeout"))
 		default:
 			_, _ = w.Write(installerBytes)
 		}
@@ -14257,7 +14263,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	maintainedapps.IngestMaintainedApps(t, s.ds)
+	expectedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
 
 	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -14268,6 +14274,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL+"/installer.zip")
 		require.NoError(t, err)
 		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", srv.URL+"/badinstaller")
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", srv.URL+"/timeout")
 		return err
 	})
 
@@ -14275,6 +14283,52 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
+
+	// Check apps returned
+	var listMAResp listFleetMaintainedAppsResponse
+	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK, &listMAResp, "team_id", strconv.Itoa(int(team.ID)))
+	require.Nil(t, listMAResp.Err)
+	require.False(t, listMAResp.Meta.HasPreviousResults)
+	require.False(t, listMAResp.Meta.HasNextResults)
+	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
+	var listAppsNoID []fleet.MaintainedApp
+	for _, app := range listMAResp.FleetMaintainedApps {
+		app.ID = 0
+		listAppsNoID = append(listAppsNoID, app)
+	}
+	slices.SortFunc(listAppsNoID, func(a, b fleet.MaintainedApp) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	require.Equal(t, expectedApps, listAppsNoID)
+
+	var listMAResp2 listFleetMaintainedAppsResponse
+	s.DoJSON(
+		http.MethodGet,
+		"/api/latest/fleet/software/fleet_maintained_apps",
+		listFleetMaintainedAppsRequest{},
+		http.StatusOK,
+		&listMAResp2,
+		"team_id", strconv.Itoa(int(team.ID)),
+		"per_page", "2",
+		"page", "2",
+	)
+	require.Nil(t, listMAResp2.Err)
+	require.True(t, listMAResp2.Meta.HasPreviousResults)
+	require.True(t, listMAResp2.Meta.HasNextResults)
+	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
+	require.Equal(t, listMAResp.FleetMaintainedApps[4:6], listMAResp2.FleetMaintainedApps)
+
+	// Check individual app fetch
+	var getMAResp getFleetMaintainedAppResponse
+	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
+	// TODO this will change when actual install scripts are created.
+	actualApp := listMAResp.FleetMaintainedApps[0]
+	actualApp.InstallScript = "install"
+	actualApp.UninstallScript = "uninstall"
+	require.Equal(t, actualApp, *getMAResp.FleetMaintainedApp)
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
@@ -14288,6 +14342,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
+
+	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK, &listMAResp, "team_id", strconv.Itoa(int(team.ID)))
+	require.Nil(t, listMAResp.Err)
+	require.False(t, listMAResp.Meta.HasPreviousResults)
+	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps)-1)
 
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)
@@ -14339,10 +14398,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
 
+	// Should timeout
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
+	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
+	os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.")
+
 	// Add a maintained app to no team
 
 	req = &addFleetMaintainedAppRequest{
-		AppID:             3,
+		AppID:             4,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
 		InstallScript:     "echo foo",
@@ -14365,7 +14430,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"team_id", "0",
 	)
 
-	mapp, err = s.ds.GetMaintainedAppByID(ctx, 3)
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
@@ -14374,9 +14439,9 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
-	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(3))
+	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(3), i.FleetLibraryAppID)
+	require.Equal(t, ptr.Uint(4), i.FleetLibraryAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)

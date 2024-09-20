@@ -5,7 +5,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"os"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,7 +31,13 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	}
 
 	// Download installer from the URL
-	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL)
+	timeout := maintainedapps.InstallerTimeout
+	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
+		timeout, _ = time.ParseDuration(v)
+	}
+
+	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
+	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
@@ -100,4 +109,34 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	}
 
 	return nil
+}
+
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
+		TeamID: &teamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet managed apps")
+	}
+
+	return avail, meta, nil
+}
+
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
+		TeamID: nil,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get fleet maintained app")
+	}
+
+	return app, nil
 }

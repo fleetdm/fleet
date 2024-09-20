@@ -68,14 +68,14 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fle
 	const stmt = `
 SELECT
 	fla.id,
-	fla.name, 
-	fla.token, 
-	fla.version, 
-	fla.platform, 
-	fla.installer_url, 
-	fla.sha256, 
-	fla.bundle_identifier, 
-	sc1.contents AS install_script, 
+	fla.name,
+	fla.token,
+	fla.version,
+	fla.platform,
+	fla.installer_url,
+	fla.sha256,
+	fla.bundle_identifier,
+	sc1.contents AS install_script,
 	sc2.contents AS uninstall_script
 FROM fleet_library_apps fla
 JOIN script_contents sc1 ON sc1.id = fla.install_script_content_id
@@ -94,4 +94,52 @@ WHERE
 	}
 
 	return &app, nil
+}
+
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	stmt := `
+SELECT
+	fla.id,
+	fla.name,
+	fla.version,
+	fla.platform
+FROM
+	fleet_library_apps fla
+WHERE NOT EXISTS (
+	SELECT
+		1
+	FROM
+		software_titles st
+	LEFT JOIN
+		software_installers si
+		ON si.title_id = st.id
+	LEFT JOIN
+		vpp_apps va
+		ON va.title_id = st.id
+	LEFT JOIN
+		vpp_apps_teams vat
+		ON vat.adam_id = va.adam_id
+	WHERE
+		st.bundle_identifier = fla.bundle_identifier
+	AND (
+		(si.platform = fla.platform AND si.team_id = ?)
+		OR
+		(va.platform = fla.platform AND vat.team_id = ?)
+	)
+)`
+
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
+
+	var avail []fleet.MaintainedApp
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+	}
+
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+	if len(avail) > int(opt.PerPage) {
+		meta.HasNextResults = true
+		avail = avail[:len(avail)-1]
+	}
+
+	return avail, meta, nil
 }
