@@ -9,6 +9,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import TabsWrapper from "components/TabsWrapper";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "software-add-page";
 
@@ -23,12 +24,12 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
   },
   {
-    name: "Package",
-    pathname: PATHS.SOFTWARE_ADD_PACKAGE,
-  },
-  {
     name: "App store (VPP)",
     pathname: PATHS.SOFTWARE_ADD_APP_STORE,
+  },
+  {
+    name: "Custom Package",
+    pathname: PATHS.SOFTWARE_ADD_PACKAGE,
   },
 ];
 
@@ -62,7 +63,7 @@ const SoftwareAddPage = ({
     (i: number): void => {
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
-        team_id: location?.query.team_id,
+        team_id: location.query.team_id,
       });
 
       const navPath = addSoftwareSubNav[i].pathname.concat(`?${teamIdParam}`);
@@ -71,12 +72,28 @@ const SoftwareAddPage = ({
     [location, router]
   );
 
+  // Quick exit if no team_id param. This page must have a team id to function
+  // correctly. We redirect to the same page with the "No team" context if it
+  // is not provieded.
+  if (!location.query.team_id) {
+    router.replace(
+      `${location.pathname}?${buildQueryStringFromParams({
+        team_id: APP_CONTEXT_NO_TEAM_ID,
+      })}`
+    );
+    return null;
+  }
+
+  const backUrl = `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+    team_id: location.query.team_id,
+  })}`;
+
   return (
     <MainContent className={baseClass}>
       <>
         <BackLink
           text="Back to software"
-          path={PATHS.SOFTWARE_TITLES}
+          path={backUrl}
           className={`${baseClass}__back-to-software`}
         />
         <h1>Add Software</h1>
@@ -98,7 +115,7 @@ const SoftwareAddPage = ({
         </TabsWrapper>
         {React.cloneElement(children, {
           router,
-          currentTeamId: location.query.team_id,
+          currentTeamId: parseInt(location.query.team_id, 10),
         })}
       </>
     </MainContent>
