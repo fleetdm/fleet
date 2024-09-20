@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -72,11 +73,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore  fleet.SoftwareInstallerStore
 		bootstrapPackageStore fleet.MDMBootstrapPackageStore
 		distributedLock       fleet.Lock
+		keyValueStore         fleet.KeyValueStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
 			c = opts[0].Clock
 		}
+	}
+
+	if len(opts) > 0 && opts[0].KeyValueStore != nil {
+		keyValueStore = opts[0].KeyValueStore
 	}
 
 	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
@@ -99,6 +105,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
+			keyValueStore = redis_key_value.New(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -203,6 +210,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			distributedLock,
+			keyValueStore,
 		)
 		if err != nil {
 			panic(err)
@@ -317,6 +325,7 @@ type TestServerOpts struct {
 	NoCacheDatastore      bool
 	SoftwareInstallStore  fleet.SoftwareInstallerStore
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
+	KeyValueStore         fleet.KeyValueStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

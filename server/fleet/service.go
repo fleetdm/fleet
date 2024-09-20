@@ -643,9 +643,15 @@ type Service interface {
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 
-	// BatchSetSoftwareInstallers replaces the software installers for a specified team.
-	// Returns the metadata of inserted software installers.
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) ([]SoftwarePackageResponse, error)
+	// BatchSetSoftwareInstallers asynchronously replaces the software installers for a specified team.
+	// Returns a request UUID that can be used to track an ongoing batch request (with GetBatchSetSoftwareInstallersResult).
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) (string, error)
+	// GetBatchSetSoftwareInstallersResult polls for the status of a batch-apply started by BatchSetSoftwareInstallers.
+	// Return values:
+	//	- 'status': status of the batch-apply which can be "processing", "completed" or "failed".
+	//	- 'message': which contains error information when the status is "failed".
+	//	- 'packages': Contains the list of the applied software packages (when status is "completed"). This is always empty for a dry run.
+	GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []SoftwarePackageResponse, err error)
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
@@ -1120,3 +1126,17 @@ type Service interface {
 	// CalendarWebhook handles incoming calendar callback requests.
 	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
 }
+
+type KeyValueStore interface {
+	Set(ctx context.Context, key string, value string, expireTime time.Duration) error
+	Get(ctx context.Context, key string) (*string, error)
+}
+
+const (
+	// BatchSetSoftwareInstallerStatusProcessing is the value returned for an ongoing BatchSetSoftwareInstallers operation.
+	BatchSetSoftwareInstallersStatusProcessing = "processing"
+	// BatchSetSoftwareInstallerStatusCompleted is the value returned for a completed BatchSetSoftwareInstallers operation.
+	BatchSetSoftwareInstallersStatusCompleted = "completed"
+	// BatchSetSoftwareInstallerStatusFailed is the value returned for a failed BatchSetSoftwareInstallers operation.
+	BatchSetSoftwareInstallersStatusFailed = "failed"
+)
