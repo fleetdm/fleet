@@ -3068,9 +3068,9 @@ _Available in Fleet Premium._
 `GET /api/v1/fleet/software/batch/{request_uuid}`
 
 This endpoint allows querying the status of a batch-apply software request (`POST /api/v1/fleet/software/batch`).
-Returns `"status"` field that can be one of `"pending"`, `"complete"` or `"failed"`.
+Returns `"status"` field that can be one of `"processing"`, `"complete"` or `"failed"`.
 If `"status"` is `"completed"` then the `"packages"` field contains the applied packages.
-If `"status"` is `"pending"` then the operation is ongoing and the request should be retried.
+If `"status"` is `"processing"` then the operation is ongoing and the request should be retried.
 If `"status"` is `"failed"` then the `"message"` field contains the error message.
 
 #### Parameters
@@ -3086,7 +3086,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 `Status: 200`
 ```json
 {
-  "status": "pending",
+  "status": "processing",
   "message": "",
   "packages": null
 }
