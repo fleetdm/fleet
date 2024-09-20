@@ -21,7 +21,7 @@ interface IScepCardProps {
 
 const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
   const navigateToScepSetup = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_SCEP_SETUP);
+    router.push(PATHS.ADMIN_INTEGRATIONS_SCEP);
   };
 
   const appleMdmDiabledCard = (
