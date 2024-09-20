@@ -141,7 +141,7 @@ const AddSoftwareVppForm = ({
     router.push(
       `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
         team_id: teamId,
-        available_install: availableInstall,
+        available_for_install: availableInstall,
       })}`
     );
   };
