@@ -30,7 +30,7 @@ const SoftwareAppStoreVpp = ({
     isLoading: isLoadingVppInfo,
     error: errorVppInfo,
   } = useQuery<IGetVppTokensResponse, AxiosError>(
-    ["vppInfo"],
+    ["vppInfo", currentTeamId],
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
