@@ -3111,7 +3111,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 ```json
 {
   "status": "failed",
-  "message": "validation failed: software.url Couldn't edit software. URL (\"https://foobar.does.not.exist.com\") doesn't exist. Please make sure that URLs are publicy accessible to the internet.",
+  "message": "validation failed: software.url Couldn't edit software. URL (\"https://foobar.does.not.exist.com\") doesn't exist. Please make sure that URLs are reachable from your Fleet server.",
   "packages": null
 }
 ```
