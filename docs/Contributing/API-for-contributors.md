@@ -3037,18 +3037,16 @@ _Available in Fleet Premium._
 
 `POST /api/v1/fleet/software/batch`
 
+This endpoint is asynchronous, meaning it will start a background process to download and apply the software and return a `request_uuid` in the JSON response that can be used to query the status of the batch-apply (using the `GET /api/v1/fleet/software/batch/{request_uuid}` endpoint defined below).
+
 #### Parameters
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. Ommitting these parameters will add software to 'No Team'. |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. Ommitting these parameters will add software to 'No Team'. |
+| team_name | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
 | software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
-| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
-
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
 
 #### Example
 
@@ -3056,9 +3054,67 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+```json
+{
+  "request_uuid": "ec23c7b6-c336-4109-b89d-6afd859659b4",
+}
+```
 
- ### Run live script
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/batch/{request_uuid}`
+
+This endpoint allows querying the status of a batch-apply software request (`POST /api/v1/fleet/software/batch`).
+Returns `"status"` field that can be one of `"pending"`, `"complete"` or `"failed"`.
+If `"status"` is `"completed"` then the `"packages"` field contains the applied packages.
+If `"status"` is `"pending"` then the operation is ongoing and the request should be retried.
+If `"status"` is `"failed"` then the `"message"` field contains the error message.
+
+#### Parameters
+
+| Name         | Type   | In    | Description                                                                                                                                                           |
+| ------------ | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| request_uuid | string | query | The request_uuid returned by the `POST /api/v1/fleet/software/batch` endpoint. |
+| team_name    | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
+| dry_run      | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
+
+##### Default responses
+
+`Status: 200`
+```json
+{
+  "status": "pending",
+  "message": "",
+  "packages": null
+}
+```
+
+`Status: 200`
+```json
+{
+  "status": "completed",
+  "message": "",
+  "packages": [
+    {
+      "team_id": 1,
+      "title_id": 2751,
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+    }
+  ]
+}
+```
+
+`Status: 200`
+```json
+{
+  "status": "failed",
+  "message": "validation failed: software.url Couldn't edit software. URL (\"https://foobar.does.not.exist.com\") doesn't exist. Please make sure that URLs are publicy accessible to the internet.",
+  "packages": null
+}
+```
+
+### Run live script
 
 Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
 
