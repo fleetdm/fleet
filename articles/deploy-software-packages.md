@@ -14,9 +14,7 @@ Fleet [v4.50.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.50.0) int
 
 * An S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the installers.
 
-* Increase any load balancer timeouts to at least 5 minutes for the following endpoints:
-
-    * [Add software](https://fleetdm.com/docs/rest-api/rest-api#add-software).
+* Increase any load balancer timeouts to at least 5 minutes for the [Add software](https://fleetdm.com/docs/rest-api/rest-api#add-software) endpoint.
 
 ## Step-by-step instructions
 
@@ -42,7 +40,7 @@ To access and manage software in Fleet:
 
 * **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
-* **Select a team**: Select a team or the "No team" team to add a software package.
+* **Select a team**: Select a team "No team" to add a software package.
 
 > Software cannot be added to "All teams."
 
@@ -52,17 +50,25 @@ To access and manage software in Fleet:
 
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
-* To customize the conditions, click on “Advanced options”:
+* To customize installer behavior, click on “Advanced options.”
 
-    * **Pre-install query**: A pre-install query is a valid osquery SQL statement that will be evaluated on the host before installing the software. If provided, the installation will proceed only if the query returns any value.
+> After the initial package upload, all options, including the self-service setting, pre-install query, scripts, and even the software package file, can be modified. When replacing an installer package, the replacement package must be the same type, and be for the same software, as the original package.
 
-    * **Install script**: After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process, this script can be edited. Learn more about [install scripts](https://fleetdm.com/learn-more-about/install-scripts).
+#### Pre-install query
 
-    * **Post-install script** A post-install script will run after the installation, allowing you to, for example, configure the security agent right after installation. If this script returns a non-zero exit code, the installation will fail, and `fleetd` will attempt to uninstall the software.
+A pre-install query is a valid osquery SQL statement that will be evaluated on the host before installing the software. If provided, the installation will proceed only if the query returns any value.
 
-    * **Uninstall script** An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process. Learn more about [uninstall scripts](https://fleetdm.com/learn-more-about/uninstall-scripts).
+#### Install script
 
-> After the initial package upload, all of these options, including the self-service setting, pre-install query, scripts, and even the software package file, can be modified.
+After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process, this script can be edited.
+
+#### Post-install script
+
+A post-install script will run after the installation, allowing you to, for example, configure the security agent right after installation. If this script returns a non-zero exit code, the installation will fail, and `fleetd` will attempt to uninstall the software.
+
+#### Uninstall script
+
+An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if an install fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process.
 
 ### Install a software package on a host
 
@@ -162,6 +168,6 @@ For more information on advanced setups and features, explore Fleet’s [documen
 <meta name="authorFullName" value="Roberto Dip">
 <meta name="authorGitHubUsername" value="roperzh">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-09-20">
+<meta name="publishedOn" value="2024-09-23">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-security-agents-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through adding and editing software packages in Fleet.">
