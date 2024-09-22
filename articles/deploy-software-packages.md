@@ -60,7 +60,7 @@ A pre-install query is a valid osquery SQL statement that will be evaluated on t
 
 #### Install script
 
-After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process, this script can be edited.
+After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process (for example, if [an EXE-based Windows installer requires custom handling](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited.
 
 #### Post-install script
 
