@@ -48,6 +48,8 @@ To access and manage software in Fleet:
 
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, and `.deb` files are supported.
 
+> Software installer uploads will fail if Fleet is unable to extract information from the installer package such bundle ID and version number.
+
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
 * To customize installer behavior, click on “Advanced options.”

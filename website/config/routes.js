@@ -564,6 +564,7 @@ module.exports.routes = {
   'GET /learn-more-about/exe-install-scripts': 'https://github.com/fleetdm/fleet/issues/20000',
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
+  'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages##add-a-software-package-to-a-team',
 
   // Sitemap
   // =============================================================================================================
