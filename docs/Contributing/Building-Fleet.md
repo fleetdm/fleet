@@ -149,7 +149,7 @@ The following assumes that you already installed  [Docker](https://docs.docker.c
 To set up a canonical development environment via Docker, run the following from the root of the repository:
 
 ```sh
-docker-compose up
+docker compose up
 ```
 
 > Note: you can customize the DB Docker image via the environment variables FLEET_MYSQL_IMAGE and FLEET_MYSQL_PLATFORM. For example:
@@ -161,12 +161,12 @@ docker-compose up
 If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
 
 ```sh
-docker-compose down
+docker compose down
 ```
 
 ### Setting up the database tables
 
-Once you `docker-compose up` and are running the databases, you can build the code and run the following command to create the database tables:
+Once you `docker compose up` and are running the databases, you can build the code and run the following command to create the database tables:
 
 ```sh
 ./build/fleet prepare db --dev
