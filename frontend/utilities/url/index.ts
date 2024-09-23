@@ -9,9 +9,10 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { isValidSoftwareInstallStatus } from "interfaces/software";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
-type QueryValues = string | number | boolean | undefined | null;
+export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
@@ -44,6 +45,30 @@ interface IMutuallyExclusiveHostParams {
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
+
+export const parseQueryValueToNumberOrUndefined = (
+  value: QueryValues,
+  min?: number,
+  max?: number
+): number | undefined => {
+  const isWithinRange = (num: number) => {
+    if (min !== undefined && max !== undefined) {
+      return num >= min && num <= max;
+    }
+    return true; // No range check if min or max is undefined
+  };
+
+  if (typeof value === "number") {
+    return isWithinRange(value) ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const parsedValue = parseFloat(value);
+    return !isNaN(parsedValue) && isWithinRange(parsedValue)
+      ? parsedValue
+      : undefined;
+  }
+  return undefined;
+};
 
 const reduceQueryParams = (
   params: string[],
@@ -95,10 +120,9 @@ export const reconcileSoftwareParams = ({
   | "softwareStatus"
 >) => {
   if (
-    isValidSoftwareInstallStatus(softwareStatus) &&
+    isValidSoftwareAggregateStatus(softwareStatus) &&
     softwareTitleId &&
-    teamId &&
-    teamId > 0
+    teamId !== API_ALL_TEAMS_ID
   ) {
     return {
       software_title_id: softwareTitleId,

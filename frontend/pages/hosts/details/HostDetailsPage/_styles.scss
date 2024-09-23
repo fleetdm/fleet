@@ -63,11 +63,6 @@
           flex-direction: row;
         }
       }
-      &__block {
-        display: flex;
-        flex-direction: column;
-        margin-right: $pad-xxlarge;
-      }
       &__data {
         margin-bottom: $pad-medium;
 

@@ -43,11 +43,11 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
     </a>
 </div>
 
-1. Click "Deploy to Render" to open the Fleet Blueprint on Render. You will be prompted to create or log in to your Render account with associated payment information.
+1. Click "Deploy to Render" to open the Fleet Blueprint on Render. Ensure that the Redis instance is manually set to the same region as your other resources. You will be prompted to create or log in to your Render account with associated payment information.
 
 2. Give the Blueprint a unique name like `yourcompany-fleet`.
 
-3. Click "**Apply.**" Render will provision your services, which should take less than five minutes. 
+3. Click "**Deploy Blueprint.**" Render will provision your services, which should take less than five minutes. 
 
 4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services. 
 

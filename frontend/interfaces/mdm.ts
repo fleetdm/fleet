@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { ITeamSummary } from "./team";
 
 export interface IMdmApple {
   common_name: string;
@@ -13,6 +14,31 @@ export interface IMdmAppleBm {
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
+}
+
+export type ITokenTeam = {
+  team_id: number;
+  name: string;
+};
+
+export interface IMdmAbmToken {
+  id: number;
+  apple_id: string;
+  org_name: string;
+  mdm_server_url: string;
+  renew_date: string;
+  terms_expired: boolean;
+  macos_team: ITokenTeam;
+  ios_team: ITokenTeam;
+  ipados_team: ITokenTeam;
+}
+
+export interface IMdmVppToken {
+  id: number;
+  org_name: string;
+  location: string;
+  renew_date: string;
+  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {

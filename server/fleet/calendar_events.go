@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -30,7 +31,10 @@ func (ce *CalendarEvent) GetBodyTag() string {
 	return d.BodyTag
 }
 
-func (ce *CalendarEvent) SaveBodyTag(bodyTag string) error {
+func (ce *CalendarEvent) SaveDataItems(keysAndValues ...string) error {
+	if len(keysAndValues)%2 != 0 {
+		return errors.New("SaveDataItem requires an even number of arguments")
+	}
 	var result map[string]any
 	if len(ce.Data) > 0 {
 		err := json.Unmarshal(ce.Data, &result)
@@ -40,7 +44,11 @@ func (ce *CalendarEvent) SaveBodyTag(bodyTag string) error {
 	} else {
 		result = make(map[string]any, 1)
 	}
-	result["body_tag"] = bodyTag
+	for i := 0; i < len(keysAndValues); i += 2 {
+		key := keysAndValues[i]
+		value := keysAndValues[i+1]
+		result[key] = value
+	}
 	data, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("could not marshal event data: %w", err)

@@ -51,8 +51,9 @@ const DeviceUserBanners = ({
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
           Mobile device management (MDM) is off. MDM allows your organization to
-          change settings and install software. This lets your organization keep
-          your device up to date so you don&apos;t have to.
+          enforce settings, OS updates, disk encryption, and more. This lets
+          your organization keep your device up to date so you don&apos;t have
+          to.
         </InfoBanner>
       );
     }

@@ -1,29 +1,41 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 
+import { getErrorReason } from "interfaces/errors";
+
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import softwareAPI from "services/entities/software";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
-import AddPackageForm from "../AddPackageForm";
-import { IAddSoftwareFormData } from "../AddPackageForm/AddSoftwareForm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
+
+import PackageForm from "../PackageForm";
+import { IPackageFormData } from "../PackageForm/PackageForm";
 import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
 
 // 8 minutes + 15 seconds to account for extra roundtrip time.
-const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
-const MAX_FILE_SIZE_MB = 500;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+export const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
+export const MAX_FILE_SIZE_MB = 500;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 interface IAddPackageProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
+  setAddedSoftwareToken: (token: string) => void;
 }
 
-const AddPackage = ({ teamId, router, onExit }: IAddPackageProps) => {
+const AddPackage = ({
+  teamId,
+  router,
+  onExit,
+  setAddedSoftwareToken,
+}: IAddPackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -54,7 +66,7 @@ const AddPackage = ({ teamId, router, onExit }: IAddPackageProps) => {
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddSoftwareFormData) => {
+  const onAddPackage = async (formData: IPackageFormData) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -67,6 +79,7 @@ const AddPackage = ({ teamId, router, onExit }: IAddPackageProps) => {
       return;
     }
 
+    // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId, UPLOAD_TIMEOUT);
@@ -86,12 +99,31 @@ const AddPackage = ({ teamId, router, onExit }: IAddPackageProps) => {
       } else {
         newQueryParams.available_for_install = true;
       }
-
+      // any unique string - triggers SW refetch
+      setAddedSoftwareToken(`${Date.now()}`);
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      const reason = getErrorReason(e);
+      if (
+        reason.includes("Couldn't add. Fleet couldn't read the version from")
+      ) {
+        renderFlash(
+          "error",
+          <>
+            {reason}{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+              iconColor="core-fleet-white"
+            />
+          </>
+        );
+      } else {
+        renderFlash("error", getErrorMessage(e));
+      }
     }
 
     onExit();
@@ -100,7 +132,7 @@ const AddPackage = ({ teamId, router, onExit }: IAddPackageProps) => {
 
   return (
     <div className={baseClass}>
-      <AddPackageForm
+      <PackageForm
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}

@@ -10,7 +10,7 @@ on:
     paths:
       - '**.go'
       - 'server/datastore/mysql/schema.sql'
-      - '.github/workflows/test-schema-changes.yml'
+      - '.github/workflows/test-db-changes.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -35,18 +35,28 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ vars.GO_VERSION }}
     - name: Checkout Code
       uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
       with:
         fetch-depth: 0
 
+    - name: Install Go
+      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      with:
+        go-version-file: 'go.mod'
+
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up -d mysql_test &
+      run: docker compose up -d mysql_test &
+
+    - name: Wait for mysql
+      run: |
+        echo "waiting for mysql..."
+        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql is ready"
 
     - name: Verify test schema changes
       run: |

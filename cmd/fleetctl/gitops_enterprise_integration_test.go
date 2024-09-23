@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestEnterpriseIntegrationsGitops(t *testing.T) {
+func TestIntegrationsEnterpriseGitops(t *testing.T) {
 	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
 	testingSuite.suite = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -176,6 +176,7 @@ contexts:
 		fmt.Sprintf(
 			`
 controls:
+software:
 queries:
 policies:
 agent_options:
@@ -186,6 +187,9 @@ team_settings:
 		),
 	)
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
 	// Apply the team to be deleted
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()})
 
@@ -230,5 +234,4 @@ team_settings:
 	for _, fileName := range teamFileNames {
 		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName})
 	}
-
 }

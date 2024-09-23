@@ -12,7 +12,7 @@ import {
 import {
   IHostSoftware,
   ISoftware,
-  SoftwareInstallStatus,
+  SoftwareAggregateStatus,
 } from "interfaces/software";
 import {
   DiskEncryptionStatus,
@@ -72,7 +72,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
-  softwareStatus?: SoftwareInstallStatus;
+  softwareStatus?: SoftwareAggregateStatus;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -103,7 +103,7 @@ export interface IExportHostsOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
-  softwareStatus?: SoftwareInstallStatus;
+  softwareStatus?: SoftwareAggregateStatus;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -133,7 +133,7 @@ export interface IActionByFilter {
   softwareId?: number | null;
   softwareTitleId?: number | null;
   softwareVersionId?: number | null;
-  softwareStatus?: SoftwareInstallStatus;
+  softwareStatus?: SoftwareAggregateStatus;
   osName?: string;
   osVersion?: string;
   osVersionId?: number | null;
@@ -588,6 +588,13 @@ export default {
     return sendRequest(
       "POST",
       HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
+    );
+  },
+  uninstallHostSoftwarePackage: (hostId: number, softwareId: number) => {
+    const { HOST_SOFTWARE_PACKAGE_UNINSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      HOST_SOFTWARE_PACKAGE_UNINSTALL(hostId, softwareId)
     );
   },
 };

@@ -12,6 +12,7 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -23,7 +24,7 @@ import Spinner from "components/Spinner";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getErrorMessage } from "./helpers";
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -34,14 +35,16 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
+  platform?: HostPlatform;
   softwareUpdatedAt?: string;
-  hostCanInstallSoftware: boolean;
+  hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
+  hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
 
@@ -82,8 +85,10 @@ export const parseHostSoftwareQueryParams = (queryParams: {
 
 const HostSoftware = ({
   id,
+  platform,
   softwareUpdatedAt,
-  hostCanInstallSoftware,
+  hostCanWriteSoftware,
+  hostScriptsEnabled,
   router,
   queryParams,
   pathname,
@@ -93,6 +98,8 @@ const HostSoftware = ({
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const vulnFilterAndNotSupported =
+    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -100,7 +107,8 @@ const HostSoftware = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
-  const [installingSoftwareId, setInstallingSoftwareId] = useState<
+  // disables install/uninstall actions after click
+  const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
     number | null
   >(null);
 
@@ -129,7 +137,8 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && !isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
+      enabled:
+        isSoftwareEnabled && !isMyDevicePage && !vulnFilterAndNotSupported,
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -158,7 +167,7 @@ const HostSoftware = ({
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -169,13 +178,13 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const userHasSWInstallPermission = Boolean(
+  const userHasSWWritePermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
   const installHostSoftwarePackage = useCallback(
     async (softwareId: number) => {
-      setInstallingSoftwareId(softwareId);
+      setSoftwareIdActionPending(softwareId);
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         renderFlash(
@@ -183,9 +192,30 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        renderFlash("error", getErrorMessage(e));
+        renderFlash("error", getInstallErrorMessage(e));
       }
-      setInstallingSoftwareId(null);
+      setSoftwareIdActionPending(null);
+      refetchSoftware();
+    },
+    [id, renderFlash, refetchSoftware]
+  );
+
+  const uninstallHostSoftwarePackage = useCallback(
+    async (softwareId: number) => {
+      setSoftwareIdActionPending(softwareId);
+      try {
+        await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
+        renderFlash(
+          "success",
+          <>
+            Software is uninstalling or will uninstall when the host comes
+            online. To see details, go to <b>Details &gt; Activity</b>.
+          </>
+        );
+      } catch (e) {
+        renderFlash("error", getUninstallErrorMessage(e));
+      }
+      setSoftwareIdActionPending(null);
       refetchSoftware();
     },
     [id, renderFlash, refetchSoftware]
@@ -197,6 +227,9 @@ const HostSoftware = ({
         case "install":
           installHostSoftwarePackage(software.id);
           break;
+        case "uninstall":
+          uninstallHostSoftwarePackage(software.id);
+          break;
         case "showDetails":
           onShowSoftwareDetails?.(software);
           break;
@@ -204,7 +237,11 @@ const HostSoftware = ({
           break;
       }
     },
-    [installHostSoftwarePackage, onShowSoftwareDetails]
+    [
+      installHostSoftwarePackage,
+      onShowSoftwareDetails,
+      uninstallHostSoftwarePackage,
+    ]
   );
 
   const tableConfig = useMemo(() => {
@@ -212,20 +249,22 @@ const HostSoftware = ({
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
           router,
-          installingSoftwareId,
-          userHasSWInstallPermission,
+          softwareIdActionPending,
+          userHasSWWritePermission,
+          hostScriptsEnabled,
           onSelectAction,
           teamId: hostTeamId,
-          hostCanInstallSoftware,
+          hostCanWriteSoftware,
         });
   }, [
     isMyDevicePage,
     router,
-    installingSoftwareId,
-    userHasSWInstallPermission,
+    softwareIdActionPending,
+    userHasSWWritePermission,
+    hostScriptsEnabled,
     onSelectAction,
     hostTeamId,
-    hostCanInstallSoftware,
+    hostCanWriteSoftware,
   ]);
 
   const isLoading = isMyDevicePage
@@ -251,7 +290,10 @@ const HostSoftware = ({
     if (isLoading) {
       return <Spinner />;
     }
-
+    // will never be the case - to handle `platform` typing discrepancy with DeviceUserPage
+    if (!platform) {
+      return null;
+    }
     return (
       <>
         {isError && <DataError />}
@@ -260,7 +302,20 @@ const HostSoftware = ({
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
-            data={data}
+            // this could be cleaner, however, we are going to revert this commit anyway once vulns are
+            // supported for iPad/iPhone, by the end of next sprint
+            data={
+              vulnFilterAndNotSupported
+                ? ({
+                    count: 0,
+                    meta: {
+                      has_next_results: false,
+                      has_previous_results: false,
+                    },
+                  } as IGetHostSoftwareResponse)
+                : data
+            } // eshould be mpty for iPad/iPhone since API call is disabled, but to be sure to trigger empty state
+            platform={platform}
             router={router}
             tableConfig={tableConfig}
             sortHeader={queryParams.order_key}

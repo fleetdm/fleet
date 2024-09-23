@@ -67,7 +67,7 @@ module.exports = {
     }
 
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
+      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.)`+
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
@@ -75,7 +75,7 @@ module.exports = {
       emailAddress: emailAddress,
       firstName: firstName,
       lastName: lastName,
-      leadSource: 'Website - Contact forms',
+      contactSource: 'Website - Contact forms',
       description: `Sent a contact form message: ${message}`,
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {

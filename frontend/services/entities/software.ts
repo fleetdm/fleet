@@ -1,5 +1,3 @@
-import { AxiosResponse } from "axios";
-
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
@@ -13,7 +11,7 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -22,7 +20,11 @@ export interface ISoftwareApiParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  max_cvss_score?: number;
+  min_cvss_score?: number;
+  exploit?: boolean;
   availableForInstall?: boolean;
+  packagesOnly?: boolean;
   selfService?: boolean;
   teamId?: number;
 }
@@ -56,10 +58,14 @@ export interface ISoftwareVersionResponse {
 }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken?: string | null;
   scope: "software-titles";
 }
 
@@ -90,6 +96,10 @@ export interface IGetSoftwareVersionQueryParams {
 export interface IGetSoftwareVersionQueryKey
   extends IGetSoftwareVersionQueryParams {
   scope: "softwareVersion";
+}
+
+export interface ISoftwareInstallTokenResponse {
+  token: string;
 }
 
 const ORDER_KEY = "name";
@@ -195,7 +205,7 @@ export default {
   },
 
   addSoftwarePackage: (
-    data: IAddSoftwareFormData,
+    data: IPackageFormData,
     teamId?: number,
     timeout?: number
   ) => {
@@ -209,8 +219,10 @@ export default {
     formData.append("software", data.software);
     formData.append("self_service", data.selfService.toString());
     data.installScript && formData.append("install_script", data.installScript);
-    data.preInstallCondition &&
-      formData.append("pre_install_query", data.preInstallCondition);
+    data.uninstallScript &&
+      formData.append("uninstall_script", data.uninstallScript);
+    data.preInstallQuery &&
+      formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
@@ -224,7 +236,32 @@ export default {
       true
     );
   },
+  editSoftwarePackage: (
+    data: IPackageFormData,
+    softwareId: number,
+    teamId: number,
+    timeout?: number
+  ) => {
+    const { EDIT_SOFTWARE_PACKAGE } = endpoints;
 
+    const formData = new FormData();
+    formData.append("team_id", teamId.toString());
+    data.software && formData.append("software", data.software);
+    formData.append("self_service", data.selfService.toString());
+    formData.append("install_script", data.installScript);
+    formData.append("pre_install_query", data.preInstallQuery || "");
+    formData.append("post_install_script", data.postInstallScript || "");
+    formData.append("uninstall_script", data.uninstallScript || "");
+
+    return sendRequest(
+      "PATCH",
+      EDIT_SOFTWARE_PACKAGE(softwareId),
+      formData,
+      undefined,
+      timeout,
+      true
+    );
+  },
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
@@ -233,23 +270,15 @@ export default {
     return sendRequest("DELETE", path);
   },
 
-  downloadSoftwarePackage: (
+  getSoftwarePackageToken: (
     softwareTitleId: number,
     teamId: number
-  ): Promise<AxiosResponse> => {
-    const path = `${endpoints.SOFTWARE_PACKAGE(
+  ): Promise<ISoftwareInstallTokenResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
     )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
-    return sendRequest(
-      "GET",
-      path,
-      undefined,
-      "blob",
-      undefined,
-      undefined,
-      true // return raw response
-    );
+    return sendRequest("POST", path);
   },
 
   getSoftwareInstallResult: (installUuid: string) => {

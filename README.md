@@ -43,8 +43,6 @@ Fleet has no ambition to replace all of your other tools.  (Though it might repl
 
 Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
 
-While most folks prefer to use one or the other, Fleet can also coexist peacefully with Rapid7 and other agent-based vulnerability scanners.  This can be useful during migrations.
-
 #### Free as in free
 The free version of Fleet will [always be free](https://fleetdm.com/pricing).  Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 

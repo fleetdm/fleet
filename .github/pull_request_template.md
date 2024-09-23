@@ -9,6 +9,7 @@ If some of the following don't apply, delete the relevant line.
 - [ ] Input data is properly validated, `SELECT *` is avoided, SQL injection is prevented (using placeholders for values in statements)
 - [ ] Added support on fleet's osquery simulator `cmd/osquery-perf` for new osquery data ingestion features.
 - [ ] Added/updated tests
+- [ ] If paths of existing endpoints are modified without backwards compatibility, checked the frontend/CLI for any necessary changes
 - [ ] If database migrations are included, checked table schema to confirm autoupdate
 - For database migrations:
   - [ ] Checked schema for all modified table for columns that will auto-update timestamps during migration.

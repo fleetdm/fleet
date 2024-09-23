@@ -86,6 +86,7 @@ export default {
       platform,
       critical,
       calendar_events_enabled,
+      software_title_id,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -98,10 +99,11 @@ export default {
       platform,
       critical,
       calendar_events_enabled,
+      software_title_id,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
-    if (!teamId || teamId <= API_NO_TEAM_ID) {
+    if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
           `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
@@ -121,10 +123,6 @@ export default {
   loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
-    if (!team_id) {
-      throw new Error("Invalid team id");
-    }
-
     return sendRequest("GET", path);
   },
   loadAllNew: async ({
@@ -150,10 +148,6 @@ export default {
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${TEAMS}/${teamId}/policies?${queryString}`;
-    if (!teamId) {
-      throw new Error("Invalid team id");
-    }
-
     return sendRequest("GET", path);
   },
   getCount: async ({

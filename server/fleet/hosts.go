@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/semver"
 )
 
 type HostStatus string
@@ -1221,4 +1223,47 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		// `nano_enrollment.active = 1` since sometimes Fleet won't get
 		// the checkout message from the host.
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+}
+
+var macOSADEMigrationOnlyLastVersion = semver.MustParse("14")
+
+// IsEligibleForManualMigration returns true if the host is manually enrolled into a 3rd party MDM
+// and is able to migrate to Fleet.
+func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) (bool, error) {
+	goodVersion, err := IsMacOSMajorVersionOK(host)
+	if err != nil {
+		return false, fmt.Errorf("checking macOS version for manual migration eligibility: %w", err)
+	}
+
+	return goodVersion &&
+		host.IsOsqueryEnrolled() &&
+		!host.IsDEPAssignedToFleet() &&
+		mdmInfo != nil &&
+		!mdmInfo.InstalledFromDep &&
+		!mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet), nil
+}
+
+func IsMacOSMajorVersionOK(host *Host) (bool, error) {
+	if host == nil {
+		return false, nil
+	}
+
+	parts := strings.Split(host.OSVersion, " ")
+
+	if len(parts) < 2 || parts[0] != "macOS" {
+		return false, nil
+	}
+
+	version, err := semver.NewVersion(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
+	}
+
+	if version.GreaterThan(macOSADEMigrationOnlyLastVersion) {
+		return true, nil
+	}
+
+	return false, nil
 }

@@ -99,5 +99,11 @@ func GetServerDeviceCapabilities() CapabilityMap {
 	return capabilities
 }
 
+func GetOrbitClientCapabilities() CapabilityMap {
+	return CapabilityMap{
+		CapabilityEscrowBuddy: {},
+	}
+}
+
 // CapabilitiesHeader is the header name used to communicate the capabilities.
 const CapabilitiesHeader = "X-Fleet-Capabilities"

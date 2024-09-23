@@ -229,13 +229,15 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	}
 	if updated && event != nil {
 		// Event was updated, so we set a flag.
-		_, err = svc.distributedLock.AcquireLock(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, calendar.RecentCalendarUpdateValue,
+		_, err = svc.distributedLock.SetIfNotExist(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, calendar.RecentCalendarUpdateValue,
 			uint64(calendar.RecentCalendarUpdateDuration.Milliseconds()))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set recent update flag")
 		}
 		// Event was updated, so we need to save it
-		err = event.SaveBodyTag(generatedTag)
+		if generatedTag != "" {
+			err = event.SaveDataItems("body_tag", generatedTag)
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "save calendar event body tag")
 		}
@@ -288,7 +290,7 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 	if !reserved {
 		// Try to acquire the lock
 		lockValue = uuid.New().String()
-		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+		lockAcquired, err = svc.distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
 			calendar.DistributedLockExpireMs)
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock")
@@ -308,7 +310,7 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		}
 
 		// Try to acquire the lock again in case it was released while we were adding the event to the queue.
-		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+		lockAcquired, err = svc.distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
 			calendar.DistributedLockExpireMs)
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock again")

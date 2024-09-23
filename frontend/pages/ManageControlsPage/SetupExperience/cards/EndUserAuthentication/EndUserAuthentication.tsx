@@ -79,7 +79,7 @@ const EndUserAuthentication = ({
   );
 
   const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   return (

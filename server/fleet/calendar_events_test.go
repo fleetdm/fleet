@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBodyTag(t *testing.T) {
+func TestSaveDataItems(t *testing.T) {
 	t.Parallel()
 
 	var event CalendarEvent
@@ -16,7 +16,7 @@ func TestBodyTag(t *testing.T) {
 	assert.Equal(t, "", event.GetBodyTag())
 
 	bodyTag := "bodyTag"
-	require.NoError(t, event.SaveBodyTag(bodyTag))
+	require.NoError(t, event.SaveDataItems("body_tag", bodyTag))
 	assert.Equal(t, bodyTag, event.GetBodyTag())
 
 	testMap := make(map[string]any, 5)
@@ -29,11 +29,11 @@ func TestBodyTag(t *testing.T) {
 	event.Data = data
 	assert.Equal(t, oldBodyTag, event.GetBodyTag())
 
-	require.NoError(t, event.SaveBodyTag(bodyTag))
+	require.NoError(t, event.SaveDataItems("body_tag", bodyTag))
 	assert.Equal(t, bodyTag, event.GetBodyTag())
 
 	// Make sure data was not modified
-	require.NoError(t, event.SaveBodyTag(oldBodyTag))
+	require.NoError(t, event.SaveDataItems("body_tag", oldBodyTag))
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(event.Data, &result))
 	assert.Equal(t, testMap, result)

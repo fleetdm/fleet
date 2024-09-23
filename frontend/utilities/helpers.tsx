@@ -11,6 +11,7 @@ import {
   trim,
   trimEnd,
   union,
+  uniqueId,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -722,13 +723,17 @@ export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
-export const willExpireWithinXDays = (
-  expiration: string,
-  x: number
-): boolean => {
+/**
+ * determines if a date will expire within "x" number of days. If the date has
+ * has already expired, this function will return false.
+ */
+export const willExpireWithinXDays = (expiration: string, x: number) => {
   const xDaysFromNow = addDays(new Date(), x);
 
-  return isAfter(xDaysFromNow, new Date(expiration));
+  return (
+    !hasLicenseExpired(expiration) &&
+    isAfter(xDaysFromNow, new Date(expiration))
+  );
 };
 
 export const readableDate = (date: string) => {
@@ -819,6 +824,17 @@ export const syntaxHighlight = (json: any): string => {
     }
   );
   /* eslint-enable no-useless-escape */
+};
+
+export const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={uniqueId()}>
+        {line}
+        <br />
+      </span>
+    );
+  });
 };
 
 export const getSortedTeamOptions = memoize((teams: ITeam[]) =>

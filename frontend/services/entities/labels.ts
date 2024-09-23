@@ -49,6 +49,28 @@ const generateCreateLabelBody = (
 
 const generateUpdateLabelBody = generateCreateLabelBody;
 
+/** gets the custom label and returns them in case-insensitive alphabetical
+ * ascending order by label name. (e.g. [A, B, C, a, b, c] => [A, a, B, b, C, c])
+ */
+export const getCustomLabels = <T extends { label_type: string; name: string }>(
+  labels: T[]
+) => {
+  if (labels.length === 0) {
+    return [];
+  }
+
+  return labels
+    .filter((label) => label.label_type === "regular")
+    .sort((a, b) => {
+      // Found this technique here
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
+      // This is a case insensitive sort
+      return a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+      });
+    });
+};
+
 export default {
   create: (
     formData: IDynamicLabelFormData | IManualLabelFormData

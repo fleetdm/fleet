@@ -1,0 +1,2 @@
+- Fixed regression: we now check if the email used to get a signed CSR is invalid (i.e. is an email
+  from a free email provider).

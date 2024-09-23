@@ -1,6 +1,7 @@
 #articles {
-  padding-left: 24px;
-  padding-right: 24px;
+  [purpose='page-container'] {
+    padding: 64px;
+  }
 
   [purpose='categories-and-search'] {
     padding-top: 40px;
@@ -30,8 +31,14 @@
     }
   }
   [purpose='category-title'] {
-    padding-top: 80px;
     padding-bottom: 40px;
+  }
+
+  [purpose='guides-category-page'] {
+    [purpose='category-title'] {
+      margin-left: 12px;
+      margin-right: 6px;
+    }
   }
   [purpose='rss-button'] {
     padding: 4px 8px;
@@ -49,7 +56,6 @@
       font-size: 16px;
     }
   }
-
   [purpose='rss-button'].copied::after {
     content: 'Link copied';
     display: flex;
@@ -74,11 +80,100 @@
     100% {opacity: 0;}
   }
 
+  [purpose='search'] {
+    // Note: We're using classes here to override the default Docsearch styles;
+    button {
+      width: 100%;
+      cursor: text;
+      margin: 0;
+    }
+    .DocSearch-Button {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+      background-color: #FFF;
+      padding: 6px;
+      height: 36px;
+      margin: 0;
+      width: 256px;
+    }
+    .DocSearch-Button:hover {
+      box-shadow: none;
+      border: 1px solid @core-fleet-black-25;
+      color: @core-fleet-black-50;
+    }
+    .DocSearch-Search-Icon {
+      margin-left: 10px;
+      height: 16px;
+      width: 16px;
+      color: @core-fleet-black-50;
+      stroke-width: 3px;
+    }
+    .DocSearch-Button-Keys {
+      display: none;
+    }
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+    .DocSearch-Button-Placeholder {
+      font-size: 16px;
+      font-weight: 400;
+      padding-left: 12px;
+    }
+    [purpose='disabled-search'] {
+      input {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        border: none;
+        } &::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+        }
+      .input-group {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        border: 1px solid @core-fleet-black-25;
+        background: #FFF;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-vibrant-blue;
+      }
+      .docsearch-input {
+        height: 100%;
+        width: 98%;
+      }
+      .docsearch-input:focus-visible {
+        outline: none;
+      }
+      .ds-input:focus {
+        outline: rgba(0, 0, 0, 0);
+      }
+      .input-group-text {
+        color: @core-fleet-black-50;
+      }
+      .form-control {
+        height: 36px;
+        padding: 0px;
+        font-size: 16px;
+      } &:focus {
+        border: none;
+      }
+    }
+  }
+
 
   [purpose='articles'] {
-    padding-bottom: 80px;
+    width: 100%;
+    max-width: 100%;
     [purpose='article-card'] {
-
+      a {
+        text-decoration: none;
+        color: @core-fleet-black-75;
+      }
       margin-left: 10px;
       margin-right: 10px;
       margin-bottom: 40px;
@@ -123,6 +218,71 @@
       }
     }
   }
+  [purpose='guides'] {
+    column-count: 3;
+    margin-left: -2px;
+    margin-right: 14px;
+  }
+  [purpose='guide-card'] {
+    &:hover {
+        box-shadow: 0px 4px 16px 0px #E2E4EA;
+      }
+    max-width: 343px;
+    margin-left: 12px;
+    margin-right: 12px;
+    margin-bottom: 24px;
+    border-radius: 16px;
+    box-shadow: none;
+    border: 1px solid #E2E4EA;
+    display: inline-block;
+    img {
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+    }
+    a {
+      text-decoration: none;
+      color: @core-fleet-black-75;
+    }
+    [purpose='article-card-body'] {
+      padding: 32px;
+      [purpose='category-name'] {
+        text-transform: uppercase;
+        color: @core-fleet-black-50;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 20px;
+        text-decoration: none;
+      }
+      p {
+        color: #515774;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 150%;
+      }
+      [purpose='article-title'] {
+
+        display: block;
+        text-decoration: none;
+        color: @core-fleet-black;
+        margin-bottom: 16px;
+        h5 {
+          font-weight: 800;
+          font-size: 16px;
+          line-height: 120%;
+        }
+      }
+      [purpose='article-details'] {
+        font-size: 12px;
+        line-height: 28px;
+        span {
+          color: @core-fleet-black-50;
+        }
+        p {
+          margin-bottom: 0px;
+        }
+      }
+    }
+  }
 
 
   @media (min-width: 1200px) {
@@ -131,8 +291,6 @@
       margin-right: 10px;
     }
     [purpose='articles'] {
-      margin-left: -25px;
-      margin-right: -25px;
       [purpose='article-card'] {
         flex: 1 1 350px;
         margin-left: 20px;
@@ -155,8 +313,12 @@
 
 
    @media (max-width: 991px) {
-    padding-left: 40px;
-    padding-right: 40px;
+    [purpose='page-container'] {
+      padding: 64px 32px;
+    }
+    [purpose='guide-card'] {
+      max-width: unset;
+    }
     [purpose='categories-and-search'] {
       padding-top: 40px;
       [purpose='categories'] {
@@ -171,9 +333,6 @@
         }
       }
     }
-    [purpose='category-title'] {
-      padding-top: 60px;
-    }
     [purpose='articles'] {
       [purpose='article-card'] {
         flex: 1 1 330px;
@@ -182,33 +341,65 @@
       margin-left: -10px;
       margin-right: -10px;
     }
+    [purpose='search'] {
+      .DocSearch-Button {
+        margin-left: 24px;
+        width: 200px;
+      }
+    }
 
   }
 
 
    @media (max-width: 767px) {
+
     [purpose='categories-and-search'] {
       [purpose='search'] {
         width: 100%;
       }
     }
-
+    [purpose='guides'] {
+      column-count: 2;
+    }
     [purpose='articles'] {
+      margin: 0 auto;
+      column-count: 2;
       [purpose='article-card'] {
         max-width: 100%;
+      }
+    }
+    [purpose='search'] {
+      .DocSearch-Button {
+        margin-top: 0px;
+        margin-left: 0px;
+        width: 100%;
       }
     }
   }
 
    @media (max-width: 576px) {
-    padding-left: 24px;
-    padding-right: 24px;
+    [purpose='page-container'] {
+      padding: 32px 24px;
+    }
+    [purpose='guides'] {
+      column-count: 1;
+    }
     [purpose='articles'] {
       margin-left: -10px;
       margin-right: -10px;
       [purpose='article-card'] {
         flex: 1 1 auto;
         max-width: 100%;
+      }
+    }
+    [purpose='guide-card'] {
+      width: 100%;
+    }
+    [purpose='search'] {
+      .DocSearch-Button {
+        margin-top: 0px;
+        margin-left: 0px;
+        width: 100%;
       }
     }
   }

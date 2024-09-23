@@ -36,6 +36,12 @@ func SendFailingPoliciesBatchedPOSTs(
 		level.Debug(logger).Log("msg", "no hosts", "policyID", policy.ID)
 		return nil
 	}
+	// The count may be out of date since it is only updated during the hourly cleanups_then_aggregation cron.
+	// Take care of the case where the count is less than the actual number of hosts we are returning.
+	hostsCount := uint(len(hosts))
+	if hostsCount > policy.FailingHostCount {
+		policy.FailingHostCount = hostsCount
+	}
 	sort.Slice(hosts, func(i, j int) bool {
 		return hosts[i].ID < hosts[j].ID
 	})

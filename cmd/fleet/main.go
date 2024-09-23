@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/shellquote"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
@@ -28,6 +31,35 @@ func main() {
 	rootCmd.AddCommand(createServeCmd(configManager))
 	rootCmd.AddCommand(createConfigDumpCmd(configManager))
 	rootCmd.AddCommand(createVersionCmd(configManager))
+
+	// See if the program is being piped data on stdin.
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		initFatal(err, "getting stdin stats")
+	}
+	if fi.Mode()&os.ModeNamedPipe != 0 {
+		_, _ = fmt.Fprintln(os.Stderr, "Reading additional arguments from stdin...")
+		// See charsets at https://godoc.org/github.com/briandowns/spinner#pkg-variables
+		s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
+		s.Writer = os.Stderr
+		s.Start()
+
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			initFatal(err, "reading from stdin")
+		}
+
+		// Split the string into arguments like a shell would.
+		extraArgs, err := shellquote.Split(string(data))
+		if err != nil {
+			initFatal(err, "splitting arguments from stdin")
+		}
+
+		// Add the new args to the existing args
+		os.Args = append(os.Args, extraArgs...)
+
+		s.Stop()
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		initFatal(err, "running root command")

@@ -111,11 +111,10 @@ If there is partially merged feature work when the release candidate is created,
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
 
 1. **Go**: Latest minor release
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/settings/variables/actions).
+- Check the [Go version specified in Fleet's go.mod file](https://github.com/fleetdm/fleet/blob/main/go.mod) (`go 1.XX.YY`).
 - Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
 - If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the current oncall engineer. Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release.
 - If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the current oncall engineer. This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
-- Note that major version upgrades also require an [update to go.mod](https://github.com/fleetdm/fleet/blob/7b3134498873a31ba748ca27fabb0059cef70db9/go.mod#L3). 
 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
 
@@ -131,7 +130,7 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 
 3. **osquery**: Latest release
 - Check the [latest version of osquery](https://github.com/osquery/osquery/releases).
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/ceb4e4602ba9a90ebf0e33e1eddef770c9a8d8b5/.github/workflows/generate-osqueryd-targets.yml#L27).
+- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/generate-osqueryd-targets.yml#L27).
 - If the latest release of osquery is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
 - Do not add the `~release blocker` label. 
 - Update the bug description to note that changes to [osquery command-line flags](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) require updates to Fleet's flag validation and related documentation [as shown in this pull request](https://github.com/fleetdm/fleet/pull/16239/files). 
@@ -464,7 +463,7 @@ When this occurs, we will begin receiving the following error message when attem
 
 2. Log in using the credentials stored in 1Password under "Apple developer account".
 
-3. Contact the Head of Business Operations to determine which phone number to use for 2FA.
+3. Contact the Head of Digital Experience to determine which phone number to use for 2FA.
 
 4. Complete the 2FA process to log in.
 
@@ -492,7 +491,7 @@ The certificate signing request (CSR) certificate expires every year. It needs t
 
 Steps to renew the certificate:
 
-1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+1. Visit the [Apple developer account login page](https://developer.apple.com/account).
 2. Log in using the credentials stored in 1Password under **Apple developer account**.
 3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
 4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
@@ -536,14 +535,26 @@ Upon receiving any device, follow these steps to process incoming equipment.
 
 ### Ship approved equipment
 
-Once the Business Operations department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
+Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. package equipment for shipment and include Yubikeys (if requested).
+3. Package equipment for shipment and include Yubikeys (if requested).
 4. Change the "Company equipment" spreadsheet to reflect the new user.
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/engineering#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
+
+
+### Provide 0-day support for major version macOS releases
+
+Beginning with macOS 16, Fleet will offer 0-day support for all major version macOS releases. 
+
+1. Install major version macOS beta release on test devices. 
+2. Create a new [QA release issue](https://github.com/fleetdm/fleet/issues/new?assignees=xpkoala%2Cpezhub&labels=%23g-mdm%2C%23g-endpoint-ops%2C%3Arelease&projects=&template=release-qa.md&title=Release+QA%3A+macOS+16) with the new major version in the issue title.
+3. Complete all manual smoke tests in the issue and confirm they are passing. 
+4. Confirm all automated tests are passing.
+5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
+6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet 0-day support for the new major release.
 
 
 ## Rituals

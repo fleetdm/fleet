@@ -210,7 +210,7 @@ func compressSingleFile(t *testing.T, filePath, outFilePath string) {
 	require.NoError(t, err)
 }
 
-func TestUpdatesIntegration(t *testing.T) {
+func TestIntegrationsUpdates(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	tmpDir := t.TempDir()
 

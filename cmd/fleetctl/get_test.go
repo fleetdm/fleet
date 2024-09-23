@@ -2060,8 +2060,13 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, err.Error(), expected)
 	})
 
-	t.Run("premium license", func(t *testing.T) {
-		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+	t.Run("premium license, single token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+			}, nil
+		}
 
 		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
 		assert.Contains(t, out, "Apple ID:")
@@ -2069,6 +2074,29 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
 		assert.Contains(t, out, "Default team:")
+	})
+
+	t.Run("premium license, no token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return nil, nil
+		}
+
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "No Apple Business Manager server token found.")
+	})
+
+	t.Run("premium license, multiple tokens", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+				{ID: 2},
+			}, nil
+		}
+
+		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint")
 	})
 }
 
@@ -2269,11 +2297,14 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
 		return nil

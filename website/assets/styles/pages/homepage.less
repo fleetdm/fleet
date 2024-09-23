@@ -643,6 +643,16 @@
     }
   }
 
+  [purpose='bottom-cta'] {
+      h1 {
+        font-size: 48px;
+        max-width: 640px;
+        &.vm {
+          max-width: unset;
+        }
+      }
+    }
+
   [purpose='video-modal'] {
     [purpose='modal-dialog'] {
       width: 100%;
@@ -710,11 +720,6 @@
     }
     [purpose='integrations-section'] {
       margin-top: 160px;
-    }
-    [purpose='bottom-cta'] {
-      h1 {
-        font-size: 48px;
-      }
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {

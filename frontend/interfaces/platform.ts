@@ -108,3 +108,6 @@ export const isAppleDevice = (platform: string) => {
     platform as typeof HOST_APPLE_PLATFORMS[number]
   );
 };
+
+export const isIPadOrIPhone = (platform: string | HostPlatform) =>
+  ["ios", "ipados"].includes(platform);

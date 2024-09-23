@@ -117,19 +117,22 @@ module.exports = {
       case 'email-nurture-stage-three':
         layout = 'layout-nurture-email';
         fakeData = {
-          firstName: 'Sage'
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
         };
         break;
       case 'email-nurture-stage-four':
         layout = 'layout-nurture-email';
         fakeData = {
-          firstName: 'Sage'
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
         };
         break;
       case 'email-nurture-stage-five':
         layout = 'layout-nurture-email';
         fakeData = {
-          firstName: 'Sage'
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
         };
         break;
       case 'email-deal-registration':
@@ -150,6 +153,14 @@ module.exports = {
           expectedDealSize: '$30,000',
           expectedCloseDate: '09/28/2024',
           notes: 'Fake organization 2 is looking for a managed cloud MDM solution with a name that ends with "eet"',
+        };
+        break;
+      case 'email-contact-form':
+        fakeData = {
+          firstName: 'Jane',
+          lastName: 'Williamson',
+          emailAddress: 'jane@example.com',
+          message: 'Hi, this is a contact form message!',
         };
         break;
       default:

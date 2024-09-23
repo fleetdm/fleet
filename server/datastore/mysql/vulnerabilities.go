@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -495,4 +496,13 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 	}
 
 	return nil
+}
+
+func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
+	var count uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT 1 FROM cve_meta WHERE cve = ?", cve)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
+	return count > 0, nil
 }

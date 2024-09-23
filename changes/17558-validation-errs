@@ -1,0 +1,2 @@
+- Adds validation of Setup Assistant profiles on profile upload, giving users immediate feedback on
+the validity of the profile.

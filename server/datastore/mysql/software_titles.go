@@ -13,18 +13,24 @@ import (
 )
 
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-	var teamFilter string // used to filter software titles host counts by team
+	var (
+		teamFilter                            string // used to filter software titles host counts by team
+		softwareInstallerGlobalOrTeamIDFilter string
+		vppAppsTeamsGlobalOrTeamIDFilter      string
+	)
+
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
+		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
+		vppAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("vat.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
+		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
 	}
 
-	var tmID uint // used to filter software installers by team
-	if teamID != nil {
-		tmID = *teamID
-	}
-
+	// Select software title but filter out if the software has zero host counts
+	// and it's not an installer or VPP app.
 	selectSoftwareTitleStmt := fmt.Sprintf(`
 SELECT
 	st.id,
@@ -32,27 +38,27 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
-	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
-	MAX(sthc.updated_at)  as counts_updated_at,
+	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
-	COUNT(vat.adam_id) as vpp_apps_count
+	COUNT(vat.adam_id) AS vpp_apps_count
 FROM software_titles st
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
-LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
+LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id AND vat.platform = vap.platform
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 WHERE st.id = ? AND
-	((sthc.hosts_count > 0 AND %s) OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
+	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
 	st.source,
 	st.browser,
 	st.bundle_identifier
-	`, teamFilter,
+	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, tmID, tmID, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}
@@ -90,8 +96,8 @@ func (ds *Datastore) ListSoftwareTitles(
 		opt.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
-	if opt.AvailableForInstall && opt.VulnerableOnly {
-		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "available_for_install and vulnerable can't be provided together")
+	if (opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 || opt.KnownExploit) && !opt.VulnerableOnly {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
 	}
 
 	dbReader := ds.reader(ctx)
@@ -105,6 +111,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		PackageSelfService *bool   `db:"package_self_service"`
 		PackageName        *string `db:"package_name"`
 		PackageVersion     *string `db:"package_version"`
+		PackageURL         *string `db:"package_url"`
 		VPPAppSelfService  *bool   `db:"vpp_app_self_service"`
 		VPPAppAdamID       *string `db:"vpp_app_adam_id"`
 		VPPAppVersion      *string `db:"vpp_app_version"`
@@ -146,6 +153,7 @@ func (ds *Datastore) ListSoftwareTitles(
 				Name:        *title.PackageName,
 				Version:     version,
 				SelfService: title.PackageSelfService,
+				PackageURL:  title.PackageURL,
 			}
 		}
 
@@ -256,32 +264,53 @@ SELECT
 	si.self_service as package_self_service,
 	si.filename as package_name,
 	si.version as package_version,
-	-- in a future iteration, will be supported for VPP apps
-	0 as vpp_app_self_service,
+	si.url AS package_url,
+	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vap.latest_version as vpp_app_version,
 	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
-LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
-LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
+LEFT JOIN software_installers si ON si.title_id = st.id AND %s
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND %s
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 -- placeholder for JOIN on software/software_cve
 %s
 -- placeholder for optional extra WHERE filter
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url`
+GROUP BY st.id, package_self_service, package_name, package_version, package_url, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
 		cveJoinType = "INNER"
 	}
 
-	args := []any{0, 0, 0}
-	if opt.TeamID != nil {
-		args[0], args[1], args[2] = *opt.TeamID, *opt.TeamID, *opt.TeamID
+	countsJoin := "TRUE"
+	softwareInstallersJoinCond := "TRUE"
+	vppAppsJoinCond := "TRUE"
+	vppAppsTeamsJoinCond := "TRUE"
+	includeVPPAppsAndSoftwareInstallers := "TRUE"
+	switch {
+	case opt.TeamID == nil:
+		countsJoin = "sthc.team_id = 0 AND sthc.global_stats = 1"
+		// When opt.TeamID is nil (aka "All teams") we do not include VPP-apps/installers
+		// that are not installed on any host.
+		includeVPPAppsAndSoftwareInstallers = "FALSE"
+	case *opt.TeamID == 0:
+		countsJoin = "sthc.team_id = 0 AND sthc.global_stats = 0"
+		softwareInstallersJoinCond = fmt.Sprintf("si.global_or_team_id = %d", *opt.TeamID)
+		vppAppsTeamsJoinCond = fmt.Sprintf("vat.global_or_team_id = %d", *opt.TeamID)
+	case *opt.TeamID > 0:
+		countsJoin = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *opt.TeamID)
+		softwareInstallersJoinCond = fmt.Sprintf("si.global_or_team_id = %d", *opt.TeamID)
+		vppAppsTeamsJoinCond = fmt.Sprintf("vat.global_or_team_id = %d", *opt.TeamID)
+	}
+
+	if opt.PackagesOnly {
+		vppAppsJoinCond = "FALSE"
+		vppAppsTeamsJoinCond = "FALSE"
 	}
 
 	additionalWhere := "TRUE"
@@ -299,6 +328,31 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 		`, cveJoinType)
 	}
 
+	var args []any
+	if opt.VulnerableOnly && (opt.KnownExploit || opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0) {
+		softwareJoin += `
+			INNER JOIN cve_meta cm ON scve.cve = cm.cve
+		`
+		if opt.KnownExploit {
+			softwareJoin += `
+				AND cm.cisa_known_exploit = 1
+			`
+		}
+		if opt.MinimumCVSS > 0 {
+			softwareJoin += `
+				AND cm.cvss_score >= ?
+			`
+			args = append(args, opt.MinimumCVSS)
+		}
+
+		if opt.MaximumCVSS > 0 {
+			softwareJoin += `
+				AND cm.cvss_score <= ?
+			`
+			args = append(args, opt.MaximumCVSS)
+		}
+	}
+
 	if match != "" {
 		additionalWhere = " (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)
@@ -306,22 +360,19 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	}
 
 	// default to "a software installer or VPP app exists", and see next condition.
-	defaultFilter := `
-		(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)
-	`
+	defaultFilter := fmt.Sprintf(`
+		((si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s)
+	`, includeVPPAppsAndSoftwareInstallers)
 
-	// add software installed for hosts if any of this is true:
-	//
-	// - we're not filtering for "available for install" only
-	// - we're filtering by vulnerable only
-	if !opt.AvailableForInstall || opt.VulnerableOnly {
+	// add software installed for hosts if we're not filtering for "available for install" only
+	if !opt.AvailableForInstall {
 		defaultFilter = ` ( ` + defaultFilter + ` OR sthc.hosts_count > 0 ) `
 	}
 	if opt.SelfServiceOnly {
-		defaultFilter += ` AND si.self_service = 1 `
+		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
-	stmt = fmt.Sprintf(stmt, softwareJoin, additionalWhere, defaultFilter)
+	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args
 }
 

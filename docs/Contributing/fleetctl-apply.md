@@ -338,7 +338,8 @@ List of saved scripts that can be run on hosts that are part of the team.
 
 - Default value: none
 - Config file format:
-  ```yaml
+
+```yaml
 apiVersion: v1
 kind: team
 spec:
@@ -347,7 +348,7 @@ spec:
     scripts:
       - path/to/script1.sh
       - path/to/script2.sh
-  ```
+```
 
 ## Organization settings
 

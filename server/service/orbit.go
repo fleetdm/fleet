@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -202,8 +203,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.RenewEnrollmentProfile = true
 		}
 
+		manualMigrationEligible, err := fleet.IsEligibleForManualMigration(host, mdmInfo, isConnectedToFleetMDM)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking manual migration eligibility")
+		}
+
 		if appConfig.MDM.MacOSMigration.Enable &&
-			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
+			(fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) || manualMigrationEligible) {
 			notifs.NeedsMDMMigration = true
 		}
 
@@ -428,6 +434,17 @@ func (svc *Service) setDiskEncryptionNotifications(
 
 	switch host.FleetPlatform() {
 	case "darwin":
+		mp, ok := capabilities.FromContext(ctx)
+		if !ok {
+			level.Debug(svc.logger).Log("msg", "no capabilities in context, skipping disk encryption notification")
+			return nil
+		}
+
+		if !mp.Has(fleet.CapabilityEscrowBuddy) {
+			level.Debug(svc.logger).Log("msg", "host doesn't support Escrow Buddy, skipping disk encryption notification", "host_uuid", host.UUID)
+			return nil
+		}
+
 		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
 	case "windows":
 		isServer := mdmInfo != nil && mdmInfo.IsServer
@@ -668,7 +685,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	hsr, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
+	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
@@ -690,20 +707,47 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			scriptName = scr.Name
 		}
 
-		// TODO(sarah): We may need to special case lock/unlock script results here?
-		if err := svc.NewActivity(
-			ctx,
-			user,
-			fleet.ActivityTypeRanScript{
-				HostID:            host.ID,
-				HostDisplayName:   host.DisplayName(),
-				ScriptExecutionID: hsr.ExecutionID,
-				ScriptName:        scriptName,
-				Async:             !hsr.SyncRequest,
-			},
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+		switch action {
+		case "uninstall":
+			// Get software title from execution ID
+			softwareTitleName, err := svc.ds.GetSoftwareTitleNameFromExecutionID(ctx, hsr.ExecutionID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get software title from execution ID")
+			}
+			activityStatus := "failed"
+			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
+				activityStatus = "uninstalled"
+			}
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeUninstalledSoftware{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+					SoftwareTitle:   softwareTitleName,
+					ExecutionID:     hsr.ExecutionID,
+					Status:          activityStatus,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
+		default:
+			// TODO(sarah): We may need to special case lock/unlock script results here?
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeRanScript{
+					HostID:            host.ID,
+					HostDisplayName:   host.DisplayName(),
+					ScriptExecutionID: hsr.ExecutionID,
+					ScriptName:        scriptName,
+					Async:             !hsr.SyncRequest,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
 		}
+
 	}
 	return nil
 }
@@ -975,17 +1019,37 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
-	if status := result.Status(); status != fleet.SoftwareInstallerPending {
+	if status := result.Status(); status != fleet.SoftwareInstallPending {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")
 		}
 
+		// Self-Service packages will have a nil author for the activity.
 		var user *fleet.User
-		if hsi.UserID != nil && !hsi.SelfService {
-			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get host software installation user")
+		if !hsi.SelfService {
+			if hsi.UserID != nil {
+				user, err = svc.ds.UserByID(ctx, *hsi.UserID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host software installation user")
+				}
+			} else {
+				// hsi.UserID can be nil if the user was deleted and/or if the installation was
+				// triggered by Fleet (policy automation). Thus we set the author of the installation
+				// to be the user that uploaded the package (by design).
+				var userID uint
+				if hsi.SoftwareInstallerUserID != nil {
+					userID = *hsi.SoftwareInstallerUserID
+				}
+				// If there's no name or email then this may be a package uploaded
+				// before we added authorship to uploaded packages.
+				if hsi.SoftwareInstallerUserName != "" && hsi.SoftwareInstallerUserEmail != "" {
+					user = &fleet.User{
+						ID:    userID,
+						Name:  hsi.SoftwareInstallerUserName,
+						Email: hsi.SoftwareInstallerUserEmail,
+					}
+				}
 			}
 		}
 

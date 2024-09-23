@@ -43,7 +43,7 @@ const OSSettingsModal = ({
       title="OS settings"
       onExit={onClose}
       className={baseClass}
-      width="large"
+      width="xlarge"
     >
       <>
         <OSSettingsTable

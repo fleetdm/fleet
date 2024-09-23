@@ -2,7 +2,11 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareTitle,
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
 import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -72,7 +76,7 @@ const getSoftwareNameCellData = (
     isSelfService = software_package.self_service;
   } else if (app_store_app) {
     hasPackage = true;
-    isSelfService = false;
+    isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
   }
 
@@ -145,9 +149,7 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
-        if (
-          ["ios_apps", "ipados_apps"].includes(cellProps.row.original.source)
-        ) {
+        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
         }
         const vulnerabilities = getVulnerabilities(

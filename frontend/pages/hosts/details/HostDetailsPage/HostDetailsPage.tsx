@@ -53,6 +53,8 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
+import { isIPadOrIPhone } from "interfaces/platform";
+
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -66,6 +68,7 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -178,6 +181,10 @@ const HostDetailsPage = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
@@ -313,7 +320,10 @@ const HostDetailsPage = ({
             // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
             // the first page loads), we start it now if the host is online. If the host is offline,
             // we skip the refetch on page load.
-            if (returnedHost.status === "online") {
+            if (
+              returnedHost.status === "online" ||
+              isIPadOrIPhone(returnedHost.platform)
+            ) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -323,9 +333,13 @@ const HostDetailsPage = ({
               setShowRefetchSpinner(false);
             }
           } else {
+            // !!refetchStartTime
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
-              if (returnedHost.status === "online") {
+              if (
+                returnedHost.status === "online" ||
+                isIPadOrIPhone(returnedHost.platform)
+              ) {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -338,6 +352,7 @@ const HostDetailsPage = ({
                 setShowRefetchSpinner(false);
               }
             } else {
+              // totalElapsedTime > 60000
               renderFlash(
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
@@ -469,7 +484,7 @@ const HostDetailsPage = ({
       case "ios":
         return mdmConfig?.ios_updates;
       default:
-        null;
+        return undefined;
     }
   };
 
@@ -588,6 +603,13 @@ const HostDetailsPage = ({
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
             // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case "uninstalled_software":
+          setPackageUninstallDetails({
+            ...details,
             host_display_name:
               host?.display_name || details?.host_display_name || "",
           });
@@ -921,10 +943,10 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
+                platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanInstallSoftware={
-                  !!host.orbit_version || isIosOrIpadosHost
-                }
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
+                hostScriptsEnabled={host.scripts_enabled || false}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -1052,6 +1074,12 @@ const HostDetailsPage = ({
           <SoftwareInstallDetailsModal
             details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
+        {packageUninstallDetails && (
+          <SoftwareUninstallDetailsModal
+            details={packageUninstallDetails}
+            onCancel={() => setPackageUninstallDetails(null)}
           />
         )}
         {!!appInstallDetails && (
