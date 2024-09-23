@@ -357,7 +357,7 @@ software:
 
 ##### Separate file
 
-`lib/software/tailscale.exe.software.yml`:
+`lib/software-name.package.yml`:
 
 ```yaml
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
