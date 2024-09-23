@@ -36,7 +36,7 @@ const (
 	ExitFileNotFound          = 202
 )
 
-func Run(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions) (*SwiftDialog, error) {
+func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions) (*SwiftDialog, error) {
 	commandFile, err := os.CreateTemp("", "swiftDialogCommand")
 	if err != nil {
 		return nil, err
