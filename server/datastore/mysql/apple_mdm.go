@@ -2772,116 +2772,24 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 	return query, args, nil
 }
 
-func subqueryOSSettingsStatusMac() (string, []any, error) {
-	var profArgs []any
-	profFailed, profFailedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profFailedArgs...)
-
-	profPending, profPendingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profPendingArgs...)
-
-	profVerifying, profVerifyingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profVerifyingArgs...)
-
-	profVerified, profVerifiedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profVerifiedArgs...)
-
-	profStmt := fmt.Sprintf(`
-	    CASE WHEN EXISTS (%s) THEN
-	        'profiles_failed'
-	    WHEN EXISTS (%s) THEN
-	        'profiles_pending'
-	    WHEN EXISTS (%s) THEN
-	        'profiles_verifying'
-	    WHEN EXISTS (%s) THEN
-	        'profiles_verified'
-	    ELSE
-	        ''
-	    END`,
-		profFailed,
-		profPending,
-		profVerifying,
-		profVerified,
+// sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
+// based on the status of its profiles and declarations and filevault status. It should be used in
+// conjunction with sqlJoinMDMAppleProfilesStatus and sqlJoinMDMAppleDeclarationsStatus. It assumes the
+// hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
+func sqlCaseMDMAppleStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 	)
-
-	declStmt, declArgs, err := subqueryAppleDeclarationStatus()
-	if err != nil {
-		return "", nil, err
-	}
-
-	stmt := fmt.Sprintf(`
-	CASE (%s)
-	WHEN 'profiles_failed' THEN
-	    'failed'
-	WHEN 'profiles_pending' THEN (
-	    CASE (%s)
-	    WHEN 'declarations_failed' THEN
-	        'failed'
-	    ELSE
-	        'pending'
-	    END)
-	WHEN 'profiles_verifying' THEN (
-	    CASE (%s)
-	    WHEN 'declarations_failed' THEN
-	        'failed'
-	    WHEN 'declarations_pending' THEN
-	        'pending'
-	    ELSE
-	        'verifying'
-	    END)
-	WHEN 'profiles_verified' THEN (
-	    CASE (%s)
-	    WHEN 'declarations_failed' THEN
-	        'failed'
-	    WHEN 'declarations_pending' THEN
-	        'pending'
-	    WHEN 'declarations_verifying' THEN
-	        'verifying'
-	    ELSE
-	        'verified'
-	    END)
-	ELSE
-	    REPLACE((%s), 'declarations_', '')
-	END`, profStmt, declStmt, declStmt, declStmt, declStmt)
-
-	args := append(profArgs, declArgs...)
-	args = append(args, declArgs...)
-	args = append(args, declArgs...)
-	args = append(args, declArgs...)
-
-	// FIXME(roberto): we found issues in MySQL 5.7.17 (only that version,
-	// which we must support for now) with prepared statements on this
-	// query. The results returned by the DB were always different what
-	// expected unless the arguments are inlined in the query.
-	//
-	// We decided to do this given:
-	//
-	// - The time constraints we were given to develop DDM
-	// - The fact that all the variables in this query are really strings managed by us
-	// - The imminent deprecation of MySQL 5.7
-	return fmt.Sprintf(strings.Replace(stmt, "?", "'%s'", -1), args...), []any{}, nil
-}
-
-func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	stmt := `
-SELECT
-	COUNT(id) AS count,
+	return `
 	CASE WHEN (prof_failed
 		OR decl_failed
 		OR fv_failed) THEN
-		:failed
+		` + failed + `
 	WHEN (prof_pending
 		OR decl_pending
 		-- special case for filevault, it's pending if the profile is
@@ -2890,99 +2798,124 @@ SELECT
 		OR(fv_pending
 			OR((fv_verifying
 				OR fv_verified)
-			AND (base64_encrypted IS NULL OR (decryptable IS NOT NULL AND decryptable != 1))))) THEN
-		:pending
+			AND (hdek.base64_encrypted IS NULL OR (hdek.decryptable IS NOT NULL AND hdek.decryptable != 1))))) THEN
+		` + pending + `
 	WHEN (prof_verifying
 		OR decl_verifying
 		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
 		OR(fv_verifying
-			AND base64_encrypted IS NOT NULL AND (decryptable IS NULL OR decryptable = 1))
+			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
 		-- special case when fv profile is verified, but we didn't verify the encryption key, we treat as verifying
 		OR(fv_verified
-			AND base64_encrypted IS NOT NULL AND decryptable IS NULL)) THEN
-		:verifying
+			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable IS NULL)) THEN
+		` + verifying + `
 	WHEN (prof_verified
 		OR decl_verified
 		OR(fv_verified
-			AND base64_encrypted IS NOT NULL AND decryptable = 1)) THEN
-		:verified
-	END AS status
-FROM
-	hosts h
+			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
+		` + verified + `
+	END
+`
+}
+
+// sqlJoinMDMAppleProfilesStatus returns a SQL snippet that can be used to join a table derived from
+// host_mdm_apple_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
+// it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile in the given status category. Separate columns are used for status of the filevault profile
+// vs. all other profiles. The snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinMDMAppleProfilesStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+		filevault = fmt.Sprintf("'%s'", mobileconfig.FleetFileVaultPayloadIdentifier)
+	)
+	return `
 	LEFT JOIN (
 		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
 		-- filevault profiles are treated separately
 		SELECT
 			host_uuid,
-			MAX( IF((status IS NULL OR status = :pending) AND profile_identifier != :filevault, 1, 0)) AS prof_pending,
-			MAX( IF(status = :failed AND profile_identifier != :filevault, 1, 0)) AS prof_failed,
-			MAX( IF(status = :verifying AND profile_identifier != :filevault AND operation_type = :install, 1, 0)) AS prof_verifying,
-			MAX( IF(status = :verified AND profile_identifier != :filevault AND operation_type = :install, 1, 0)) AS prof_verified,
-			MAX( IF((status IS NULL OR status = :pending) AND profile_identifier = :filevault, 1, 0)) AS fv_pending,
-			MAX( IF(status = :failed AND profile_identifier = :filevault, 1, 0)) AS fv_failed,
-			MAX( IF(status = :verifying AND profile_identifier = :filevault AND operation_type = :install, 1, 0)) AS fv_verifying,
-			MAX( IF(status = :verified AND profile_identifier = :filevault AND operation_type = :install, 1, 0)) AS fv_verified
+			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_pending,
+			MAX( IF(status = ` + failed + ` AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_failed,
+			MAX( IF(status = ` + verifying + ` AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verifying,
+			MAX( IF(status = ` + verified + `  AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verified,
+			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_pending,
+			MAX( IF(status = ` + failed + ` AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_failed,
+			MAX( IF(status = ` + verifying + ` AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verifying,
+			MAX( IF(status = ` + verified + `  AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verified
 		FROM
 			host_mdm_apple_profiles
 		GROUP BY
 			host_uuid) hmap ON h.uuid = hmap.host_uuid
+`
+}
+
+// sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that can be used to join a table derived from
+// host_mdm_apple_declarations (grouped by host_uuid and status) and the hosts table. For each host_uuid,
+// it derives a boolean value for each status category. The value will be 1 if the host has any
+// declaration in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinMDMAppleDeclarationsStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed            = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending           = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying         = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified          = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install           = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+		reservedDeclNames = fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
+	)
+	return `
 	LEFT JOIN (
 		-- declaration statuses grouped by host uuid, boolean value will be 1 if host has any declaration with the given status
 		SELECT
 			host_uuid,
-			MAX( IF((status IS NULL OR status = :pending), 1, 0)) AS decl_pending,
-			MAX( IF(status = :failed, 1, 0)) AS decl_failed,
-			MAX( IF(status = :verifying, 1, 0)) AS decl_verifying,
-			MAX( IF(status = :verified, 1, 0)) AS decl_verified
+			MAX( IF((status IS NULL OR status = ` + pending + `), 1, 0)) AS decl_pending,
+			MAX( IF(status = ` + failed + `, 1, 0)) AS decl_failed,
+			MAX( IF(status = ` + verifying + ` , 1, 0)) AS decl_verifying,
+			MAX( IF(status = ` + verified + ` , 1, 0)) AS decl_verified
 		FROM
 			host_mdm_apple_declarations
 		WHERE
-			operation_type = :install AND declaration_name NOT IN(:macosUpdates, :iosUpdates, :ipadOSUpdates)
+			operation_type = ` + install + ` AND declaration_name NOT IN(` + reservedDeclNames + `)
 		GROUP BY
 			host_uuid) hmad ON h.uuid = hmad.host_uuid
-	LEFT JOIN (
-		-- status of host disk encryption key, decryptable value can be null, 0, or 1
-		SELECT
-			host_id,
-			base64_encrypted,
-			decryptable
-		FROM
-			host_disk_encryption_keys) hdek ON h.id = hdek.host_id
+`
+}
+
+func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	stmt := `
+SELECT
+	COUNT(id) AS count,
+	%s AS status
+FROM
+	hosts h
+	%s
+	%s
+	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
 	platform IN('darwin', 'ios', 'ipad_os') AND %s
 GROUP BY
 	status HAVING status IS NOT NULL`
 
-	named := map[string]any{
-		"pending":       fleet.MDMDeliveryPending,
-		"failed":        fleet.MDMDeliveryFailed,
-		"verifying":     fleet.MDMDeliveryVerifying,
-		"verified":      fleet.MDMDeliveryVerified,
-		"filevault":     mobileconfig.FleetFileVaultPayloadIdentifier,
-		"install":       fleet.MDMOperationTypeInstall,
-		"macosUpdates":  fleetmdm.FleetMacOSUpdatesProfileName,
-		"iosUpdates":    fleetmdm.FleetIOSUpdatesProfileName,
-		"ipadOSUpdates": fleetmdm.FleetIPadOSUpdatesProfileName,
-	}
-
 	teamFilter := "team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = "team_id = :teamID"
-		named["teamID"] = *teamID
+		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt, args, err := sqlx.Named(fmt.Sprintf(stmt, teamFilter), named)
-	if err != nil {
-		return nil, err
-	}
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
 		Status string `db:"status"`
 	}
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
-	if err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt); err != nil {
 		return nil, err
 	}
 
