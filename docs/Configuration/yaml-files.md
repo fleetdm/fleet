@@ -363,7 +363,7 @@ software:
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
-self_sergice: true
+self_service: true
 ```
 
 `lib/software/tailscale-install-script.ps1`
