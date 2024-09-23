@@ -54,7 +54,7 @@ To access and manage software in Fleet:
 
 * To customize installer behavior, click on “Advanced options.”
 
-> After the initial package upload, all options, including the self-service setting, pre-install query, scripts, and even the software package file, can be modified. When replacing an installer package, the replacement package must be the same type, and be for the same software, as the original package.
+> After the initial package upload, all options can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package.
 
 #### Pre-install query
 
@@ -62,7 +62,7 @@ A pre-install query is a valid osquery SQL statement that will be evaluated on t
 
 #### Install script
 
-After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process (for example, if [an EXE-based Windows installer requires custom handling](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run from.
+After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process (for example, if [an EXE-based Windows installer requires custom handling](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run.
 
 #### Post-install script
 
@@ -72,7 +72,7 @@ A post-install script will run after the installation, allowing you to, for exam
 
 An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if an install fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process.
 
-In addition to the `$INSTALLER_PATH` environment variable supported by install scripts, you can use `$PACKAGE_ID` in uninstall scripts as a placeholder for the package IDs (for .pkg files), package name (for Linux installers), product code (for MSIs), or software name (for EXE installers). `$PACKAGE_ID` will be substituted on upload by the Fleet server.
+In addition to the `$INSTALLER_PATH` environment variable supported by install scripts, you can use `$PACKAGE_ID` in uninstall scripts as a placeholder for the package IDs (for .pkg files), package name (for Linux installers), product code (for MSIs), or software name (for EXE installers). The Fleet server will substitute `$PACKAGE_ID` on upload.
 
 ### Install a software package on a host
 
@@ -110,7 +110,7 @@ After a software package is added to a team, it can be installed on hosts via th
 
 * **Edit software package**: From the Actions menu, select "Edit."
 
-> Editing the pre-install query, install script, post-install script, or uninstall script cancels all pending installations and uninstallations for that package, except for installs and uninstalls that are currently running on a host. If a new software package is uploaded, in addition to cancelling pending installs and uninstalls, host counts (for installs, as well as pending and failed installs and uninstalls) will be reset to zero, so counts reflect the currently uploaded version of the package.
+> Editing the pre-install query, install script, post-install script, or uninstall script cancels all pending installations and uninstallations for that package, except for installs and uninstalls that are currently running on a host. If a new software package is uploaded, in addition to canceling pending installs and uninstalls, host counts (for installs and pending and failed installs and uninstalls) will be reset to zero, so counts reflect the currently uploaded version of the package.
 
 ### Uninstall a software package on a host
 
@@ -148,7 +148,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 * **Remove software package**: From the Actions menu, select "Delete." Click the "Delete" button on the dialog.
 
-> Removing a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software, but will not uninstall the software from hosts where it is already installed.
+> Removing a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software but will not uninstall the software from hosts where it is already installed.
 
 ### Manage software with the REST API
 
@@ -164,7 +164,7 @@ Please refer to the documentation for [managing software with GitOps](https://fl
 
 ## Conclusion
 
-Managing software with Fleet is straightforward and ensures your hosts are equipped with the latest tools. This guide has outlined how to access, add, edit, and remove software packages from a team, install and uninstall from specific hosts, and use the REST API and `fleetctl` to manage software packages. You can effectively maintain software packages across your fleet by following these steps.
+Managing software with Fleet is straightforward and ensures your hosts are equipped with the latest tools. This guide has outlined how to access, add, edit, and remove software packages from a team, install and uninstall from specific hosts, and use the REST API and `fleetctl` to manage software packages. By following these steps, you can effectively maintain software packages across your fleet.
 
 For more information on advanced setups and features, explore Fleet’s [documentation](https://fleetdm.com/docs/using-fleet) and additional [guides](https://fleetdm.com/guides).
 
