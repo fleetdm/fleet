@@ -75,6 +75,6 @@ By automating software deployment, you can gain greater control over what's inst
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-15">
+<meta name="publishedOn" value="2024-09-23">
 <meta name="articleImageUrl" value="../website/assets/images/articles/automatic-software-install-in-fleet-731x738@2x.png">
 <meta name="description" value="A guide to workflows using automatic software installation in Fleet.">
