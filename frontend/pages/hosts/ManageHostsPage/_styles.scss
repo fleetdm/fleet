@@ -233,6 +233,7 @@
 
     .Select-menu-outer {
       width: 364px;
+      max-height: min-content;
 
       .Select-menu {
         max-height: none;
