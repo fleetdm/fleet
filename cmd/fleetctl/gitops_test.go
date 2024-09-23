@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2919,24 +2920,23 @@ software:
 }
 
 type memKeyValueStore struct {
-	m map[string]string
+	m sync.Map
 }
 
 func newMemKeyValueStore() *memKeyValueStore {
-	return &memKeyValueStore{
-		m: make(map[string]string),
-	}
+	return &memKeyValueStore{}
 }
 
 func (m *memKeyValueStore) Set(ctx context.Context, key string, value string, expireTime time.Duration) error {
-	m.m[key] = value
+	m.m.Store(key, value)
 	return nil
 }
 
 func (m *memKeyValueStore) Get(ctx context.Context, key string) (*string, error) {
-	v, ok := m.m[key]
+	v, ok := m.m.Load(key)
 	if !ok {
 		return nil, nil
 	}
-	return &v, nil
+	vAsString := v.(string)
+	return &vAsString, nil
 }
