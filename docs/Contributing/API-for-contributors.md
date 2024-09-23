@@ -542,6 +542,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [Get an over the air (OTA) enrollment profile](#get-an-over-the-air-ota-enrollment-profile)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -3099,4 +3100,131 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
   "host_timeout": false,
   "exit_code": 0
 }
+```
+
+### Get token to download package
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+
+The returned token is a one-time use token that expires after 10 minutes.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                      |
+|-------------------|---------|-------|------------------------------------------------------------------|
+| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| team_id           | integer | query | **Required**. The team ID containing the software package.       |
+| alt               | integer | query | **Required**. Must be specified and set to "media".              |
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
+}
+```
+
+### Download package using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                              |
+|-------------------|---------|------|--------------------------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
+| token             | string  | path | **Required**. The token to download the software package.                |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Get an over the air (OTA) enrollment profile
+
+`GET /api/v1/fleet/enrollment_profiles/ota`
+
+The returned value is a signed `.mobileconfig` OTA profile.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                                      |
+|-------------------|---------|-------|----------------------------------------------------------------------------------|
+| enroll_secret     | string  | query | **Required**. The enroll secret of the team this host will be assigned to.       |
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/ota?enroll_secret=foobar`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+  Content-Length: 542
+  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+  X-Content-Type-Options: nosniff
+```
+
+###### Example response body
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foobar</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	<string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>Acme Inc.</string>
+    <key>PayloadDisplayName</key>
+    <string>Acme Inc. enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>
 ```
