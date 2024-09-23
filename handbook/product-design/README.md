@@ -191,6 +191,7 @@ available in Google Drive.
 
 Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
 
+
 ### Prepare reference docs for release
 
 Every change to how Fleet is used is reflected live on the website in reference documentation **at release day** (REST API, config surface, tables, and other already-existing docs under /docs/using-fleet).
