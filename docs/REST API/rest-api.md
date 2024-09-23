@@ -4569,7 +4569,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 {
   "activities": [
     {
-      "created_at": "2023-07-27T14:35:08Z",\
+      "created_at": "2023-07-27T14:35:08Z",
       "actor_id": 1,
       "actor_full_name": "Anna Chao",
       "id": 4,
