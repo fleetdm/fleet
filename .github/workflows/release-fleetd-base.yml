@@ -69,13 +69,8 @@ jobs:
           : # Check that latest-tuf-meta.json is valid
           jq -e . >/dev/null 2>&1 <<< $(cat latest-tuf-meta.json)
           : # Download the current TUF meta file in order to compare it with the latest
-          curl -O $BASE_URL/stable/tuf-meta.json
-          if diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
-          then
-            echo "update_needed=false" >> $GITHUB_OUTPUT
-          else
-            echo "update_needed=true" >> $GITHUB_OUTPUT
-          fi
+          curl -O $BASE_URL/stable/tuf-meta.json 
+          echo "update_needed=true" >> $GITHUB_OUTPUT
           echo "date_dir=$(date -u +%Y-%m-%d_%H-%M-%S)" >> $GITHUB_OUTPUT
 
       - name: Upload latest TUF meta artifact
