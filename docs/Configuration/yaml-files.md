@@ -89,7 +89,7 @@ policies:
   resolution: "Install Firefox version 129.0.2 or higher."
   query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
   install_software:
-    package_path: "../lib/software/firefox.deb.software.yml"
+    package_path: "../lib/software/firefox.deb.package.yml"
 ```
 
 `default.yml` or `teams/team-name.yml`
@@ -380,7 +380,7 @@ $installProcess = Start-Process $exeFilePath `
 ```yaml
 software:
   packages:
-    - path: ..lib/software-name.package.yml
+    - path: ../lib/software-name.package.yml
 # path is relative to default.yml or teams/team-name.yml
 ```
 
