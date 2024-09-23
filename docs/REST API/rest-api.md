@@ -485,6 +485,22 @@ for pagination. For a comprehensive list of activity types and detailed informat
 {
   "activities": [
     {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 25,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko's MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
+        "status": "failed"
+      }
+    },
+    {
       "created_at": "2021-07-30T13:41:07Z",
       "id": 24,
       "actor_full_name": "name",
@@ -4241,7 +4257,7 @@ Resends a configuration profile for the specified host.
         "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
-        },
+        }
       },
       "app_store_app": null
       "source": "apps",
@@ -4262,10 +4278,16 @@ Resends a configuration profile for the specified host.
         "name": "FalconSensor-6.44.pkg"
         "self_service": false,
         "last_install": null
+        "last_install": null,
+        "last_uninstall": {
+          "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
+          "uninstalled_at": "2024-05-15T15:23:57Z"
+        }
       },
       "app_store_app": null    
       "source": "",
       "status": null,
+      "status": "pending_uninstall",
       "installed_versions": [],
     },
     {
@@ -4548,6 +4570,38 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "id": 4,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko’s MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "failed"
+      }
+    }, 
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "id": 3,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko’s MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "uninstalled"
+      }
+    },
+    {
+      "created_at": "2023-07-27T14:35:08Z",
       "id": 2,
       "actor_full_name": "Anna",
       "actor_id": 1,
@@ -4610,6 +4664,23 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 {
   "count": 3,
   "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "uuid": "cc081637-fdf9-4d44-929f-96dfaec00f67",
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "fleet_initiated_activity": false,
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko's MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "pending_uninstall",
+      }
+    },
     {
       "created_at": "2023-07-27T14:35:08Z",
       "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
@@ -6812,6 +6883,29 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false
+    },
+    {
+      "id": 3,
+      "name": "macOS - install/update Adobe Acrobat",
+      "query": "SELECT 1 FROM apps WHERE name = \"Adobe Acrobat.app\" AND bundle_short_version != \"24.002.21005\";",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": false,
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
+      "team_id": 1,
+      "resolution": "Resolution steps",
+      "platform": "darwin",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
+      "passing_host_count": 2300,
+      "failing_host_count": 3,
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "install_software": {
+        "name": "Adobe Acrobat.app",
+        "software_title_id": 1234
+      }
     }
   ],
   "inherited_policies": [
@@ -6993,6 +7087,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
 
 Either `query` or `query_id` must be provided.
 
@@ -7036,7 +7131,11 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": false
+    "calendar_events_enabled": false,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    }
   }
 }
 ```
@@ -7091,6 +7190,7 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
+| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
 
 #### Example
 
@@ -7132,7 +7232,11 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": true
+    "calendar_events_enabled": true,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    }
   }
 }
 ```
@@ -8300,11 +8404,14 @@ Gets the result of a script that was executed.
   "host_timeout": false,
   "host_id": 1,
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "runtime": 20
+  "runtime": 20,
+  "created_at": "2024-09-11T20:30:24Z"
 }
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+> Note: `created_at` is the creation timestamp of the script execution request.
 
 ### Add script
 
@@ -8539,6 +8646,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add package](#add-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Add Fleet library app](#add-fleet-library-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -8854,14 +8962,17 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
-      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+      "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+      "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
       "status": {
         "installed": 3,
-        "pending": 1,
-        "failed": 2,
+        "pending_install": 1,
+        "failed_install": 0,
+        "pending_uninstall": 2,
+        "failed_uninstall": 1
       }
     },
     "app_store_app": null,
@@ -9067,7 +9178,7 @@ Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (U
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
+| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
@@ -9111,6 +9222,87 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 200`
+
+### Modify package
+
+_Available in Fleet Premium._
+
+Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
+
+`PATCH /api/v1/fleet/software/titles/:title_id/package`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
+| team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
+
+> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1/package`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="self_service"
+true
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="install_script"
+sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="pre_install_query"
+SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="post_install_script"
+sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_package": {
+    "name": "FalconSensor-6.44.pkg",
+    "version": "6.44",
+    "installer_id": 23,
+    "team_id": 3,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+    "self_service": true,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
+```
 
 ### List App Store apps
 
@@ -9238,9 +9430,7 @@ _Available in Fleet Premium._
 
 Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
 
-> Note: Fleet's agent (fleetd) only installs software it has been asked to install, but technically has access to all installer executables.
-
-`POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
+`POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 
 #### Parameters
 
@@ -9251,7 +9441,31 @@ Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or
 
 #### Example
 
-`POST /api/v1/fleet/hosts/123/software/install/3435`
+`POST /api/v1/fleet/hosts/123/software/3435/install`
+
+##### Default response
+
+`Status: 202`
+
+### Uninstall package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` added to be uninstalled.
+
+`POST /api/v1/fleet/hosts/:id/software/:software_title_id/uninstall`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| id                | integer    | path | **Required**. The host's ID.                     |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/3435/uninstall`
 
 ##### Default response
 
@@ -9263,7 +9477,7 @@ Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/install/results/:install_uuid`
+`GET /api/v1/fleet/software/install/:install_uuid/results`
 
 Get the results of a software package install. 
 
@@ -9275,7 +9489,7 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
 
 #### Example
 
-`GET /api/v1/fleet/software/install/results/b15ce221-e22e-4c6a-afe7-5b3400a017da`
+`GET /api/v1/fleet/software/install/b15ce221-e22e-4c6a-afe7-5b3400a017da/results`
 
 ##### Default response
 
