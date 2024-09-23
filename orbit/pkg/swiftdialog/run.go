@@ -154,6 +154,7 @@ func (s *SwiftDialog) sendCommand(command, arg string) error {
 	}
 
 	fullCommand := fmt.Sprintf("%s: %s", command, arg)
+	// fmt.Printf("fullCommand: %v\n", fullCommand)
 
 	_, err = fmt.Fprintf(commandFile, "%s\n", fullCommand)
 	if err != nil {
@@ -170,70 +171,89 @@ func (s *SwiftDialog) sendCommand(command, arg string) error {
 
 // Title
 
+// Updates the dialog title
 func (s *SwiftDialog) UpdateTitle(title string) error {
 	return s.sendCommand("title", title)
 }
 
+// Hides the title area
 func (s *SwiftDialog) HideTitle() error {
 	return s.sendCommand("title", "none")
 }
 
 // Message
 
-func (s *SwiftDialog) UpdateMessage(text string) error {
+// Set the dialog messZsage
+func (s *SwiftDialog) SetMessage(text string) error {
 	return s.sendCommand("message", text)
+}
+
+// Append to the dialog message
+func (s *SwiftDialog) AppendMessage(text string) error {
+	return s.sendCommand("message", fmt.Sprintf("+ %s", text))
 }
 
 // Image
 
+// Displays the selected image
 func (s *SwiftDialog) Image(pathOrUrl string) error {
 	return s.sendCommand("image", pathOrUrl)
 }
 
-func (s *SwiftDialog) ImageCaption(caption string) error {
+// Displays the specified text underneath any displayed image
+func (s *SwiftDialog) SetImageCaption(caption string) error {
 	return s.sendCommand("imagecaption", caption)
 }
 
 // Progress
-
+// When Dialog is initiated with the Progress option, this will update the progress value
 func (s *SwiftDialog) UpdateProgress(progress uint) error {
 	return s.sendCommand("progress", fmt.Sprintf("%d", progress))
 }
 
+// Increments the progress by one
 func (s *SwiftDialog) IncrementProgress() error {
 	return s.sendCommand("progress", "increment")
 }
 
+// Resets the progress bar to 0
 func (s *SwiftDialog) ResetProgress() error {
 	return s.sendCommand("progress", "reset")
 }
 
+// Maxes out the progress bar
 func (s *SwiftDialog) CompleteProgress() error {
 	return s.sendCommand("progress", "complete")
 }
 
+// Hide the progress bar
 func (s *SwiftDialog) HideProgress() error {
 	return s.sendCommand("progress", "hide")
 }
 
+// Show the progress bar
 func (s *SwiftDialog) ShowProgress() error {
 	return s.sendCommand("progress", "show")
 }
 
-func (s *SwiftDialog) UpdateProgressTest(text string) error {
+// Will update the label associated with the progress bar
+func (s *SwiftDialog) UpdateProgressText(text string) error {
 	return s.sendCommand("progresstext", text)
 }
 
 // Lists
 
+// Create a list
 func (s *SwiftDialog) SetList(items []string) error {
 	return s.sendCommand("list", strings.Join(items, ","))
 }
 
+// Clears the list and removes it from display
 func (s *SwiftDialog) ClearList() error {
 	return s.sendCommand("list", "clear")
 }
 
+// Add a new item to the end of the current list
 func (s *SwiftDialog) AddListItem(item ListItem) error {
 	arg := fmt.Sprintf("add, title: %s", item.Title)
 	if item.Status != "" {
@@ -245,26 +265,35 @@ func (s *SwiftDialog) AddListItem(item ListItem) error {
 	return s.sendCommand("listitem", arg)
 }
 
+// Delete an item by name
 func (s *SwiftDialog) DeleteListItemByTitle(title string) error {
 	return s.sendCommand("listitem", fmt.Sprintf("delete, title: %s", title))
 }
 
+// Delete an item by index number (starting at 0)
 func (s *SwiftDialog) DeleteListItemByIndex(index uint) error {
 	return s.sendCommand("listitem", fmt.Sprintf("delete, index: %d", index))
 }
 
+// Update a list item by name
 func (s *SwiftDialog) UpdateListItemByTitle(title, statusText string, status Status) error {
 	arg := fmt.Sprintf("title: %s, status: %s, statustext: %s", title, status, statusText)
 	return s.sendCommand("listitem", arg)
 }
 
-func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, status Status) error {
-	arg := fmt.Sprintf("index: %d, status: %s, statustext: %s", index, status, statusText)
+// Update a list item by index number (starting at 0)
+func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, status Status, progressPercent ...uint) error {
+	argStatus := string(status)
+	if len(progressPercent) == 1 && status == StatusProgress {
+		argStatus = fmt.Sprintf("progress: %d", progressPercent[0])
+	}
+	arg := fmt.Sprintf("index: %d, status: %s, statustext: %s", index, argStatus, statusText)
 	return s.sendCommand("listitem", arg)
 }
 
 // Buttons
 
+// Enable or disable button 1
 func (s *SwiftDialog) EnableButton1(enable bool) error {
 	arg := "disable"
 	if enable {
@@ -273,6 +302,7 @@ func (s *SwiftDialog) EnableButton1(enable bool) error {
 	return s.sendCommand("button1", arg)
 }
 
+// ENable or disable button 2
 func (s *SwiftDialog) EnableButton2(enable bool) error {
 	arg := "disable"
 	if enable {
@@ -281,16 +311,103 @@ func (s *SwiftDialog) EnableButton2(enable bool) error {
 	return s.sendCommand("button2", arg)
 }
 
+// Changes the button 1 label
 func (s *SwiftDialog) SetButton1Text(text string) error {
 	return s.sendCommand("button1text", text)
 }
 
+// Changes the button 2 label
 func (s *SwiftDialog) SetButton2Text(text string) error {
 	return s.sendCommand("button2text", text)
 }
 
+// Changes the info button label
 func (s *SwiftDialog) SetInfoButtonText(text string) error {
 	return s.sendCommand("infobuttontext", text)
 }
 
-// TODO remainder of updates
+// Info box
+
+// Update the content in the info box
+func (s *SwiftDialog) SetInfoBoxText(text string) error {
+	return s.sendCommand("infobox", text)
+}
+
+// Append to the conteit in the info box
+func (s *SwiftDialog) AppendInfoBoxText(text string) error {
+	return s.sendCommand("infobox", fmt.Sprintf("+ %s", text))
+}
+
+// Icon
+
+// Changes the displayed icon
+// See https://github.com/swiftDialog/swiftDialog/wiki/Customising-the-Icon
+func (s *SwiftDialog) SetIconLocation(location string) error {
+	return s.sendCommand("icon", location)
+}
+
+// Moves the icon being shown
+func (s *SwiftDialog) SetIconAlignment(alignment Alignment) error {
+	return s.sendCommand("icon", string(alignment))
+}
+
+// Hide the icon
+func (s *SwiftDialog) HideIcon() error {
+	return s.sendCommand("icon", "hide")
+}
+
+// Changes the size of the displayed icon
+func (s *SwiftDialog) SetIconSize(size uint) error {
+	return s.sendCommand("icon", fmt.Sprintf("size: %d", size))
+}
+
+// Window
+
+// Changes the width of the window maintaining the current position
+func (s *SwiftDialog) SetWindowWidth(width uint) error {
+	return s.sendCommand("width", fmt.Sprintf("%d", width))
+}
+
+// Changes the height of the window maintaining the current position
+func (s *SwiftDialog) SetWindowHeight(width uint) error {
+	return s.sendCommand("height", fmt.Sprintf("%d", width))
+}
+
+// Changes the window position
+func (s *SwiftDialog) SetWindowPosition(position FullPosition) error {
+	return s.sendCommand("position", string(position))
+}
+
+// Display content from the specified URL
+func (s *SwiftDialog) SetWebContent(url string) error {
+	return s.sendCommand("webcontent", url)
+}
+
+// Hide web content
+func (s *SwiftDialog) HideWebContent() error {
+	return s.sendCommand("webcontent", "none")
+}
+
+// Display a video from the specified path or URL
+func (s *SwiftDialog) SetVideo(location string) error {
+	return s.sendCommand("video", location)
+}
+
+// Enables or disables the blur window layer
+func (s *SwiftDialog) BlurScreen(enable bool) error {
+	blur := "disable"
+	if enable {
+		blur = "enable"
+	}
+	return s.sendCommand("blurscreen", blur)
+}
+
+// Activates the dialog window and brings it to the forground
+func (s *SwiftDialog) Activate() error {
+	return s.sendCommand("activate", "")
+}
+
+// Quits dialog with exit code 5
+func (s *SwiftDialog) Quit() error {
+	return s.sendCommand("quit", "")
+}

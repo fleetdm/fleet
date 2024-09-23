@@ -15,7 +15,8 @@ type SwiftDialogOptions struct {
 	MessagePosition Position `json:"messageposition,omitempty"`
 	// Enable help button with content
 	HelpMessage string `json:"helpmessage,omitempty"`
-	// Set the dialog icon, accepts file path or url
+	// Set the dialog icon, accepts file path, url, or builtin
+	// See https://github.com/swiftDialog/swiftDialog/wiki/Customising-the-Icon
 	Icon string `json:"icon"`
 	// Set the dialog icon size
 	IconSize uint `json:"iconsize,omitempty"`
@@ -250,6 +251,7 @@ type ListItem struct {
 type Status string
 
 const (
+	StatusNone     Status = ""
 	StatusWait     Status = "wait"
 	StatusSuccess  Status = "success"
 	StatusFail     Status = "fail"
