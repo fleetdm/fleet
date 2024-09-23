@@ -324,6 +324,7 @@ module.exports.routes = {
   'GET /use-cases/get-and-stay-compliant-across-your-devices-with-fleet': '/securing/get-and-stay-compliant-across-your-devices-with-fleet',
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
+  'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
   'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',
@@ -565,6 +566,10 @@ module.exports.routes = {
   'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business-manager',
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
   'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
+  'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
+  'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
+  'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
+  'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages##add-a-software-package-to-a-team',
 
   // Sitemap
   // =============================================================================================================
