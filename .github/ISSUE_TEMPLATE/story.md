@@ -32,15 +32,15 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ## Changes
 
 ### Product
-- [ ] Reference documentation changes: TODO <!-- Specify references documentation changes at fleetdm.com/docs -->
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
-- [ ] YAML changes: TODO <!-- Specify changes as a PR to the YAML files doc page. Put "No changes" if there are no changes necessary. -->
-- [ ] REST API changes: TODO <!-- Specify changes as a PR to the REST API doc page. Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
+- [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch. Put "No changes" if there are no changes necessary. -->
+- [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Put "No changes" if there are no changes necessary. -->
 - [ ] Activity changes: TODO <!-- Specify changes to Fleet's activity feed as a draft PR to the Audit log page in the contributor docs: https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Audit-logs.md This PR will be closed before release because the Audit log page is automatically generated: https://fleetdm.com/handbook/company/communications#audit-logs Put "No changes" if there are no changes necessary. -->
-- [ ] Permissions changes: TODO <!-- Specify changes as a PR to the Manage access doc page. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
-- [ ] Changes to paid features or tiers: TODO  <!-- Specify changes as a PR to fleetdm.com/pricing (pricing-features-table.yml). Remove this checkbox and specify "Fleet Free" or "Fleet Premium" if there are no changes to the pricing page necessary. -->
+- [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
+- [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Remove this checkbox and specify "Fleet Free" or "Fleet Premium" if there are no changes to the pricing page necessary. -->
+- [ ] Other reference documentation changes: TODO <!-- Any other reference doc changes? Specify changes as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
 - [ ] Once shipped, requester has been notified
 
 ### Engineering

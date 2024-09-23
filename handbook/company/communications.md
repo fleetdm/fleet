@@ -1359,10 +1359,10 @@ Each heading needs two lines of empty space separating it from the previous sect
 
 ```
 ...previous content.
-
-
+<!-- Empty space -->
+<!-- Empty space -->
 ### New heading
-
+<!-- Empty space -->
 Related content... 
 ```
 

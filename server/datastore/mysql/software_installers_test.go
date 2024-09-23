@@ -630,11 +630,15 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	// batch set with everything empty
-	softwareInstallers, err := ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
+	require.NoError(t, err)
+	softwareInstallers, err := ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware(nil)
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware(nil)
@@ -642,7 +646,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// add a single installer
 	ins0 := "installer0"
 	ins0File := bytes.NewReader([]byte("installer0"))
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
 		InstallScript:   "install",
 		InstallerFile:   ins0File,
 		StorageID:       ins0,
@@ -656,6 +660,8 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		URL:             "https://example.com",
 	}})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	require.NotNil(t, softwareInstallers[0].TeamID)
 	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
@@ -668,7 +674,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// add a new installer + ins0 installer
 	ins1 := "installer1"
 	ins1File := bytes.NewReader([]byte("installer1"))
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:   "install",
 			InstallerFile:   ins0File,
@@ -698,6 +704,8 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 2)
 	require.NotNil(t, softwareInstallers[0].TitleID)
 	require.NotNil(t, softwareInstallers[0].TeamID)
@@ -713,7 +721,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	})
 
 	// remove ins0
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:     "install",
 			PostInstallScript: "post-install",
@@ -728,6 +736,8 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
 	require.NotNil(t, softwareInstallers[0].TitleID)
 	require.NotNil(t, softwareInstallers[0].TeamID)
@@ -737,7 +747,9 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	})
 
 	// remove everything
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware([]fleet.SoftwareTitle{})
