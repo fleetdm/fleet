@@ -36,6 +36,11 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numHostSoftwareInstalledPaths": 999,
   "numSoftwareCPEs": 999,
   "numSoftwareCVEs": 999,
+  "numHostsNotResponding": 9,
+  "aiFeaturesDisabled": true,
+  "maintenanceWindowsEnabled": true,
+  "maintenanceWindowsConfigured": true,
+  "numHostsFleetDesktopEnabled": 999,
   "hostsEnrolledByOperatingSystem": {
     "darwin": [
       {
@@ -103,12 +108,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
       ]
     },
     ...
-  ],
- "numHostsNotResponding": 9,
- "aiFeaturesDisabled": true,
- "maintenanceWindowsEnabled": true,
- "maintenanceWindowsConfigured": true,
- "numHostsFleetDesktopEnabled": 999
+  ]
 }
 ```
 

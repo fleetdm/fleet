@@ -189,11 +189,11 @@ const About = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="large"
       className={baseClass}
     >
       <p className="card__header">About</p>
-      <div className="info-grid">
+      <div className="info-flex">
         <DataSet
           title="Added to Fleet"
           value={

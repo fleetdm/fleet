@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Digital Marketing Manager          | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
+| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
 
 
 ## Contact us
@@ -58,6 +58,49 @@ To propose an ad, or a change to an ad:
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
 
+### Measure intent signals
+
+Intent signals help measure an individual's current level of engagement with the Fleet brand. Use the following steps to decide if:  
+
+(a) A contact and/or account needs to be created/updated. 
+
+(b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/demand#research-an-account).
+
+(c) An account/contact would benefit from a sales conversation.
+
+(in order of how worthwhile it is to spend time looking at the intent signal)
+
+1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs).
+2. Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point).
+3. Accounts that fleeties have suggested to go after in ABM maneuver sheet.
+4. [MacAdmins Slack traffic](https://macadmins.slack.com/archives/C0214NELAE7/p1722561481530559) in the #fleet AND #osquery channels (channel joins, posts, reactions, thread replies, thread reactions).
+5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/).
+6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties.
+
+
+### Research an account
+
+Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/demand#measure-intent-signals).
+
+1. Create the account in SalesForce if it doesn't already exist.
+2. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
+  - "Title"
+  - "Role"
+  - "Primary buying situation" 
+  - "LinkedIn"
+  - "Psychological stage" 
+  - "intent signals" 
+3. If you any reason that the account organization wouldn't benefit from a relationship with Fleet, change the "Type" to "Distraction" stop here. If you haven't disqualified the account at this point, update the "Marketing stage" to "Research-ready". 
+After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
+
+1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
+2. For "Contact source" for any new contacts, use "Manual research".
+3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect".
+4. Research and discover mutual connections between fleeties and Mac admin community members within those contacts to help determine fit.
+5. Check Snitcher activity for the account and the psystages of its contacts in Salesforce.
+6. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running".
+
+
 ### Promote a post on LinkedIn
 
 1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
@@ -66,9 +109,24 @@ To propose an ad, or a change to an ad:
 4. Launch campaign once approved.
 
 
+### Settle content strategy
+
+The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1KUMsb5OkAsCBQHGkGnNoj__UCPJ7Vbhk1LaEWGEARsg/edit?gid=1931288160#gid=1931288160), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
+  - Content type and title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
+  - Create date: The date by which the DRI will start crafting the content.
+  - Release date: The date by which the content will be complete and finalized.
+  - Primary buying situation: The intended audience.
+  - DRI: Person(s) responsible for the project management of this content.
+  - Author: Person(s) responsible for the creation of this content.
+  - Related event?: Related community or Fleet event, if any.
+2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
+
+
 ### Settle event strategy
 
-The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Client Platform Engineer & Community Advocate](https://fleetdm.com/handbook/engineering#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
+The Head of Marketing is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Client Platform Engineer & Community Advocate](https://fleetdm.com/handbook/engineering#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
   - target buying situation of the audience
@@ -78,7 +136,7 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
   - estimated budget, including sponsorship or airfare, and lodging for attendees
 2. Set up and attend a 30m meeting with the Fleet's Client Platform Engineer & Community Advocate and CEO:
-  - First during this meeting, the Head of Demand proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 

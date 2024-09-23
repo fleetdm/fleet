@@ -841,8 +841,25 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        added <b>{activity.details?.software_title}</b> (
+        added software <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  editedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited software <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -858,7 +875,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted <b>{activity.details?.software_title}</b> (
+        deleted software <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
@@ -895,6 +912,40 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallStatusPredicate(status)} <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() => onDetailsClick?.(activity.type, details)}
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
+  uninstalledSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    const { host_display_name: hostName, software_title: title } = details;
+    const status =
+      details.status === "failed" ? "failed_uninstall" : details.status;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
+
+    return (
+      <>
+        {" "}
+        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} from{" "}
         <b>{hostName}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
@@ -1162,11 +1213,17 @@ const getDetail = (
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
     }
+    case ActivityType.EditedSoftware: {
+      return TAGGED_TEMPLATES.editedSoftware(activity);
+    }
     case ActivityType.DeletedSoftware: {
       return TAGGED_TEMPLATES.deletedSoftware(activity);
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.UninstalledSoftware: {
+      return TAGGED_TEMPLATES.uninstalledSoftware(activity, onDetailsClick);
     }
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
@@ -1234,6 +1291,7 @@ const ActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.InstalledSoftware:
+      case ActivityType.UninstalledSoftware:
       case ActivityType.InstalledAppStoreApp:
         return activity.details?.self_service ? (
           <span>An end user</span>

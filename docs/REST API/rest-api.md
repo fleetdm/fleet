@@ -878,9 +878,6 @@ None.
     "additional_queries": null
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -1170,9 +1167,6 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
@@ -1694,7 +1688,6 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -1811,7 +1804,6 @@ _Available in Fleet Premium._
 ```json
 {
   "mdm": {
-    "apple_bm_default_team": "",
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -6261,8 +6253,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 ## Integrations
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
-- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
+- [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
+- [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6289,11 +6281,11 @@ None.
 }
 ```
 
-### Get Apple Business Manager (ABM)
+### List Apple Business Manager (ABM) tokens
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -6301,20 +6293,82 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/abm_tokens`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-{
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "default_team": ""
-}
+"abm_tokens": [
+  {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "terms_expired": false,
+    "macos_team": {
+      "name": "💻 Workstations",
+      "id" 1
+    },
+    "ios_team": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
+    "ipados_team": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
+    }
+  }
+]
+```
+
+### List Volume Purchasing Program (VPP) tokens
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/vpp_tokens`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_tokens": [
+  {
+    "id": 1,
+    "org_name": "Fleet Device Management Inc.",
+    "location": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "teams": [
+      {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      {
+        "name": "💻🐣 Workstations (canary)",
+        "id": 2
+      },
+      {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 3
+      },
+      {
+        "name": "🔳🏢 Company-owned iPads",
+        "id" 4
+      }
+    ],
+  }
+]
 ```
 
 Get Volume Purchasing Program (VPP)
@@ -8545,6 +8599,9 @@ Get a list of all software.
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
 #### Example
 
@@ -8664,6 +8721,9 @@ Get a list of all software versions.
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                             |
 | vulnerable              | boolean    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
 #### Example
 
@@ -9293,6 +9353,8 @@ _Available in Fleet Premium._
 
 Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
 
+> Note: Fleet's agent (fleetd) only installs software it has been asked to install, but technically has access to all installer executables.
+
 `POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
 #### Parameters
@@ -9398,7 +9460,6 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 
 
-
 ##### Default response
 
 `Status: 200`
@@ -9433,12 +9494,14 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 Retrieve details about a vulnerability and its affected software and OS versions.
 
+If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a 204 status code is returned.
+
 #### Parameters
 
-| Name     | Type     | In    | Description                                                                                     |
-| ---      | ---      | ---   | ---                                                                                             |
-| cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
+| team_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team". |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 

@@ -13,6 +13,7 @@ export interface IRevealButtonProps {
   autofocus?: boolean;
   disabled?: boolean;
   tooltipContent?: React.ReactNode;
+  disabledTooltipContent?: React.ReactNode;
   onClick?:
     | ((value?: any) => void)
     | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
@@ -29,6 +30,7 @@ const RevealButton = ({
   autofocus,
   disabled,
   tooltipContent,
+  disabledTooltipContent,
   onClick,
 }: IRevealButtonProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
@@ -36,11 +38,12 @@ const RevealButton = ({
   const buttonContent = () => {
     const text = isShowing ? hideText : showText;
 
-    const buttonText = tooltipContent ? (
-      <TooltipWrapper tipContent={tooltipContent}>{text}</TooltipWrapper>
-    ) : (
-      text
-    );
+    const buttonText =
+      tooltipContent && !disabled ? (
+        <TooltipWrapper tipContent={tooltipContent}>{text}</TooltipWrapper>
+      ) : (
+        text
+      );
 
     return (
       <>
@@ -61,7 +64,7 @@ const RevealButton = ({
     );
   };
 
-  return (
+  const button = (
     <Button
       variant="text-icon"
       className={classNames}
@@ -72,6 +75,22 @@ const RevealButton = ({
       {buttonContent()}
     </Button>
   );
+
+  if (disabled && disabledTooltipContent) {
+    // wrap the tooltip around the Button so it works while disabled
+    return (
+      <TooltipWrapper
+        tipContent={disabledTooltipContent}
+        showArrow
+        underline={false}
+        position="right"
+        tipOffset={12}
+      >
+        {button}
+      </TooltipWrapper>
+    );
+  }
+  return button;
 };
 
 export default RevealButton;

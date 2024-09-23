@@ -24,7 +24,7 @@ import Spinner from "components/Spinner";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getErrorMessage } from "./helpers";
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -37,13 +37,14 @@ interface IHostSoftwareProps {
   id: number | string;
   platform?: HostPlatform;
   softwareUpdatedAt?: string;
-  hostCanInstallSoftware: boolean;
+  hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
+  hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
 
@@ -86,7 +87,8 @@ const HostSoftware = ({
   id,
   platform,
   softwareUpdatedAt,
-  hostCanInstallSoftware,
+  hostCanWriteSoftware,
+  hostScriptsEnabled,
   router,
   queryParams,
   pathname,
@@ -105,7 +107,8 @@ const HostSoftware = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
-  const [installingSoftwareId, setInstallingSoftwareId] = useState<
+  // disables install/uninstall actions after click
+  const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
     number | null
   >(null);
 
@@ -175,13 +178,13 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const userHasSWInstallPermission = Boolean(
+  const userHasSWWritePermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
   const installHostSoftwarePackage = useCallback(
     async (softwareId: number) => {
-      setInstallingSoftwareId(softwareId);
+      setSoftwareIdActionPending(softwareId);
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         renderFlash(
@@ -189,9 +192,30 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        renderFlash("error", getErrorMessage(e));
+        renderFlash("error", getInstallErrorMessage(e));
       }
-      setInstallingSoftwareId(null);
+      setSoftwareIdActionPending(null);
+      refetchSoftware();
+    },
+    [id, renderFlash, refetchSoftware]
+  );
+
+  const uninstallHostSoftwarePackage = useCallback(
+    async (softwareId: number) => {
+      setSoftwareIdActionPending(softwareId);
+      try {
+        await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
+        renderFlash(
+          "success",
+          <>
+            Software is uninstalling or will uninstall when the host comes
+            online. To see details, go to <b>Details &gt; Activity</b>.
+          </>
+        );
+      } catch (e) {
+        renderFlash("error", getUninstallErrorMessage(e));
+      }
+      setSoftwareIdActionPending(null);
       refetchSoftware();
     },
     [id, renderFlash, refetchSoftware]
@@ -203,6 +227,9 @@ const HostSoftware = ({
         case "install":
           installHostSoftwarePackage(software.id);
           break;
+        case "uninstall":
+          uninstallHostSoftwarePackage(software.id);
+          break;
         case "showDetails":
           onShowSoftwareDetails?.(software);
           break;
@@ -210,7 +237,11 @@ const HostSoftware = ({
           break;
       }
     },
-    [installHostSoftwarePackage, onShowSoftwareDetails]
+    [
+      installHostSoftwarePackage,
+      onShowSoftwareDetails,
+      uninstallHostSoftwarePackage,
+    ]
   );
 
   const tableConfig = useMemo(() => {
@@ -218,20 +249,22 @@ const HostSoftware = ({
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
           router,
-          installingSoftwareId,
-          userHasSWInstallPermission,
+          softwareIdActionPending,
+          userHasSWWritePermission,
+          hostScriptsEnabled,
           onSelectAction,
           teamId: hostTeamId,
-          hostCanInstallSoftware,
+          hostCanWriteSoftware,
         });
   }, [
     isMyDevicePage,
     router,
-    installingSoftwareId,
-    userHasSWInstallPermission,
+    softwareIdActionPending,
+    userHasSWWritePermission,
+    hostScriptsEnabled,
     onSelectAction,
     hostTeamId,
-    hostCanInstallSoftware,
+    hostCanWriteSoftware,
   ]);
 
   const isLoading = isMyDevicePage

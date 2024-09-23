@@ -4,16 +4,18 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
+import { ISoftwarePackage } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
+import { noop } from "lodash";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -28,10 +30,10 @@ import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
-import AdvancedOptionsModal from "../AdvancedOptionsModal";
+import EditSoftwareModal from "../EditSoftwareModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
-  SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+  SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
 
@@ -86,8 +88,11 @@ interface IStatusDisplayOption {
   tooltip: React.ReactNode;
 }
 
+// "pending" and "failed" each encompass both "_install" and "_uninstall" sub-statuses
+type SoftwareInstallDisplayStatus = "installed" | "pending" | "failed";
+
 const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallDisplayStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -99,23 +104,29 @@ const STATUS_DISPLAY_OPTIONS: Record<
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />
-        &quot;installed&quot; status won&apos;t be updated.
+        &quot;Installed&quot; status won&apos;t be updated.
       </>
     ),
   },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet is installing or will install when the host comes online.",
+    tooltip: (
+      <>
+        Fleet is installing/uninstalling or will
+        <br />
+        do so when the host comes online.
+      </>
+    ),
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
     tooltip: (
       <>
-        These hosts failed to install software. Click on a host to view
+        These hosts failed to install/uninstall software.
         <br />
-        error(s).
+        Click on a host to view error(s).
       </>
     ),
   },
@@ -123,7 +134,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
 
 interface IPackageStatusCountProps {
   softwareId: number;
-  status: SoftwareInstallStatus;
+  status: SoftwareInstallDisplayStatus;
   count: number;
   teamId?: number;
 }
@@ -170,14 +181,14 @@ interface IActionsDropdownProps {
   isSoftwarePackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
-  onAdvancedOptionsClick: () => void;
+  onEditSoftwareClick: () => void;
 }
 
 const ActionsDropdown = ({
   isSoftwarePackage,
   onDownloadClick,
   onDeleteClick,
-  onAdvancedOptionsClick,
+  onEditSoftwareClick,
 }: IActionsDropdownProps) => {
   const onSelect = (value: string) => {
     switch (value) {
@@ -187,8 +198,8 @@ const ActionsDropdown = ({
       case "delete":
         onDeleteClick();
         break;
-      case "advanced":
-        onAdvancedOptionsClick();
+      case "edit":
+        onEditSoftwareClick();
         break;
       default:
       // noop
@@ -204,7 +215,7 @@ const ActionsDropdown = ({
         searchable={false}
         options={
           isSoftwarePackage
-            ? SOFTWARE_PACAKGE_DROPDOWN_OPTIONS
+            ? SOFTWARE_PACKAGE_DROPDOWN_OPTIONS
             : APP_STORE_APP_DROPDOWN_OPTIONS
         }
       />
@@ -227,9 +238,11 @@ interface ISoftwarePackageCardProps {
   // NOTE: we will only have this if we are working with a software package.
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
+  router: InjectedRouter;
+  refetchSoftwareTitle: () => void;
 }
 
-// NOTE: This component is depeent on having either a software package
+// NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
@@ -242,6 +255,8 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
   onDelete,
+  router,
+  refetchSoftwareTitle,
 }: ISoftwarePackageCardProps) => {
   const {
     isGlobalAdmin,
@@ -251,13 +266,11 @@ const SoftwarePackageCard = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
-    false
-  );
+  const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const onAdvancedOptionsClick = () => {
-    setShowAdvancedOptionsModal(true);
+  const onEditSoftwareClick = () => {
+    setShowEditSoftwareModal(true);
   };
 
   const onDeleteClick = () => {
@@ -325,7 +338,7 @@ const SoftwarePackageCard = ({
         <div className={`${baseClass}__main-info`}>
           {renderIcon()}
           <div className={`${baseClass}__info`}>
-            <SoftwareName name={name} />
+            <SoftwareName name={softwarePackage?.name || name} />
             <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
@@ -345,7 +358,7 @@ const SoftwarePackageCard = ({
               isSoftwarePackage={!!softwarePackage}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
-              onAdvancedOptionsClick={onAdvancedOptionsClick}
+              onEditSoftwareClick={onEditSoftwareClick}
             />
           )}
         </div>
@@ -370,12 +383,15 @@ const SoftwarePackageCard = ({
           teamId={teamId}
         />
       </div>
-      {showAdvancedOptionsModal && (
-        <AdvancedOptionsModal
-          installScript={softwarePackage?.install_script ?? ""}
-          preInstallQuery={softwarePackage?.pre_install_query}
-          postInstallScript={softwarePackage?.post_install_script}
-          onExit={() => setShowAdvancedOptionsModal(false)}
+      {showEditSoftwareModal && (
+        <EditSoftwareModal
+          softwareId={softwareId}
+          teamId={teamId}
+          software={softwarePackage}
+          onExit={() => setShowEditSoftwareModal(false)}
+          router={router}
+          setAddedSoftwareToken={noop}
+          refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}
       {showDeleteModal && (

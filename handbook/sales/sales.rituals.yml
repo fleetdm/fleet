@@ -1,7 +1,13 @@
 # https://github.com/fleetdm/fleet/pull/13084
 
 
-
+ -
+  task: "Close leads contacted ≥7 days ago"
+  startedOn: "2024-07-05"
+  frequency: "Daily"
+  description: "Close all of your leads in the 'Attempted to contact' stage and which have been there for 7 or more days.  If follow-up is appropriate, and won't be bothersome, it can be done after closing the lead.  (A new lead can always be opened for the contact later.)"
+  moreInfoUrl: ""
+  dri: "Every AE"
  -
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday

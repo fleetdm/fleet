@@ -187,6 +187,9 @@ team_settings:
 		),
 	)
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
 	// Apply the team to be deleted
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()})
 

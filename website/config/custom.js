@@ -266,7 +266,7 @@ module.exports.custom = {
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
     'handbook/company/open-positions.yml': ['@sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
-    'handbook/business-operations': ['sampfluger88','mikermcneil'],
+    'handbook/finance': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
     'handbook/product-design': ['sampfluger88','mikermcneil'],
     'handbook/sales': ['sampfluger88','mikermcneil'],

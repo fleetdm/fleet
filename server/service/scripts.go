@@ -349,16 +349,17 @@ type getScriptResultRequest struct {
 }
 
 type getScriptResultResponse struct {
-	ScriptContents string `json:"script_contents"`
-	ScriptID       *uint  `json:"script_id"`
-	ExitCode       *int64 `json:"exit_code"`
-	Output         string `json:"output"`
-	Message        string `json:"message"`
-	HostName       string `json:"hostname"`
-	HostTimeout    bool   `json:"host_timeout"`
-	HostID         uint   `json:"host_id"`
-	ExecutionID    string `json:"execution_id"`
-	Runtime        int    `json:"runtime"`
+	ScriptContents string    `json:"script_contents"`
+	ScriptID       *uint     `json:"script_id"`
+	ExitCode       *int64    `json:"exit_code"`
+	Output         string    `json:"output"`
+	Message        string    `json:"message"`
+	HostName       string    `json:"hostname"`
+	HostTimeout    bool      `json:"host_timeout"`
+	HostID         uint      `json:"host_id"`
+	ExecutionID    string    `json:"execution_id"`
+	Runtime        int       `json:"runtime"`
+	CreatedAt      time.Time `json:"created_at"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -388,6 +389,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		HostID:         scriptResult.HostID,
 		ExecutionID:    scriptResult.ExecutionID,
 		Runtime:        scriptResult.Runtime,
+		CreatedAt:      scriptResult.CreatedAt,
 	}, nil
 }
 
