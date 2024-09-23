@@ -84,8 +84,11 @@ func Run(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions
 
 func (s *SwiftDialog) Close() error {
 	s.cancel()
+	errExit := &exec.ExitError{}
 	if err := s.cmd.Wait(); err != nil {
-		return fmt.Errorf("waiting for swiftDialog: %w", err)
+		if !(errors.As(err, &errExit) && strings.Contains(errExit.ProcessState.String(), "killed")) {
+			return fmt.Errorf("waiting for swiftDialog: %w", err)
+		}
 	}
 	if err := s.cleanup(); err != nil {
 		return fmt.Errorf("Close cleaning up after swiftDialog: %w", err)
@@ -169,7 +172,9 @@ func (s *SwiftDialog) sendCommand(command, arg string) error {
 	return nil
 }
 
-// Title
+///////////
+// Title //
+///////////
 
 // Updates the dialog title
 func (s *SwiftDialog) UpdateTitle(title string) error {
@@ -181,7 +186,9 @@ func (s *SwiftDialog) HideTitle() error {
 	return s.sendCommand("title", "none")
 }
 
-// Message
+/////////////
+// Message //
+/////////////
 
 // Set the dialog messZsage
 func (s *SwiftDialog) SetMessage(text string) error {
@@ -193,7 +200,9 @@ func (s *SwiftDialog) AppendMessage(text string) error {
 	return s.sendCommand("message", fmt.Sprintf("+ %s", text))
 }
 
-// Image
+///////////
+// Image //
+///////////
 
 // Displays the selected image
 func (s *SwiftDialog) Image(pathOrUrl string) error {
@@ -241,7 +250,9 @@ func (s *SwiftDialog) UpdateProgressText(text string) error {
 	return s.sendCommand("progresstext", text)
 }
 
-// Lists
+///////////
+// Lists //
+///////////
 
 // Create a list
 func (s *SwiftDialog) SetList(items []string) error {
@@ -291,7 +302,9 @@ func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, statu
 	return s.sendCommand("listitem", arg)
 }
 
-// Buttons
+/////////////
+// Buttons //
+/////////////
 
 // Enable or disable button 1
 func (s *SwiftDialog) EnableButton1(enable bool) error {
@@ -302,7 +315,7 @@ func (s *SwiftDialog) EnableButton1(enable bool) error {
 	return s.sendCommand("button1", arg)
 }
 
-// ENable or disable button 2
+// Enable or disable button 2
 func (s *SwiftDialog) EnableButton2(enable bool) error {
 	arg := "disable"
 	if enable {
@@ -326,7 +339,9 @@ func (s *SwiftDialog) SetInfoButtonText(text string) error {
 	return s.sendCommand("infobuttontext", text)
 }
 
-// Info box
+//////////////
+// Info box //
+//////////////
 
 // Update the content in the info box
 func (s *SwiftDialog) SetInfoBoxText(text string) error {
@@ -338,7 +353,9 @@ func (s *SwiftDialog) AppendInfoBoxText(text string) error {
 	return s.sendCommand("infobox", fmt.Sprintf("+ %s", text))
 }
 
-// Icon
+//////////
+// Icon //
+//////////
 
 // Changes the displayed icon
 // See https://github.com/swiftDialog/swiftDialog/wiki/Customising-the-Icon
@@ -361,7 +378,9 @@ func (s *SwiftDialog) SetIconSize(size uint) error {
 	return s.sendCommand("icon", fmt.Sprintf("size: %d", size))
 }
 
-// Window
+////////////
+// Window //
+////////////
 
 // Changes the width of the window maintaining the current position
 func (s *SwiftDialog) SetWindowWidth(width uint) error {
