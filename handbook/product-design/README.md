@@ -97,28 +97,6 @@ What happens during expedited drafting?
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
 
-### Correctly prioritize a bug
-
-Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
-1. Quality: product does what it's supposed to (what is documented).
-2. Common-sense user criticality: If no one can load any page, that's obviously important.
-3. Age of bugs: Long-open bugs are open wounds bleeding quality out of the product.  They must be closed quickly.
-4. Customer criticality: How important it is to a customer use case.
-
-
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized and estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
-
-If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product Design reviews these bugs. Bugs are categorized as follows:
-- **Schedule**: the bug should be prioritized in the next sprint if there's engineering capacity for it.
-- **De-prioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
-
-The Head of Product Design meets with the Director of Product Development to discuss and finalize the outcomes for the churned bugs.
-
-After aligning with the Director of Product Development on the outcomes, The Head of Product Design will clean up churned bugs. Below are the steps for each category:
-- **Schedule**: Remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Engineering Manager so that it can be prioritized into the sprint backlog.
-- **De-prioritized**: The Head of Product Design should close the issue and, as the DRI, ensure all follow-up actions are finalized.
-
-
 ### Write a user story
 
 Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
@@ -133,26 +111,6 @@ If an issue's title or user story summary (_"as a…I want to…so that"_) does 
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
 
-### Rank features before release
-
-These measures exist to keep all contributors (including other departments besides engineering and product) up to date with improvements and changes to the Fleet product.  This helps folks plan and communicate with customers and users more effectively.
-
-After the kickoff of a product sprint, the demand and product teams decide which improvements are most important to highlight in this release, whether that's through social media "drumbeat" tweets, collaboration with partners, or emphasized [content blocks](https://about.gitlab.com/handbook/marketing/blog/release-posts/#3rd-to-10th) within the release blog post.
-
-When an improvement gets scheduled for release, the Head of Product sets its "echelon" to determine the emphasis the company will place on it. This leveling is based on the improvement's desirability and timeliness, and will affect demand effort for the feature.
-
-- **Echelon 1: A major product feature announcement.** The most important release types, these require a specific and custom demand package. Usually including an individual blog post, a demo video and potentially a press release or official product demand launch. There is a maximum of one _echelon 1_ product announcement per release sprint.
-- **Echelon 2: A highlighted feature in the release notes.** This product feature will be highlighted at the top of the Sprint Release blog post. Depending on the feature specifics this will include: a 1-2 paragraph write-up of the feature, a demo video (if applicable) and a link to the docs. Ideally there would be no more than three _echelon 2_ features in a release post, otherwise the top features will be crowded.
-- **Echelon 3: A notable feature to mention in the [changelog](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md)**. Most product improvements fit into this echelon. This includes 1-2 sentences in the changelog and [release blog post](https://fleetdm.com/releases).
-
-
-### Create release issue
-
-Before each release, the Head of Product [creates a "Release" issue](https://github.com/fleetdm/confidential/issues/new/choose), which includes a list of all improvements included in the upcoming release.  Each improvement links to the relevant bug or user story issue on GitHub so it is easy to read the related discussion and history.
-
-The product team is responsible for providing the demand team with the necessary information for writing the release blog post. Every three weeks after the sprint is kicked off, the product team meets with the relevant demand team members to go over the features for that sprint and recommend items to highlight as _echelon 2_ features and provide relevant context for other features to help demand decide which features to highlight.
-
-
 ### Consider a feature eligible to be flagged
 
 At Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities. The following highlights should be considered when deciding if we should leverage feature flags:
@@ -165,20 +123,6 @@ At Fleet, features are placed behind feature flags if the changes could affect F
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 > Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
-
-
-### Consider promoting a feature as "beta"
-
-At Fleet, features are advertised as "beta" if there are concerns that the feature may not work as intended in certain Fleet
-deployments. For example, these concerns could be related to the feature's performance in Fleet
-deployments with hundreds of thousands of hosts.
-
-The following highlights should be considered when deciding if we promote a feature as "beta:"
-
-- The feature will not be advertised as "beta" permanently. This means that the Directly
-  Responsible Individual (DRI) who decides a feature is advertised as "beta" is also responsible for creating an issue that
-  explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
-- The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 
 ### View Fleet usage statistics
@@ -275,9 +219,6 @@ Please see [handbook/product#create-release-issue](https://fleetdm.com/handbook/
 
 ##### Feature flags
 Please see [handbook/product#consider-a-feature-eligible-to-be-flagged](https://fleetdm.com/handbook/product#consider-a-feature-eligible-to-be-flagged)
-
-##### Beta features
-Please see [handbook/product#consider-promoting-a-feature-as-beta](https://fleetdm.com/handbook/product#consider-promoting-a-feature-as-beta)
 
 ##### Feature fest
 Please see [handbook/product-groups#feature-fest](https://fleetdm.com/handbook/product-groups#feature-fest)
