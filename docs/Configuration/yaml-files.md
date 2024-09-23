@@ -375,6 +375,15 @@ $installProcess = Start-Process $exeFilePath `
     -PassThru -Verb RunAs -Wait
 ```
 
+`default.yml or teams/team-name.yml`
+
+```yaml
+software:
+  packages:
+    - path: ..lib/software-name.package.yml
+# path is relative to default.yml or teams/team-name.yml
+```
+
 ### org_settings and team_settings
 
 #### features
