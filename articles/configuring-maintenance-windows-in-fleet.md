@@ -105,6 +105,6 @@ Implementing scheduled mitigations not only enhances operational efficiency but 
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-05">
+<meta name="publishedOn" value="2024-09-23">
 <meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg">
 <meta name="description" value="A guide to workflows using configuring maintenance windows in Fleet.">
