@@ -298,11 +298,11 @@ const (
 )
 
 type SelectItems struct {
-	Title    string   `json:"title"`
-	Values   []string `json:"values"`
-	Default  string   `json:"default,omitempty"`
-	Style    string   `json:"style,omitempty"`
-	Required bool     `json:"required,omitempty"`
+	Title    string           `json:"title"`
+	Values   []string         `json:"values"`
+	Default  string           `json:"default,omitempty"`
+	Style    SelectItemsStyle `json:"style,omitempty"`
+	Required bool             `json:"required,omitempty"`
 }
 
 type SelectItemsStyle string
