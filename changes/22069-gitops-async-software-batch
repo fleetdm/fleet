@@ -1,0 +1,1 @@
+* Modified `POST /api/latest/fleet/software/batch` endpoint to be asynchronous and added a new endpoint `GET /api/latest/fleet/software/batch/{request_uuid}` to retrieve the result of the batch upload.

@@ -44,6 +44,7 @@ interface IHostSoftwareProps {
   hostTeamId: number;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
+  hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
 
@@ -87,6 +88,7 @@ const HostSoftware = ({
   platform,
   softwareUpdatedAt,
   hostCanWriteSoftware,
+  hostScriptsEnabled,
   router,
   queryParams,
   pathname,
@@ -249,6 +251,7 @@ const HostSoftware = ({
           router,
           softwareIdActionPending,
           userHasSWWritePermission,
+          hostScriptsEnabled,
           onSelectAction,
           teamId: hostTeamId,
           hostCanWriteSoftware,
@@ -258,6 +261,7 @@ const HostSoftware = ({
     router,
     softwareIdActionPending,
     userHasSWWritePermission,
+    hostScriptsEnabled,
     onSelectAction,
     hostTeamId,
     hostCanWriteSoftware,
