@@ -215,7 +215,10 @@ func (s *SwiftDialog) SetImageCaption(caption string) error {
 	return s.sendCommand("imagecaption", caption)
 }
 
-// Progress
+//////////////
+// Progress //
+//////////////
+
 // When Dialog is initiated with the Progress option, this will update the progress value
 func (s *SwiftDialog) UpdateProgress(progress uint) error {
 	return s.sendCommand("progress", fmt.Sprintf("%d", progress))
