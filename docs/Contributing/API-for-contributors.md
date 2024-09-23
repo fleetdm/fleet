@@ -3412,7 +3412,46 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 }
 ```
 
-### Run live script
+### Batch-apply VPP apps
+
+_Available in Fleet Premium._
+
+`POST /api/latest/fleet/software/app_store_apps/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to 'No Team'. |
+| dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
+| app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
+| app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+
+#### Example
+
+`POST /api/latest/fleet/software/app_store_apps/batch`
+```json
+{
+  "team_name": "Foobar",
+  "app_store_apps": {
+    {
+      "app_store_id": "597799333",
+      "self_service": false,
+    },
+    {
+      "app_store_id": "497799835",
+      "self_service": true,
+    }
+  }
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+ ### Run live script
 
 Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
 
