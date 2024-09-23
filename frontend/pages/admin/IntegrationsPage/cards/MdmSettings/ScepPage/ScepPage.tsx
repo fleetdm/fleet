@@ -1,9 +1,12 @@
 import React, { useContext, useState, useCallback } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { isAxiosError } from "axios";
+import { AxiosError, isAxiosError } from "axios";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
+import mdmAPI, { IScepMetadataResponse } from "services/entities/mdm";
 import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -37,42 +40,81 @@ const useSetCertificate = ({
   ndesUsername,
   ndesPassword,
 }: ISetCertificateOptions) => {
-  const { setConfig } = useContext(AppContext);
+  const { isPremiumTier, config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
+  const isMdmEnabled = !!config?.mdm.enabled_and_configured;
+
   const [isUploading, setIsUploading] = useState(false);
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const [showDeleteCertModal, setShowDeleteCertModal] = useState(false);
+
+  // get the scep metadata
+  const {
+    data: scepMetaData,
+    isLoading: isLoadingScep,
+    isError: isScepError,
+    error: ScepError,
+    refetch: refetchScepMetadata,
+  } = useQuery<IScepMetadataResponse, AxiosError>(
+    ["scep-metadata"],
+    () => mdmAPI.getEULAMetadata(), // TODO CHANGE
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
+      enabled: isPremiumTier && isMdmEnabled,
+    }
+  );
+
+  const onDeleteCert = async () => {
+    if (!certFile) return;
+
+    try {
+      // await mdmAPI.deleteEULA(eulaMetadata.token);
+      renderFlash("success", "Successfully deleted!");
+    } catch {
+      renderFlash("error", "Couldn’t delete. Please try again.");
+    } finally {
+      setShowDeleteCertModal(false);
+      onDelete();
+    }
+  };
 
   const onSetupSuccess = useCallback(() => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   }, [router]);
 
-  const onFileUpload = useCallback(
-    async (files: FileList | null) => {
-      if (!files?.length) {
-        renderFlash("error", "No file selected");
-        return;
+  const onSelectFile = useCallback((files: FileList | null) => {
+    const file = files?.[0];
+    if (file) {
+      setCertFile(file);
+    }
+  }, []);
+
+  const onFileUpload = useCallback(async () => {
+    if (!certFile) {
+      renderFlash("error", "No file selected");
+      return;
+    }
+    setIsUploading(true);
+    try {
+      // TODO: Replace with correct API call
+      // await mdmAppleApi.uploadApplePushCertificate(files[0]);
+      renderFlash("success", "Certificate added successfully."); // TODO: Verbiage wireframed by product/design
+      onSetupSuccess();
+    } catch (e) {
+      const msg = getErrorReason(e);
+      if (
+        msg.toLowerCase().includes("invalid certificate") ||
+        msg.toLowerCase().includes("required private key")
+      ) {
+        renderFlash("error", msg);
+      } else {
+        renderFlash("error", "Couldn’t add certificate. Please try again.");
       }
-      setIsUploading(true);
-      try {
-        // TODO: Replace with correct API call
-        // await mdmAppleApi.uploadApplePushCertificate(files[0]);
-        renderFlash("success", "MDM turned on successfully.");
-        onSetupSuccess();
-      } catch (e) {
-        const msg = getErrorReason(e);
-        if (
-          msg.toLowerCase().includes("invalid certificate") ||
-          msg.toLowerCase().includes("required private key")
-        ) {
-          renderFlash("error", msg);
-        } else {
-          renderFlash("error", "Couldn’t connect. Please try again.");
-        }
-        setIsUploading(false);
-      }
-    },
-    [renderFlash, onSetupSuccess]
-  );
+      setIsUploading(false);
+    }
+  }, [renderFlash, onSetupSuccess]);
 
   const turnOnWindowsMdm = async () => {
     try {
@@ -103,28 +145,23 @@ const useSetCertificate = ({
 
 interface IScepCertificateContentProps {
   router: InjectedRouter;
-  onFileUpload: () => void;
+  onSelectFile: () => void;
   onFormSubmit: () => void;
   isUploading: boolean;
   formData: any; // TODO
+  certFile: any; // TODO
   onInputChange: ({ name, value }: IFormField) => void;
 }
 
 const ScepCertificateContent = ({
   router,
-  onFileUpload,
+  onSelectFile,
   onFormSubmit,
   isUploading,
   formData,
+  certFile,
   onInputChange,
 }: IScepCertificateContentProps) => {
-  const turnOnWindowsMdm = useSetCertificate({
-    enable: true,
-    successMessage: "Windows MDM turned on (servers excluded).",
-    errorMessage: "Unable to turn on Windows MDM. Please try again.",
-    router,
-  });
-
   return (
     <>
       <h1>SCEP</h1>
@@ -200,7 +237,8 @@ const ScepCertificateContent = ({
               disabled={isUploading}
               graphicName="file-pfx"
               message="Signing certificate (.pfx)"
-              onFileUpload={onFileUpload}
+              onFileUpload={onSelectFile}
+              fileDetails={certFile ? { name: certFile.name } : undefined}
             />
           </li>
         </ol>
