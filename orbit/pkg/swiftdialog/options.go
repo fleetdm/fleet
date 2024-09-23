@@ -108,43 +108,43 @@ type SwiftDialogOptions struct {
 	// Set the preferred window appearance
 	Appearance Appearance `json:"appearance,omitempty"`
 	// Disable Button1
-	Button1disabled *bool `json:"button1disabled,omitempty"`
+	Button1disabled bool `json:"button1disabled,omitempty"`
 	// Disable Button2
-	Button2disabled *bool `json:"button2disabled,omitempty"`
+	Button2disabled bool `json:"button2disabled,omitempty"`
 	// Displays Button2
-	Button2 *bool `json:"button2,omitempty"`
+	Button2 bool `json:"button2,omitempty"`
 	// Displays info button
-	InfoButton *bool `json:"infobutton,omitempty"`
+	InfoButton bool `json:"infobutton,omitempty"`
 	// Print version string
 	Version string `json:"version,omitempty"`
 	// Hides the icon from view
-	HideIcon *bool `json:"hideicon,omitempty"`
+	HideIcon bool `json:"hideicon,omitempty"`
 	// Set icon to be in the centre
-	CentreIcon *bool `json:"centreicon,omitempty"`
+	CentreIcon bool `json:"centreicon,omitempty"`
 	// Hide countdown timer if enabled
-	HideTimerBar *bool `json:"hidetimerbar,omitempty"`
+	HideTimerBar bool `json:"hidetimerbar,omitempty"`
 	// Enable video autoplay
-	Autoplay *bool `json:"autoplay,omitempty"`
+	Autoplay bool `json:"autoplay,omitempty"`
 	// Blur screen content behind dialog window
-	BlurScreen *bool `json:"blurscreen,omitempty"`
+	BlurScreen bool `json:"blurscreen,omitempty"`
 	// Send a system notification
 	Notification string `json:"notification,omitempty"`
 	// Enable dialog to be moveable
-	Moveable *bool `json:"moveable,omitempty"`
+	Moveable bool `json:"moveable,omitempty"`
 	// Enable dialog to be always positioned on top of other windows
-	OnTop *bool `json:"ontop,omitempty"`
+	OnTop bool `json:"ontop,omitempty"`
 	// Enable 25% decrease in default window size
-	Small *bool `json:"small,omitempty"`
+	Small bool `json:"small,omitempty"`
 	// Enable 25% increase in default window size
-	Big *bool `json:"big,omitempty"`
+	Big bool `json:"big,omitempty"`
 	// Enable full screen view
-	Fullscreen *bool `json:"fullscreen,omitempty"`
+	Fullscreen bool `json:"fullscreen,omitempty"`
 	// Quit when info button is selected
-	QuitonInfo *bool `json:"quitoninfo,omitempty"`
+	QuitonInfo bool `json:"quitoninfo,omitempty"`
 	// Enable mini mode
-	Mini *bool `json:"mini,omitempty"`
+	Mini bool `json:"mini,omitempty"`
 	// Enable presentation mode
-	Presentation *bool `json:"presentation,omitempty"`
+	Presentation bool `json:"presentation,omitempty"`
 	// Enables window buttons [close,min,max]
 	WindowButtons string `json:"windowbuttons,omitempty"`
 	// Enable the dialog window to be resizable
@@ -152,9 +152,9 @@ type SwiftDialogOptions struct {
 	// Enable the dialog window to appear on all screens
 	ShowOnAllScreens *bool `json:"showonallscreens,omitempty"`
 	// Enable the dialog window to be shown at login
-	LoginWindow *bool `json:"loginwindow,omitempty"`
+	LoginWindow bool `json:"loginwindow,omitempty"`
 	// Hides the default behaviour of Return ↵ and Esc ⎋ keys
-	HideDefaultKeyboardAction *bool `json:"hidedefaultkeyboardaction,omitempty"`
+	HideDefaultKeyboardAction bool `json:"hidedefaultkeyboardaction,omitempty"`
 }
 
 type Style string
@@ -242,9 +242,9 @@ const (
 
 type ListItem struct {
 	Title      string `json:"title"`
-	Icon       string `json:"icon"`
-	Status     Status `json:"status"`
-	StatusText string `json:"statustext"`
+	Icon       string `json:"icon,omitempty"`
+	Status     Status `json:"status,omitempty"`
+	StatusText string `json:"statustext,omitempty"`
 }
 
 type Status string
