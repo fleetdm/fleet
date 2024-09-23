@@ -75,7 +75,8 @@ import (
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const (
-	softwareInstallerUploadTimeout = 4 * time.Minute
+	// This is the timeout for both custom (user-uploaded) packages and Fleet-maintained apps
+	softwareInstallerUploadTimeout = 15 * time.Minute
 	liveQueryMemCacheDuration      = 1 * time.Second
 )
 
@@ -1149,11 +1150,12 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package") {
+				if req.Method == http.MethodPost &&
+					(strings.HasSuffix(req.URL.Path, "/fleet/software/package") || strings.HasSuffix(req.URL.Path, "/fleet/software/fleet_maintained_apps")) {
 					// when uploading a software installer, the file might be large so
 					// the read timeout (to read the full request body) must be extended.
 					rc := http.NewResponseController(rw)
-					// the frontend times out waiting for the upload after 4 minutes,
+					// the frontend times out waiting for the upload after 15 minutes,
 					// use that same timeout:
 					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
 					if err := rc.SetReadDeadline(time.Now().Add(softwareInstallerUploadTimeout)); err != nil {
@@ -1162,10 +1164,10 @@ the way that the Fleet server works.
 					// the write timeout should be extended to give the server time to
 					// store the installer to S3 (or the configured storage location) and
 					// write a response body, otherwise the connection is terminated
-					// abruptly. Give it twice the read timeout, so that if it takes
-					// 3m59s to upload an installer, we don't fail because of a lack of
+					// abruptly. Give it 1.33x the read timeout, so that if it takes
+					// 15m59s to upload an installer, we don't fail because of a lack of
 					// time to store to S3.
-					if err := rc.SetWriteDeadline(time.Now().Add(2 * softwareInstallerUploadTimeout)); err != nil {
+					if err := rc.SetWriteDeadline(time.Now().Add(time.Duration(1.33 * float64(softwareInstallerUploadTimeout)))); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)

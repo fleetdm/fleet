@@ -15,6 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
+// InstallerTimeout is the timeout duration for downloading and adding a maintained app.
+const InstallerTimeout = 15 * time.Minute
+
 func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript string, selfService bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -31,7 +34,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	}
 
 	// Download installer from the URL
-	timeout := maintainedapps.InstallerTimeout
+	timeout := InstallerTimeout
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}

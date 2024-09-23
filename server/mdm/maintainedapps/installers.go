@@ -8,14 +8,10 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-// InstallerTimeout is the timeout duration for downloading and adding a maintained app.
-const InstallerTimeout = 15 * time.Minute
 
 // DownloadInstaller downloads the maintained app installer located at the given URL.
 func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) ([]byte, string, error) {

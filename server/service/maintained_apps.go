@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
 type addFleetMaintainedAppRequest struct {
@@ -25,8 +24,6 @@ func (r addFleetMaintainedAppResponse) error() error { return r.Err }
 
 func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
-	ctx, cancel := context.WithTimeout(ctx, maintainedapps.InstallerTimeout)
-	defer cancel()
 	err := svc.AddFleetMaintainedApp(ctx, req.TeamID, req.AppID, req.InstallScript, req.PreInstallQuery, req.PostInstallScript, req.SelfService)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
