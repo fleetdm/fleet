@@ -292,8 +292,12 @@ func (s *SwiftDialog) DeleteListItemByIndex(index uint) error {
 }
 
 // Update a list item by name
-func (s *SwiftDialog) UpdateListItemByTitle(title, statusText string, status Status) error {
-	arg := fmt.Sprintf("title: %s, status: %s, statustext: %s", title, status, statusText)
+func (s *SwiftDialog) UpdateListItemByTitle(title, statusText string, status Status, progressPercent ...uint) error {
+	argStatus := string(status)
+	if len(progressPercent) == 1 && status == StatusProgress {
+		argStatus = fmt.Sprintf("progress, progress: %d", progressPercent[0])
+	}
+	arg := fmt.Sprintf("title: %s, status: %s, statustext: %s", title, argStatus, statusText)
 	return s.sendCommand("listitem", arg)
 }
 
@@ -301,7 +305,7 @@ func (s *SwiftDialog) UpdateListItemByTitle(title, statusText string, status Sta
 func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, status Status, progressPercent ...uint) error {
 	argStatus := string(status)
 	if len(progressPercent) == 1 && status == StatusProgress {
-		argStatus = fmt.Sprintf("progress: %d", progressPercent[0])
+		argStatus = fmt.Sprintf("progress, progress: %d", progressPercent[0])
 	}
 	arg := fmt.Sprintf("index: %d, status: %s, statustext: %s", index, argStatus, statusText)
 	return s.sendCommand("listitem", arg)
