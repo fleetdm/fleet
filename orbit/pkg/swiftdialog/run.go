@@ -143,7 +143,7 @@ func (s *SwiftDialog) Wait() (*SwiftDialogExit, error) {
 	}
 
 	return &SwiftDialogExit{
-		ExitCode: exitCode,
+		ExitCode: ExitCode(exitCode),
 		Output:   parsed,
 	}, nil
 }
