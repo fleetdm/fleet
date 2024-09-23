@@ -23,17 +23,18 @@ type SwiftDialog struct {
 	output      *bytes.Buffer
 }
 
-// Exit codes
+type ExitCode int
+
 const (
-	ExitButton1               = 0
-	ExitButton2               = 2
-	ExitInfoButton            = 3
-	ExitTimer                 = 4
-	ExitQuitCommand           = 5
-	ExitQuitKey               = 10
-	ExitKeyAuthFailed         = 30
-	ExitImageResourceNotFound = 201
-	ExitFileNotFound          = 202
+	ExitButton1               ExitCode = 0
+	ExitButton2               ExitCode = 2
+	ExitInfoButton            ExitCode = 3
+	ExitTimer                 ExitCode = 4
+	ExitQuitCommand           ExitCode = 5
+	ExitQuitKey               ExitCode = 10
+	ExitKeyAuthFailed         ExitCode = 30
+	ExitImageResourceNotFound ExitCode = 201
+	ExitFileNotFound          ExitCode = 202
 )
 
 func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions) (*SwiftDialog, error) {
@@ -113,7 +114,7 @@ func (s *SwiftDialog) cleanup() error {
 }
 
 type SwiftDialogExit struct {
-	ExitCode int
+	ExitCode ExitCode
 	Output   map[string]any
 }
 
