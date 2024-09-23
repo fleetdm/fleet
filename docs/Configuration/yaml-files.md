@@ -375,7 +375,7 @@ $installProcess = Start-Process $exeFilePath `
     -PassThru -Verb RunAs -Wait
 ```
 
-`default.yml or teams/team-name.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 software:
