@@ -92,7 +92,7 @@ policies:
     package_path: "../lib/software/firefox.deb.package.yml"
 ```
 
-`default.yml` or `teams/team-name.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
