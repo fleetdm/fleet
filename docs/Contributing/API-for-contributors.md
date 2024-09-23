@@ -537,7 +537,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
-- [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
@@ -765,34 +764,6 @@ If the credentials are valid, the server redirects the client to the Fleet UI. T
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
-
-### Over the air enrollment
-
-This endpoint handles over the air (OTA) MDM enrollments
-
-`POST /api/v1/fleet/ota_enrollment`
-
-#### Parameters
-
-| Name                | Type   | In   | Description                                                                                                                                                                                                                                                                                        |
-| ------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enroll_secret       | string | url  | **Required** Assigns the host to a team with a matching enroll secret                                                                                                                                                                                                                 |
-| XML device response | XML    | body | **Required**. The XML response from the device. Fields are documented [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) |
-
-> Note: enroll secrets can contain special characters. Ensure any special characters are [properly escaped](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding).
-
-#### Example
-
-`POST /api/v1/fleet/ota_enrollment?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
-
-##### Default response
-
-`Status: 200`
-
-Per [the spec](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1), the response is different depending on the signature of the XML device response:
-
-- If the body is signed with a certificate that can be validated by our root SCEP certificate, it returns an enrollment profile.
-- Otherwise, it returns a SCEP payload.
 
 ### Preassign profiles to devices
 
@@ -1218,12 +1189,14 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
+      "team": "No team",
       "resolution": "some resolution steps here",
       "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
+      "team": "Workstations",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
       "platform": "darwin",
@@ -2644,21 +2617,13 @@ Lists the software installed on the current device.
       "source": "apps",
       "status": "failed",
       "installed_versions": [
-        {
+        { 
           "version": "121.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
-      ],
-       "software_package": {
-        "name": "google-chrome-124-0-6367-207.pkg",
-        "version": "121.0",
-        "self_service": true,
-        "icon_url": null,
-        "last_install": null
-      },
-      "app_store_app": null
+      ]
     },
     {
       "id": 143,
@@ -2668,21 +2633,13 @@ Lists the software installed on the current device.
       "source": "apps",
       "status": null,
       "installed_versions": [
-        {
+        { 
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Firefox.app"]
         }
-      ],
-      "software_package": null,
-      "app_store_app": {
-        "app_store_id": "12345",
-        "version": "125.6",
-        "self_service": false,
-        "icon_url": "https://example.com/logo-light.jpg",
-        "last_install": null
-      },
+      ]
     }
   ],
   "meta": {
@@ -3031,7 +2988,7 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
-### Batch-apply scripts
+### Batch-apply scripts 
 
 _Available in Fleet Premium_
 
@@ -3060,7 +3017,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ## Software
 
-### Batch-apply software
+### Batch-apply software 
 
 _Available in Fleet Premium._
 
@@ -3085,7 +3042,24 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "packages": [
+    {
+      "team_id": 3,
+      "software_title_id": 6690,
+      "url": "https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe"
+    },
+    {
+      "team_id": 3,
+      "software_title_id": 10412,
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+    }
+  ]
+}
+```
 
  ### Run live script
 
@@ -3125,63 +3099,4 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
   "host_timeout": false,
   "exit_code": 0
 }
-```
-
-### Get token to download package
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
-
-The returned token is a one-time use token that expires after 10 minutes.
-
-#### Parameters
-
-| Name              | Type    | In    | Description                                                      |
-|-------------------|---------|-------|------------------------------------------------------------------|
-| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
-| team_id           | integer | query | **Required**. The team ID containing the software package.       |
-| alt               | integer | query | **Required**. Must be specified and set to "media".              |
-
-#### Example
-
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
-}
-```
-
-### Download package using a token
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
-
-#### Parameters
-
-| Name              | Type    | In   | Description                                                              |
-|-------------------|---------|------|--------------------------------------------------------------------------|
-| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
-| token             | string  | path | **Required**. The token to download the software package.                |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
 ```
