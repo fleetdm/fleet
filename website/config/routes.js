@@ -561,7 +561,7 @@ module.exports.routes = {
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
-  'GET /learn-more-about/exe-install-scripts': 'https://github.com/fleetdm/fleet/issues/20000',
+  'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages##add-a-software-package-to-a-team',
