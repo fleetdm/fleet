@@ -768,7 +768,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }
 
-func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
   (name, source, browser)
@@ -878,23 +878,12 @@ ON DUPLICATE KEY UPDATE
   url = VALUES(url)
 `
 
-	const loadInsertedSoftwareInstallers = `
-SELECT
-  team_id,
-  title_id,
-  url
-FROM
-  software_installers
-WHERE global_or_team_id = ?
-`
-
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	if tmID != nil {
 		globalOrTeamID = *tmID
 	}
 
-	var insertedSoftwareInstallers []fleet.SoftwarePackageResponse
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
@@ -1040,15 +1029,11 @@ WHERE global_or_team_id = ?
 			}
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &insertedSoftwareInstallers, loadInsertedSoftwareInstallers, globalOrTeamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "load inserted software installers")
-		}
-
 		return nil
 	}); err != nil {
-		return nil, err
+		return err
 	}
-	return insertedSoftwareInstallers, nil
+	return nil
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
@@ -1134,4 +1119,22 @@ func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Contex
 		return ctxerr.Wrap(ctx, err, "update software installer without package ID")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]fleet.SoftwarePackageResponse, error) {
+	const loadInsertedSoftwareInstallers = `
+SELECT
+  team_id,
+  title_id,
+  url
+FROM
+  software_installers
+WHERE global_or_team_id = ?
+`
+	var softwarePackages []fleet.SoftwarePackageResponse
+	// Using ds.writer(ctx) on purpose because this method is to be called after applying software.
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &softwarePackages, loadInsertedSoftwareInstallers, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installers")
+	}
+	return softwarePackages, nil
 }

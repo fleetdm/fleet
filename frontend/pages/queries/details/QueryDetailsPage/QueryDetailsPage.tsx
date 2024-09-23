@@ -49,7 +49,12 @@ interface IQueryDetailsPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { team_id?: string; order_key?: string; order_direction?: string };
+    query: {
+      team_id?: string;
+      order_key?: string;
+      order_direction?: string;
+      host_id?: string;
+    };
     search: string;
   };
 }
@@ -66,6 +71,12 @@ const QueryDetailsPage = ({
     router.push(PATHS.MANAGE_QUERIES);
   }
   const queryParams = location.query;
+
+  // Present when observer is redirected from host details > query
+  // since observer does not have access to edit page
+  const hostId = queryParams?.host_id
+    ? parseInt(queryParams.host_id, 10)
+    : undefined;
 
   const { currentTeamId } = useTeamIdParam({
     location,
@@ -295,7 +306,7 @@ const QueryDetailsPage = ({
                         onClick={() => {
                           queryId &&
                             router.push(
-                              PATHS.LIVE_QUERY(queryId, currentTeamId)
+                              PATHS.LIVE_QUERY(queryId, currentTeamId, hostId)
                             );
                         }}
                         disabled={isLiveQueryDisabled}

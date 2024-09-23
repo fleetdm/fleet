@@ -531,17 +531,25 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
-- [Upload ABM Token](#upload-abm-token)
+- [Add ABM token](#add-abm-token)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
-- [Disable automatic enrollment (ADE)](#disable-automatic-enrollment-ade)
+- [Update ABM token's teams](#update-abm-tokens-teams)
+- [Renew ABM token](#renew-abm-token)
+- [Delete ABM token](#delete-abm-token)
+- [Add VPP token](#add-VPP-token)
+- [Update VPP token's teams](#update-vpp-tokens-teams)
+- [Renew VPP token](#renew-vpp-token)
+- [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [Get an over the air (OTA) enrollment profile](#get-an-over-the-air-ota-enrollment-profile)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -620,9 +628,9 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Upload ABM Token
+### Add ABM token
 
-`POST /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -632,7 +640,7 @@ Content-Type: application/octet-stream
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/abm_tokens`
 
 ##### Request header
 
@@ -653,11 +661,23 @@ Content-Type: application/octet-stream
 --------------------------f02md47480und42y
 ```
 
-
 ##### Default response
 
 `Status: 200`
 
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-10-20T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": null,
+  "ios_team": null,
+  "ipados_team": null
+}
+```
 
 ### Turn off Apple MDM
 
@@ -671,19 +691,265 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### Update ABM token's teams
 
-### Disable automatic enrollment (ADE)
+`PATCH /api/v1/fleet/abm_tokens/:id/teams`
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+`PATCH /api/v1/fleet/abm_tokens/1/teams`
+
+##### Request body
+
+```json
+{
+  "macos_team_id": 1,
+  "ios_team_id": 2,
+  "ipados_team_id": 3
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-11-29T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": 1,
+  "ios_team": 2,
+  "ipados_team": 3
+}
+```
+
+### Renew ABM token
+
+`PATCH /api/v1/fleet/abm_tokens/:id/renew`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+
+#### Example
+
+`PATCH /api/v1/fleet/abm_tokens/1/renew`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2025-10-20T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": null,
+  "ios_team": null,
+  "ipados_team": null
+}
+```
+
+### Delete ABM token
+
+`DELETE /api/v1/fleet/abm_tokens/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+
+#### Example
+
+`DELETE /api/v1/fleet/abm_tokens/1`
 
 ##### Default response
 
 `Status: 204`
 
+### Add VPP token
+
+`POST /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/vpp_tokens`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-10-20T00:00:00Z",
+  "terms_expired": false,
+  "teams": null
+}
+```
+
+### Update VPP token's teams
+
+`PATCH /api/v1/fleet/vpp_tokens/:id/teams`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+| team_ids | list | body | If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, defaults to all teams. |
+
+#### Example
+
+`PATCH /api/v1/fleet/vpp_tokens/1/teams`
+
+##### Request body
+
+```json
+{
+  "team_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-10-20T00:00:00Z",
+  "terms_expired": false,
+  "teams": [1, 2, 3]
+}
+```
+
+### Renew VPP token
+
+`PATCH /api/v1/fleet/vpp_tokens/:id/renew`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The VPP token's ID |
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2025-10-20T00:00:00Z",
+  "terms_expired": false,
+  "teams": [1, 2, 3]
+}
+```
+
+### Delete VPP token
+
+`DELETE /api/v1/fleet/vpp_token/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The VPP token's ID |
+
+#### Example
+
+`DELETE /api/v1/fleet/vpp_tokens/1`
+
+##### Default response
+
+`Status: 204`
 
 ### Batch-apply MDM custom settings
 
@@ -764,6 +1030,34 @@ If the credentials are valid, the server redirects the client to the Fleet UI. T
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+### Over the air enrollment
+
+This endpoint handles over the air (OTA) MDM enrollments
+
+`POST /api/v1/fleet/ota_enrollment`
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                                                                                                                                                                                                                                                                        |
+| ------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enroll_secret       | string | url  | **Required** Assigns the host to a team with a matching enroll secret                                                                                                                                                                                                                 |
+| XML device response | XML    | body | **Required**. The XML response from the device. Fields are documented [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) |
+
+> Note: enroll secrets can contain special characters. Ensure any special characters are [properly escaped](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding).
+
+#### Example
+
+`POST /api/v1/fleet/ota_enrollment?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+Per [the spec](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1), the response is different depending on the signature of the XML device response:
+
+- If the body is signed with a certificate that can be validated by our root SCEP certificate, it returns an enrollment profile.
+- Otherwise, it returns a SCEP payload.
 
 ### Preassign profiles to devices
 
@@ -1189,12 +1483,14 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
+      "team": "No team",
       "resolution": "some resolution steps here",
       "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
+      "team": "Workstations",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
       "platform": "darwin",
@@ -3213,4 +3509,72 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+
+### Get an over the air (OTA) enrollment profile
+
+`GET /api/v1/fleet/enrollment_profiles/ota`
+
+The returned value is a signed `.mobileconfig` OTA profile.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                                      |
+|-------------------|---------|-------|----------------------------------------------------------------------------------|
+| enroll_secret     | string  | query | **Required**. The enroll secret of the team this host will be assigned to.       |
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/ota?enroll_secret=foobar`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+  Content-Length: 542
+  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+  X-Content-Type-Options: nosniff
+```
+
+###### Example response body
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foobar</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	<string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>Acme Inc.</string>
+    <key>PayloadDisplayName</key>
+    <string>Acme Inc. enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>
 ```

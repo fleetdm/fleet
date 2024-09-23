@@ -203,7 +203,11 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
             value = "10000"
-          }
+          },
+          {
+            name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET"
+            value = aws_s3_bucket.software_installers.bucket
+          },
         ], local.additional_env_vars)
       }
   ])
@@ -329,18 +333,18 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
 resource "random_password" "fleet_server_private_key" {
   length  = 32
   special = true
-} 
-    
-resource "aws_secretsmanager_secret" "fleet_server_private_key" { 
+}
+
+resource "aws_secretsmanager_secret" "fleet_server_private_key" {
   name = "${terraform.workspace}-fleet-server-private-key"
 
   recovery_window_in_days = "0"
   lifecycle {
     create_before_destroy = true
   }
-} 
-  
+}
+
 resource "aws_secretsmanager_secret_version" "fleet_server_private_key" {
   secret_id     = aws_secretsmanager_secret.fleet_server_private_key.id
   secret_string = random_password.fleet_server_private_key.result
-} 
+}
