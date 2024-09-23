@@ -108,9 +108,9 @@ type SwiftDialogOptions struct {
 	// Set the preferred window appearance
 	Appearance Appearance `json:"appearance,omitempty"`
 	// Disable Button1
-	Button1disabled bool `json:"button1disabled,omitempty"`
+	Button1Disabled bool `json:"button1disabled,omitempty"`
 	// Disable Button2
-	Button2disabled bool `json:"button2disabled,omitempty"`
+	Button2Disabled bool `json:"button2disabled,omitempty"`
 	// Displays Button2
 	Button2 bool `json:"button2,omitempty"`
 	// Displays info button

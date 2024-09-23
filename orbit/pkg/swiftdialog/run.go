@@ -1,6 +1,7 @@
 package swiftdialog
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ type SwiftDialog struct {
 	cancel      context.CancelFunc
 	cmd         *exec.Cmd
 	commandFile *os.File
+	output      *bytes.Buffer
 }
 
 func Run(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions) (*SwiftDialog, error) {
@@ -36,6 +38,9 @@ func Run(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions
 		"--json",
 	)
 
+	outBuf := &bytes.Buffer{}
+	cmd.Stdout = outBuf
+
 	err = cmd.Start()
 	if err != nil {
 		cancel()
@@ -46,16 +51,54 @@ func Run(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions
 		cancel:      cancel,
 		cmd:         cmd,
 		commandFile: commandFile,
+		output:      outBuf,
 	}, nil
 }
 
 func (s *SwiftDialog) Close() error {
 	s.cancel()
-	err := s.cmd.Wait()
+	if err := s.cmd.Wait(); err != nil {
+		return fmt.Errorf("waiting for swiftDialog: %w", err)
+	}
+	if err := s.cleanup(); err != nil {
+		return fmt.Errorf("Close cleaning up after swiftDialog: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SwiftDialog) cleanup() error {
+	s.cancel()
 	cmdFileName := s.commandFile.Name()
-	s.commandFile.Close()
-	os.Remove(cmdFileName)
-	return err
+	err := s.commandFile.Close()
+	if err != nil {
+		return fmt.Errorf("closing swiftDialog command file: %w", err)
+	}
+	err = os.Remove(cmdFileName)
+	if err != nil {
+		return fmt.Errorf("removing swiftDialog command file: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SwiftDialog) Wait() (map[string]any, error) {
+	err := s.cmd.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("waiting for swiftDialog: %w", err)
+	}
+
+	parsed := map[string]any{}
+	err = json.Unmarshal(s.output.Bytes(), &parsed)
+	if err != nil {
+		return nil, fmt.Errorf("parsing swiftDialog output: %w", err)
+	}
+
+	if err := s.cleanup(); err != nil {
+		return nil, fmt.Errorf("Wait cleaning up after swiftDialog: %w", err)
+	}
+
+	return parsed, nil
 }
 
 func (s *SwiftDialog) sendCommand(command, arg string) error {
@@ -187,3 +230,5 @@ func (s *SwiftDialog) SetButton2Text(text string) error {
 func (s *SwiftDialog) SetInfoButtonText(text string) error {
 	return s.sendCommand("infobuttontext", text)
 }
+
+// TODO remainder of updates
