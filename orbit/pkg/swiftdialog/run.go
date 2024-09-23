@@ -13,6 +13,7 @@ import (
 )
 
 // SwiftDialog really wants the command file to be mode 666 for some reason
+// https://github.com/swiftDialog/swiftDialog/wiki/Gotchas
 var CommandFilePerms = fs.FileMode(0666)
 
 type SwiftDialog struct {
@@ -193,12 +194,12 @@ func (s *SwiftDialog) HideTitle() error {
 
 // Set the dialog messZsage
 func (s *SwiftDialog) SetMessage(text string) error {
-	return s.sendCommand("message", text)
+	return s.sendCommand("message", sanitize(text))
 }
 
 // Append to the dialog message
 func (s *SwiftDialog) AppendMessage(text string) error {
-	return s.sendCommand("message", fmt.Sprintf("+ %s", text))
+	return s.sendCommand("message", fmt.Sprintf("+ %s", sanitize(text)))
 }
 
 ///////////
@@ -349,12 +350,12 @@ func (s *SwiftDialog) SetInfoButtonText(text string) error {
 
 // Update the content in the info box
 func (s *SwiftDialog) SetInfoBoxText(text string) error {
-	return s.sendCommand("infobox", text)
+	return s.sendCommand("infobox", sanitize(text))
 }
 
 // Append to the conteit in the info box
 func (s *SwiftDialog) AppendInfoBoxText(text string) error {
-	return s.sendCommand("infobox", fmt.Sprintf("+ %s", text))
+	return s.sendCommand("infobox", fmt.Sprintf("+ %s", sanitize(text)))
 }
 
 //////////
@@ -433,4 +434,8 @@ func (s *SwiftDialog) Activate() error {
 // Quits dialog with exit code 5
 func (s *SwiftDialog) Quit() error {
 	return s.sendCommand("quit", "")
+}
+
+func sanitize(text string) string {
+	return strings.ReplaceAll(text, "\n", "\\n")
 }
