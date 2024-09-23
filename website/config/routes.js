@@ -559,14 +559,11 @@ module.exports.routes = {
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
-<<<<<<< HEAD
   'GET /learn-more-about/dep-profile': 'https://developer.apple.com/documentation/devicemanagement/define_a_profile',
-=======
   'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-manager-abm-tokens',
   'GET /learn-more-about/apple-business-manager-teams-api': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#update-abm-tokens-teams',
   'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business-manager',
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
->>>>>>> 31633148ed842b519a58bcc353381e89f689775f
 
   // Sitemap
   // =============================================================================================================
