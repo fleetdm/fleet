@@ -282,6 +282,36 @@ const removeUnavailableOptions = (
   return options;
 };
 
+// Available tooltips for disabled options
+export const getDropdownOptionTooltipContent = (
+  value: string | number,
+  isHostOnline?: boolean
+) => {
+  const tooltipAction: Record<string, string> = {
+    runScript: "run scripts on",
+    wipe: "wipe",
+    lock: "lock",
+    unlock: "unlock",
+    installSoftware: "install software on", // Host software dropdown option
+    uninstallSoftware: "uninstall software on", // Host software dropdown option
+  };
+  if (tooltipAction[value]) {
+    return (
+      <>
+        To {tooltipAction[value]} this host, deploy the
+        <br />
+        fleetd agent with --enable-scripts and
+        <br />
+        refetch host vitals
+      </>
+    );
+  }
+  if (!isHostOnline && value === "query") {
+    return <>You can&apos;t query an offline host.</>;
+  }
+  return undefined;
+};
+
 const modifyOptions = (
   options: IDropdownOption[],
   {
@@ -291,34 +321,13 @@ const modifyOptions = (
     hostPlatform,
   }: IHostActionConfigOptions
 ) => {
-  // Available tooltips for disabled options
-  const getDropdownOptionTooltipContent = (value: string | number) => {
-    const tooltipAction: Record<string, string> = {
-      runScript: "run scripts on",
-      wipe: "wipe",
-      lock: "lock",
-      unlock: "unlock",
-    };
-    if (tooltipAction[value]) {
-      return (
-        <>
-          To {tooltipAction[value]} this host, deploy the
-          <br />
-          fleetd agent with --enable-scripts and
-          <br />
-          refetch host vitals
-        </>
-      );
-    }
-    if (!isHostOnline && value === "query") {
-      return <>You can&apos;t query an offline host.</>;
-    }
-  };
-
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
-      option.tooltipContent = getDropdownOptionTooltipContent(option.value);
+      option.tooltipContent = getDropdownOptionTooltipContent(
+        option.value,
+        isHostOnline
+      );
     });
   };
 

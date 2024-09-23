@@ -360,54 +360,16 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
 4. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
+5. **Process the offer response** The Head of Digital Experience will process the offer response by either creating a new ["Teammate pre-onboarding" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) and following the steps if the offer is accepted or notifying the stakeholders that the offer was not accepted and we should continue the search. 
 
-#### Steps after an offer is accepted
-Once the new team member replies and accepts their offer in writing, 🌐 Head of Digital Experience follows these steps:
-1. **Verify, track, and reply:** Reply to the candidate:
-   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
-   - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
-     - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
-       - **Start date** _(The new fleetie's first day, YYYY-MM-DD)_
-       - **Location** _(Derive this from the physical address)_
-       - **GitHub username**  _(Username of 2FA-enabled GitHub account)_
-       - **@fleetdm.com email** _(Set this to whatever email you think this person should have)_
-     - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-       - **OTE** _("On-target earnings", i.e. anticipated total annual cash compensation)_
-       - **Equity** _(Stock options)_
-       - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
-       - **Physical address** _(The full street address of the location where work will typically be performed.)_
-       - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
-       - **"Offer accepted?"** _(Set this to `TRUE`)_
-   - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This issue will keep track of the hiring tasks for the new team member.)
-   - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
+#### After an offer is accepted
 
-     ```
-     \o/  It's official!
-     
-     Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP.
-     
-     Thanks, and welcome to the team!
-     
-     Cheers,
-     Sam
-     ```
-  
-2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ using the following template:
-
-```
-@HIRING_MANAGER, :astronaut: TEAM_MEMBER_NAME has accepted the offer :fleet: and this position is now filled :white_check_mark:. Please inform any other interviewees who are still in the running and let them know that we chose a different person. :thankyou-ty: 
-```
-
-3. **Close Slack channel:** Then archive the channel.
-
-   >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-4. **Remove open position:** Ensure the hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
-5. **Create 30-60-90 day plan:** 🧑‍🚀 Hiring manager creates a 30-60-90 day plan outlining key role objectives. The plan is reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. To create the 30-60-90 day plan, hiring manager will:
-    - Create a copy of the [30-60-90 day plan template](https://docs.google.com/document/d/1EztmPBuMFXbVoy4ZToXcxasNO38ooOh8Gh5hPXFvJhI/copy) and rename the copied file using the naming convention `[start date] - 30-60-90 day plan - [teammate full name]` and move it to the [30-60-90 day plan folder](https://drive.google.com/drive/u/0/folders/1QWiAbgBFuuofT_3M8oIoBsbEBmubQAj7) in Google Drive.
-    - Follow the prompts in the template to fill out the 30-60-90 day plan for the new teammate before they start.
+The Head of Digital Experience will then follow the steps in the ["Teammate pre-onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 
-Now what happens?  🌐 Head of Digital Experience will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+## Create a 30-60-90 day plan
+
+The hiring manager creates a 30-60-90 day plan outlining key role objectives to be reviewed in 1:1 meetings during the first three months of employment. To create the 30-60-90 day plan, use the prompts in the "Vision" section of the new teammates [1:1 meeting doc (TEMPLATE)](https://docs.google.com/document/d/1IkGQJ4PPU0MyW35Xo8BuvoUPKpStsmcw_nHWt71W2yE/edit#heading=h.uzxntzlyyaou) to ensure continuous support and alignment with company goals.
 
 
 ## CEO shadow program
