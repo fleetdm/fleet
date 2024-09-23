@@ -36,7 +36,7 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 
 	// TODO: we probably want to ensure that swiftDialog is always installed if we're going to be
 	// using it offline.
-	log.Info().Msg("JVE_LOG: attempting to install swiftDialog")
+	log.Info().Msg("JVE_LOG: attempting to install swiftDialog 1")
 	// if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
 	// 	log.Debug().Msg("got false needs migration and false renew enrollment")
 	// 	return nil
