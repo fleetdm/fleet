@@ -1,3 +1,5 @@
+import { buildQueryStringFromParams } from "utilities/url";
+
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
@@ -95,10 +97,17 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
-  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
-      teamId ? `?team_id=${teamId}` : ""
-    }`;
+  LIVE_QUERY: (
+    queryId: number | null,
+    teamId?: number,
+    hostId?: number
+  ): string => {
+    const baseUrl = `${URL_PREFIX}/queries/${queryId || "new"}/live`;
+    const queryParams = buildQueryStringFromParams({
+      team_id: teamId,
+      host_id: hostId,
+    });
+    return queryParams ? `${baseUrl}?${queryParams}` : baseUrl;
   },
   QUERY_DETAILS: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${

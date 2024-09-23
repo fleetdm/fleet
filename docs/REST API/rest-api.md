@@ -878,9 +878,6 @@ None.
     "additional_queries": null
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -1170,9 +1167,6 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
@@ -1694,7 +1688,6 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -1811,7 +1804,6 @@ _Available in Fleet Premium._
 ```json
 {
   "mdm": {
-    "apple_bm_default_team": "",
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -6261,8 +6253,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 ## Integrations
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
-- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
+- [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
+- [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6289,11 +6281,11 @@ None.
 }
 ```
 
-### Get Apple Business Manager (ABM)
+### List Apple Business Manager (ABM) tokens
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -6301,20 +6293,82 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/abm_tokens`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-{
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "default_team": ""
-}
+"abm_tokens": [
+  {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "terms_expired": false,
+    "macos_team": {
+      "name": "💻 Workstations",
+      "id" 1
+    },
+    "ios_team": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
+    "ipados_team": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
+    }
+  }
+]
+```
+
+### List Volume Purchasing Program (VPP) tokens
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/vpp_tokens`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_tokens": [
+  {
+    "id": 1,
+    "org_name": "Fleet Device Management Inc.",
+    "location": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "teams": [
+      {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      {
+        "name": "💻🐣 Workstations (canary)",
+        "id": 2
+      },
+      {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 3
+      },
+      {
+        "name": "🔳🏢 Company-owned iPads",
+        "id" 4
+      }
+    ],
+  }
+]
 ```
 
 Get Volume Purchasing Program (VPP)

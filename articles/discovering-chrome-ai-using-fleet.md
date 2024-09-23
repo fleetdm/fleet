@@ -50,7 +50,7 @@ In this case, `jq` is used to locate and read the value of the `tab_organization
 
 ### Step 3: Query the JSON file with Fleet
 
-To detect Chrome AI features in Fleet, use SQL query like the following:
+To detect Chrome AI features in Fleet, use a SQL query like the following:
 
 ```
 SELECT fullkey,path FROM parse_json WHERE path LIKE '/Users/%/Library/Application Support/Google/Chrome/Default/Preferences' AND fullkey='optimization_guide/tab_organization_setting_state';
