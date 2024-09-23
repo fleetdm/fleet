@@ -132,7 +132,7 @@ jobs:
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
         run: |
-          fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+          fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize --update-roots='{"signed":{"_type":"root","spec_version":"1.0","version":1,"expires":"2034-09-21T10:15:42-04:00","keys":{"12d797bd81d8a13d586b9eee0b230a2106d92ac4b78f80c1930e74869b37f442":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"f07715647d065f8c938b465134b16fb1524817c4ab3536c88b5210b2101af55c"}},"21155f3fd917bb48ab6d1e34646196cde398ce76f4e515c254e7ae6328353cd5":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"85349354a7958c843dc3afd97d08d5484a9e9e4454df00b7decd5f69e237b6bb"}},"522fbc30ded293b2dbb92c4d649d34950714fb1d0ba23f3f15b81d47608fe9bb":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"05fdc5ef5bc7301c8f4465b0c048b8ef7f9c1083a0c5b5717f603652e1c5c6ca"}},"a1312aa69ec097c463db3f142aa0dacef2a38e73874a37f5dd4921c8e23a8956":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"2e713e869728c940234be69fa7b55e98b5504dbd17acc1b434b6525f4213d810"}}},"roles":{"root":{"keyids":["a1312aa69ec097c463db3f142aa0dacef2a38e73874a37f5dd4921c8e23a8956"],"threshold":1},"snapshot":{"keyids":["21155f3fd917bb48ab6d1e34646196cde398ce76f4e515c254e7ae6328353cd5"],"threshold":1},"targets":{"keyids":["12d797bd81d8a13d586b9eee0b230a2106d92ac4b78f80c1930e74869b37f442"],"threshold":1},"timestamp":{"keyids":["522fbc30ded293b2dbb92c4d649d34950714fb1d0ba23f3f15b81d47608fe9bb"],"threshold":1}},"consistent_snapshot":false},"signatures":[{"keyid":"a1312aa69ec097c463db3f142aa0dacef2a38e73874a37f5dd4921c8e23a8956","sig":"1756739aa03b294ed3007af0449aa072e0f74865ffe0b8d7cb9449119af9abf08008abf426fa6f8b60805214460627032504c12593eee1938d6b48fa7ba07a07"}]}' --update-url=http://10.0.0.12:8081
           mv fleet-osquery*.pkg fleetd-base.pkg
           : # Calculate the SHA256 checksum of the package
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
@@ -178,89 +178,89 @@ jobs:
         with:
           filenames: stable/fleetd-base.pkg,stable/fleetd-base-manifest.plist,${{ env.FULL_DATE_DIR }}/fleetd-base.pkg,${{ env.FULL_DATE_DIR }}/fleetd-base-manifest.plist
 
-  build-fleetd-base-msi:
-    needs: [check-for-fleetd-component-updates]
-    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
-    runs-on: ubuntu-latest
-    env:
-      FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
-        with:
-          egress-policy: audit
+  # build-fleetd-base-msi:
+  #   needs: [check-for-fleetd-component-updates]
+  #   if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
+  #   steps:
+  #     - name: Harden Runner
+  #       uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+  #       with:
+  #         egress-policy: audit
 
-      - name: Install fleetctl
-        run: npm install -g fleetctl
+  #     - name: Install fleetctl
+  #       run: npm install -g fleetctl
 
-      - name: Build MSI
-        id: build
-        run: |
-          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
-          mv fleet-osquery*.msi fleetd-base.msi
+  #     - name: Build MSI
+  #       id: build
+  #       run: |
+  #         fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
+  #         mv fleet-osquery*.msi fleetd-base.msi
 
-      - name: Upload fleetd-base.msi for code signing
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
-        with:
-          name: unsigned-windows
-          path: fleetd-base.msi
+  #     - name: Upload fleetd-base.msi for code signing
+  #       uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+  #       with:
+  #         name: unsigned-windows
+  #         path: fleetd-base.msi
 
-  code-sign-windows:
-    needs: build-fleetd-base-msi
-    uses: ./.github/workflows/code-sign-windows.yml
-    with:
-      filename: fleetd-base.msi
-      upload_name: fleetd-base-msi
-    secrets:
-      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
-      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
-      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
-      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
+  # code-sign-windows:
+  #   needs: build-fleetd-base-msi
+  #   uses: ./.github/workflows/code-sign-windows.yml
+  #   with:
+  #     filename: fleetd-base.msi
+  #     upload_name: fleetd-base-msi
+  #   secrets:
+  #     DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+  #     DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+  #     DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+  #     DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+  #     DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
-  update-fleetd-base-msi:
-    needs: [code-sign-windows, check-for-fleetd-component-updates]
-    runs-on: ubuntu-latest
-    outputs:
-      fleetd_base_msi_sha256: ${{ steps.prepare-files.outputs.fleetd_base_msi_sha256 }}
-    env:
-      FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
-        with:
-          egress-policy: audit
+  # update-fleetd-base-msi:
+  #   needs: [code-sign-windows, check-for-fleetd-component-updates]
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     fleetd_base_msi_sha256: ${{ steps.prepare-files.outputs.fleetd_base_msi_sha256 }}
+  #   env:
+  #     FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
+  #   steps:
+  #     - name: Harden Runner
+  #       uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+  #       with:
+  #         egress-policy: audit
 
-      - name: Checkout code needed for R2 upload
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          sparse-checkout: |
-            .github/actions/r2-upload/action.yml
-            .github/scripts/rclone-install.sh
-          sparse-checkout-cone-mode: false
+  #     - name: Checkout code needed for R2 upload
+  #       uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+  #       with:
+  #         sparse-checkout: |
+  #           .github/actions/r2-upload/action.yml
+  #           .github/scripts/rclone-install.sh
+  #         sparse-checkout-cone-mode: false
 
-      - name: Download signed artifact
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
-        with:
-          name: fleetd-base-msi
+  #     - name: Download signed artifact
+  #       uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+  #       with:
+  #         name: fleetd-base-msi
 
-      - name: Prepare files for R2 upload
-        id: prepare-files
-        run: |
-          mkdir -p stable
-          mkdir -p ${{ env.FULL_DATE_DIR }}
-          cp fleetd-base.msi stable/
-          cp fleetd-base.msi ${{ env.FULL_DATE_DIR }}/
-          : # Calculate the SHA256 checksum of the package
-          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+  #     - name: Prepare files for R2 upload
+  #       id: prepare-files
+  #       run: |
+  #         mkdir -p stable
+  #         mkdir -p ${{ env.FULL_DATE_DIR }}
+  #         cp fleetd-base.msi stable/
+  #         cp fleetd-base.msi ${{ env.FULL_DATE_DIR }}/
+  #         : # Calculate the SHA256 checksum of the package
+  #         echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
-      - name: Upload package
-        uses: ./.github/actions/r2-upload
-        with:
-          filenames: stable/fleetd-base.msi,${{ env.FULL_DATE_DIR }}/fleetd-base.msi
+  #     - name: Upload package
+  #       uses: ./.github/actions/r2-upload
+  #       with:
+  #         filenames: stable/fleetd-base.msi,${{ env.FULL_DATE_DIR }}/fleetd-base.msi
 
   update-meta-files:
-    needs: [check-for-fleetd-component-updates, update-fleetd-base-pkg, update-fleetd-base-msi]
+    needs: [check-for-fleetd-component-updates, update-fleetd-base-pkg]
     runs-on: ubuntu-latest
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
