@@ -149,6 +149,9 @@ const AddSoftwareVppForm = ({
   const onSelectApp = (app: IVppApp) => {
     setIsSubmitDisabled(false);
     setSelectedApp(app);
+    if (app.platform === "ios" || app.platform === "ipados") {
+      setIsSelfService(false);
+    }
   };
 
   const onAddSoftware = async (evt: React.FormEvent<HTMLFormElement>) => {
@@ -181,6 +184,27 @@ const AddSoftwareVppForm = ({
     setIsUploading(false);
   };
 
+  const renderSelfServiceContent = (platform: string) => {
+    if (platform !== "ios" && platform !== "ipados") {
+      return (
+        <Checkbox
+          value={isSelfService}
+          onChange={(newVal: boolean) => setIsSelfService(newVal)}
+          className={`${baseClass}__self-service-checkbox`}
+          tooltipContent={
+            <>
+              End users can install from <b>Fleet Desktop</b> {">"}{" "}
+              <b>Self-service</b>.
+            </>
+          }
+        >
+          Self-service
+        </Checkbox>
+      );
+    }
+    return null;
+  };
+
   const renderContent = () => {
     if (!hasVppToken) {
       return <EnableVppCard />;
@@ -203,19 +227,9 @@ const AddSoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
-          <Checkbox
-            value={isSelfService}
-            onChange={(newVal: boolean) => setIsSelfService(newVal)}
-            className={`${baseClass}__self-service-checkbox`}
-            tooltipContent={
-              <>
-                End users can install from <b>Fleet Desktop</b> {">"}{" "}
-                <b>Self-service</b>.
-              </>
-            }
-          >
-            Self-service
-          </Checkbox>
+          {renderSelfServiceContent(
+            (selectedApp && selectedApp.platform) || ""
+          )}
         </div>
       );
     }

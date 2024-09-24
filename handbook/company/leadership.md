@@ -414,7 +414,6 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
-<<<<<<< HEAD
 ## Changing someone's position
 From time to time, someone's job title changes.  To do this, reach out to [Digital Experience](https://fleetdm.com/handbook/digital-experience).
 
