@@ -17,9 +17,9 @@
 2. launch swift dialog asap after release and hold until all setup items are done. (button disabled
    until finished then enabled.)
 3. API GET list runway software
-4. API POST update list runway software
+4. API PUT update list runway software
 5. API GET runway script
-6. API update POST add script to include `runway: true`
+6. API update PUT add script to include `runway: true`
 7. API PATCH select runway script ID
 
 
