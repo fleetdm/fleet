@@ -202,7 +202,7 @@ func (s *SwiftDialog) HideTitle() error {
 // Message //
 /////////////
 
-// Set the dialog messZsage
+// Set the dialog messsage
 func (s *SwiftDialog) SetMessage(text string) error {
 	return s.sendCommand("message", sanitize(text))
 }
