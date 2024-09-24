@@ -352,6 +352,11 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/digital-experience/security',
   'GET /handbook/security/security-policies':'/handbook/digital-experience/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/business-operations/security-policies':'/handbook/digital-experience/security-policies',
+  'GET /handbook/business-operations/application-security': '/handbook/digital-experience/application-security',
+  'GET /handbook/business-operations/security-audits': '/handbook/digital-experience/security-audits',
+  'GET /handbook/business-operations/security': '/handbook/digital-experience/security',
+  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/digital-experience/vendor-questionnaires',
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
