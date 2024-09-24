@@ -12,10 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -294,7 +292,7 @@ WHERE
 
 func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, profileID, "")
+		return deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, profileID, "")
 	})
 }
 
@@ -304,11 +302,11 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
+		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
 			return err
 		}
 
-		if err := ds.deleteUnsentAppleHostMDMProfile(ctx, tx, profileUUID); err != nil {
+		if err := deleteUnsentAppleHostMDMProfile(ctx, tx, profileUUID); err != nil {
 			return err
 		}
 
@@ -316,7 +314,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 	})
 }
 
-func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtContext, id uint, uuid string) error {
+func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtContext, id uint, uuid string) error {
 	var arg any
 	stmt := `DELETE FROM mdm_apple_configuration_profiles WHERE `
 	if uuid != "" {
@@ -342,12 +340,11 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 	return nil
 }
 
-func (ds *Datastore) deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
+func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
 	const stmt = `DELETE FROM host_mdm_apple_profiles WHERE profile_uuid = ? AND status IS NULL AND operation_type = ? AND command_uuid = ''`
 	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host profile that has not been sent to host")
 	}
-	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: deleted host profile ", "uuid", uuid)
 
 	return nil
 }
