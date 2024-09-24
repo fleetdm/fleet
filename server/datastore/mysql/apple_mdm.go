@@ -326,7 +326,7 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 		arg = id
 		stmt += `profile_id = ?`
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, arg)
+	res, err := tx.ExecContext(ctx, stmt, arg)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
