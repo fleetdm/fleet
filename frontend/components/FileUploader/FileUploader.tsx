@@ -24,6 +24,42 @@ export type ISupportedGraphicNames = Extract<
   | "file-vpp"
 >;
 
+export const FileDetails = ({
+  details: { name, platform },
+  graphicName = "file-pkg",
+  progress,
+}: {
+  details: {
+    name: string;
+    platform?: string;
+  };
+  graphicName?: ISupportedGraphicNames;
+  progress?: number;
+}) => (
+  <div className={`${baseClass}__selected-file`}>
+    <Graphic name={graphicName} />
+    <div className={`${baseClass}__selected-file--details`}>
+      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
+      {platform && (
+        <div className={`${baseClass}__selected-file--details--platform`}>
+          {platform}
+        </div>
+      )}
+    </div>
+    {!!progress && (
+      <div className={`${baseClass}__disk-space`}>
+        <div
+          className={`${baseClass}__disk-space--red`}
+          style={{
+            width: `${progress * 100}%`,
+          }}
+          title="disk space indicator"
+        />
+      </div>
+    )}
+  </div>
+);
+
 interface IFileUploaderProps {
   graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: string;

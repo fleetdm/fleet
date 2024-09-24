@@ -1,5 +1,9 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { AxiosProgressEvent } from "axios";
+
+import { FileDetails } from "components/FileUploader/FileUploader";
+import { FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME } from "utilities/file/fileUtils";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -28,6 +32,7 @@ interface IAddPackageProps {
   router: InjectedRouter;
   onExit: () => void;
   setAddedSoftwareToken: (token: string) => void;
+  setHideTabs: (hideTabs: boolean) => void;
 }
 
 const AddPackage = ({
@@ -35,9 +40,13 @@ const AddPackage = ({
   router,
   onExit,
   setAddedSoftwareToken,
+  setHideTabs,
 }: IAddPackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
+  const [filename, setFilename] = useState<string | null>(null);
+
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -66,77 +75,85 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IPackageFormData) => {
-    setIsUploading(true);
+  const onAddPackage = useCallback(
+    async (formData: IAddSoftwareFormData) => {
+      setIsUploading(true);
+      setFilename(formData.software?.name || "");
 
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      onExit();
-      setIsUploading(false);
-      return;
-    }
-
-    // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
-    // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
-    try {
-      await softwareAPI.addSoftwarePackage(formData, teamId, UPLOAD_TIMEOUT);
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
-
-      const newQueryParams: QueryParams = { team_id: teamId };
-      if (formData.selfService) {
-        newQueryParams.self_service = true;
-      } else {
-        newQueryParams.available_for_install = true;
-      }
-      // any unique string - triggers SW refetch
-      setAddedSoftwareToken(`${Date.now()}`);
-      router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
-      );
-    } catch (e) {
-      const reason = getErrorReason(e);
-      if (
-        reason.includes("Couldn't add. Fleet couldn't read the version from")
-      ) {
+      if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
         renderFlash(
           "error",
+          `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
+        );
+        onExit();
+        setIsUploading(false);
+        return;
+      }
+
+      setHideTabs(true);
+
+      // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
+      try {
+        await softwareAPI.addSoftwarePackage({
+          data: formData,
+          teamId,
+          timeout: UPLOAD_TIMEOUT,
+          onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+            console.log(progressEvent);
+            setProgress(progressEvent.progress || 0);
+          },
+        });
+        renderFlash(
+          "success",
           <>
-            {reason}{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-              iconColor="core-fleet-white"
-            />
+            <b>{formData.software?.name}</b> successfully added.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
           </>
         );
-      } else {
+
+        const newQueryParams: QueryParams = { team_id: teamId };
+        if (formData.selfService) {
+          newQueryParams.self_service = true;
+        } else {
+          newQueryParams.available_for_install = true;
+        }
+        // any unique string - triggers SW refetch
+        setAddedSoftwareToken(`${Date.now()}`);
+        router.push(
+          `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(
+            newQueryParams
+          )}`
+        );
+      } catch (e) {
         renderFlash("error", getErrorMessage(e));
       }
-    }
 
-    onExit();
-    setIsUploading(false);
-  };
+      onExit();
+      setIsUploading(false);
+    },
+    [onExit, renderFlash, router, setAddedSoftwareToken, teamId]
+  );
+
+  const parts = filename?.split(".");
+  const ext = parts?.slice(-1)[0] || "";
+  console.log(ext);
+  const name = parts?.slice(0, -1).join(".") || "";
+  const platform = FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[ext];
 
   return (
     <div className={baseClass}>
-      <PackageForm
-        isUploading={isUploading}
-        onCancel={onExit}
-        onSubmit={onAddPackage}
-      />
+      {!!progress && (
+        <FileDetails details={{ name, platform }} progress={progress} />
+      )}
+      {!progress && (
+        <AddPackageForm
+          isUploading={isUploading}
+          onCancel={onExit}
+          onSubmit={onAddPackage}
+        />
+      )}
     </div>
   );
 };

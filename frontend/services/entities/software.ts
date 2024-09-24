@@ -1,4 +1,6 @@
-import sendRequest from "services";
+import { AxiosProgressEvent, AxiosResponse } from "axios";
+
+import sendRequest, { sendRequestWithProgress } from "services";
 import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
@@ -204,11 +206,17 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addSoftwarePackage: (
-    data: IPackageFormData,
-    teamId?: number,
-    timeout?: number
-  ) => {
+  addSoftwarePackage: ({
+    data,
+    teamId,
+    timeout,
+    onUploadProgress,
+  }: {
+    data: IAddSoftwareFormData;
+    teamId?: number;
+    timeout?: number;
+    onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+  }) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
     if (!data.software) {
@@ -227,14 +235,14 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
-    return sendRequest(
-      "POST",
-      SOFTWARE_PACKAGE_ADD,
-      formData,
-      undefined,
+    return sendRequestWithProgress({
+      method: "POST",
+      path: SOFTWARE_PACKAGE_ADD,
+      data: formData,
       timeout,
-      true
-    );
+      skipParseError: true,
+      onUploadProgress,
+    });
   },
   editSoftwarePackage: (
     data: IPackageFormData,

@@ -49,6 +49,7 @@ const AddSoftwareModal = ({
   setAddedSoftwareToken,
   isFreeTier,
 }: IAddSoftwareModalProps) => {
+  const [hideTabs, setHideTabs] = React.useState(false);
   const renderModalContent = () => {
     if (isFreeTier) {
       return (
@@ -70,15 +71,18 @@ const AddSoftwareModal = ({
     return (
       <TabsWrapper className={`${baseClass}__tabs`}>
         <Tabs>
-          <TabList>
-            <Tab>Package</Tab>
-            <Tab>App Store (VPP)</Tab>
-          </TabList>
+          {!hideTabs && (
+            <TabList>
+              <Tab>Package</Tab>
+              <Tab>App Store (VPP)</Tab>
+            </TabList>
+          )}
           <TabPanel>
             <AddPackage
               teamId={teamId}
               router={router}
               onExit={onExit}
+              setHideTabs={setHideTabs}
               setAddedSoftwareToken={setAddedSoftwareToken}
             />
           </TabPanel>
