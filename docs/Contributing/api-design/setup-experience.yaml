@@ -2,29 +2,115 @@ openapi: 3.1.0
 info:
   title: Setup Experience API
   version: 1.0.0
-  description: The setup experience API is a RESTful API that allows you to interact with setup experience settings.
+  description: The setup experience API.
 paths:
+  # TLDR This is a copy of list titles w/ new included_during_setup field and hardcoded
+  # to filter on macOS custom packages only
   /api/v1/fleet/setup_experience/software:
     get:
       summary: Get a list of software available in the setup experience fleet
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: The page number to return.
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          required: false
+          description: The number of results per page.
+          schema:
+            type: integer
+        - name: team_id
+          in: query
+          required: false
+          description: The team id to filter by.
+          schema:
+            type: integer
       responses:
         '200':
           description: A list of software available in the setup experience fleet
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: The total number of software available.
+                  counts_updated_at:
+                    type: string
+                    description: The last time the counts were updated.
+                  meta:
+                    type: object
+                    properties:
+                      has_next_results:
+                        type: boolean
+                      has_previous_results:
+                        type: boolean
+                  software_titles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        versions_count:
+                          type: integer
+                        source:
+                          type: string
+                        browser:
+                          type: string
+                        hosts_count:
+                          type: integer
+                        installed_during_setup:
+                          type: boolean
+                        versions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              version:
+                                type: string
+                              vulnerabilities:
+                                type: array
+                                items: string
+                        software_package:
+                          type: object
+                          nullable: true
+                          properties:
+                            name:
+                              type: string
+                            version:
+                              type: string
+                            self_service:
+                              type: boolean
+                        app_store_app:
+                          type: object
+                          nullable: true
+                          properties:
+                            app_store_id:
+                              type: integer
+                            version:
+                              type: string
     put:
+      # Important: This endpoint must unset any software that is not included in the request
       summary: Update the list of software available in the setup experience fleet.
-      request:
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: array
               items:
                 type: integer
+                description: software id's to enable.
+            example: [1, 2, 3]
       responses:
         '200':
   /api/v1/fleet/setup_experience/script:
@@ -36,18 +122,36 @@ paths:
          content:
            application/json:
              schema:
-               type: string
+               type: object
+               properties:
+                 id:
+                   type: integer
+                 team_id:
+                   type: integer
+                 name:
+                   type: string
+                 created_at:
+                   type: string
+                 updated_at:
+                   type: string
     delete:
       summary: Delete the script associated with this teams setup experience.
       responses:
         '200':
-    put:
+    post:
       summary: Update the script associated with this teams setup experience.
-      request:
+      requestBody:
         content:
-          application/json:
+          form-data:
             schema:
-              type: string
+              type: object
+              properties:
+                team_id:
+                  type: integer
+                filename:
+                  type: string
+                script:
+                  type: application/octet-stream
       responses:
         '200':
   /api/v1/fleet/{device_token}/setup_experience/start:
