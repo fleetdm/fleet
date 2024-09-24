@@ -770,26 +770,15 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		}
 	}
 
-	hp, err := svc.ds.GetHostMDMAppleProfileByUUID(ctx, cp.ProfileUUID)
-	if err != nil {
-		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "getting host mdm apple profile")
-		}
-	}
-
+	// This call will also delete host_mdm_apple_profiles references IFF the profile has not been sent to
+	// the host yet.
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if hp != nil && hp.Status == nil && hp.OperationType == fleet.MDMOperationTypeInstall && hp.CommandUUID == "" {
-		if err := svc.ds.DeleteHostMDMAppleProfileByUUID(ctx, cp.ProfileUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting host mdm apple profile")
-		}
-	} else {
-		// cannot use the profile ID as it is now deleted
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-		}
+	// cannot use the profile ID as it is now deleted
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	var (
