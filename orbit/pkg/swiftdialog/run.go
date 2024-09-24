@@ -95,7 +95,7 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			errExit := &exec.ExitError{}
-			if errors.As(err, &errExit) {
+			if errors.As(err, &errExit) && strings.Contains(errExit.Error(), "exit status") {
 				sd.exitCode = ExitCode(errExit.ExitCode())
 			} else {
 				sd.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
