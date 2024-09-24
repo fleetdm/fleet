@@ -659,6 +659,18 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	// Disable SMTP.
 	newAppConfig := fleet.AppConfig{
 		SMTPSettings: &fleet.SMTPSettings{
