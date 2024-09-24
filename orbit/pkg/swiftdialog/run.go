@@ -22,6 +22,14 @@ type SwiftDialog struct {
 	commandFile *os.File
 	context     context.Context
 	output      *bytes.Buffer
+	exitCode    ExitCode
+	exitErr     error
+	done        chan struct{}
+}
+
+type SwiftDialogExit struct {
+	ExitCode ExitCode
+	Output   map[string]any
 }
 
 type ExitCode int
@@ -75,23 +83,38 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 		return nil, err
 	}
 
-	return &SwiftDialog{
+	sd := &SwiftDialog{
 		cancel:      cancel,
 		cmd:         cmd,
 		commandFile: commandFile,
 		context:     ctx,
+		done:        make(chan struct{}),
 		output:      outBuf,
-	}, nil
+	}
+
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			errExit := &exec.ExitError{}
+			if errors.As(err, &errExit) {
+				sd.exitCode = ExitCode(errExit.ExitCode())
+			} else {
+				sd.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
+			}
+		}
+		close(sd.done)
+		cancel()
+	}()
+
+	return sd, nil
 }
 
-func (s *SwiftDialog) Close() error {
+func (s *SwiftDialog) finished() {
+	<-s.done
+}
+
+func (s *SwiftDialog) Kill() error {
 	s.cancel()
-	errExit := &exec.ExitError{}
-	if err := s.cmd.Wait(); err != nil {
-		if !(errors.As(err, &errExit) && strings.Contains(errExit.ProcessState.String(), "killed")) {
-			return fmt.Errorf("waiting for swiftDialog: %w", err)
-		}
-	}
+	s.finished()
 	if err := s.cleanup(); err != nil {
 		return fmt.Errorf("Close cleaning up after swiftDialog: %w", err)
 	}
@@ -114,27 +137,12 @@ func (s *SwiftDialog) cleanup() error {
 	return nil
 }
 
-type SwiftDialogExit struct {
-	ExitCode ExitCode
-	Output   map[string]any
-}
-
 func (s *SwiftDialog) Wait() (*SwiftDialogExit, error) {
-	var exitCode int
-	errExit := &exec.ExitError{}
-	err := s.cmd.Wait()
-	if err != nil {
-		if errors.As(err, &errExit) {
-			exitCode = errExit.ExitCode()
-		} else {
-			return nil, fmt.Errorf("waiting for swiftDialog: %w", err)
-		}
-	}
+	s.finished()
 
 	parsed := map[string]any{}
 	if s.output.Len() != 0 {
-		err = json.Unmarshal(s.output.Bytes(), &parsed)
-		if err != nil {
+		if err := json.Unmarshal(s.output.Bytes(), &parsed); err != nil {
 			return nil, fmt.Errorf("parsing swiftDialog output: %w", err)
 		}
 	}
@@ -144,12 +152,15 @@ func (s *SwiftDialog) Wait() (*SwiftDialogExit, error) {
 	}
 
 	return &SwiftDialogExit{
-		ExitCode: ExitCode(exitCode),
+		ExitCode: ExitCode(s.exitCode),
 		Output:   parsed,
-	}, nil
+	}, s.exitErr
 }
 
 func (s *SwiftDialog) sendCommand(command, arg string) error {
+	if err := s.context.Err(); err != nil {
+		return fmt.Errorf("could not send command: %w", err)
+	}
 	// For some reason swiftDialog needs us to open and close the file
 	// to detect a new command, just writing to the file doesn't cause
 	// a change
