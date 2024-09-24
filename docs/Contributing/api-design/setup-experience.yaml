@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: Setup Experience API
+  version: 1.0.0
+  description: The setup experience API is a RESTful API that allows you to interact with setup experience settings.
+paths:
+  /api/v1/fleet/setup_experience/software:
+    get:
+      summary: Get a list of software available in the setup experience fleet
+      responses:
+        '200':
+          description: A list of software available in the setup experience fleet
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    put:
+      summary: Update the list of software available in the setup experience fleet.
+      request:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: integer
+      responses:
+        '200':
+  /api/v1/fleet/setup_experience/script:
+    get:
+     summary: Get the script associated with this teams setup experience.
+     responses:
+       '200':
+         description: The script associated with this teams setup experience.
+         content:
+           application/json:
+             schema:
+               type: string
+    delete:
+      summary: Delete the script associated with this teams setup experience.
+      responses:
+        '200':
+    put:
+      summary: Update the script associated with this teams setup experience.
+      request:
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+  /api/v1/fleet/{device_token}/setup_experience/start:
+    post:
+      summary: Register a device with the setup experience fleet.
+      parameters:
+        - name: device_token
+          in: path
+          required: true
+          description: The device token to trigger the setup experience process.
+          schema:
+            type: string
+      responses:
+        '201':
+  /api/v1/fleet/{device_token}/setup_experience/status:
+    get:
+      summary: Get the status of a device in the setup experience fleet.
+      parameters:
+        - name: device_token
+          in: path
+          required: true
+          description: The device token to check the status of.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The status of the device in the setup experience fleet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bootstrap_package:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      status:
+                        type: string
+                  script:
+                    type: object
+                    properties:
+                      execution_id:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+                  software:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        software_id:
+                          type: integer
+                        name:
+                          type: string
+                        status:
+                          type: string
