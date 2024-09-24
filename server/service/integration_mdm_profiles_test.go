@@ -4359,6 +4359,9 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
+	teamDelete, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TeamDelete"})
+	require.NoError(t, err)
+
 	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
 	generateTestProfile := func(name string, identifier string) {
 		i := identifier
@@ -4402,6 +4405,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 		require.Equal(t, expected.Identifier, actual.Identifier)
 	}
 
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &teamDelete.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK)
+
 	// create new profile (no team)
 	generateTestProfile("TestNoTeam", "")
 	body, headers := generateNewReq("TestNoTeam", nil)
@@ -4421,9 +4430,42 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.NotEmpty(t, newCP.ProfileID)
 	setTestProfileID("TestWithTeamID", newCP.ProfileID)
 
+	// Create a profile that we're going to remove immediately
+	generateTestProfile("TestImmediateDelete", "")
+	body, headers = generateNewReq("TestImmediateDelete", &teamDelete.ID)
+	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	newCP = fleet.MDMAppleConfigProfile{}
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestImmediateDelete", newCP.ProfileID)
+
+	// check that host_mdm_apple_profiles entry was created
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	require.Len(t, *hostResp.Host.MDM.Profiles, 1)
+	require.Equal(t, (*hostResp.Host.MDM.Profiles)[0].Name, "TestImmediateDelete")
+
+	// now delete the profile before it's sent, we should see the host_mdm_apple_profiles entry go
+	// away
+	deletedCP := testProfiles["TestImmediateDelete"]
+	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	var deleteResp deleteMDMAppleConfigProfileResponse
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	var listResp listMDMAppleConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: teamDelete.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	// confirm no host profiles
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.Profiles)
+
 	// list profiles (no team)
 	expectedCP := testProfiles["TestNoTeam"]
-	var listResp listMDMAppleConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.ConfigProfiles, 1)
 	respCP := listResp.ConfigProfiles[0]
@@ -4445,7 +4487,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 	// get profile (no team)
 	expectedCP = testProfiles["TestNoTeam"]
-	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
 	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 	checkGetResponse(getResp, expectedCP)
 
@@ -4456,9 +4498,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	checkGetResponse(getResp, expectedCP)
 
 	// delete profile (no team)
-	deletedCP := testProfiles["TestNoTeam"]
-	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
-	var deleteResp deleteMDMAppleConfigProfileResponse
+	deletedCP = testProfiles["TestNoTeam"]
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
 	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
 	// confirm deleted
 	listResp = listMDMAppleConfigProfilesResponse{}
