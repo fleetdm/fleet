@@ -666,7 +666,7 @@ func TestApplyAppConfig(t *testing.T) {
 	}
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{}, nil
+		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
 	}
 
 	name := writeTmpYml(t, `---
