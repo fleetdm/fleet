@@ -29,8 +29,9 @@ import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 
 import InstallStatusCell from "./InstallStatusCell";
+import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
 
-const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
+export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
   { value: "install", label: "Install", disabled: false },
   { value: "uninstall", label: "Uninstall", disabled: false },
@@ -50,24 +51,25 @@ type IInstalledVersionsCellProps = CellProps<
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
-const generateActions = ({
-  userHasSWWritePermission,
-  // Commenting below in case there is a quick decision to use these conditions after all
-  // hostCanWriteSoftware,
-  // software_package,
-  softwareIdActionPending,
-  softwareId,
-  status,
-  app_store_app,
-}: {
+export interface generateActionsProps {
   userHasSWWritePermission: boolean;
+  hostScriptsEnabled: boolean;
   hostCanWriteSoftware: boolean;
   softwareIdActionPending: number | null;
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
-}) => {
+}
+
+export const generateActions = ({
+  userHasSWWritePermission,
+  hostScriptsEnabled,
+  softwareIdActionPending,
+  softwareId,
+  status,
+  app_store_app,
+}: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
   const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
@@ -88,15 +90,29 @@ const generateActions = ({
   }
 
   if (!userHasSWWritePermission) {
-    actions.splice(indexInstallAction, 1);
+    // Reverse order to not change index of subsequent array element before removal
     actions.splice(indexUninstallAction, 1);
+    actions.splice(indexInstallAction, 1);
   } else {
+    // if host's scripts are disabled, disable install/uninstall with tooltip
+    if (!hostScriptsEnabled) {
+      actions[indexInstallAction].disabled = true;
+      actions[indexUninstallAction].disabled = true;
+
+      actions[
+        indexInstallAction
+      ].tooltipContent = getDropdownOptionTooltipContent("installSoftware");
+      actions[
+        indexUninstallAction
+      ].tooltipContent = getDropdownOptionTooltipContent("uninstallSoftware");
+    }
+
     // user has software write permission for host
     const pendingStatuses = ["pending_install", "pending_uninstall"];
 
+    // if locally pending (waiting for API response) or pending install/uninstall,
+    // disable both install and uninstall
     if (
-      // if locally pending (waiting for API response) or pending install/uninstall, disable both
-      // install and uninstall
       softwareId === softwareIdActionPending ||
       pendingStatuses.includes(status || "")
     ) {
@@ -114,6 +130,7 @@ const generateActions = ({
 
 interface ISoftwareTableHeadersProps {
   userHasSWWritePermission: boolean;
+  hostScriptsEnabled?: boolean;
   hostCanWriteSoftware: boolean;
   softwareIdActionPending: number | null;
   router: InjectedRouter;
@@ -125,6 +142,7 @@ interface ISoftwareTableHeadersProps {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
   userHasSWWritePermission,
+  hostScriptsEnabled = false,
   hostCanWriteSoftware,
   softwareIdActionPending,
   router,
@@ -217,6 +235,7 @@ export const generateSoftwareTableHeaders = ({
             placeholder="Actions"
             options={generateActions({
               userHasSWWritePermission,
+              hostScriptsEnabled,
               hostCanWriteSoftware,
               softwareIdActionPending,
               softwareId,
