@@ -772,14 +772,16 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 
 	hp, err := svc.ds.GetHostMDMAppleProfileByUUID(ctx, cp.ProfileUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting host mdm apple profile")
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "getting host mdm apple profile")
+		}
 	}
 
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if hp.Status == nil && hp.OperationType == fleet.MDMOperationTypeInstall && hp.CommandUUID == "" {
+	if hp != nil && hp.Status == nil && hp.OperationType == fleet.MDMOperationTypeInstall && hp.CommandUUID == "" {
 		if err := svc.ds.DeleteHostMDMAppleProfileByUUID(ctx, cp.ProfileUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting host mdm apple profile")
 		}

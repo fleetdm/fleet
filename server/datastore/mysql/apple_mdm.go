@@ -3935,6 +3935,10 @@ WHERE
 
 	var hostProf fleet.HostMDMAppleProfile
 	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hostProf, stmt, uuid); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("HostMDMAppleProfile")
+		}
+
 		return nil, ctxerr.Wrap(ctx, err, "getting host mdm apple profile by uuid")
 	}
 
