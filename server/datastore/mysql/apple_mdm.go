@@ -12,10 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -1986,7 +1984,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		}
 
 		updatedDB = true
-		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: going to update profile ", "args", args)
 		baseStmt := fmt.Sprintf(`
 				INSERT INTO host_mdm_apple_profiles (
 					profile_uuid,
@@ -2088,7 +2085,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	for _, p := range currentProfiles {
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: was it in profileIntersection?")
 			continue
 		}
 		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
@@ -2096,7 +2092,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
 		if p.DidNotInstallOnHost() {
-			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: we didn't install so we should remove later ")
 			continue
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
