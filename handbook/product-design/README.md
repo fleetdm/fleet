@@ -142,7 +142,7 @@ Every change to how Fleet is used is reflected live on the website in reference 
 
 To make sure this happens, first, the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) @ mentions the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) in a message in [#help-engineering Slack channel](https://fleetdm.slack.com/archives/C019WG4GH0A) when we cut the release candidate (RC). 
 
-Next, the API design DRI reviews all user stories with the release milestone to check that all reference doc PRs are merged into the reference docs release branch. To see which stories were pushed to the next release, and thus which reference doc changes need to be removed from the branch, the API design DRI filters issues by the `~pushed` label and the next release's milestone.
+Next, the API design DRI reviews all user stories and bugs with the release milestone to check that all reference doc PRs are merged into the reference docs release branch. To see which stories were pushed to the next release, and thus which reference doc changes need to be removed from the branch, the API design DRI filters issues by the `~pushed` label and the next release's milestone.
 
 To signal that the reference docs branch is ready for release, the API design DRI opens a PR to `main`, adds the DRI for what goes in a release as the reviewer, and adds the release milestone.
 
