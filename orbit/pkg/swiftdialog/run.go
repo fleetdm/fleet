@@ -170,7 +170,6 @@ func (s *SwiftDialog) sendCommand(command, arg string) error {
 	}
 
 	fullCommand := fmt.Sprintf("%s: %s", command, arg)
-	// fmt.Printf("fullCommand: %v\n", fullCommand)
 
 	_, err = fmt.Fprintf(commandFile, "%s\n", fullCommand)
 	if err != nil {
