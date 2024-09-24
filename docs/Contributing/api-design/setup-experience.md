@@ -4,17 +4,17 @@
 
 ### Database
 
-1. Update software table with
+1. Update software_installs table with
 
-    `include_during_setup: boolean` default false
+    `install_during_setup: boolean` default false
 
 2. New table for setup experience script same schema as scripts today
 
-3. New table for storing setup experience status
+3. New table for storing setup experience status `setup_experience_status_results`
 
-    | id  | host   | type   | status | error  |
-    | --- | ------ | ------ | ------ | ------ |
-    | int | string | string | string | string |
+    | id  | host   | type   | name   | status | execution_id | error  |
+    | --- | ------ | ------ | ------ | ------ | ----------- | ------ |
+    | int | string | string | string | string | string     | string |
 
 * type: `bootstrap-package`, `software-install`, `post-install-script`
 * status: `pending`, `installing`, `installed`, `failed`, `ran`, `running`
@@ -22,7 +22,7 @@
 Populate this table with all items as pending when hit /start (remove old matches for this host)
 
 `IDEA 1`: add callback id to software, bootstrap pkg, script to update status. Where callback would
-probably be `{"table": "table_name", "id": 1234}`
+probably be `{"table": "setup_experience_status_results", "id": 1234}`
 
 `IDEA 2`: Handle looking up if this item is 'installed during setup' and see if there is a
 corresponding pending item for this host after every run.
