@@ -66,13 +66,13 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 		return nil, err
 	}
 
-	cmd := exec.CommandContext(
+	cmd := exec.CommandContext( //nolint:gosec
 		ctx,
 		swiftDialogBin,
 		"--jsonstring", string(jsonBytes),
 		"--commandfile", commandFile.Name(),
 		"--json",
-	) //nolint:gosec
+	)
 
 	outBuf := &bytes.Buffer{}
 	cmd.Stdout = outBuf
