@@ -1103,7 +1103,6 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	connectedToFleetJoin := ""
-	// TODO: should the first two conditions be grouped in parentheses?
 	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter ||
 		opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() ||
