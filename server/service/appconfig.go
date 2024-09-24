@@ -575,9 +575,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
-	for k := range tokensInCfg {
-		delete(tokensInCfg, k)
-	}
+	clear(tokensInCfg)
 
 	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
 		tokensInCfg[t.Location] = struct{}{}
