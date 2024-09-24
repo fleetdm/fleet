@@ -782,6 +782,18 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	// first, set the default app config's agent options as set after fleetctl setup
 	name := writeTmpYml(t, `---
 apiVersion: v1
@@ -912,6 +924,18 @@ func TestApplyAppConfigDeprecatedFields(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -1314,6 +1338,14 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{ID: 1}}, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
 	}
 
 	// Apply global config.
@@ -1873,6 +1905,18 @@ func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1906,6 +1950,18 @@ func TestCanApplyIntervalsUsingDurations(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -2089,6 +2145,18 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{{ID: 1}}, nil
+		}
+
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
 		}
 
 		return ds
@@ -2763,6 +2831,17 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 			return nil
+		}
+
+		// VPP/AMB
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
 		}
 	}
 
