@@ -541,6 +541,10 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
+- [Batch-apply packages](#batch-apply-packages)
+- [Batch-apply App Store apps](#batch-apply-app-store-apps)
+- [Get token to download package](#get-token-to-download-package)
+- [Download package using a token](#download-package-using-a-token)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Over the air enrollment](#over-the-air-enrollment)
@@ -974,6 +978,116 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 ##### Default response
 
 `204`
+
+### Batch-apply packages
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request; omit this parameter if using `team_name`. Omitting these parameters will add software to "No Team". |
+| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request; omit this parameter if using `team_id`. Omitting these parameters will add software to "No Team". |
+| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
+| software  | object   | body  | The team's software that will be available for install.  |
+| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
+| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
+
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+#### Example
+
+`POST /api/v1/fleet/software/batch`
+
+##### Default response
+
+`Status: 204`
+
+### Batch-apply app store apps
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/app_store_apps/batch`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                                                                            |
+|-----------------|---------|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_name       | integer | query | **Required**. The name of the team to add the app to.                                                                                                                                  |
+| dry_run         | bool    | query | If `true`, will validate the provided apps and return any validation errors, but will not apply the changes.                                                                           |
+| apps_store_apps | list    | body  | The list of objects containing `app_store_id`: a string representation of the app's App ID, `self_service`: a bool indicating if the app's installation can be initiated by end users. |
+
+> Note that this endpoint replaces all apps associated with a team.
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store_apps/batch`
+
+#### Default response
+
+`Status: 204`
+
+### Get token to download package
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+
+The returned token is a one-time use token that expires after 10 minutes.
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                      |
+|-------------------|---------|-------|------------------------------------------------------------------|
+| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| team_id           | integer | query | **Required**. The team ID containing the software package.       |
+| alt               | integer | query | **Required**. Must be specified and set to "media".              |
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
+}
+```
+
+### Download package using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                              |
+|-------------------|---------|------|--------------------------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
+| token             | string  | path | **Required**. The token to download the software package.                |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
 
 ### Initiate SSO during DEP enrollment
 
