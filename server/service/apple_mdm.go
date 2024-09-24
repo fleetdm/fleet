@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -770,13 +772,37 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		}
 	}
 
+	hp, err := svc.ds.GetHostMDMAppleProfileByUUID(ctx, cp.ProfileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host mdm apple profile")
+	}
+
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-	// cannot use the profile ID as it is now deleted
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+
+	if hp.Status == nil && hp.OperationType == fleet.MDMOperationTypeInstall && hp.CommandUUID == "" {
+		slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: we should delete this profile ", "name", hp.Name)
+		if err := svc.ds.DeleteHostMDMAppleProfileByUUID(ctx, cp.ProfileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting host mdm apple profile")
+		}
+	} else {
+		// cannot use the profile ID as it is now deleted
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 	}
+
+	// toRemove, err := svc.ds.ListMDMAppleProfilesToRemove(ctx)
+	// if err != nil {
+	// 	return ctxerr.Wrap(ctx, err, "getting profiles to remove")
+	// }
+
+	// for _, p := range toRemove {
+	// 	if p.DidNotInstallOnHost() {
+	// 		slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: GOT EM: didn't install profile on host ", "name", p.ProfileName)
+	// 	}
+	// }
 
 	var (
 		actTeamID   *uint

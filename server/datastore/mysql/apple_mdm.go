@@ -12,8 +12,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -1984,6 +1986,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		}
 
 		updatedDB = true
+		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: going to update profile ", "args", args)
 		baseStmt := fmt.Sprintf(`
 				INSERT INTO host_mdm_apple_profiles (
 					profile_uuid,
@@ -2085,6 +2088,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	for _, p := range currentProfiles {
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: was it in profileIntersection?")
 			continue
 		}
 		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
@@ -2092,6 +2096,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
 		if p.DidNotInstallOnHost() {
+			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: we didn't install so we should remove later ")
 			continue
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
@@ -3914,6 +3919,37 @@ WHERE
 
 	n, _ := res.RowsAffected()
 	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials))
+
+	return nil
+}
+
+func (ds *Datastore) GetHostMDMAppleProfileByUUID(ctx context.Context, uuid string) (*fleet.HostMDMAppleProfile, error) {
+	stmt := `
+SELECT
+	host_uuid, 
+	profile_uuid,
+	status,
+	COALESCE(operation_type, '') AS operation_type,
+	COALESCE(detail, '') AS detail,
+	command_uuid,
+	profile_name AS name
+FROM host_mdm_apple_profiles
+WHERE
+	profile_uuid = ?
+	`
+
+	var hostProf fleet.HostMDMAppleProfile
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hostProf, stmt, uuid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host mdm apple profile by uuid")
+	}
+
+	return &hostProf, nil
+}
+
+func (ds *Datastore) DeleteHostMDMAppleProfileByUUID(ctx context.Context, uuid string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles WHERE profile_uuid = ?`, uuid); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host mdm apple profile by uuid")
+	}
 
 	return nil
 }

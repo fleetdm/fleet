@@ -1294,6 +1294,11 @@ type Datastore interface {
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses.
 	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error
 
+	// GetHostMDMAppleProfileByUUID gets a host MDM Apple profile by its UUID.
+	GetHostMDMAppleProfileByUUID(ctx context.Context, uuid string) (*HostMDMAppleProfile, error)
+
+	DeleteHostMDMAppleProfileByUUID(ctx context.Context, uuid string) error
+
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
 	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip
 	// any serials that have a non-zero `retry_job_id`.

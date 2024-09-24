@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
@@ -314,7 +316,10 @@ type MDMAppleProfilePayload struct {
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
 // therefore is not, as far as Fleet knows, currently on the host).
 func (p *MDMAppleProfilePayload) DidNotInstallOnHost() bool {
-	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
+	if p.Status == nil && p.OperationType == MDMOperationTypeRemove {
+		slog.With("filename", "server/fleet/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: profile had null status and was remove ", "name", p.ProfileName)
+	}
+	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall || p.Status == nil && p.OperationType == MDMOperationTypeRemove
 }
 
 func (p MDMAppleProfilePayload) Equal(other MDMAppleProfilePayload) bool {
