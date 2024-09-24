@@ -850,6 +850,10 @@ type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) er
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
+type GetHostMDMAppleProfileByUUIDFunc func(ctx context.Context, uuid string) (*fleet.HostMDMAppleProfile, error)
+
+type DeleteHostMDMAppleProfileByUUIDFunc func(ctx context.Context, uuid string) error
+
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 
 type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint][]string, error)
@@ -2335,6 +2339,12 @@ type DataStore struct {
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
+
+	GetHostMDMAppleProfileByUUIDFunc        GetHostMDMAppleProfileByUUIDFunc
+	GetHostMDMAppleProfileByUUIDFuncInvoked bool
+
+	DeleteHostMDMAppleProfileByUUIDFunc        DeleteHostMDMAppleProfileByUUIDFunc
+	DeleteHostMDMAppleProfileByUUIDFuncInvoked bool
 
 	ScreenDEPAssignProfileSerialsForCooldownFunc        ScreenDEPAssignProfileSerialsForCooldownFunc
 	ScreenDEPAssignProfileSerialsForCooldownFuncInvoked bool
@@ -5602,6 +5612,20 @@ func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, res
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
+}
+
+func (s *DataStore) GetHostMDMAppleProfileByUUID(ctx context.Context, uuid string) (*fleet.HostMDMAppleProfile, error) {
+	s.mu.Lock()
+	s.GetHostMDMAppleProfileByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMAppleProfileByUUIDFunc(ctx, uuid)
+}
+
+func (s *DataStore) DeleteHostMDMAppleProfileByUUID(ctx context.Context, uuid string) error {
+	s.mu.Lock()
+	s.DeleteHostMDMAppleProfileByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostMDMAppleProfileByUUIDFunc(ctx, uuid)
 }
 
 func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
