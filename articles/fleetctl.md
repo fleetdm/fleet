@@ -10,7 +10,7 @@ fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
-Download and install Node.js [here](https://nodejs.org/en).
+Download and install [Node.js](https://nodejs.org/en).
 
 Install fleetctl with npm (included in Node.js).
 
@@ -22,7 +22,7 @@ To install fleetctl on Windows or Linux, download the fleectl binary here on [Gi
 
 ### Upgrading fleetctl
 
-The easiest way to update fleetctl is by running the installation command again.
+The easiest way to update fleetctl is by rerunning the installation command.
 
 ```sh
 npm install -g fleetctl@latest
@@ -78,7 +78,7 @@ This section walks you through authentication, assuming you already have a runni
 
 ### Login
 
-To log in to your Fleet instance, run following commands:
+To log in to your Fleet instance, run the following commands:
 
 1. Set the Fleet instance address
 
@@ -101,7 +101,7 @@ Once your local context is configured, you can use fleetctl normally.
 
 ### Log in with SAML (SSO) authentication
 
-Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their fleetctl configuration (instead of logging in via `fleetctl login`).
+Users that authenticate to Fleet via SSO should retrieve their API token from the UI and manually set it in their fleetctl configuration (instead of logging in via `fleetctl login`).
 
 **Fleet UI:**
 1. Go to the **My account** page (https://fleet.example.com/profile)
@@ -120,7 +120,7 @@ The token can also be set with `fleetctl config set --token`, but this may leak 
 
 ## Using fleetctl with an API-only user
 
-When running automated workflows using the Fleet API, we recommend an API-only user's API key rather than the API key of a regular user. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.   
+When running automated workflows using the Fleet API, we recommend using an API-only user's API key rather than a regular user's API key. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.   
 
 An API-only user does not have access to the Fleet UI. Instead, it's only purpose is to interact with the API programmatically or from fleetctl.
 
@@ -158,8 +158,8 @@ fleetctl user create --name "API User" --email api@example.com --password temp@p
 
 #### Changing permissions
 
-To change roles of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**.
-> Suggestion: To disable/enable a user's access to the UI (converting a regular user to an API-only user or vice versa), create a new user.
+To change the role of a current user, log into the Fleet UI as an admin and navigate to Settings > Users.
+> Suggestion: Create a new user to disable/enable a user's access to the UI (converting a regular user to an API-only user or vice versa).
 
 ### Switching users
 
@@ -185,7 +185,7 @@ Running a command with no context will use the default profile.
 
 ## Debugging Fleet
 
-fleetctl provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options run:
+fleetctl provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options, run:
 
 ```sh
 fleetctl debug --help
@@ -208,4 +208,4 @@ This will generate a `tar.gz` file with:
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-07-04">
 <meta name="articleTitle" value="fleetctl">
-<meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating Fleet's agent (fleetd) and more.">
+<meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating Fleet's agent (fleetd), and more.">
