@@ -290,6 +290,22 @@ func main() {
 			reloadLaunchDaemon()
 		}
 
+		var (
+			g         run.Group
+			appDoneCh chan struct{} // closed when runner run.group.Run() returns
+		)
+
+		// Setting up the system service management early on the process lifetime
+		appDoneCh = make(chan struct{})
+
+		// Initializing windows service runner and system service manager.
+		if runtime.GOOS == "windows" {
+			systemChecker := newSystemChecker()
+			addSubsystem(&g, "system checker", systemChecker)
+			go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+			time.Sleep(1 * time.Second)
+		}
+
 		checkAndPatchCertificate(c.String("root-dir"))
 
 		// Override flags with values retrieved from Fleet.
@@ -473,19 +489,7 @@ func main() {
 		var (
 			osquerydPath string
 			desktopPath  string
-			g            run.Group
-			appDoneCh    chan struct{} // closed when runner run.group.Run() returns
 		)
-
-		// Setting up the system service management early on the process lifetime
-		appDoneCh = make(chan struct{})
-
-		// Initializing windows service runner and system service manager.
-		if runtime.GOOS == "windows" {
-			systemChecker := newSystemChecker()
-			addSubsystem(&g, "system checker", systemChecker)
-			go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
-		}
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
 		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
