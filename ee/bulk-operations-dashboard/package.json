@@ -14,7 +14,8 @@
     "sails-hook-orm": "^4.0.3",
     "sails-hook-sockets": "^3.0.0",
     "sails-hook-uploads": "^0.4.3",
-    "sails-postgresql": "^5.0.1"
+    "sails-postgresql": "^5.0.1",
+    "skipper-s3": "^0.6.0"
   },
   "devDependencies": {
     "eslint": "5.16.0",
