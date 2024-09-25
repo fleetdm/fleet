@@ -10,11 +10,15 @@ fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
-Install fleetctl with npm or download the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+Download and install Node.js [here](https://nodejs.org/en).
+
+Install fleetctl with npm (included in Node.js).
 
 ```sh
-npm install -g fleetctl
+sudo npm install -g fleetctl
 ```
+
+To install fleetctl on Windows or Linux, download the fleectl binary here on [GitHub](https://github.com/fleetdm/fleet/releases).
 
 ### Upgrading fleetctl
 
@@ -30,7 +34,7 @@ npm install -g fleetctl@latest
 ### Available commands
 
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate Fleet's agent (fleetd) to add new hosts, get information about existing hosts, and more!
+Much of the functionality available in the Fleet UI is also available in fleetctl. You can run queries, add and remove users, generate Fleet's agent (fleetd) to add new hosts, get information about existing hosts, and more!
 
 > Note: Unless a logging infrastructure is configured on your Fleet server, osquery-related logs will be stored locally on each device. Read more [here](https://fleetdm.com/guides/log-destinations)
 
@@ -93,11 +97,11 @@ Password:
 [+] Fleet login successful and context configured!
 ```
 
-Once your local context is configured, you can use `fleetctl` normally.
+Once your local context is configured, you can use fleetctl normally.
 
 ### Log in with SAML (SSO) authentication
 
-Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their `fleetctl` configuration (instead of logging in via `fleetctl login`).
+Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their fleetctl configuration (instead of logging in via `fleetctl login`).
 
 **Fleet UI:**
 1. Go to the **My account** page (https://fleet.example.com/profile)
@@ -122,7 +126,7 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 ### Create API-only user
 
-Before creating the API-only user, log in to `fleetctl` as an admin.  See [authentication](https://#authentication) above for details.
+Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](https://#authentication) above for details.
 
 To create your new API-only user, use `fleetctl user create`:
 
@@ -159,7 +163,7 @@ To change roles of a current user, log into the Fleet UI as an admin and navigat
 
 ### Switching users
 
-To use `fleetctl` with your regular user account but occasionally use your API-only user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials of your API-only user:
+To use fleetctl with your regular user account but occasionally use your API-only user for specific cases, you can set up your fleetctl config with a new `context` to hold the credentials of your API-only user:
 
 ```sh
 fleetctl config set --address https://dogfood.fleetdm.com --context api
@@ -181,7 +185,7 @@ Running a command with no context will use the default profile.
 
 ## Debugging Fleet
 
-`fleetctl` provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options run:
+fleetctl provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options run:
 
 ```sh
 fleetctl debug --help
