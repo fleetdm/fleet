@@ -8677,6 +8677,7 @@ Get a list of all software.
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
+| packages_only           | boolean | query | If `true` or `1`, only lists packages available for install (without App Store apps).  |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
