@@ -147,7 +147,7 @@ module.exports = {
           let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
           let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
             numberOfHosts: 10,
-            organization: this.req.me.organization,
+            organization: this.req.me.organization ? this.req.me.organization : 'Fleet Premium trial',
             expiresAt: thirtyDaysFromNowAt,
           });
           // Save the trial license key to the DB record for this user.

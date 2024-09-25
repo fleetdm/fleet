@@ -3,6 +3,8 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
+try {
+
 # Add argument to install silently
 # Argument to make install silent depends on installer,
 # each installer might use different argument (usually it's "/S" or "/s")
@@ -20,3 +22,8 @@ $exitCode = $process.ExitCode
 # Prints the exit code
 Write-Host "Install exit code: $exitCode"
 Exit $exitCode
+
+} catch {
+  Write-Host "Error: $_"
+  Exit 1
+}

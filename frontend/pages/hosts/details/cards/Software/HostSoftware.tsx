@@ -24,7 +24,7 @@ import Spinner from "components/Spinner";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getErrorMessage } from "./helpers";
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -44,6 +44,7 @@ interface IHostSoftwareProps {
   hostTeamId: number;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
+  hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
 
@@ -87,6 +88,7 @@ const HostSoftware = ({
   platform,
   softwareUpdatedAt,
   hostCanWriteSoftware,
+  hostScriptsEnabled,
   router,
   queryParams,
   pathname,
@@ -190,7 +192,7 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        renderFlash("error", getErrorMessage(e));
+        renderFlash("error", getInstallErrorMessage(e));
       }
       setSoftwareIdActionPending(null);
       refetchSoftware();
@@ -211,7 +213,7 @@ const HostSoftware = ({
           </>
         );
       } catch (e) {
-        renderFlash("error", "Couldn't uninstall. Please try again.");
+        renderFlash("error", getUninstallErrorMessage(e));
       }
       setSoftwareIdActionPending(null);
       refetchSoftware();
@@ -249,6 +251,7 @@ const HostSoftware = ({
           router,
           softwareIdActionPending,
           userHasSWWritePermission,
+          hostScriptsEnabled,
           onSelectAction,
           teamId: hostTeamId,
           hostCanWriteSoftware,
@@ -258,6 +261,7 @@ const HostSoftware = ({
     router,
     softwareIdActionPending,
     userHasSWWritePermission,
+    hostScriptsEnabled,
     onSelectAction,
     hostTeamId,
     hostCanWriteSoftware,

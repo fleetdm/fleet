@@ -358,7 +358,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.")
+			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -570,7 +570,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	queriesRaw, ok := top["queries"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.")
+			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -660,7 +660,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
 			var typeErr *json.UnmarshalTypeError
 			if errors.As(err, &typeErr) {
-				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value))
+				typeErrField := typeErr.Field
+				if typeErrField == "" {
+					// UnmarshalTypeError.Field is empty when trying to set an invalid type on the root node.
+					typeErrField = "software"
+				}
+				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErrField, typeErr.Type.String(), typeErr.Value))
 			}
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
