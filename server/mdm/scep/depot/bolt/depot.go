@@ -145,14 +145,14 @@ func (db *Depot) writeSerial(s *big.Int) error {
 		if bucket == nil {
 			return fmt.Errorf("bucket %q not found!", certBucket)
 		}
-		return bucket.Put([]byte("serial"), []byte(s.Bytes()))
+		return bucket.Put([]byte("serial"), s.Bytes())
 	})
 	return err
 }
 
 func (db *Depot) hasKey(name []byte) bool {
 	var present bool
-	db.View(func(tx *bolt.Tx) error {
+	_ = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(certBucket))
 		if bucket == nil {
 			return fmt.Errorf("bucket %q not found!", certBucket)

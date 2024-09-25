@@ -132,7 +132,7 @@ func (d *fileDepot) Serial() (*big.Int, error) {
 	data = strings.TrimSuffix(data, "\n")
 	serial, ok := s.SetString(data, 16)
 	if !ok {
-		return nil, errors.New("could not convert " + string(data) + " to serial number")
+		return nil, errors.New("could not convert " + data + " to serial number")
 	}
 	if err := d.incrementSerial(serial); err != nil {
 		return serial, err

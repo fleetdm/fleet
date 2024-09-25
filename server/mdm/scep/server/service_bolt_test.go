@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	challengestore "github.com/fleetdm/fleet/v4/server/mdm/scep/challenge/bolt"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
@@ -159,23 +158,6 @@ func createDB(mode os.FileMode, options *bolt.Options) *boltdepot.Depot {
 		panic(err.Error())
 	}
 	d, err := boltdepot.NewBoltDepot(db)
-	if err != nil {
-		panic(err.Error())
-	}
-	return d
-}
-
-func createChallengeStore(mode os.FileMode, options *bolt.Options) *challengestore.Depot {
-	// Create temporary path.
-	f, _ := ioutil.TempFile("", "bolt-challenge-")
-	f.Close()
-	os.Remove(f.Name())
-
-	db, err := bolt.Open(f.Name(), mode, options)
-	if err != nil {
-		panic(err.Error())
-	}
-	d, err := challengestore.NewBoltDepot(db)
 	if err != nil {
 		panic(err.Error())
 	}

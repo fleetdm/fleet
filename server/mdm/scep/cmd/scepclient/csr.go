@@ -70,16 +70,6 @@ func subjOrNil(input string) []string {
 	return []string{input}
 }
 
-// convert DER to PEM format
-func pemCSR(derBytes []byte) []byte {
-	pemBlock := &pem.Block{
-		Type:    csrPEMBlockType,
-		Headers: nil,
-		Bytes:   derBytes,
-	}
-	return pem.EncodeToMemory(pemBlock)
-}
-
 // load PEM encoded CSR from file
 func loadCSRfromFile(path string) (*x509.CertificateRequest, error) {
 	data, err := ioutil.ReadFile(path)
