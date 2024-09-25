@@ -144,6 +144,7 @@ const ManagePolicyPage = ({
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
     false
   );
+  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
   const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [
@@ -472,6 +473,10 @@ const ManagePolicyPage = ({
     setShowInstallSoftwareModal(!showInstallSoftwareModal);
   };
 
+  const toggleRunScriptModal = () => {
+    setShowRunScriptModal(!showRunScriptModal);
+  };
+
   const toggleCalendarEventsModal = () => {
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
@@ -483,6 +488,9 @@ const ManagePolicyPage = ({
         break;
       case "install_software":
         toggleInstallSoftwareModal();
+        break;
+      case "run_script":
+        toggleRunScriptModal();
         break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
@@ -802,9 +810,11 @@ const ManagePolicyPage = ({
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: React.ReactNode;
     let disabledCalendarTooltipContent: React.ReactNode;
+    let disabledRunScriptTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
       disabledInstallTooltipContent = "Available in Fleet Premium.";
       disabledCalendarTooltipContent = "Available in Fleet Premium.";
+      disabledRunScriptTooltipContent = "Available in Fleet Premium.";
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
@@ -820,6 +830,13 @@ const ManagePolicyPage = ({
           calendar events.
         </>
       );
+      disabledRunScriptTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          run script automation.
+        </>
+      );
     }
     const installSWOption = {
       label: "Install software",
@@ -828,8 +845,16 @@ const ManagePolicyPage = ({
       helpText: "Install software to resolve failing policies.",
       tooltipContent: disabledInstallTooltipContent,
     };
+    const runScriptOption = {
+      label: "Run script",
+      value: "run_script",
+      disabled: !!disabledRunScriptTooltipContent,
+      helpText: "Run script to resolve failing policies.",
+      tooltipContent: disabledRunScriptTooltipContent,
+    };
+
     if (!configPresent) {
-      return [installSWOption];
+      return [installSWOption, runScriptOption];
     }
 
     return [
@@ -841,6 +866,7 @@ const ManagePolicyPage = ({
         tooltipContent: disabledCalendarTooltipContent,
       },
       installSWOption,
+      runScriptOption,
       {
         label: "Other workflows",
         value: "other_workflows",
@@ -953,6 +979,7 @@ const ManagePolicyPage = ({
             teamId={currentTeamId ?? 0}
           />
         )}
+        {showRunScriptModal && <>{/* TODO - RunScriptModal */}</>}
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
