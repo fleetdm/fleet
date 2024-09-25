@@ -48,8 +48,10 @@ export interface IFormValidation {
 
 interface IPackageFormProps {
   isUploading: boolean;
+  showSchemaButton?: boolean;
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
+  onClickShowSchema?: () => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -64,6 +66,8 @@ const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
 
 const PackageForm = ({
   isUploading,
+  showSchemaButton = false,
+  onClickShowSchema,
   onCancel,
   onSubmit,
   isEditingSoftware = false,
@@ -203,6 +207,7 @@ const PackageForm = ({
             </TooltipWrapper>
           </Checkbox>
           <PackageAdvancedOptions
+            showSchemaButton={showSchemaButton}
             selectedPackage={formData.software}
             errors={{
               preInstallQuery: formValidation.preInstallQuery?.message,
@@ -212,6 +217,7 @@ const PackageForm = ({
             installScript={formData.installScript}
             postInstallScript={formData.postInstallScript}
             uninstallScript={formData.uninstallScript}
+            onClickShowSchema={onClickShowSchema}
             onChangePreInstallQuery={onChangePreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}

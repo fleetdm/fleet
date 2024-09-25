@@ -119,6 +119,8 @@ const SoftwareCustomPackage = ({
   return (
     <div className={baseClass}>
       <PackageForm
+        showSchemaButton={!isSidePanelOpen}
+        onClickShowSchema={() => setSidePanelOpen(true)}
         className={`${baseClass}__package-form`}
         isUploading={false}
         onCancel={onCancel}
