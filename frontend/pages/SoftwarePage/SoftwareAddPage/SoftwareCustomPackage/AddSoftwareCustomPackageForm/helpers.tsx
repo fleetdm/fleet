@@ -1,5 +1,11 @@
+import React from "react";
+
+import { isWindowsPackageType, PackageType } from "interfaces/package_type";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
+import CustomLink from "components/CustomLink";
 
 import {
   ICustomPackageAppFormData,
@@ -71,4 +77,48 @@ export const generateFormValidation = (formData: ICustomPackageAppFormData) => {
   });
 
   return formValidation;
+};
+
+export const getSupportedScriptTypeText = (pkgType: PackageType) => {
+  return `Currently, ${
+    isWindowsPackageType(pkgType) ? "PowerS" : "s"
+  }hell scripts are supported.`;
+};
+
+const PKG_TYPE_TO_ID_TEXT = {
+  pkg: "package IDs",
+  deb: "package name",
+  msi: "product code",
+  exe: "software name",
+} as const;
+
+export const getInstallHelpText = (pkgType: PackageType) => (
+  <>
+    Use the $INSTALLER_PATH variable to point to the installer.{" "}
+    {getSupportedScriptTypeText(pkgType)}{" "}
+    <CustomLink
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
+      text="Learn more about install scripts"
+      newTab
+    />
+  </>
+);
+
+export const getPostInstallHelpText = (pkgType: PackageType) => {
+  return getSupportedScriptTypeText(pkgType);
+};
+
+export const getUninstallHelpText = (pkgType: PackageType) => {
+  return (
+    <>
+      $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[pkgType]} from
+      the .{pkgType} file after the software is added.{" "}
+      {getSupportedScriptTypeText(pkgType)}{" "}
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
+        text="Learn more about uninstall scripts"
+        newTab
+      />
+    </>
+  );
 };

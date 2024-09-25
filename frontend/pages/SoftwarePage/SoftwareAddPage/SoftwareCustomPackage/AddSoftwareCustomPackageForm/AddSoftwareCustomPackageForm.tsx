@@ -7,7 +7,12 @@ import Button from "components/buttons/Button";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
-import { generateFormValidation } from "./helpers";
+import {
+  generateFormValidation,
+  getInstallHelpText,
+  getPostInstallHelpText,
+  getUninstallHelpText,
+} from "./helpers";
 
 const baseClass = "add-software-custom-package-form";
 
@@ -121,25 +126,28 @@ const AddSoftwareCustomPackageForm = ({
           caretPosition="after"
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         />
-        <AdvancedOptionsFields
-          className={`${baseClass}__advanced-options-fields`}
-          showSchemaButton={showSchemaButton}
-          installScriptHelpText={"test"}
-          postInstallScriptHelpText={"test"}
-          uninstallScriptHelpText={"test"}
-          errors={{
-            preInstallQuery: formValidation.preInstallQuery?.message,
-          }}
-          preInstallQuery={formData.preInstallQuery}
-          installScript={formData.installScript}
-          postInstallScript={formData.postInstallScript}
-          uninstallScript={formData.uninstallScript}
-          onClickShowSchema={onClickShowSchema}
-          onChangePreInstallQuery={onChangePreInstallQuery}
-          onChangeInstallScript={onChangeInstallScript}
-          onChangePostInstallScript={onChangePostInstallScript}
-          onChangeUninstallScript={onChangeUninstallScript}
-        />
+        {/* {showAdvancedOptions && ( */}
+        {true && (
+          <AdvancedOptionsFields
+            className={`${baseClass}__advanced-options-fields`}
+            showSchemaButton={showSchemaButton}
+            installScriptHelpText={getInstallHelpText("deb")} // TODO: use real extension
+            postInstallScriptHelpText={getPostInstallHelpText("deb")} // TODO: use real extension
+            uninstallScriptHelpText={getUninstallHelpText("deb")} // TODO: use real extension
+            errors={{
+              preInstallQuery: formValidation.preInstallQuery?.message,
+            }}
+            preInstallQuery={formData.preInstallQuery}
+            installScript={formData.installScript}
+            postInstallScript={formData.postInstallScript}
+            uninstallScript={formData.uninstallScript}
+            onClickShowSchema={onClickShowSchema}
+            onChangePreInstallQuery={onChangePreInstallQuery}
+            onChangeInstallScript={onChangeInstallScript}
+            onChangePostInstallScript={onChangePostInstallScript}
+            onChangeUninstallScript={onChangeUninstallScript}
+          />
+        )}
       </div>
       <div className={`${baseClass}__form-buttons`}>
         <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
