@@ -127,9 +127,10 @@ const PackageAdvancedOptions = ({
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         disabled={!selectedPackage}
         disabledTooltipContent={
-          selectedPackage
-            ? "Choose a file to modify advanced options."
-            : undefined
+          <>
+            Choose a file to modify <br />
+            advanced options.
+          </>
         }
       />
       {showAdvancedOptions && !!selectedPackage && renderAdvancedOptions()}
