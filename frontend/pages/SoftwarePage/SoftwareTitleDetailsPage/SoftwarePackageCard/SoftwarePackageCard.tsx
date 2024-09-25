@@ -390,7 +390,6 @@ const SoftwarePackageCard = ({
           software={softwarePackage}
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
-          setAddedSoftwareToken={noop}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}

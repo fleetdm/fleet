@@ -5,10 +5,12 @@ import deepDifference from "utilities/deep_difference";
 
 import { getErrorReason } from "interfaces/errors";
 
-import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
-import softwareAPI from "services/entities/software";
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import softwareAPI, {
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_MB,
+  UPLOAD_TIMEOUT,
+} from "services/entities/software";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -17,11 +19,6 @@ import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import {
-  UPLOAD_TIMEOUT,
-  MAX_FILE_SIZE_MB,
-  MAX_FILE_SIZE_BYTES,
-} from "pages/SoftwarePage/components/AddPackage/AddPackage";
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
@@ -33,18 +30,14 @@ interface IEditSoftwareModalProps {
   router: InjectedRouter;
   software?: any; // TODO
   refetchSoftwareTitle: () => void;
-
   onExit: () => void;
-  setAddedSoftwareToken: (token: string) => void;
 }
 
 const EditSoftwareModal = ({
   softwareId,
   teamId,
-  router,
   software,
   onExit,
-  setAddedSoftwareToken,
   refetchSoftwareTitle,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);

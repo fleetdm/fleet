@@ -135,6 +135,10 @@ interface IAddFleetMaintainedAppPostBody {
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
+export const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
+export const MAX_FILE_SIZE_MB = 500;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 export default {
   load: async ({
     page,
