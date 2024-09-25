@@ -14,11 +14,12 @@ import (
 	"testing"
 	"time"
 
+	challengestore "github.com/fleetdm/fleet/v4/server/mdm/scep/challenge/bolt"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
+	"github.com/smallstep/scep"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -45,7 +46,7 @@ func TestCaCert(t *testing.T) {
 	caCert := certs[0]
 
 	// SCEP service
-	svc, err := scepserver.NewService(caCert, key, scepdepot.NewSigner(depot))
+	svc, err := scepserver.NewService(caCert, key, scepserver.SignCSRAdapter(scepdepot.NewSigner(depot)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,6 +131,12 @@ func TestCaCert(t *testing.T) {
 			t.Error("no established chain between issued cert and CA")
 		}
 
+		if csr.SignatureAlgorithm != respCert.SignatureAlgorithm {
+			t.Fatal(fmt.Errorf("cert signature algo %s different from csr signature algo %s",
+				csr.SignatureAlgorithm.String(),
+				respCert.SignatureAlgorithm.String()))
+		}
+
 		// verify unique certificate serials
 		for _, ser := range serCollector {
 			if respCert.SerialNumber.Cmp(ser) == 0 {
@@ -138,6 +145,7 @@ func TestCaCert(t *testing.T) {
 		}
 		serCollector = append(serCollector, respCert.SerialNumber)
 	}
+
 }
 
 func createDB(mode os.FileMode, options *bolt.Options) *boltdepot.Depot {
@@ -151,6 +159,23 @@ func createDB(mode os.FileMode, options *bolt.Options) *boltdepot.Depot {
 		panic(err.Error())
 	}
 	d, err := boltdepot.NewBoltDepot(db)
+	if err != nil {
+		panic(err.Error())
+	}
+	return d
+}
+
+func createChallengeStore(mode os.FileMode, options *bolt.Options) *challengestore.Depot {
+	// Create temporary path.
+	f, _ := ioutil.TempFile("", "bolt-challenge-")
+	f.Close()
+	os.Remove(f.Name())
+
+	db, err := bolt.Open(f.Name(), mode, options)
+	if err != nil {
+		panic(err.Error())
+	}
+	d, err := challengestore.NewBoltDepot(db)
 	if err != nil {
 		panic(err.Error())
 	}

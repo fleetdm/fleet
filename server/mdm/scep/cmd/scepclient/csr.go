@@ -18,8 +18,8 @@ const (
 )
 
 type csrOptions struct {
-	cn, org, country, ou, locality, province, challenge string
-	key                                                 *rsa.PrivateKey
+	cn, org, country, ou, locality, province, dnsName, challenge string
+	key                                                          *rsa.PrivateKey
 }
 
 func loadOrMakeCSR(path string, opts *csrOptions) (*x509.CertificateRequest, error) {
@@ -44,6 +44,7 @@ func loadOrMakeCSR(path string, opts *csrOptions) (*x509.CertificateRequest, err
 		CertificateRequest: x509.CertificateRequest{
 			Subject:            subject,
 			SignatureAlgorithm: x509.SHA256WithRSA,
+			DNSNames:           subjOrNil(opts.dnsName),
 		},
 	}
 	if opts.challenge != "" {
@@ -67,6 +68,16 @@ func subjOrNil(input string) []string {
 		return nil
 	}
 	return []string{input}
+}
+
+// convert DER to PEM format
+func pemCSR(derBytes []byte) []byte {
+	pemBlock := &pem.Block{
+		Type:    csrPEMBlockType,
+		Headers: nil,
+		Bytes:   derBytes,
+	}
+	return pem.EncodeToMemory(pemBlock)
 }
 
 // load PEM encoded CSR from file

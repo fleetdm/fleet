@@ -185,6 +185,7 @@ func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
 			}(time.Now())
 			return next(ctx, request)
+
 		}
 	}
 }

@@ -1,6 +1,7 @@
 # scep
 
 > The contents of this directory were copied (in February 2024) from https://github.com/fleetdm/scep (the `remove-path-setting-on-scep-handler` branch) which was forked from https://github.com/micromdm/scep.
+> They were updated in September 2024 with changes up to github.com/micromdm/scep@781f8042a79cabcf61a5e6c01affdbadcb785932
 
 [![CI](https://github.com/micromdm/scep/workflows/CI/badge.svg)](https://github.com/micromdm/scep/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/micromdm/scep/v2.svg)](https://pkg.go.dev/github.com/micromdm/scep/v2)
