@@ -1947,7 +1947,7 @@ func checkAndPatchCertificate(rootDir string) {
 		log.Info().Msg("failed to read certificate file. skipping patching.")
 		return
 	}
-	certPEM, _ := pem.Decode([]byte(certBytes))
+	certPEM, _ := pem.Decode(certBytes)
 	if certPEM == nil {
 		log.Info().Msg("failed to decode certificate pem. skipping patching.")
 		return
@@ -2102,7 +2102,7 @@ func reloadLaunchDaemon() {
 		// In testing, this log typically doesn't print as launchd as already killed the process
 		log.Info().Err(err).Str("out", string(out)).Msg("bootout launchd")
 		if bytes.HasPrefix(out, []byte("bootout failed")) {
-			return fmt.Errorf("failed to bootout launchd")
+			return errors.New("failed to bootout launchd")
 		}
 		return err
 	})
@@ -2172,13 +2172,13 @@ func enableDesktopWindows() {
 		return
 	}
 	binPath := string(match[1])
-	log.Info().Msg(string(binPath))
+	log.Info().Msg(binPath)
 	binPath += " --fleet-desktop=\"True\""
 
 	// Set the new service configuration, adding desktop flags
 	scConfig := exec.Command("sc.exe", "config", "Fleet osquery", "binPath=", binPath)
 	out, err = scConfig.CombinedOutput()
-	log.Info().Err(err).Str("out", string(out)).Msg("sc.exe config \"Fleet osquery\"" + string(binPath))
+	log.Info().Err(err).Str("out", string(out)).Msg("sc.exe config \"Fleet osquery\"" + binPath)
 	if err != nil {
 		return
 	}
