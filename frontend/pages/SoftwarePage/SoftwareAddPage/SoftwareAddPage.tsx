@@ -1,17 +1,19 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useContext } from "react";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { InjectedRouter } from "react-router";
 import { Location } from "history";
 
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
+import { QueryContext } from "context/query";
+import useToggleSidePanel from "hooks/useToggleSidePanel";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import TabsWrapper from "components/TabsWrapper";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import SidePanelContent from "components/SidePanelContent";
-import useToggleSidePanel from "hooks/useToggleSidePanel";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
 const baseClass = "software-add-page";
 
@@ -61,10 +63,14 @@ const SoftwareAddPage = ({
   location,
   router,
 }: ISoftwareAddPageProps) => {
+  const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
+    QueryContext
+  );
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
 
   const navigateToNav = useCallback(
     (i: number): void => {
+      setSidePanelOpen(false);
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
         team_id: location.query.team_id,
@@ -73,7 +79,7 @@ const SoftwareAddPage = ({
       const navPath = addSoftwareSubNav[i].pathname.concat(`?${teamIdParam}`);
       router.replace(navPath);
     },
-    [location, router]
+    [location.query.team_id, router, setSidePanelOpen]
   );
 
   // Quick exit if no team_id param. This page must have a team id to function
@@ -87,6 +93,10 @@ const SoftwareAddPage = ({
     );
     return null;
   }
+
+  const onOsqueryTableSelect = (tableName: string) => {
+    setSelectedOsqueryTable(tableName);
+  };
 
   const backUrl = `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
     team_id: location.query.team_id,
@@ -126,7 +136,16 @@ const SoftwareAddPage = ({
           })}
         </>
       </MainContent>
-      {isSidePanelOpen && <SidePanelContent>test</SidePanelContent>}
+      {isSidePanelOpen && (
+        <SidePanelContent>
+          <QuerySidePanel
+            key="query-side-panel"
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            selectedOsqueryTable={selectedOsqueryTable}
+            onClose={() => setSidePanelOpen(false)}
+          />
+        </SidePanelContent>
+      )}
     </>
   );
 };
