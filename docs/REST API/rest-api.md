@@ -6888,7 +6888,11 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2300,
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false
+      "calendar_events_enabled": false,
+      "run_script": {
+        "name": "Encrypt Windows disk with BitLocker",
+        "id": 234
+      }
     },
     {
       "id": 3,
@@ -7071,7 +7075,15 @@ Team policies work the same as policies, but at the team level.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": true
+    "calendar_events_enabled": true,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    },
+    "run_script": {
+      "name": "Enable gatekeeper",
+      "id": 1337
+    }
   }
 }
 ```
@@ -7084,16 +7096,17 @@ The semantics for creating a team policy are the same as for global policies, se
 
 #### Parameters
 
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| id         | integer | path | Defines what team ID to operate on.  |
-| name        | string  | body | The policy's name.                    |
-| query       | string  | body | The policy's query in SQL.                    |
-| description | string  | body | The policy's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
+| Name              | Type    | In   | Description                                                                                                                                            |
+|-------------------| ------- | ---- |--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                | integer | path | Defines what team ID to operate on.                                                                                                                    |
+| name              | string  | body | The policy's name.                                                                                                                                     |
+| query             | string  | body | The policy's query in SQL.                                                                                                                             |
+| description       | string  | body | The policy's description.                                                                                                                              |
+| resolution        | string  | body | The resolution steps for the policy.                                                                                                                   |
+| platform          | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
+| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails.                                                                     |
+| script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 
 Either `query` or `query_id` must be provided.
 
@@ -7141,6 +7154,10 @@ Either `query` or `query_id` must be provided.
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
+    },
+    "run_script": {
+      "name": "Enable gatekeeper",
+      "id": 1337
     }
   }
 }
@@ -7185,18 +7202,19 @@ Either `query` or `query_id` must be provided.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| team_id     | integer | path | The team's ID.                       |
-| policy_id   | integer | path | The policy's ID.                     |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
-| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
+| Name                    | Type    | In   | Description                          |
+|-------------------------| ------- | ---- | ------------------------------------ |
+| team_id                 | integer | path | The team's ID.                       |
+| policy_id               | integer | path | The policy's ID.                     |
+| name                    | string  | body | The query's name.                    |
+| query                   | string  | body | The query in SQL.                    |
+| description             | string  | body | The query's description.             |
+| resolution              | string  | body | The resolution steps for the policy. |
+| platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
+| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
+| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. |
 
 #### Example
 
@@ -7211,7 +7229,8 @@ Either `query` or `query_id` must be provided.
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "critical": true,
   "resolution": "Resolution steps",
-  "platform": "darwin"
+  "platform": "darwin",
+  "script_id": 1337
 }
 ```
 
@@ -7242,6 +7261,10 @@ Either `query` or `query_id` must be provided.
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
+    },
+    "run_script": {
+      "name": "Enable gatekeeper",
+      "id": 1337
     }
   }
 }
