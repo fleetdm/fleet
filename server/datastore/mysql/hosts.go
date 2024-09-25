@@ -1114,12 +1114,22 @@ func (ds *Datastore) applyHostFilters(
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
+	mdmAppleProfilesStatusJoin := ""
+	mdmAppleDeclarationsStatusJoin := ""
+	if opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() {
+		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
+		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+	}
+
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
+    %s
+    %s
     %s
     %s
     %s
@@ -1142,6 +1152,8 @@ func (ds *Datastore) applyHostFilters(
 		munkiJoin,
 		displayNameJoin,
 		connectedToFleetJoin,
+		mdmAppleProfilesStatusJoin,
+		mdmAppleDeclarationsStatusJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
@@ -1304,15 +1316,9 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		whereStatus += ` AND h.team_id IS NULL`
 	}
 
-	subqueryStatus, paramsStatus, err := subqueryOSSettingsStatusMac()
-	if err != nil {
-		return "", nil, err
-	}
+	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus())
 
-	whereStatus += fmt.Sprintf(` AND %s = ?`, subqueryStatus)
-	paramsStatus = append(paramsStatus, opt.MacOSSettingsFilter)
-
-	return sql + whereStatus, append(params, paramsStatus...), nil
+	return sql + whereStatus, append(params, opt.MacOSSettingsFilter), nil
 }
 
 func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -1364,13 +1370,9 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 AND ((h.platform = 'windows' AND (%s))
 OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s)))`
 
-	whereMacOS, paramsMacOS, err := subqueryOSSettingsStatusMac()
-	if err != nil {
-		return "", nil, err
-	}
-	whereMacOS += ` = ?`
-	// ensure the host has MDM turned on
-	paramsMacOS = append(paramsMacOS, opt.OSSettingsFilter)
+	// construct the WHERE for macOS
+	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus())
+	paramsMacOS := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
