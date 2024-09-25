@@ -205,6 +205,7 @@ const EditSoftwareModal = ({
         width="large"
       >
         <PackageForm
+          className={`${baseClass}__package-form`}
           isEditingSoftware
           isUploading={isUpdatingSoftware}
           onCancel={onExit}

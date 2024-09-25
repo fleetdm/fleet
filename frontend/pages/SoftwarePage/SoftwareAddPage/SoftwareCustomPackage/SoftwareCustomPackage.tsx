@@ -7,13 +7,16 @@ import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI from "services/entities/software";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 
 import CustomLink from "components/CustomLink";
+
+import PackageForm from "pages/SoftwarePage/components/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
 import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
 import AddSoftwareCustomPackageForm from "./AddSoftwareCustomPackageForm";
 import { ICustomPackageAppFormData } from "./AddSoftwareCustomPackageForm/AddSoftwareCustomPackageForm";
-import { getErrorReason } from "interfaces/errors";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-custom-package";
@@ -49,7 +52,7 @@ const SoftwareCustomPackage = ({
     );
   };
 
-  const onSubmit = async (formData: ICustomPackageAppFormData) => {
+  const onSubmit = async (formData: IPackageFormData) => {
     console.log("submit", formData);
     setIsUploading(true);
 
@@ -115,12 +118,18 @@ const SoftwareCustomPackage = ({
 
   return (
     <div className={baseClass}>
-      <AddSoftwareCustomPackageForm
+      <PackageForm
+        className={`${baseClass}__package-form`}
+        isUploading={false}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+      />
+      {/* <AddSoftwareCustomPackageForm
         showSchemaButton={!isSidePanelOpen}
         onClickShowSchema={() => setSidePanelOpen(true)}
         onCancel={onCancel}
         onSubmit={onSubmit}
-      />
+      /> */}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
 import React, { useContext, useState } from "react";
+import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
@@ -56,6 +57,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
+  className?: string;
 }
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
@@ -71,6 +73,7 @@ const PackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
+  className,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -163,8 +166,10 @@ const PackageForm = ({
 
   const isSubmitDisabled = !formValidation.isValid;
 
+  const classNames = classnames(baseClass, className);
+
   return (
-    <div className={baseClass}>
+    <div className={classNames}>
       {isUploading ? (
         <UploadingSoftware /> // Note: Sarah is replacing uploading state as subsequent 4.57 feature
       ) : (
@@ -212,7 +217,7 @@ const PackageForm = ({
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}
           />
-          <div className="modal-cta-wrap">
+          <div className="form-buttons">
             <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
               {isEditingSoftware ? "Save" : "Add software"}
             </Button>
