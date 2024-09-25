@@ -214,8 +214,8 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Cross-platform MDM support
-  description: macOS, Windows, and Linux.
-  documentationUrl: https://fleetdm.com/announcements/fleet-introduces-windows-mdm
+  description: Apple, Windows, and Linux.
+  documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -269,7 +269,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2024-12-31) #customer-rosner
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31) #customer-rosner
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗

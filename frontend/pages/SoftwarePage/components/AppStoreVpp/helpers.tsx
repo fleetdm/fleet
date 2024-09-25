@@ -35,13 +35,15 @@ const generateAlreadyAvailableMessage = (msg: string) => {
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (e: unknown) => {
-  const reason = getErrorReason(e);
-
+  let reason = getErrorReason(e);
   // software is already available for install
   if (reason.toLowerCase().includes("already")) {
     return generateAlreadyAvailableMessage(reason);
   }
-  return DEFAULT_ERROR_MESSAGE;
+  if (reason && !reason.endsWith(".")) {
+    reason += ".";
+  }
+  return reason || DEFAULT_ERROR_MESSAGE;
 };
 
 export const getUniqueAppId = (app: IVppApp) =>

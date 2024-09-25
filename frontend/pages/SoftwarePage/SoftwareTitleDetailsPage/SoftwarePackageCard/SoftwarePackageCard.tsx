@@ -9,7 +9,7 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
+import { ISoftwarePackage } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -104,7 +104,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />
-        &quot;installed&quot; status won&apos;t be updated.
+        &quot;Installed&quot; status won&apos;t be updated.
       </>
     ),
   },

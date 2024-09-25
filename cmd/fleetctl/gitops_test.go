@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -182,7 +183,8 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License: license,
+			License:       license,
+			KeyValueStore: newMemKeyValueStore(),
 		},
 	)
 
@@ -229,7 +231,10 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 
@@ -285,7 +290,8 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License: license,
+			License:       license,
+			KeyValueStore: newMemKeyValueStore(),
 		},
 	)
 
@@ -373,7 +379,10 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -644,6 +653,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			NoCacheDatastore: true,
+			KeyValueStore:    newMemKeyValueStore(),
 		},
 	)
 
@@ -804,8 +814,11 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return nil
 	}
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		appliedSoftwareInstallers = installers
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
@@ -937,7 +950,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License: license,
+			License:       license,
+			KeyValueStore: newMemKeyValueStore(),
 		},
 	)
 
@@ -1055,7 +1069,10 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
@@ -1201,7 +1218,8 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License: license,
+			License:       license,
+			KeyValueStore: newMemKeyValueStore(),
 		},
 	)
 	// Mock appConfig
@@ -1317,7 +1335,10 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
@@ -1634,9 +1655,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		file    string
 		wantErr string
 	}{
-		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
+		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
-		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
+		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MiB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
@@ -1668,10 +1689,13 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		if installers[0].PreInstallQuery != "select IT_WORKS" {
-			return nil, fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 
@@ -1686,9 +1710,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		noTeamFile string
 		wantErr    string
 	}{
-		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
+		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
-		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
+		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 500 MiB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
@@ -2050,6 +2074,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			FleetConfig:      &fleetCfg,
 			License:          license,
 			NoCacheDatastore: true,
+			KeyValueStore:    newMemKeyValueStore(),
 		},
 	)
 
@@ -2181,7 +2206,10 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwarePackageResponse, error) {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
 
@@ -2399,7 +2427,6 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				t.Log(out)
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -2420,10 +2447,10 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 		},
 		{
@@ -2890,4 +2917,26 @@ software:
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 		})
 	}
+}
+
+type memKeyValueStore struct {
+	m sync.Map
+}
+
+func newMemKeyValueStore() *memKeyValueStore {
+	return &memKeyValueStore{}
+}
+
+func (m *memKeyValueStore) Set(ctx context.Context, key string, value string, expireTime time.Duration) error {
+	m.m.Store(key, value)
+	return nil
+}
+
+func (m *memKeyValueStore) Get(ctx context.Context, key string) (*string, error) {
+	v, ok := m.m.Load(key)
+	if !ok {
+		return nil, nil
+	}
+	vAsString := v.(string)
+	return &vAsString, nil
 }
