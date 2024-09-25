@@ -885,7 +885,20 @@ Content-Type: application/octet-stream
   "location": "https://example.com/mdm/apple/mdm",
   "renew_date": "2024-10-20T00:00:00Z",
   "terms_expired": false,
-  "teams": [1, 2, 3]
+  "teams": [
+    {
+      "team_id": 1,
+      "name": "Team 1"
+    },
+    {
+      "team_id": 2,
+      "name": "Team 2"
+    },
+    {
+      "team_id": 2,
+      "name": "Team 3"
+    },
+  ]
 }
 ```
 
