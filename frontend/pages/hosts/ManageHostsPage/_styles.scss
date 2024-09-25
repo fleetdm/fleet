@@ -121,13 +121,6 @@
               line-height: 38px;
             }
           }
-
-          .manage-hosts__status-dropdown-sandbox {
-            width: auto;
-            .Select-control {
-              width: 182px;
-            }
-          }
         }
       }
     }
@@ -182,12 +175,6 @@
 
             .manage-hosts__status_dropdown {
               width: auto;
-            }
-
-            .manage-hosts__status-dropdown-sandbox {
-              .Select-control {
-                width: 100%;
-              }
             }
           }
         }
@@ -246,7 +233,7 @@
 
     .Select-menu-outer {
       width: 364px;
-      max-height: 325px;
+      max-height: min-content;
 
       .Select-menu {
         max-height: none;

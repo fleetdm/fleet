@@ -1,12 +1,14 @@
-import React, { useContext } from "react";
+import React, { useContext, useCallback } from "react";
 import { RouteComponentProps } from "react-router";
 
 import PATHS from "router/paths";
 import labelsAPI from "services/entities/labels";
 import { NotificationContext } from "context/notification";
+import { IApiError } from "interfaces/errors";
 
 import DynamicLabelForm from "pages/labels/components/DynamicLabelForm";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
+import { DUPLICATE_ENTRY_ERROR } from "../ManualLabel/ManualLabel";
 
 const baseClass = "dynamic-label";
 
@@ -26,15 +28,22 @@ const DynamicLabel = ({
 }: IDynamicLabelProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const onSaveNewLabel = async (formData: IDynamicLabelFormData) => {
-    try {
-      const res = await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
-      renderFlash("success", "Label added successfully.");
-    } catch {
-      renderFlash("error", "Couldn't add label. Please try again.");
-    }
-  };
+  const onSaveNewLabel = useCallback(
+    (formData: IDynamicLabelFormData) => {
+      labelsAPI
+        .create(formData)
+        .then((res) => {
+          router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+          renderFlash("success", "Label added successfully.");
+        })
+        .catch((error: { data: IApiError }) => {
+          if (error.data.errors[0].reason.includes("Duplicate entry")) {
+            renderFlash("error", DUPLICATE_ENTRY_ERROR);
+          } else renderFlash("error", "Couldn't add label. Please try again.");
+        });
+    },
+    [renderFlash, router]
+  );
 
   const onCancelLabel = () => {
     router.goBack();

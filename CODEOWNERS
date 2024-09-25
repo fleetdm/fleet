@@ -41,7 +41,7 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
 /ee/server/ @fleetdm/go
-/orbit/ @lucasmrod @roperzh @lukeheath @georgekarrv @sharon-fdm
+/orbit/ @fleetdm/go
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -66,8 +66,8 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw
-/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
+/docs                                           @rachaelshaw @lukeheath
+/docs/REST\ API/rest-api.md                     @rachaelshaw @lukeheath # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice

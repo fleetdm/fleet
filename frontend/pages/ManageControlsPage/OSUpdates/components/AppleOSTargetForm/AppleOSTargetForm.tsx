@@ -5,12 +5,13 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
+import { ApplePlatform } from "interfaces/platform";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import { ApplePlatform } from "interfaces/platform";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "apple-os-target-form";
 
@@ -166,18 +167,6 @@ const AppleOSTargetForm = ({
     setDeadline(val);
   };
 
-  const getMinimumVersionPlaceholder = (platform: ApplePlatform) => {
-    switch (platform) {
-      case "darwin":
-        return "13.0.1";
-      case "ios":
-      case "ipados":
-        return "17.5.1";
-      default:
-        return "";
-    }
-  };
-
   const getMinimumVersionTooltip = () => {
     return (
       <>
@@ -209,8 +198,16 @@ const AppleOSTargetForm = ({
       <InputField
         label="Minimum version"
         tooltip={getMinimumVersionTooltip()}
-        helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
-        placeholder={getMinimumVersionPlaceholder(applePlatform)}
+        helpText={
+          <>
+            Use only versions available from Apple.{" "}
+            <CustomLink
+              text="Learn more"
+              newTab
+              url="https://fleetdm.com/learn-more-about/available-os-update-versions"
+            />
+          </>
+        }
         value={minOsVersion}
         error={minOsVersionError}
         onChange={handleMinVersionChange}
@@ -219,7 +216,6 @@ const AppleOSTargetForm = ({
         label="Deadline"
         tooltip={getDeadlineTooltip(applePlatform)}
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
-        placeholder="2024-07-01"
         value={deadline}
         error={deadlineError}
         onChange={handleDeadlineChange}
