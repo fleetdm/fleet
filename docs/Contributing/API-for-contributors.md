@@ -543,11 +543,13 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [Get an over the air (OTA) enrollment profile](#get-an-over-the-air-ota-enrollment-profile)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -883,7 +885,20 @@ Content-Type: application/octet-stream
   "location": "https://example.com/mdm/apple/mdm",
   "renew_date": "2024-10-20T00:00:00Z",
   "terms_expired": false,
-  "teams": [1, 2, 3]
+  "teams": [
+    {
+      "team_id": 1,
+      "name": "Team 1"
+    },
+    {
+      "team_id": 2,
+      "name": "Team 2"
+    },
+    {
+      "team_id": 2,
+      "name": "Team 3"
+    },
+  ]
 }
 ```
 
@@ -1028,6 +1043,34 @@ If the credentials are valid, the server redirects the client to the Fleet UI. T
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+### Over the air enrollment
+
+This endpoint handles over the air (OTA) MDM enrollments
+
+`POST /api/v1/fleet/ota_enrollment`
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                                                                                                                                                                                                                                                                        |
+| ------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enroll_secret       | string | url  | **Required** Assigns the host to a team with a matching enroll secret                                                                                                                                                                                                                 |
+| XML device response | XML    | body | **Required**. The XML response from the device. Fields are documented [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) |
+
+> Note: enroll secrets can contain special characters. Ensure any special characters are [properly escaped](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding).
+
+#### Example
+
+`POST /api/v1/fleet/ota_enrollment?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+Per [the spec](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1), the response is different depending on the signature of the XML device response:
+
+- If the body is signed with a certificate that can be validated by our root SCEP certificate, it returns an enrollment profile.
+- Otherwise, it returns a SCEP payload.
 
 ### Preassign profiles to devices
 
@@ -1453,12 +1496,14 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
+      "team": "No team",
       "resolution": "some resolution steps here",
       "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
+      "team": "Workstations",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
       "platform": "darwin",
@@ -3293,36 +3338,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 `Status: 204`
 
-## Software
-
-### Batch-apply software
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/batch`
-
-#### Parameters
-
-| Name      | Type   | In    | Description                                                                                                                                                           |
-| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. Ommitting these parameters will add software to 'No Team'. |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. Ommitting these parameters will add software to 'No Team'. |
-| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
-| software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
-| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
-
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
-
-#### Example
-
-`POST /api/v1/fleet/software/batch`
-
-##### Default response
-
-`Status: 204`
-
- ### Run live script
+### Run live script
 
 Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
 
@@ -3360,63 +3376,4 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
   "host_timeout": false,
   "exit_code": 0
 }
-```
-
-### Get token to download package
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
-
-The returned token is a one-time use token that expires after 10 minutes.
-
-#### Parameters
-
-| Name              | Type    | In    | Description                                                      |
-|-------------------|---------|-------|------------------------------------------------------------------|
-| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
-| team_id           | integer | query | **Required**. The team ID containing the software package.       |
-| alt               | integer | query | **Required**. Must be specified and set to "media".              |
-
-#### Example
-
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
-}
-```
-
-### Download package using a token
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
-
-#### Parameters
-
-| Name              | Type    | In   | Description                                                              |
-|-------------------|---------|------|--------------------------------------------------------------------------|
-| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
-| token             | string  | path | **Required**. The token to download the software package.                |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
 ```
