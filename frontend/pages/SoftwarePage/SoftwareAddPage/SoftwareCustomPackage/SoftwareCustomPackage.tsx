@@ -15,17 +15,21 @@ interface ISoftwarePackageProps {
   currentTeamId: number;
   router: InjectedRouter;
   location: Location<ISoftwareAddPageQueryParams>;
+  isSidePanelOpen: boolean;
+  setSidePanelOpen: (isOpen: boolean) => void;
 }
 
 const SoftwareCustomPackage = ({
   currentTeamId,
   router,
   location,
+  isSidePanelOpen,
+  setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const onCancel = () => {
     router.push(
       `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-        team_id: location.query.team_id,
+        team_id: currentTeamId,
       })}`
     );
   };
@@ -37,10 +41,8 @@ const SoftwareCustomPackage = ({
   return (
     <div className={baseClass}>
       <AddSoftwareCustomPackageForm
-        showSchemaButton
-        onClickShowSchema={() => {
-          console.log("schema");
-        }}
+        showSchemaButton={!isSidePanelOpen}
+        onClickShowSchema={() => setSidePanelOpen(true)}
         onCancel={onCancel}
         onSubmit={onSubmit}
       />

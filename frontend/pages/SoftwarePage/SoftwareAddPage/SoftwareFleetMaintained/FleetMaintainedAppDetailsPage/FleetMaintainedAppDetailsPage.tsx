@@ -184,7 +184,7 @@ const FleetMaintainedAppDetailsPage = ({
               version={data.version}
             />
             <FleetAppDetailsForm
-              showSchemaButton={isSidePanelOpen}
+              showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={data.install_script}
               defaultPostInstallScript={data.post_install_script}
               defaultUninstallScript={data.uninstall_script}

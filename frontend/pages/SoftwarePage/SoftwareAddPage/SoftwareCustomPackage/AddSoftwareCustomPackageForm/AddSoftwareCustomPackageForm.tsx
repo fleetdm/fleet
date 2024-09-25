@@ -107,6 +107,12 @@ const AddSoftwareCustomPackageForm = ({
       </Checkbox>
       <div className={`${baseClass}__advanced-options-section`}>
         <RevealButton
+          disabledTooltipContent={
+            <>
+              Choose a file to modify <br />
+              advanced options.
+            </>
+          }
           disabled={!showAdvancedOptions}
           className={`${baseClass}__accordion-title`}
           isShowing={showAdvancedOptions}
@@ -116,6 +122,7 @@ const AddSoftwareCustomPackageForm = ({
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         />
         <AdvancedOptionsFields
+          className={`${baseClass}__advanced-options-fields`}
           showSchemaButton={showSchemaButton}
           installScriptHelpText={"test"}
           postInstallScriptHelpText={"test"}
