@@ -3467,8 +3467,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='ShowOverlayStatusBar' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
