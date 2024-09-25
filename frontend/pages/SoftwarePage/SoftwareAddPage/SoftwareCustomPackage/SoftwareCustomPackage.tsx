@@ -2,6 +2,9 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { Location } from "history";
 
+import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
 import AddSoftwareCustomPackageForm from "./AddSoftwareCustomPackageForm";
 import { ICustomPackageAppFormData } from "./AddSoftwareCustomPackageForm/AddSoftwareCustomPackageForm";
@@ -20,7 +23,11 @@ const SoftwareCustomPackage = ({
   location,
 }: ISoftwarePackageProps) => {
   const onCancel = () => {
-    router.push(""); // TODO: path
+    router.push(
+      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+        team_id: location.query.team_id,
+      })}`
+    );
   };
 
   const onSubmit = (formData: ICustomPackageAppFormData) => {
@@ -30,7 +37,10 @@ const SoftwareCustomPackage = ({
   return (
     <div className={baseClass}>
       <AddSoftwareCustomPackageForm
-        onClickShowSchemats={() => {}}
+        showSchemaButton
+        onClickShowSchema={() => {
+          console.log("schema");
+        }}
         onCancel={onCancel}
         onSubmit={onSubmit}
       />

@@ -1,3 +1,7 @@
 .add-software-custom-package-form {
-
+  &__form-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+  }
 }

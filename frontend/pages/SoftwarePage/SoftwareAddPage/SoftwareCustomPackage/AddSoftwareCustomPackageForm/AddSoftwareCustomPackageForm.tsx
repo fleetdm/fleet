@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
+import Button from "components/buttons/Button";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
@@ -41,9 +42,9 @@ const AddSoftwareCustomPackageForm = ({
   const [formData, setFormData] = useState<ICustomPackageAppFormData>({
     selfService: false,
     preInstallQuery: undefined,
-    installScript: defaultInstallScript,
-    postInstallScript: defaultPostInstallScript,
-    uninstallScript: defaultUninstallScript,
+    installScript: "",
+    postInstallScript: "",
+    uninstallScript: "",
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
@@ -85,6 +86,8 @@ const AddSoftwareCustomPackageForm = ({
     onSubmit(formData);
   };
 
+  const isSubmitDisabled = !formValidation.isValid;
+
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
       <Checkbox
@@ -104,6 +107,7 @@ const AddSoftwareCustomPackageForm = ({
       </Checkbox>
       <div className={`${baseClass}__advanced-options-section`}>
         <RevealButton
+          disabled={!showAdvancedOptions}
           className={`${baseClass}__accordion-title`}
           isShowing={showAdvancedOptions}
           showText="Advanced options"
@@ -112,7 +116,7 @@ const AddSoftwareCustomPackageForm = ({
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         />
         <AdvancedOptionsFields
-          showSchemaButton={true}
+          showSchemaButton={showSchemaButton}
           installScriptHelpText={"test"}
           postInstallScriptHelpText={"test"}
           uninstallScriptHelpText={"test"}
@@ -129,6 +133,14 @@ const AddSoftwareCustomPackageForm = ({
           onChangePostInstallScript={onChangePostInstallScript}
           onChangeUninstallScript={onChangeUninstallScript}
         />
+      </div>
+      <div className={`${baseClass}__form-buttons`}>
+        <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
+          Add software
+        </Button>
+        <Button onClick={onCancel} variant="inverse">
+          Cancel
+        </Button>
       </div>
     </form>
   );
