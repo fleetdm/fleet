@@ -1096,18 +1096,18 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
 ) error {
-	var signer scepserver.CSRSigner = scep_depot.NewSigner(
+	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
 		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
-	)
+	))
 	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 	if err != nil {
 		return fmt.Errorf("retrieving SCEP challenge: %w", err)
 	}
 
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
+	signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,
