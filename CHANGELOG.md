@@ -1,3 +1,10 @@
+## Fleet 4.57.1 (Sep 26, 2024)
+
+### Bug fixes
+
+* Ensured request timeouts for software installer edits were just as high as for initial software installer uploads
+* Fixed "no rows" error when adding a software installer that matched an existing title's name and source but not its bundle ID
+
 ## Fleet 4.57.0 (Sep 23, 2024)
 
 **Endpoint Operations**
