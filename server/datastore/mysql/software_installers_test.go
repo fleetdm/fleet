@@ -1135,7 +1135,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			},
 		},
 		{
-			name: "title that already exists, bundle identifier in payload",
+			name: "title that already exists, mismatched bundle identifier in payload",
 			payload: &fleet.UploadSoftwareInstallerPayload{
 				Title:            "Existing Title",
 				Source:           "apps",
@@ -1147,6 +1147,14 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			payload: &fleet.UploadSoftwareInstallerPayload{
 				Title:  "Existing Title Without Bundle",
 				Source: "apps",
+			},
+		},
+		{
+			name: "title that already exists, no bundle identifier in DB, bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title Without Bundle",
+				Source:           "apps",
+				BundleIdentifier: "com.new.bundleid",
 			},
 		},
 		{
