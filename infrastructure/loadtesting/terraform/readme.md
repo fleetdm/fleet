@@ -43,7 +43,10 @@ After applying terraform with the commands above and before performing your test
 
 ### MDM
 
-If you need to run a load test with MDM enabled and configured you will need to set MDM certificates, keys and tokens to the Fleet configuration.
+If you need to run a load test with MDM enabled and configured you will need to set MDM
+certificates, keys and tokens to the Fleet configuration. (For Apple MDM), you can alternatively create the
+certificates and keys manually in the Fleet UI after the environment is up and running; however,
+Windows must still be set via Terraform.)
 
 1. Place the files in a known location:
 ```sh
