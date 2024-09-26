@@ -129,20 +129,9 @@ const ManagePolicyPage = ({
     },
   });
 
+  // loading state used by various policy updates on this page
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
-  const [isUpdatingPolicyRunScript, setIsUpdatingPolicyRunScript] = useState(
-    false
-  );
-  const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
-    false
-  );
-  const [
-    isUpdatingPolicySoftwareInstall,
-    setIsUpdatingPolicySoftwareInstall,
-  ] = useState(false);
-  const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
-    false
-  );
+
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
@@ -508,7 +497,7 @@ const ManagePolicyPage = ({
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IZendeskJiraIntegrations;
   }) => {
-    setIsUpdatingOtherWorkflows(true);
+    setIsUpdatingPolicies(true);
     try {
       await (!isAllTeamsSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
@@ -521,7 +510,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleOtherWorkflowsModal();
-      setIsUpdatingOtherWorkflows(false);
+      setIsUpdatingPolicies(false);
       !isAllTeamsSelected ? refetchTeamConfig() : refetchConfig();
     }
   };
@@ -530,7 +519,7 @@ const ManagePolicyPage = ({
     formData: IInstallSoftwareFormData
   ) => {
     try {
-      setIsUpdatingPolicySoftwareInstall(true);
+      setIsUpdatingPolicies(true);
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -579,7 +568,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleInstallSoftwareModal();
-      setIsUpdatingPolicySoftwareInstall(false);
+      setIsUpdatingPolicies(false);
     }
   };
 
@@ -587,7 +576,7 @@ const ManagePolicyPage = ({
     formData: IPolicyRunScriptFormData
   ) => {
     try {
-      setIsUpdatingPolicyRunScript(true);
+      setIsUpdatingPolicies(true);
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -635,12 +624,12 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleRunScriptModal();
-      setIsUpdatingPolicyRunScript(false);
+      setIsUpdatingPolicies(false);
     }
   };
 
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
-    setIsUpdatingCalendarEvents(true);
+    setIsUpdatingPolicies(true);
 
     try {
       // update team config if either field has been changed
@@ -701,7 +690,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleCalendarEventsModal();
-      setIsUpdatingCalendarEvents(false);
+      setIsUpdatingPolicies(false);
     }
   };
 
@@ -1009,7 +998,7 @@ const ManagePolicyPage = ({
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={policiesAvailableToAutomate}
-            isUpdating={isUpdatingOtherWorkflows}
+            isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
           />
@@ -1034,7 +1023,7 @@ const ManagePolicyPage = ({
           <InstallSoftwareModal
             onExit={toggleInstallSoftwareModal}
             onSubmit={onUpdatePolicySoftwareInstall}
-            isUpdating={isUpdatingPolicySoftwareInstall}
+            isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
@@ -1044,7 +1033,7 @@ const ManagePolicyPage = ({
           <RunScriptModal
             onExit={toggleRunScriptModal}
             onSubmit={onUpdatePolicyRunScript}
-            isUpdating={isUpdatingPolicyRunScript}
+            isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
@@ -1061,7 +1050,7 @@ const ManagePolicyPage = ({
             }
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
-            isUpdating={isUpdatingCalendarEvents}
+            isUpdating={isUpdatingPolicies}
           />
         )}
       </div>
