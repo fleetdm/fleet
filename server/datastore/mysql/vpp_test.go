@@ -1256,6 +1256,14 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 			},
 		},
 		{
+			name: "title that already exists, no bundle identifier in DB, bundle identifier in payload",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title Without Bundle",
+				LatestVersion:    "0.0.3",
+				BundleIdentifier: "new.bundle.id",
+			},
+		},
+		{
 			name: "title that doesn't exist, no bundle identifier in payload",
 			app: &fleet.VPPApp{
 				Name:             "New Title",
