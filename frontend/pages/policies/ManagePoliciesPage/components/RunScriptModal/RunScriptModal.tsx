@@ -141,7 +141,7 @@ const RunScriptModal = ({
       <li
         className={`${baseClass}__policy-row policy-row`}
         id={`policy-row--${policyId}`}
-        key={policyId}
+        key={`${policyId}-${enabled}`}
       >
         <Checkbox
           value={enabled}
