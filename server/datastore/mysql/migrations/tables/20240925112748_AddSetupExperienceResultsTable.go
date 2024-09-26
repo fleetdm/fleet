@@ -19,12 +19,18 @@ CREATE TABLE setup_experience_status_results (
 	name		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	-- Status of the step
 	status		ENUM('pending', 'running', 'success', 'failure') NOT NULL,
-	execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+	host_software_installs_id -- FIXME
+	nano_commands_command_uuid -- FIXME
+	execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL, -- FIXME host_script_results, maybe ID in new table?
 	error 		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 
 	PRIMARY KEY (id)
 )
 `)
+	// Service layer state machine like SetupExperienceNestStep()?
+	// Called from each of the three endpoints (software install, vpp
+	// mdm, scripts) involved in the setup when an eligible installer
+	// writes its results
 	if err != nil {
 		return fmt.Errorf("failed to create setup_experience_status_results table: %w", err)
 	}
