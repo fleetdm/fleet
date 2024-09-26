@@ -52,7 +52,7 @@
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
   description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #g-mdm and #g-endpoint-ops Slack channel." 
-  moreInfoUrl: 
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -
   task: "Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
