@@ -1,0 +1,1 @@
+- Fleet UI: Fix host software filter bug that resets dropdown filter on table changes (pagination, order by column, etc)
