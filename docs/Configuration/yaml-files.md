@@ -261,8 +261,7 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-  windows_migration: # Available in Fleet Premium
-    enable: true
+  windows_migration_enabled: true # Available in Fleet Premium
 # paths are relative to default.yml or teams/team-name.yml 
 ```
 
@@ -312,12 +311,6 @@ The `macos_migration` section lets you control the [end user migration workflow]
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
 Can only be configured for all teams (`default.yml`).
-
-#### windows_migration
-
-The `windows_migration` section lets you control migration for Windows hosts that enrolled to your old MDM solution.
-
-- `enable` specifies whether or not to enable automatic migration for Windows hosts with fleetd (default: `false`)
 
 ### software
 

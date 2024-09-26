@@ -941,6 +941,7 @@ None.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
+    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -1234,9 +1235,7 @@ Modifies the Fleet's configuration with the supplied information.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration": {
-      "enable": false
-    },
+    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -1714,7 +1713,7 @@ _Available in Fleet Premium._
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
 | windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| windows_migration       | object  | See [`mdm.windows_migration`](#mdm-windows-migration). |
+| windows_migration_enabled | boolean  | Whether to enable automatic migration via fleetd for devices migrating from your old MDM solution. |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
@@ -1784,18 +1783,6 @@ _Available in Fleet Premium._
 | enable                            | boolean | Whether to enable the end user migration workflow for devices migrating from your old MDM solution. |
 | mode                              | string  | The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. |
 | webhook_url                       | string  | The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. |
-
-<br/>
-
-##### mdm.windows_migration
-
-_Available in Fleet Premium._
-
-`mdm.windows_migration` is an object with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable                            | boolean | Whether to enable automatic migration via fleetd for devices migrating from your old MDM solution. | 
 
 <br/>
 
@@ -1878,9 +1865,7 @@ _Available in Fleet Premium._
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration": {
-      "enable": false
-    },
+    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
