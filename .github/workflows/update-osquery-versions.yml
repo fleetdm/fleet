@@ -1,0 +1,28 @@
+name: Update Osquery Versions
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: pip install requests
+      - name: Update Osquery Versions
+        run: python .github/scripts/update_osquery_versions.py
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: Update MIN_OSQUERY_VERSION_OPTIONS
+          title: Update Osquery Version Options
+          body: Automatically updated MIN_OSQUERY_VERSION_OPTIONS with new osquery releases.
+          branch: update-osquery-versions
+          delete-branch: true
