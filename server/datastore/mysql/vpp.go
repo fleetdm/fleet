@@ -371,17 +371,26 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	insertArgs := []any{app.Name, source}
 
 	if app.BundleIdentifier != "" {
-		// NOTE: The index `idx_sw_titles` doesn't include the bundle
-		// identifier. It's possible for the select to return nothing
-		// but for the insert to fail if an app with the same name but
-		// no bundle identifier exists in the DB.
+		// match by bundle identifier first, or standard matching if we
+		// don't have a bundle identifier match
 		switch source {
 		case "ios_apps", "ipados_apps":
-			selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`
-			selectArgs = []any{app.BundleIdentifier, source}
+			selectStmt = `
+				    SELECT id
+				    FROM software_titles
+				    WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND browser = '')
+				    ORDER BY bundle_identifier = ? DESC
+				    LIMIT 1`
+			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
 		default:
-			selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source NOT IN ('ios_apps', 'ipados_apps')`
-			selectArgs = []any{app.BundleIdentifier}
+			selectStmt = `
+				    SELECT id
+				    FROM software_titles
+				    WHERE (bundle_identifier = ? OR (name = ? AND browser = ''))
+				      AND source NOT IN ('ios_apps', 'ipados_apps')
+				    ORDER BY bundle_identifier = ? DESC
+				    LIMIT 1`
+			selectArgs = []any{app.BundleIdentifier, app.Name, app.BundleIdentifier}
 		}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)

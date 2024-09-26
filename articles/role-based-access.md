@@ -46,7 +46,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
-| Add and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
+| Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
 | Download added software                                                                                                                    |          |           | ✅         | ✅    |         |
 | Install software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅         | ✅    |         |
