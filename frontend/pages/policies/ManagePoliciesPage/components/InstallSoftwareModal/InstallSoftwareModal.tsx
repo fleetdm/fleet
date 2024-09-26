@@ -81,6 +81,7 @@ const InstallSoftwareModal = ({
   const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
     (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
   );
+
   const {
     data: titlesAFI,
     isLoading: isTitlesAFILoading,

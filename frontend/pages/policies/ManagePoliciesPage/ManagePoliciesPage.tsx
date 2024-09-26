@@ -52,6 +52,8 @@ import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 import InstallSoftwareModal from "./components/InstallSoftwareModal";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
+import RunScriptModal from "./components/RunScriptModal";
+import { IPolicyRunScriptFormData } from "./components/RunScriptModal/RunScriptModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -128,6 +130,9 @@ const ManagePolicyPage = ({
   });
 
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
+  const [isUpdatingPolicyRunScript, setIsUpdatingPolicyRunScript] = useState(
+    false
+  );
   const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
     false
   );
@@ -578,6 +583,63 @@ const ManagePolicyPage = ({
     }
   };
 
+  const onUpdatePolicyRunScript = async (
+    formData: IPolicyRunScriptFormData
+  ) => {
+    try {
+      setIsUpdatingPolicyRunScript(true);
+      const changedPolicies = formData.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+
+        const turnedOff =
+          prevPolicyState?.run_script !== undefined &&
+          formPolicy.runScriptEnabled === false;
+
+        const turnedOn =
+          prevPolicyState?.run_script === undefined &&
+          formPolicy.runScriptEnabled === true;
+
+        const updatedRunScriptId =
+          prevPolicyState?.run_script?.id !== undefined &&
+          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
+
+        return turnedOff || turnedOn || updatedRunScriptId;
+      });
+      if (!changedPolicies.length) {
+        renderFlash("success", "No changes detected.");
+        return;
+      }
+      const responses: Promise<
+        ReturnType<typeof teamPoliciesAPI.update>
+      >[] = [];
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            // TODO - confirm below behavior:
+            // "script_id" null will unset software install for the policy
+            // "script_id": X will set the value to the given integer
+            script_id: changedPolicy.scriptIdToRun || null,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+      await Promise.all(responses);
+      await wait(100);
+      refetchTeamPolicies();
+      renderFlash("success", "Successfully updated policy automations.");
+    } catch {
+      renderFlash(
+        "error",
+        "Could not update policy automations. Please try again."
+      );
+    } finally {
+      toggleRunScriptModal();
+      setIsUpdatingPolicyRunScript(false);
+    }
+  };
+
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
     setIsUpdatingCalendarEvents(true);
 
@@ -979,7 +1041,16 @@ const ManagePolicyPage = ({
             teamId={currentTeamId ?? 0}
           />
         )}
-        {showRunScriptModal && <>{/* TODO - RunScriptModal */}</>}
+        {showRunScriptModal && (
+          <RunScriptModal
+            onExit={toggleRunScriptModal}
+            onSubmit={onUpdatePolicyRunScript}
+            isUpdating={isUpdatingPolicyRunScript}
+            policies={policiesAvailableToAutomate}
+            // currentTeamId will at this point be present
+            teamId={currentTeamId ?? 0}
+          />
+        )}
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
