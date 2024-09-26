@@ -448,7 +448,7 @@ func (s *SwiftDialog) Activate() error {
 	return s.sendCommand("activate", "")
 }
 
-// Quits dialog with exit code 5
+// Quits dialog with exit code 5 (ExitQuitCommand)
 func (s *SwiftDialog) Quit() error {
 	return s.sendCommand("quit", "")
 }
