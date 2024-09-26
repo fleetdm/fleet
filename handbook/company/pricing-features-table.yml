@@ -130,7 +130,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://github.com/fleetdm/fleet-gitops
-  description: Fork the best practices GitHub repo and use the included GitHub Actions to quickly automate Fleet console and configuration workflow management.
+  description: Fork the best practices GitHub repo and use the included GitHub Actions or GitLab CI/CD pipelines to quickly automate Fleet console and configuration workflow management.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
