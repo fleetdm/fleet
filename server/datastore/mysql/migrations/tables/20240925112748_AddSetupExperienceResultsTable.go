@@ -11,20 +11,54 @@ func init() {
 
 func Up_20240925112748(tx *sql.Tx) error {
 	_, err := tx.Exec(`
+CREATE TABLE setup_experience_scripts (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	team_id INT UNSIGNED DEFAULT NULL,
+	global_or_team_id INT UNSIGNED NOT NULL DEFAULT '0',
+	name VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	script_content_id INT UNSIGNED DEFAULT NULL,
+
+	PRIMARY KEY (id),
+
+	UNIQUE KEY idx_setup_experience_scripts_global_or_team_id_name (global_or_team_id,name),
+	UNIQUE KEY idx_setup_experience_scripts_team_name (team_id,name),
+
+	KEY idx_script_content_id (script_content_id),
+
+	CONSTRAINT fk_setup_experience_scripts_ibfk_1 FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT fk_setup_experience_scripts_ibfk_2 FOREIGN KEY (script_content_id) REFERENCES script_contents (id) ON DELETE CASCADE
+);
+
+`)
+	if err != nil {
+		return fmt.Errorf("failed to create setup_experience_scripts table: %w", err)
+	}
+
+	_, err = tx.Exec(`
 CREATE TABLE setup_experience_status_results (
 	id		INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 	host_uuid	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-	-- Type of step
 	type		ENUM('bootstrap-package', 'software-install', 'post-install-script') NOT NULL,
 	name		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-	-- Status of the step
 	status		ENUM('pending', 'running', 'success', 'failure') NOT NULL,
-	host_software_installs_id -- FIXME
-	nano_commands_command_uuid -- FIXME
-	execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL, -- FIXME host_script_results, maybe ID in new table?
+	-- Software installs reference
+	host_software_installs_id INT(10) UNSIGNED,
+	-- VPP app install reference
+	nano_command_uuid VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+	-- Script execution reference
+	script_execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	error 		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 
-	PRIMARY KEY (id)
+	PRIMARY KEY (id),
+
+	KEY idx_setup_experience_scripts_host_uuid (host_uuid),
+	KEY idx_setup_experience_scripts_hsi_id (host_software_installs_id),
+	KEY idx_setup_experience_scripts_nano_command_uuid (nano_command_uuid),
+	KEY idx_setup_experience_scripts_script_execution_id (script_execution_id),
+
+	CONSTRAINT fk_setup_experience_status_results_hsi_id FOREIGN KEY (host_software_installs_id) REFERENCES host_software_installs(id) ON DELETE CASCADE
 )
 `)
 	// Service layer state machine like SetupExperienceNestStep()?

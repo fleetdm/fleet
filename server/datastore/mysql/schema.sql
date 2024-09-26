@@ -498,6 +498,7 @@ CREATE TABLE `host_script_results` (
   `script_content_id` int unsigned DEFAULT NULL,
   `host_deleted_at` timestamp NULL DEFAULT NULL,
   `timeout` int DEFAULT NULL,
+  `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
   KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`),
@@ -1597,15 +1598,40 @@ CREATE TABLE `sessions` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `setup_experience_scripts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `script_content_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_setup_experience_scripts_global_or_team_id_name` (`global_or_team_id`,`name`),
+  UNIQUE KEY `idx_setup_experience_scripts_team_name` (`team_id`,`name`),
+  KEY `idx_script_content_id` (`script_content_id`),
+  CONSTRAINT `fk_setup_experience_scripts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_setup_experience_scripts_ibfk_2` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `setup_experience_status_results` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `type` enum('bootstrap-package','software-install','post-install-script') COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('pending','running','success','failure') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_software_installs_id` int unsigned DEFAULT NULL,
+  `nano_command_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `script_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_setup_experience_scripts_host_uuid` (`host_uuid`),
+  KEY `idx_setup_experience_scripts_hsi_id` (`host_software_installs_id`),
+  KEY `idx_setup_experience_scripts_nano_command_uuid` (`nano_command_uuid`),
+  KEY `idx_setup_experience_scripts_script_execution_id` (`script_execution_id`),
+  CONSTRAINT `fk_setup_experience_status_results_hsi_id` FOREIGN KEY (`host_software_installs_id`) REFERENCES `host_software_installs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

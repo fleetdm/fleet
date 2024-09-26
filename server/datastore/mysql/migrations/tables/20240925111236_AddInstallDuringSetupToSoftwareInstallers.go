@@ -17,7 +17,12 @@ func Up_20240925111236(tx *sql.Tx) error {
 
 	_, err = tx.Exec(`ALTER TABLE vpp_apps_teams ADD COLUMN install_during_setup BOOL NOT NULL DEFAULT false`)
 	if err != nil {
-		return fmt.Errorf("failed to add vpp_apps_teams to software_installers: %w", err)
+		return fmt.Errorf("failed to add install_during_setup to vpp_apps_teams: %w", err)
+	}
+
+	_, err = tx.Exec(`ALTER TABLE host_script_results ADD install_during_setup BOOL NOT NULL DEFAULT false`)
+	if err != nil {
+		return fmt.Errorf("failed to add setup_experience_scripts_id key to ereee: %w", err)
 	}
 
 	return nil
