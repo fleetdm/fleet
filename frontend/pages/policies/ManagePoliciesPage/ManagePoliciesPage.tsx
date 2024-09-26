@@ -21,7 +21,7 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
+import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -934,6 +934,18 @@ const ManagePolicyPage = ({
   if (!isRouteOk) {
     return <Spinner />;
   }
+
+  let teamsDropdownHelpText: string;
+  if (teamIdForApi === API_NO_TEAM_ID) {
+    teamsDropdownHelpText =
+      "Detect device health issues for hosts that are not on a team.";
+  } else if (teamIdForApi === API_ALL_TEAMS_ID) {
+    teamsDropdownHelpText = "Detect device health issues for all hosts.";
+  } else {
+    // a team is selected
+    teamsDropdownHelpText =
+      "Detect device health issues for all hosts assigned to this team.";
+  }
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -986,11 +998,7 @@ const ManagePolicyPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          <p>
-            {isAnyTeamSelected
-              ? "Detect device health issues for all hosts assigned to this team."
-              : "Detect device health issues for all hosts."}
-          </p>
+          <p>{teamsDropdownHelpText}</p>
         </div>
         {renderMainTable()}
         {config && automationsConfig && showOtherWorkflowsModal && (
