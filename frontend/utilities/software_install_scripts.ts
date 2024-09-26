@@ -11,7 +11,7 @@ import installDeb from "../../pkg/file/scripts/install_deb.sh";
  * getInstallScript returns a string with a script to install the
  * provided software.
  * */
-const getInstallScript = (fileName: string): string => {
+const getDefaultInstallScript = (fileName: string): string => {
   const extension = fileName.split(".").pop();
   switch (extension) {
     case "pkg":
@@ -27,4 +27,4 @@ const getInstallScript = (fileName: string): string => {
   }
 };
 
-export default getInstallScript;
+export default getDefaultInstallScript;

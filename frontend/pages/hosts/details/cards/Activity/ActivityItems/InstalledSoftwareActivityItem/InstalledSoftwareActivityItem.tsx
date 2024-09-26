@@ -13,7 +13,9 @@ const InstalledSoftwareActivityItem = ({
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
-  const { self_service, status, software_title: title } = details;
+  const { self_service, software_title: title } = details;
+  const status =
+    details.status === "failed" ? "failed_uninstall" : details.status;
 
   const actorDisplayName = self_service ? (
     <span>An end user</span>

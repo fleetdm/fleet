@@ -187,8 +187,10 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return nil, nil, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if mergeInherited {
@@ -250,8 +252,10 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 		return 0, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if mergeInherited {
@@ -341,8 +345,10 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if len(ids) == 0 {
@@ -487,6 +493,13 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		if err != nil {
 			return nil, err
 		}
+		// If the associated installer is changed (or it's set and the policy didn't have an associated installer)
+		// then we clear the results of the policy so that automation can be triggered upon failure
+		// (automation is currently triggered on the first failure or when it goes from passing to failure).
+		if softwareInstallerID != nil && (policy.SoftwareInstallerID == nil || *policy.SoftwareInstallerID != *softwareInstallerID) {
+			removeAllMemberships = true
+			removeStats = true
+		}
 		policy.SoftwareInstallerID = softwareInstallerID
 	}
 
@@ -552,10 +565,6 @@ func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, te
 			Message: fmt.Sprintf("software_title_id %d on team_id %d does not have associated package", *softwareTitleID, *teamID),
 		})
 	}
-
-	//
-	// TODO(lucas): Support "No team" (softwareTitle.SoftwarePackage.TeamID == nil).
-	//
 
 	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.

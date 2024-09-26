@@ -7,7 +7,6 @@ import mdmAppleAPI from "services/entities/mdm_apple";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
-import { FileDetails } from "components/FileUploader/FileUploader";
 
 import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
@@ -70,14 +69,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
           graphicName="file-vpp"
           buttonType="link"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          filePreview={
-            tokenFile && (
-              <FileDetails
-                details={{ name: tokenFile.name }}
-                graphicName="file-vpp"
-              />
-            )
-          }
+          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}
         />
         <div className="modal-cta-wrap">

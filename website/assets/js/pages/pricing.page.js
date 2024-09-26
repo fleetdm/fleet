@@ -6,6 +6,7 @@ parasails.registerPage('pricing', {
     pricingMode: 'all',
     modal: '',
     selectedFeature: undefined,
+    showExpandedTable: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗

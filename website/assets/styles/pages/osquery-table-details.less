@@ -178,6 +178,7 @@
   }
   [purpose='table-container'] {
     height: min-content;
+    max-width: 860px;
   }
 
   [purpose='overflow-shadow'] {
@@ -407,7 +408,9 @@
   }
 
   @media (max-width: 991px) {
-
+    [purpose='table-container'] {
+      max-width: unset;
+    }
     [purpose='schema-table'] {
       padding-top: 40px;
       [purpose='platform-logos'] {

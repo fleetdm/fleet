@@ -5,12 +5,13 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
+import { ApplePlatform } from "interfaces/platform";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import { ApplePlatform } from "interfaces/platform";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "apple-os-target-form";
 
@@ -166,28 +167,18 @@ const AppleOSTargetForm = ({
     setDeadline(val);
   };
 
-  const getMinimumVersionPlaceholder = (platform: ApplePlatform) => {
-    switch (platform) {
-      case "darwin":
-        return "13.0.1";
-      case "ios":
-      case "ipados":
-        return "17.5.1";
-      default:
-        return "";
-    }
-  };
-
-  const getMinimumVersionTooltip = (platform: ApplePlatform) => {
-    switch (platform) {
-      case "darwin":
-        return "The end user sees the window until their macOS is at or above this version.";
-      case "ios":
-      case "ipados":
-        return "If the end user's host is below the minimum version, they see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.";
-      default:
-        return "";
-    }
+  const getMinimumVersionTooltip = () => {
+    return (
+      <>
+        If an already enrolled host is below the minimum version,
+        <br /> the host is updated to exactly the minimum version if it&apos;s
+        <br /> available from Apple.
+        <br />
+        <br /> If a new or wiped host is below the minimum version and
+        <br /> automatically enrolls (ADE), the host is updated to Apple&apos;s
+        <br /> lastest version during Setup Assistant.
+      </>
+    );
   };
 
   const getDeadlineTooltip = (platform: ApplePlatform) => {
@@ -206,9 +197,17 @@ const AppleOSTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
-        tooltip={getMinimumVersionTooltip(applePlatform)}
-        helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
-        placeholder={getMinimumVersionPlaceholder(applePlatform)}
+        tooltip={getMinimumVersionTooltip()}
+        helpText={
+          <>
+            Use only versions available from Apple.{" "}
+            <CustomLink
+              text="Learn more"
+              newTab
+              url="https://fleetdm.com/learn-more-about/available-os-update-versions"
+            />
+          </>
+        }
         value={minOsVersion}
         error={minOsVersionError}
         onChange={handleMinVersionChange}
@@ -217,7 +216,6 @@ const AppleOSTargetForm = ({
         label="Deadline"
         tooltip={getDeadlineTooltip(applePlatform)}
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
-        placeholder="2024-07-01"
         value={deadline}
         error={deadlineError}
         onChange={handleDeadlineChange}

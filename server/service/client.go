@@ -397,8 +397,8 @@ func (c *Client) ApplyGroup(
 	logf func(format string, args ...interface{}),
 	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
-) (map[string]uint, map[string][]fleet.SoftwareInstaller, error) {
-	teamSoftwareInstallers := make(map[string][]fleet.SoftwareInstaller)
+) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, error) {
+	teamSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -687,7 +687,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying software installers for team %s\n", tmName)
+				logfn("[+] applying %d software packages for team %s\n", len(software), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -825,12 +825,23 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 			}
 		}
 
+		var us []byte
+		if si.UninstallScript.Path != "" {
+			uninstallScriptFile := resolveApplyRelativePath(baseDir, si.UninstallScript.Path)
+			us, err = os.ReadFile(uninstallScriptFile)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read uninstall script file %s: %w", si.URL,
+					si.UninstallScript.Path, err)
+			}
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:               si.URL,
 			SelfService:       si.SelfService,
 			PreInstallQuery:   qc,
 			InstallScript:     string(ic),
 			PostInstallScript: string(pc),
+			UninstallScript:   string(us),
 		}
 
 	}
@@ -1283,9 +1294,7 @@ func (c *Client) DoGitOps(
 			}
 		}
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
-
-		group.Software = config.Software.Packages
-	} else {
+	} else if !config.IsNoTeam() {
 		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
 		team["agent_options"] = config.AgentOptions
@@ -1339,111 +1348,115 @@ func (c *Client) DoGitOps(
 		team["mdm"] = map[string]interface{}{}
 		mdmAppConfig = team["mdm"].(map[string]interface{})
 	}
-	// Common controls settings between org and team settings
-	// Put in default values for macos_settings
-	if config.Controls.MacOSSettings != nil {
-		mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
-	} else {
-		mdmAppConfig["macos_settings"] = map[string]interface{}{}
-	}
-	macOSSettings := mdmAppConfig["macos_settings"].(map[string]interface{})
-	if customSettings, ok := macOSSettings["custom_settings"]; !ok || customSettings == nil {
-		macOSSettings["custom_settings"] = []interface{}{}
-	}
-	// Put in default values for macos_updates
-	if config.Controls.MacOSUpdates != nil {
-		mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
-	} else {
-		mdmAppConfig["macos_updates"] = map[string]interface{}{}
-	}
-	macOSUpdates := mdmAppConfig["macos_updates"].(map[string]interface{})
-	if minimumVersion, ok := macOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
-		macOSUpdates["minimum_version"] = ""
-	}
-	if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
-		macOSUpdates["deadline"] = ""
-	}
-	// Put in default values for ios_updates
-	if config.Controls.IOSUpdates != nil {
-		mdmAppConfig["ios_updates"] = config.Controls.IOSUpdates
-	} else {
-		mdmAppConfig["ios_updates"] = map[string]interface{}{}
-	}
-	iOSUpdates := mdmAppConfig["ios_updates"].(map[string]interface{})
-	if minimumVersion, ok := iOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
-		iOSUpdates["minimum_version"] = ""
-	}
-	if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
-		iOSUpdates["deadline"] = ""
-	}
-	// Put in default values for ipados_updates
-	if config.Controls.IPadOSUpdates != nil {
-		mdmAppConfig["ipados_updates"] = config.Controls.IPadOSUpdates
-	} else {
-		mdmAppConfig["ipados_updates"] = map[string]interface{}{}
-	}
-	iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]interface{})
-	if minimumVersion, ok := iPadOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
-		iPadOSUpdates["minimum_version"] = ""
-	}
-	if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
-		iPadOSUpdates["deadline"] = ""
-	}
-	// Put in default values for macos_setup
-	if config.Controls.MacOSSetup != nil {
-		mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
-	} else {
-		mdmAppConfig["macos_setup"] = map[string]interface{}{}
-	}
-	macOSSetup := mdmAppConfig["macos_setup"].(map[string]interface{})
-	if bootstrapPackage, ok := macOSSetup["bootstrap_package"]; !ok || bootstrapPackage == nil {
-		macOSSetup["bootstrap_package"] = ""
-	}
-	if enableEndUserAuthentication, ok := macOSSetup["enable_end_user_authentication"]; !ok || enableEndUserAuthentication == nil {
-		macOSSetup["enable_end_user_authentication"] = false
-	}
-	if macOSSetupAssistant, ok := macOSSetup["macos_setup_assistant"]; !ok || macOSSetupAssistant == nil {
-		macOSSetup["macos_setup_assistant"] = ""
-	}
-	// Put in default values for windows_settings
-	if config.Controls.WindowsSettings != nil {
-		mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
-	} else {
-		mdmAppConfig["windows_settings"] = map[string]interface{}{}
-	}
-	windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
-	if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
-		windowsSettings["custom_settings"] = []interface{}{}
-	}
-	// Put in default values for windows_updates
-	if config.Controls.WindowsUpdates != nil {
-		mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
-	} else {
-		mdmAppConfig["windows_updates"] = map[string]interface{}{}
-	}
-	if appConfig.License.IsPremium() {
-		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
-		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
-			windowsUpdates["deadline_days"] = nil
+
+	if !config.IsNoTeam() {
+		// Common controls settings between org and team settings
+		// Put in default values for macos_settings
+		if config.Controls.MacOSSettings != nil {
+			mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
+		} else {
+			mdmAppConfig["macos_settings"] = map[string]interface{}{}
 		}
-		if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
-			windowsUpdates["grace_period_days"] = nil
+		macOSSettings := mdmAppConfig["macos_settings"].(map[string]interface{})
+		if customSettings, ok := macOSSettings["custom_settings"]; !ok || customSettings == nil {
+			macOSSettings["custom_settings"] = []interface{}{}
 		}
-	}
-	// Put in default value for enable_disk_encryption
-	if config.Controls.EnableDiskEncryption != nil {
-		mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
-	} else {
-		mdmAppConfig["enable_disk_encryption"] = false
-	}
-	if config.TeamName != nil {
-		team["gitops_filename"] = filename
-		rawTeam, err := json.Marshal(team)
-		if err != nil {
-			return nil, fmt.Errorf("error marshalling team spec: %w", err)
+		// Put in default values for macos_updates
+		if config.Controls.MacOSUpdates != nil {
+			mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
+		} else {
+			mdmAppConfig["macos_updates"] = map[string]interface{}{}
 		}
-		group.Teams = []json.RawMessage{rawTeam}
-		group.TeamsDryRunAssumptions = teamDryRunAssumptions
+		macOSUpdates := mdmAppConfig["macos_updates"].(map[string]interface{})
+		if minimumVersion, ok := macOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+			macOSUpdates["minimum_version"] = ""
+		}
+		if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
+			macOSUpdates["deadline"] = ""
+		}
+		// Put in default values for ios_updates
+		if config.Controls.IOSUpdates != nil {
+			mdmAppConfig["ios_updates"] = config.Controls.IOSUpdates
+		} else {
+			mdmAppConfig["ios_updates"] = map[string]interface{}{}
+		}
+		iOSUpdates := mdmAppConfig["ios_updates"].(map[string]interface{})
+		if minimumVersion, ok := iOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+			iOSUpdates["minimum_version"] = ""
+		}
+		if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
+			iOSUpdates["deadline"] = ""
+		}
+		// Put in default values for ipados_updates
+		if config.Controls.IPadOSUpdates != nil {
+			mdmAppConfig["ipados_updates"] = config.Controls.IPadOSUpdates
+		} else {
+			mdmAppConfig["ipados_updates"] = map[string]interface{}{}
+		}
+		iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]interface{})
+		if minimumVersion, ok := iPadOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+			iPadOSUpdates["minimum_version"] = ""
+		}
+		if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
+			iPadOSUpdates["deadline"] = ""
+		}
+		// Put in default values for macos_setup
+		if config.Controls.MacOSSetup != nil {
+			mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
+		} else {
+			mdmAppConfig["macos_setup"] = map[string]interface{}{}
+		}
+		macOSSetup := mdmAppConfig["macos_setup"].(map[string]interface{})
+		if bootstrapPackage, ok := macOSSetup["bootstrap_package"]; !ok || bootstrapPackage == nil {
+			macOSSetup["bootstrap_package"] = ""
+		}
+		if enableEndUserAuthentication, ok := macOSSetup["enable_end_user_authentication"]; !ok || enableEndUserAuthentication == nil {
+			macOSSetup["enable_end_user_authentication"] = false
+		}
+		if macOSSetupAssistant, ok := macOSSetup["macos_setup_assistant"]; !ok || macOSSetupAssistant == nil {
+			macOSSetup["macos_setup_assistant"] = ""
+		}
+		// Put in default values for windows_settings
+		if config.Controls.WindowsSettings != nil {
+			mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
+		} else {
+			mdmAppConfig["windows_settings"] = map[string]interface{}{}
+		}
+		windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
+		if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
+			windowsSettings["custom_settings"] = []interface{}{}
+		}
+		// Put in default values for windows_updates
+		if config.Controls.WindowsUpdates != nil {
+			mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
+		} else {
+			mdmAppConfig["windows_updates"] = map[string]interface{}{}
+		}
+		if appConfig.License.IsPremium() {
+			windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
+			if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
+				windowsUpdates["deadline_days"] = nil
+			}
+			if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
+				windowsUpdates["grace_period_days"] = nil
+			}
+		}
+		// Put in default value for enable_disk_encryption
+		if config.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
+		} else {
+			mdmAppConfig["enable_disk_encryption"] = false
+		}
+
+		if config.TeamName != nil {
+			team["gitops_filename"] = filename
+			rawTeam, err := json.Marshal(team)
+			if err != nil {
+				return nil, fmt.Errorf("error marshalling team spec: %w", err)
+			}
+			group.Teams = []json.RawMessage{rawTeam}
+			group.TeamsDryRunAssumptions = teamDryRunAssumptions
+		}
 	}
 
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
@@ -1456,27 +1469,32 @@ func (c *Client) DoGitOps(
 	if err != nil {
 		return nil, err
 	}
-	var teamSoftwareInstallers []fleet.SoftwareInstaller
-	if config.TeamName != nil {
-		if len(teamIDsByName) != 1 {
-			return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
-		}
-		teamID, ok := teamIDsByName[*config.TeamName]
-		if ok && teamID == 0 {
-			if dryRun {
-				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
-				return nil, nil
-			}
-			return nil, fmt.Errorf("team %s not created", *config.TeamName)
-		}
-		for _, teamID = range teamIDsByName {
-			config.TeamID = &teamID
-		}
-		teamSoftwareInstallers = teamsSoftwareInstallers[*config.TeamName]
-	}
 
-	if _, err = c.doGitOpsNoTeamSoftware(group, baseDir, appConfig, logFn, dryRun); err != nil {
-		return nil, err
+	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
+	if config.TeamName != nil {
+		if !config.IsNoTeam() {
+			if len(teamIDsByName) != 1 {
+				return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+			}
+			teamID, ok := teamIDsByName[*config.TeamName]
+			if ok && teamID == 0 {
+				if dryRun {
+					logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
+					return nil, nil
+				}
+				return nil, fmt.Errorf("team %s not created", *config.TeamName)
+			}
+			for _, teamID = range teamIDsByName {
+				config.TeamID = &teamID
+			}
+			teamSoftwareInstallers = teamsSoftwareInstallers[*config.TeamName]
+		} else {
+			noTeamSoftwareInstallers, err := c.doGitOpsNoTeamSoftware(config, baseDir, appConfig, logFn, dryRun)
+			if err != nil {
+				return nil, err
+			}
+			teamSoftwareInstallers = noTeamSoftwareInstallers
+		}
 	}
 
 	err = c.doGitOpsPolicies(config, teamSoftwareInstallers, logFn, dryRun)
@@ -1484,19 +1502,23 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 
-	err = c.doGitOpsQueries(config, logFn, dryRun)
-	if err != nil {
-		return nil, err
+	// We currently don't support queries for "No team" thus
+	// we just do GitOps for queries for global and team files.
+	if !config.IsNoTeam() {
+		err = c.doGitOpsQueries(config, logFn, dryRun)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return teamAssumptions, nil
 }
 
-func (c *Client) doGitOpsNoTeamSoftware(specs spec.Group, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) ([]fleet.SoftwareInstaller, error) {
-	var softwareInstallers []fleet.SoftwareInstaller
-	if len(specs.Teams) == 0 && appconfig != nil && appconfig.License.IsPremium() {
-		packages := make([]fleet.SoftwarePackageSpec, 0, len(specs.Software))
-		for _, software := range specs.Software {
+func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+	var softwareInstallers []fleet.SoftwarePackageResponse
+	if config.IsNoTeam() && appconfig != nil && appconfig.License.IsPremium() {
+		packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
+		for _, software := range config.Software.Packages {
 			if software != nil {
 				packages = append(packages, *software)
 			}
@@ -1505,33 +1527,41 @@ func (c *Client) doGitOpsNoTeamSoftware(specs spec.Group, baseDir string, appcon
 		if err != nil {
 			return nil, fmt.Errorf("applying software installers: %w", err)
 		}
+		logFn("[+] applying %d software packages for 'No team'\n", len(payload))
 		softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun})
 		if err != nil {
 			return nil, fmt.Errorf("applying software installers: %w", err)
 		}
 
 		if dryRun {
-			logFn("[+] would've applied 'No Team' software installers\n")
+			logFn("[+] would've applied 'No Team' software packages\n")
 		} else {
-			logFn("[+] applied 'No Team' software installers\n")
+			logFn("[+] applied 'No Team' software packages\n")
 		}
 	}
 	return softwareInstallers, nil
 }
 
-func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwareInstaller, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
+	var teamID *uint // Global policies (nil)
+	switch {
+	case config.TeamID != nil: // Team policies
+		teamID = config.TeamID
+	case config.IsNoTeam(): // "No team" policies
+		teamID = ptr.Uint(0)
+	}
 	// Get software titles of packages for the team.
-	if config.TeamID != nil {
+	if teamID != nil {
 		softwareTitleURLs := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
-			if softwareInstaller.URL == "" {
-				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
-				logFn("[!] software installer without url: %s\n", softwareInstaller.Name)
-				continue
-			}
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
-				logFn("[!] software installer without title id: %s\n", softwareInstaller.Name)
+				logFn("[!] software installer without title id: team_id=%d, url=%s\n", *teamID, softwareInstaller.URL)
+				continue
+			}
+			if softwareInstaller.URL == "" {
+				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
+				logFn("[!] software installer without url: team_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue
 			}
 			softwareTitleURLs[softwareInstaller.URL] = *softwareInstaller.TitleID
@@ -1555,7 +1585,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 	}
 
 	// Get the ids and names of current policies to figure out which ones to delete
-	policies, err := c.GetPolicies(config.TeamID)
+	policies, err := c.GetPolicies(teamID)
 	if err != nil {
 		return fmt.Errorf("error getting current policies: %w", err)
 	}
@@ -1595,7 +1625,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 		if !found {
 			policiesToDelete = append(policiesToDelete, oldItem.ID)
-			fmt.Printf("[-] deleting policy %s\n", oldItem.Name)
+			if !dryRun {
+				logFn("[-] deleting policy %s\n", oldItem.Name)
+			} else {
+				logFn("[-] would've deleted policy %s\n", oldItem.Name)
+			}
 		}
 	}
 	if len(policiesToDelete) > 0 {
@@ -1608,7 +1642,16 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					end = len(policiesToDelete)
 				}
 				totalDeleted += end - i
-				if err := c.DeletePolicies(config.TeamID, policiesToDelete[i:end]); err != nil {
+				var teamID *uint
+				switch {
+				case config.TeamID != nil: // Team policies
+					teamID = config.TeamID
+				case config.IsNoTeam(): // No team policies
+					teamID = ptr.Uint(fleet.PolicyNoTeamID)
+				default: // Global policies
+					teamID = nil
+				}
+				if err := c.DeletePolicies(teamID, policiesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting policies: %w", err)
 				}
 				logFn("[-] deleted %d policies\n", totalDeleted)

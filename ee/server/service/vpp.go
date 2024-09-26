@@ -149,8 +149,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
 				}
 			}
-		}
 
+		}
 		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
@@ -375,7 +375,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform, then to whether it's available as self-service.
-	var adamIDMap = make(map[string]map[fleet.AppleDevicePlatform]bool)
+	adamIDMap := make(map[string]map[fleet.AppleDevicePlatform]bool)
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
 			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]bool, 1)

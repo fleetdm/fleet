@@ -801,6 +801,17 @@ const (
 	NullTeamNoTeam NullTeamType = "noteam"
 )
 
+func (n NullTeamType) PrettyName() string {
+	switch n {
+	case NullTeamAllTeams:
+		return ReservedNameAllTeams
+	case NullTeamNoTeam:
+		return ReservedNameNoTeam
+	default:
+		return string(n)
+	}
+}
+
 type AppleDevice int
 
 const (
