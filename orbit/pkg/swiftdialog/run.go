@@ -17,6 +17,7 @@ import (
 var CommandFilePerms = fs.FileMode(0666)
 
 var ErrKilled = errors.New("process killed")
+var ErrWindowClosed = errors.New("window closed")
 
 type SwiftDialog struct {
 	cancel      context.CancelCauseFunc
@@ -104,7 +105,7 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 			}
 		}
 		close(sd.done)
-		cancel(nil)
+		cancel(ErrWindowClosed)
 	}()
 
 	return sd, nil
@@ -161,7 +162,7 @@ func (s *SwiftDialog) Wait() (*SwiftDialogExit, error) {
 
 func (s *SwiftDialog) sendCommand(command, arg string) error {
 	if err := s.context.Err(); err != nil {
-		return fmt.Errorf("could not send command: %w", err)
+		return fmt.Errorf("could not send command: %w", context.Cause(s.context))
 	}
 	// For some reason swiftDialog needs us to open and close the file
 	// to detect a new command, just writing to the file doesn't cause
