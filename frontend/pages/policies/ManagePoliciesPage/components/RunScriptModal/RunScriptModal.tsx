@@ -18,12 +18,12 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-// TODO - uncomment once link destination confirmed
-// import CustomLink from "components/CustomLink";
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-const baseClass = "run-script-modal";
+// name avoids class name conflicts with hosts/details/HostDetailsPage/modals/RunScriptModal
+const baseClass = "policy-run-script-modal";
 
 interface IScriptDropdownField {
   name: string;
@@ -199,12 +199,12 @@ const RunScriptModal = ({
           </ul>
           <span className="form-field__help-text">
             Selected script will be run when hosts fail the chosen policy.{" "}
-            {/* TODO - uncomment when link confirmed
+            {/* TODO - confirm link destination */}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-run-script"
               text="Learn more"
               newTab
-            /> */}
+            />
           </span>
         </div>
         <div className="modal-cta-wrap">

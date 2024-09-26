@@ -617,9 +617,8 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // TODO - confirm below behavior:
-            // "script_id" null will unset software install for the policy
-            // "script_id": X will set the value to the given integer
+            // "script_id" null will unset running a script for the policy
+            // "script_id": X will sets script X to run when the policy fails
             script_id: changedPolicy.scriptIdToRun || null,
             team_id: teamIdForApi,
           });
