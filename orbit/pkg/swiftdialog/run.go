@@ -16,8 +16,10 @@ import (
 // https://github.com/swiftDialog/swiftDialog/wiki/Gotchas
 var CommandFilePerms = fs.FileMode(0666)
 
+var ErrKilled = errors.New("process killed")
+
 type SwiftDialog struct {
-	cancel      context.CancelFunc
+	cancel      context.CancelCauseFunc
 	cmd         *exec.Cmd
 	commandFile *os.File
 	context     context.Context
@@ -57,12 +59,12 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 
 	if err := commandFile.Chmod(CommandFilePerms); err != nil {
 		commandFile.Close()
 		os.Remove(commandFile.Name())
-		cancel()
+		cancel(errors.New("could not create command file"))
 		return nil, err
 	}
 
@@ -79,7 +81,7 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 
 	err = cmd.Start()
 	if err != nil {
-		cancel()
+		cancel(errors.New("could not start swiftDialog"))
 		return nil, err
 	}
 
@@ -102,7 +104,7 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 			}
 		}
 		close(sd.done)
-		cancel()
+		cancel(nil)
 	}()
 
 	return sd, nil
@@ -113,7 +115,7 @@ func (s *SwiftDialog) finished() {
 }
 
 func (s *SwiftDialog) Kill() error {
-	s.cancel()
+	s.cancel(ErrKilled)
 	s.finished()
 	if err := s.cleanup(); err != nil {
 		return fmt.Errorf("Close cleaning up after swiftDialog: %w", err)
@@ -123,7 +125,7 @@ func (s *SwiftDialog) Kill() error {
 }
 
 func (s *SwiftDialog) cleanup() error {
-	s.cancel()
+	s.cancel(nil)
 	cmdFileName := s.commandFile.Name()
 	err := s.commandFile.Close()
 	if err != nil {
