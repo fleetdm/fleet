@@ -199,7 +199,6 @@ const RunScriptModal = ({
           </ul>
           <span className="form-field__help-text">
             Selected script will be run when hosts fail the chosen policy.{" "}
-            {/* TODO - confirm link destination */}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-run-script"
               text="Learn more"
