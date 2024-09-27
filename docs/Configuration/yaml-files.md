@@ -319,7 +319,7 @@ The `software` section allows you to configure packages and Apple App Store apps
 Software for hosts that belong to "No team" have to be defined in `teams/no-team.yml`.
 Software can also be specified in separate files in your `lib/` folder.
 
-- `packages` is a list of software packages (.pkg, .msi, .exe, or .deb) and software specific options.
+- `packages` is a list of software packages (.pkg, .msi, .exe, .rpm, or .deb) and software specific options.
 - `app_store_apps` is a list of Apple App Store apps.
 
 #### Example
