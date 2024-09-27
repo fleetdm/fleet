@@ -22,12 +22,11 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-// name avoids class name conflicts with hosts/details/HostDetailsPage/modals/RunScriptModal
 const baseClass = "policy-run-script-modal";
 
 interface IScriptDropdownField {
-  name: string;
-  value: number;
+  name: string; // name of the policy
+  value: number; // id of the selected script to run with the policy
 }
 
 interface IFormPolicy {
@@ -91,11 +90,11 @@ const PolicyRunScriptModal = ({
   }, [formData, onSubmit]);
 
   const onChangeEnableRunScript = useCallback(
-    (newVal: { policyName: string; value: boolean }) => {
-      const { policyName, value } = newVal;
+    (newVal: { policyId: number; value: boolean }) => {
+      const { policyId, value } = newVal;
       setFormData(
         formData.map((policy) => {
-          if (policy.name === policyName) {
+          if (policy.id === policyId) {
             return {
               ...policy,
               runScriptEnabled: value,
@@ -148,7 +147,7 @@ const PolicyRunScriptModal = ({
           name={policyName}
           onChange={() => {
             onChangeEnableRunScript({
-              policyName,
+              policyId,
               value: !enabled,
             });
           }}
