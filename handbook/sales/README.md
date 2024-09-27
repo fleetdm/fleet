@@ -151,7 +151,7 @@ When we have had sufficient meetings and demos, including an overview demo and a
 
 The AE and SC will work together to scope the POV with the prospect in this stage. The AE and SC will work together to answer the following questions:
 
-1. Do we have a well-defined set of technical criteria to test?
+1. Do we have a well-defined set of technical criteria to test and do we confident that Fleet can meet this criteria to achieve a technical win?
 2. Do we have a timeline agreed upon?
 3. What are the key business outcomes that will be verified as a result of completing the tech eval?
 
