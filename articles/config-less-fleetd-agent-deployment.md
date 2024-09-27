@@ -68,7 +68,7 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
     <key>PayloadVersion</key>
     <integer>1</integer>
     <key>PayloadDescription</key>
-    <string>configuration for the fleetd agent.</string>
+    <string>Configuration for the fleetd agent.</string>
   </dict>
 </plist>
 ```
