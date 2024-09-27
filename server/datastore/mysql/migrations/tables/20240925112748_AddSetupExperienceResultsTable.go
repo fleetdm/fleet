@@ -36,6 +36,20 @@ CREATE TABLE setup_experience_scripts (
 		return fmt.Errorf("failed to create setup_experience_scripts table: %w", err)
 	}
 
+	_, err = tx.Exec(`ALTER TABLE host_script_results ADD setup_experience_script_id INT UNSIGNED DEFAULT NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add setup_experience_scripts_id key to host_script_results: %w", err)
+	}
+
+	_, err = tx.Exec(`
+ALTER TABLE host_script_results
+	ADD CONSTRAINT fk_host_script_results_setup_experience_id
+	FOREIGN KEY (setup_experience_script_id)
+	REFERENCES setup_experience_scripts (id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add foreign key constraint for host_script_resutls setup_experience column: %w", err)
+	}
+
 	_, err = tx.Exec(`
 CREATE TABLE setup_experience_status_results (
 	id		INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,

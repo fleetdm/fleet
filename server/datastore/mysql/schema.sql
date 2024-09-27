@@ -498,7 +498,7 @@ CREATE TABLE `host_script_results` (
   `script_content_id` int unsigned DEFAULT NULL,
   `host_deleted_at` timestamp NULL DEFAULT NULL,
   `timeout` int DEFAULT NULL,
-  `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
+  `setup_experience_script_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
   KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`),
@@ -506,7 +506,9 @@ CREATE TABLE `host_script_results` (
   KEY `idx_host_script_created_at` (`host_id`,`script_id`,`created_at`),
   KEY `fk_host_script_results_user_id` (`user_id`),
   KEY `script_content_id` (`script_content_id`),
+  KEY `fk_host_script_results_setup_experience_id` (`setup_experience_script_id`),
   CONSTRAINT `fk_host_script_results_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_host_script_results_setup_experience_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_script_results_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `host_script_results_ibfk_1` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
