@@ -2681,10 +2681,55 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         }
       ],
       "users": [
-        // TODO
+        {
+          "uid": 0,
+          "username": "root",
+          "type": "",
+          "groupname": "root",
+          "shell": "/bin/bash"
+        },
+        {
+          "uid": 1,
+          "username": "bin",
+          "type": "",
+          "groupname": "bin",
+          "shell": "/sbin/nologin"
+        }
       ],
       "labels": [
-        // TODO
+        {
+          "created_at": "2021-08-19T02:02:17Z",
+          "updated_at": "2021-08-19T02:02:17Z",
+          "id": 6,
+          "name": "All Hosts",
+          "description": "All hosts which have enrolled in Fleet",
+          "query": "SELECT 1;",
+          "platform": "",
+          "label_type": "builtin",
+          "label_membership_type": "dynamic"
+        },
+        {
+          "created_at": "2021-08-19T02:02:17Z",
+          "updated_at": "2021-08-19T02:02:17Z",
+          "id": 9,
+          "name": "CentOS Linux",
+          "description": "All CentOS hosts",
+          "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+          "platform": "",
+          "label_type": "builtin",
+          "label_membership_type": "dynamic"
+        },
+        {
+          "created_at": "2021-08-19T02:02:17Z",
+          "updated_at": "2021-08-19T02:02:17Z",
+          "id": 12,
+          "name": "All Linux",
+          "description": "All Linux distributions",
+          "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+          "platform": "",
+          "label_type": "builtin",
+          "label_membership_type": "dynamic"
+        }
       ]
     }
   ]
