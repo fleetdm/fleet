@@ -52,8 +52,8 @@ import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 import InstallSoftwareModal from "./components/InstallSoftwareModal";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
-import RunScriptModal from "./components/RunScriptModal";
-import { IPolicyRunScriptFormData } from "./components/RunScriptModal/RunScriptModal";
+import PolicyRunScriptModal from "./components/PolicyRunScriptModal";
+import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -138,7 +138,9 @@ const ManagePolicyPage = ({
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
     false
   );
-  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
+  const [showPolicyRunScriptModal, setShowPolicyRunScriptModal] = useState(
+    false
+  );
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
   const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [
@@ -467,8 +469,8 @@ const ManagePolicyPage = ({
     setShowInstallSoftwareModal(!showInstallSoftwareModal);
   };
 
-  const toggleRunScriptModal = () => {
-    setShowRunScriptModal(!showRunScriptModal);
+  const togglePolicyRunScriptModal = () => {
+    setShowPolicyRunScriptModal(!showPolicyRunScriptModal);
   };
 
   const toggleCalendarEventsModal = () => {
@@ -484,7 +486,7 @@ const ManagePolicyPage = ({
         toggleInstallSoftwareModal();
         break;
       case "run_script":
-        toggleRunScriptModal();
+        togglePolicyRunScriptModal();
         break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
@@ -623,7 +625,7 @@ const ManagePolicyPage = ({
         "Could not update policy automations. Please try again."
       );
     } finally {
-      toggleRunScriptModal();
+      togglePolicyRunScriptModal();
       setIsUpdatingPolicies(false);
     }
   };
@@ -1037,9 +1039,9 @@ const ManagePolicyPage = ({
             teamId={currentTeamId ?? 0}
           />
         )}
-        {showRunScriptModal && (
-          <RunScriptModal
-            onExit={toggleRunScriptModal}
+        {showPolicyRunScriptModal && (
+          <PolicyRunScriptModal
+            onExit={togglePolicyRunScriptModal}
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}

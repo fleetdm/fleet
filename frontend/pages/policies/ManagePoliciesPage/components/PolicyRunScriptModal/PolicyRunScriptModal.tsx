@@ -39,7 +39,7 @@ interface IFormPolicy {
 
 export type IPolicyRunScriptFormData = IFormPolicy[];
 
-interface IRunScriptModal {
+interface IPolicyRunScriptModal {
   onExit: () => void;
   onSubmit: (formData: IPolicyRunScriptFormData) => void;
   isUpdating: boolean;
@@ -47,13 +47,13 @@ interface IRunScriptModal {
   teamId: number;
 }
 
-const RunScriptModal = ({
+const PolicyRunScriptModal = ({
   onExit,
   onSubmit,
   isUpdating,
   policies,
   teamId,
-}: IRunScriptModal) => {
+}: IPolicyRunScriptModal) => {
   const [formData, setFormData] = useState<IPolicyRunScriptFormData>(
     policies.map((policy) => ({
       name: policy.name,
@@ -243,4 +243,4 @@ const RunScriptModal = ({
   );
 };
 
-export default RunScriptModal;
+export default PolicyRunScriptModal;
