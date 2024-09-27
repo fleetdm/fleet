@@ -3405,7 +3405,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/batch/{request_uuid}`
+`GET /api/v1/fleet/software/batch/:request_uuid`
 
 This endpoint allows querying the status of a batch-apply software request (`POST /api/v1/fleet/software/batch`).
 Returns `"status"` field that can be one of `"processing"`, `"complete"` or `"failed"`.
