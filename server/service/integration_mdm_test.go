@@ -8816,7 +8816,9 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	cmd, err := mdmClient.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
-	require.Equal(t, "DeviceLock", cmd.Command.RequestType)
+	require.Eventually(t, func() bool {
+		return cmd.Command.RequestType == "DeviceLock"
+	}, 1*time.Minute, 2*time.Second)
 	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 
