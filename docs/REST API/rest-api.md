@@ -2512,6 +2512,8 @@ the `software` table.
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
+| populate_users     | boolean | query | If `true`, the response will include user data for each host. |
+| populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -2531,7 +2533,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
 
 ##### Request query parameters
 
@@ -2677,6 +2679,12 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "response": "fail",
           "critical": false
         }
+      ],
+      "users": [
+        // TODO
+      ],
+      "labels": [
+        // TODO
       ]
     }
   ]
