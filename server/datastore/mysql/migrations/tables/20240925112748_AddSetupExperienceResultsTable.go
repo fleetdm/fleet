@@ -62,8 +62,8 @@ CREATE TABLE setup_experience_status_results (
 	-- VPP app install reference
 	nano_command_uuid VARCHAR(255) COLLATE utf8mb4_unicode_ci,
 	-- Script execution reference
-	script_execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-	error 		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+	script_execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+	error 		VARCHAR(255) COLLATE utf8mb4_unicode_ci,
 
 	PRIMARY KEY (id),
 
