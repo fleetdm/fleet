@@ -1,4 +1,4 @@
-name: Update Osquery Versions
+name: Update Osquery versions in UI
 
 on:
   schedule:
@@ -19,13 +19,13 @@ jobs:
           python-version: "3.x"
       - name: Install dependencies
         run: pip install requests
-      - name: Update Osquery Versions
+      - name: Update Osquery versions in UI
         run: python .github/scripts/update_osquery_versions.py
-      - name: Create Pull Request
+      - name: PR changes
         uses: peter-evans/create-pull-request@v5
         with:
           commit-message: Update MIN_OSQUERY_VERSION_OPTIONS
-          title: Update Osquery Version Options
+          title: Update osquery version options in UI
           body: Automatically updated MIN_OSQUERY_VERSION_OPTIONS with new osquery releases.
           branch: update-osquery-versions
           delete-branch: true
