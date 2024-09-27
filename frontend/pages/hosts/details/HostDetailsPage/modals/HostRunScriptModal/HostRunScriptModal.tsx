@@ -26,9 +26,9 @@ import TableContainer, {
 
 import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 
-const baseClass = "run-script-modal";
+const baseClass = "host-run-script-modal";
 
-interface IScriptsProps {
+interface IHostRunScriptModalProps {
   currentUser: IUser | null;
   host: IHost;
   setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
@@ -37,12 +37,12 @@ interface IScriptsProps {
 
 const EmptyComponent = () => <></>;
 
-const RunScriptModal = ({
+const HostRunScriptModal = ({
   currentUser,
   host,
   setScriptDetailsId,
   onClose,
-}: IScriptsProps) => {
+}: IHostRunScriptModalProps) => {
   const [page, setPage] = useState<number>(0);
   const [runScriptRequested, setRunScriptRequested] = useState(false);
 
@@ -169,4 +169,4 @@ const RunScriptModal = ({
   );
 };
 
-export default React.memo(RunScriptModal);
+export default React.memo(HostRunScriptModal);
