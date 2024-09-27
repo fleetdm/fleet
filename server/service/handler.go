@@ -1165,7 +1165,6 @@ func registerMDM(
 
 	mdmService = certauth.New(mdmService, mdmStorage)
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
-	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
