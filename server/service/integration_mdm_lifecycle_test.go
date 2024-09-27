@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -805,6 +806,9 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
 	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return cmd == nil
+	}, 1*time.Minute, 2*time.Second)
 	require.Nil(t, cmd)
 
 	cmd, err = automaticEnrolledDevice.Idle()
