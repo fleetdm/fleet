@@ -9194,7 +9194,7 @@ Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (U
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | automatic_install | boolean | form | Software will be automatically installed on each host. |
-| automatic_install_query  | string | form | Software is installed if the query doesn't return results. If not specified Fleet runs default query. |
+| automatic_install_query  | string | form | Software is installed if the query doesn't return results. If not specified, Fleet runs default query. |
 
 
 #### Example
