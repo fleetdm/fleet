@@ -176,8 +176,9 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	insertArgs := []any{payload.Title, payload.Source}
 
 	if payload.BundleIdentifier != "" {
-		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
-		selectArgs = []any{payload.BundleIdentifier}
+		// match by bundle identifier first, or standard matching if we don't have a bundle identifier match
+		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? OR (name = ? AND source = ? AND browser = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
+		selectArgs = []any{payload.BundleIdentifier, payload.Title, payload.Source, payload.BundleIdentifier}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)
 	}
