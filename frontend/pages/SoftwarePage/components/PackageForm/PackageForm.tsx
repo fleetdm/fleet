@@ -58,7 +58,7 @@ interface IPackageFormProps {
   defaultSelfService?: boolean;
 }
 
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
 
 const PackageForm = ({
   isUploading,
@@ -173,7 +173,7 @@ const PackageForm = ({
             canEdit={isEditingSoftware}
             graphicName={"file-pkg"}
             accept={ACCEPTED_EXTENSIONS}
-            message=".pkg, .msi, .exe, or .deb"
+            message=".pkg, .msi, .exe, .deb or .rpm"
             onFileUpload={onFileSelect}
             buttonMessage="Choose file"
             buttonType="link"
