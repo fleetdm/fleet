@@ -44,6 +44,18 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
         <key>PayloadVersion</key>
         <integer>1</integer>
       </dict>
+      <dict>
+        <key>EndUserEmail</key>
+        <string>END_USER_EMAIL_HERE</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+        <key>PayloadType</key>
+			  <string>com.apple.mdm</string>
+			  <key>PayloadUUID</key>
+			  <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
     </array>
     <key>PayloadDisplayName</key>
     <string>Fleetd configuration</string>
@@ -56,11 +68,38 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
     <key>PayloadVersion</key>
     <integer>1</integer>
     <key>PayloadDescription</key>
-    <string>Default configuration for the fleetd agent.</string>
+    <string>configuration for the fleetd agent.</string>
   </dict>
 </plist>
 ```
 
+Also, you can optionally, specify the `END_USER_EMAIL` that will be added to the host's [human-device mapping](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <array>
+      ...
+      <dict>
+        <key>EndUserEmail</key>
+        <string>END_USER_EMAIL</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+        <key>PayloadType</key>
+			  <string>com.apple.mdm</string>
+			  <key>PayloadUUID</key>
+			  <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
+    </array>
+    ...
+  </dict>
+</plist>
+```
 
 ## For Windows:
 
