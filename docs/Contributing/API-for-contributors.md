@@ -549,7 +549,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
-- [Get an over the air (OTA) enrollment profile](#get-an-over-the-air-ota-enrollment-profile)
 
 
 ### Generate Apple Business Manager public key (ADE)
