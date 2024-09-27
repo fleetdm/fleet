@@ -435,9 +435,21 @@ WHERE
 	return contents, nil
 }
 
+var errDeleteScriptWithAssociatedPolicy = errors.New("Couldn't delete. Policy automation uses this script. Please disable policy automation for this script and try again.")
+
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			// Check if the script is referenced by a policy automation.
+			var count int
+			if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM policies WHERE script_id = ?`, id); err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
+			}
+			if count > 0 {
+				return ctxerr.Wrap(ctx, errDeleteScriptWithAssociatedPolicy, "delete script")
+			}
+		}
 		return ctxerr.Wrap(ctx, err, "delete script")
 	}
 	return nil
