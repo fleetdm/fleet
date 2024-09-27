@@ -537,8 +537,10 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			removeAllMemberships = true
 			removeStats = true
 		}
+		} 
+		// always set script id, unsets if nil. Differs from above SoftwareTitleID logic, which unsets
+		// when the id is 0
 		policy.ScriptID = p.ScriptID
-	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
