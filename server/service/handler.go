@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
 	nanomdm_log "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	nanomdm_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -1145,7 +1144,6 @@ func registerMDM(
 	ddmService nanomdm_service.DeclarativeManagement,
 	logger kitlog.Logger,
 ) error {
-	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
