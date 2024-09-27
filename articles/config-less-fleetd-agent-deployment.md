@@ -50,9 +50,9 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
         <key>PayloadIdentifier</key>
         <string>com.fleetdm.fleet.mdm.apple.mdm</string>
         <key>PayloadType</key>
-			  <string>com.apple.mdm</string>
-			  <key>PayloadUUID</key>
-			  <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+	  <string>com.apple.mdm</string>
+	  <key>PayloadUUID</key>
+	  <string>29713130-1602-4D27-90C9-B822A295E44E</string>
         <key>PayloadVersion</key>
         <integer>1</integer>
       </dict>
