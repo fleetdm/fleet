@@ -16,7 +16,7 @@ func Up_20240829170033(tx *sql.Tx) error {
 ALTER TABLE vpp_apps_teams
 	ADD COLUMN vpp_token_id int(10) UNSIGNED NOT NULL`
 
-	stmtFindToken := `SELECT id FROM vpp_tokens LIMIT 1`
+	stmtFindToken := `SELECT id FROM vpp_tokens LIMIT 1` //nolint:gosec this is not a hardcoded token
 
 	stmtCleanAssociations := `DELETE FROM vpp_apps_teams`
 
