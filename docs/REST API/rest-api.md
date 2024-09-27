@@ -4245,7 +4245,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 Resends a configuration profile for the specified host.
 
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/resend/:profile_uuid`
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
 #### Parameters
 
@@ -4256,7 +4256,7 @@ Resends a configuration profile for the specified host.
 
 #### Example
 
-`POST /api/v1/fleet/hosts/233/configuration_profiles/resend/fc14a20-84a2-42d8-9257-a425f62bb54d`
+`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
 
 ##### Default response
 
