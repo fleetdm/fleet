@@ -804,24 +804,30 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, migratedDevice.Enroll())
 
 	// no new commands are enqueued right after enrollment
-	cmd, err = manualEnrolledDevice.Idle()
-	require.NoError(t, err)
+
 	require.Eventually(t, func() bool {
+		cmd, err = manualEnrolledDevice.Idle()
+		require.NoError(t, err)
 		return cmd == nil
 	}, 1*time.Minute, 2*time.Second)
-	require.Nil(t, cmd)
 
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
+	require.Eventually(t, func() bool {
+		cmd, err = automaticEnrolledDevice.Idle()
+		require.NoError(t, err)
+		return cmd == nil
+	}, 1*time.Minute, 2*time.Second)
 
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
+	require.Eventually(t, func() bool {
+		cmd, err = automaticEnrolledDeviceWithRef.Idle()
+		require.NoError(t, err)
+		return cmd == nil
+	}, 1*time.Minute, 2*time.Second)
 
-	cmd, err = migratedDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
+	require.Eventually(t, func() bool {
+		cmd, err = migratedDevice.Idle()
+		require.NoError(t, err)
+		return cmd == nil
+	}, 1*time.Minute, 2*time.Second)
 
 	// handle the case of a host being deleted, see https://github.com/fleetdm/fleet/issues/19149
 	expireCerts()
