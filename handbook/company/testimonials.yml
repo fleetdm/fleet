@@ -180,3 +180,11 @@
   quoteAuthorProfileImageFilename: testimonial-author-eric-tan-99x99@2x.png
   quoteAuthorJobTitle: CIO & Chief Security Officer at Flock Safety
   productCategories: [Device management, Endpoint operations]
+-
+  quote: We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
+  quoteImageFilename: social-proof-logo-stripe-67x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/scottmacvicar_fleet-expands-its-gitops-focused-device-management-activity-7245288577876566017-vAHG?utm_source=share&utm_medium=member_desktop
+  quoteAuthorName: Scott MacVicar
+  quoteAuthorProfileImageFilename: https://media.licdn.com/dms/image/v2/D5603AQH3HL003iHApA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1704926725596?e=1732752000&v=beta&t=ILjSl-bpCBC8UmzX4-SrP35KRoJ89TyGRPH3oVgWv4A # todo
+  quoteAuthorJobTitle: Head of Developer Infrastructure & Corporate Technology
+  productCategories: [Device management, Endpoint operations]
