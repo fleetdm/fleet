@@ -202,7 +202,8 @@ const RunScriptModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected script will be run when hosts fail the chosen policy.{" "}
+            Selected script will run when hosts fail the policy. Host counts
+            will reset when a new script is selected.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-run-script"
               text="Learn more"

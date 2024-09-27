@@ -233,8 +233,10 @@ const InstallSoftwareModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected software will be installed when hosts fail the chosen
-            policy.{" "}
+            Selected software will be installed when hosts fail the policy. Host
+            counts will reset when a new software is
+            <br />
+            selected.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
               text="Learn more"
