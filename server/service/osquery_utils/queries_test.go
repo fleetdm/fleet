@@ -984,7 +984,8 @@ func TestDirectIngestBattery(t *testing.T) {
 	}
 
 	host := fleet.Host{
-		ID: 1,
+		ID:       1,
+		Platform: "darwin",
 	}
 
 	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
@@ -992,6 +993,34 @@ func TestDirectIngestBattery(t *testing.T) {
 		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
 	})
 
+	require.NoError(t, err)
+	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
+
+	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+		require.Equal(t, mappings, []*fleet.HostBattery{
+			{HostID: uint(2), SerialNumber: "a", CycleCount: 2, Health: "Good"},
+			{HostID: uint(2), SerialNumber: "b", CycleCount: 3, Health: "Check Battery"},
+			{HostID: uint(2), SerialNumber: "c", CycleCount: 4, Health: "Unknown"},
+			{HostID: uint(2), SerialNumber: "d", CycleCount: 5, Health: "Unknown"},
+			{HostID: uint(2), SerialNumber: "e", CycleCount: 6, Health: "Unknown"},
+			{HostID: uint(2), SerialNumber: "f", CycleCount: 7, Health: "Unknown"},
+		})
+		return nil
+	}
+
+	host = fleet.Host{
+		ID:       2,
+		Platform: "windows",
+	}
+
+	err = directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2000"}, // max_capacity > 50%
+		{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "1499"}, // max_capacity < 50%
+		{"serial_number": "c", "cycle_count": "4", "designed_capacity": "3000", "max_capacity": ""},     // missing max_capacity
+		{"serial_number": "d", "cycle_count": "5", "designed_capacity": "", "max_capacity": ""},         // missing designed_capacity and max_capacity
+		{"serial_number": "e", "cycle_count": "6", "designed_capacity": "", "max_capacity": "2000"},     // missing designed_capacity
+		{"serial_number": "f", "cycle_count": "7", "designed_capacity": "foo", "max_capacity": "bar"},   // invalid designed_capacity and max_capacity
+	})
 	require.NoError(t, err)
 	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
