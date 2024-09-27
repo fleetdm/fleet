@@ -4,7 +4,7 @@
 
 Deploying Fleet's agent across a diverse range of devices often involves the crucial step of enrolling each device. Traditionally, this involves [packaging](https://fleetdm.com/docs/using-fleet/fleetd#packaging)  `fleetd` with configuration including the enroll secret and server URL. While effective, an alternative offers more flexibility in your deployment process. This guide introduces a different approach for deploying Fleet's agent without embedding configuration settings directly into `fleetd`. Ideal for IT administrators who prefer to generate a single package and maintain greater control over the distribution of enrollment secrets and server URLs, this method simplifies the enrollment process across macOS and Windows hosts.
 
-Emphasizing adaptability and convenience, this approach allows for a more efficient way to manage device enrollments. Let’s dive into how to deploy Fleet's agent using this alternative method, ensuring a more open and flexible deployment process.
+This approach emphasizes adaptability and convenience and allows for a more efficient way to manage device enrollments. Let’s explore how to deploy Fleet's agent using this alternative method, ensuring a more open and flexible deployment process.
 
 
 ## For macOS:
@@ -73,7 +73,7 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
 </plist>
 ```
 
-Also, you can optionally, specify the `END_USER_EMAIL` that will be added to the host's [human-device mapping](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping):
+You can optionally specify the `END_USER_EMAIL` that will be added to the host's [human-device mapping](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
