@@ -60,11 +60,17 @@ To connect Fleet to Apple's VPP, head to the guide [here](https://fleetdm.com/gu
 
 ### Best practice
 
-Most organizations need only one ABM and VPP connection to manage their workstations.
+Most organizations need only one ABM MDM server and one VPP token to manage their devcices and content.
 
-Some organizations, like Managed Service Providers (MSPs) and enterprises that acquire new business, and as a result inherit new workstations, have a need for multupe ABM and VPP connections.
+Some organizations, like:
 
-For MSPs, the best practice is to have one ABM and VPP connection per client. 
+- Managed Service Providers (MSP)
+- enterprises that acquire new business and as a result inherit new devices
+- unbrella organizations that preside over entities with separated purchasing authority (like a hospital or university) 
+
+may have have a need for multupe ABM and VPP connections.
+
+For an MSP, the best practice is to have one ABM and VPP connection per customer. 
 
 The default teams in Fleet for each client's ABM token in Fleet will look like this:
 - macOS: 💻 Client A - Workstations
