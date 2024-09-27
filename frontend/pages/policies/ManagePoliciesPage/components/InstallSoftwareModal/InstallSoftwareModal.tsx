@@ -215,9 +215,10 @@ const InstallSoftwareModal = ({
       return (
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
-          <span>
-            Go to <b>Software</b> to add software to this team.
-          </span>
+          <div>
+            Go to <a href={`/software/titles?team_id=${teamId}`}>Software</a> to
+            add software to this team.
+          </div>
         </div>
       );
     }

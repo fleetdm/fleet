@@ -181,9 +181,13 @@ const RunScriptModal = ({
       return (
         <div className={`${baseClass}__no-scripts`}>
           <b>No scripts available for install</b>
-          <span>
-            Go to <b>Controls &gt; Scripts</b> to add scripts to this team.
-          </span>
+          <div>
+            Go to{" "}
+            <a href={`/controls/scripts?team_id=${teamId}`}>
+              Controls &gt; Scripts
+            </a>{" "}
+            to add scripts to this team.
+          </div>
         </div>
       );
     }
