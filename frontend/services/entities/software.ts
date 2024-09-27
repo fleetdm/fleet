@@ -14,10 +14,6 @@ import {
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import {
-  createMockFleetMaintainedApp,
-  createMockFleetMaintainedAppDetails,
-} from "__mocks__/softwareMock";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 
 export interface ISoftwareApiParams {
@@ -107,6 +103,15 @@ export interface IGetSoftwareVersionQueryKey
 
 export interface ISoftwareInstallTokenResponse {
   token: string;
+}
+
+export interface ISoftwareFleetMaintainedAppsQueryParams {
+  team_id: number;
+  query?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+  page?: number;
+  per_page?: number;
 }
 
 export interface ISoftwareFleetMaintainedAppsResponse {
@@ -318,43 +323,18 @@ export default {
   },
 
   getFleetMaintainedApps: (
-    teamId: number
+    params: ISoftwareFleetMaintainedAppsQueryParams
   ): Promise<ISoftwareFleetMaintainedAppsResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APPS}?team_id=${teamId}`;
-
-    return new Promise((resolve) => {
-      resolve({
-        fleet_maintained_apps: [
-          createMockFleetMaintainedApp({
-            name: "edge",
-          }),
-        ],
-        count: 1,
-        counts_updated_at: "2021-09-01T00:00:00Z",
-        meta: {
-          has_next_results: false,
-          has_previous_results: false,
-        },
-      });
-    });
-
-    // return sendRequest("GET", path);
+    const queryStr = buildQueryStringFromParams(params);
+    const path = `${SOFTWARE_FLEET_MAINTAINED_APPS}?${queryStr}`;
+    return sendRequest("GET", path);
   },
 
   getFleetMainainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
     const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
-
-    return new Promise((resolve) => {
-      resolve({
-        fleet_maintained_app: createMockFleetMaintainedAppDetails({
-          name: "box",
-        }),
-      });
-    });
-
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
   addFleetMaintainedApp: (
