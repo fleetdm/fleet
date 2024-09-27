@@ -3377,7 +3377,7 @@ _Available in Fleet Premium._
 
 `POST /api/v1/fleet/software/batch`
 
-This endpoint is asynchronous, meaning it will start a background process to download and apply the software and return a `request_uuid` in the JSON response that can be used to query the status of the batch-apply (using the `GET /api/v1/fleet/software/batch/{request_uuid}` endpoint defined below).
+This endpoint is asynchronous, meaning it will start a background process to download and apply the software and return a `request_uuid` in the JSON response that can be used to query the status of the batch-apply (using the `GET /api/v1/fleet/software/batch/:request_uuid` endpoint defined below).
 
 #### Parameters
 
