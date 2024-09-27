@@ -167,7 +167,7 @@ type ModifyPolicyPayload struct {
 	// Value 0 will unset the current script from the policy.
 	//
 	// Only applies to team policies.
-	ScriptID *uint `json:"-" premium:"true"`
+	ScriptID *uint `json:"script_id" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
