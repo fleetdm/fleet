@@ -552,7 +552,7 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id:" 0 will unset software install for the policy
+            // "software_title_id": 0 will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).
             software_title_id: changedPolicy.swIdToInstall || 0,
             team_id: teamIdForApi,
@@ -608,9 +608,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "script_id" null will unset running a script for the policy
+            // "script_id": 0 will unset running a script for the policy (a script never has ID 0)
             // "script_id": X will sets script X to run when the policy fails
-            script_id: changedPolicy.scriptIdToRun || null,
+            script_id: changedPolicy.scriptIdToRun || 0,
             team_id: teamIdForApi,
           });
         })
