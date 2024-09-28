@@ -530,17 +530,16 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.SoftwareInstallerID = softwareInstallerID
 	}
 	if p.ScriptID != nil {
+		scriptID := *p.ScriptID
 		// If the associated script is changed (or it's set and the policy didn't have an associated script)
 		// then we clear the results of the policy so that automation can be triggered upon failure
 		// (automation is currently triggered on the first failure or when it goes from passing to failure).
-		if p.ScriptID != nil && (policy.ScriptID == nil || *policy.ScriptID != *p.ScriptID) {
+		if scriptID != 0 && (policy.ScriptID == nil || *policy.ScriptID != scriptID) {
 			removeAllMemberships = true
 			removeStats = true
 		}
-		} 
-		// always set script id, unsets if nil. Differs from above SoftwareTitleID logic, which unsets
-		// when the id is 0
 		policy.ScriptID = p.ScriptID
+	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
