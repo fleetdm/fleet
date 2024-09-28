@@ -49,7 +49,7 @@ func feedName(date time.Time) string {
 }
 
 func (msrc MSRCClient) getURL(date time.Time) (*url.URL, error) {
-	return url.Parse(msrc.baseURL + "/cvrf/v2.0/document/" + feedName(date))
+	return url.Parse(msrc.baseURL + "/cvrf/v3.0/document/" + feedName(date))
 }
 
 // GetFeed downloads the MSRC security feed for 'month' and 'year' into 'workDir', returning the

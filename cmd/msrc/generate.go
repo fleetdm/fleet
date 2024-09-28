@@ -35,13 +35,16 @@ func main() {
 	panicif(err)
 
 	now := time.Now()
-	httpC := fleethttp.NewGithubClient()
 
 	ctx := context.Background()
-	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
-	msrcAPI := msrc.NewMSRCClient(httpC, inPath, msrc.MSRCBaseURL)
 
-	fmt.Println("Downloading existing bulletins...")
+	githubHttp := fleethttp.NewGithubClient()
+	ghAPI := io.NewGitHubClient(githubHttp, github.NewClient(githubHttp).Repositories, wd)
+
+	msrcHttp := fleethttp.NewClient() // don't reuse the GitHub client as it has an OAuth token baked in
+	msrcAPI := msrc.NewMSRCClient(msrcHttp, inPath, msrc.MSRCBaseURL)
+
+	fmt.Println("Downloading existing MSRC bulletins...")
 	eBulletins, err := ghAPI.MSRCBulletins(ctx)
 	panicif(err)
 
@@ -62,7 +65,7 @@ func main() {
 		panicif(err)
 	}
 
-	fmt.Println("Done.")
+	fmt.Println("Done processing MSRC feed.")
 }
 
 // windowsBulletinGracePeriod returns whether we are within the grace period for a MSRC monthly feed to exist.
