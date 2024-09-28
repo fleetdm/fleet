@@ -7202,19 +7202,19 @@ Either `query` or `query_id` must be provided.
 
 #### Parameters
 
-| Name                    | Type    | In   | Description                          |
-|-------------------------| ------- | ---- | ------------------------------------ |
-| team_id                 | integer | path | The team's ID.                       |
-| policy_id               | integer | path | The policy's ID.                     |
-| name                    | string  | body | The query's name.                    |
-| query                   | string  | body | The query in SQL.                    |
-| description             | string  | body | The query's description.             |
-| resolution              | string  | body | The resolution steps for the policy. |
+| Name                    | Type    | In   | Description                                                                                                                                             |
+|-------------------------| ------- | ---- |---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id                 | integer | path | The team's ID.                                                                                                                                          |
+| policy_id               | integer | path | The policy's ID.                                                                                                                                        |
+| name                    | string  | body | The query's name.                                                                                                                                       |
+| query                   | string  | body | The query in SQL.                                                                                                                                       |
+| description             | string  | body | The query's description.                                                                                                                                |
+| resolution              | string  | body | The resolution steps for the policy.                                                                                                                    |
 | platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
-| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
-| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. |
+| critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                      |
+| calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
+| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to 0 to remove the automation.                                   |
+| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to 0 to remove the automation.                                               |
 
 #### Example
 
