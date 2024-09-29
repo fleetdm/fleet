@@ -500,6 +500,8 @@ type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, 
 
 type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
 
+type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error)
+
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
@@ -1810,6 +1812,9 @@ type DataStore struct {
 
 	GetPoliciesWithAssociatedInstallerFunc        GetPoliciesWithAssociatedInstallerFunc
 	GetPoliciesWithAssociatedInstallerFuncInvoked bool
+
+	GetPoliciesWithAssociatedScriptFunc        GetPoliciesWithAssociatedScriptFunc
+	GetPoliciesWithAssociatedScriptFuncInvoked bool
 
 	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
 	GetCalendarPoliciesFuncInvoked bool
@@ -4377,6 +4382,13 @@ func (s *DataStore) GetPoliciesWithAssociatedInstaller(ctx context.Context, team
 	s.GetPoliciesWithAssociatedInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPoliciesWithAssociatedInstallerFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error) {
+	s.mu.Lock()
+	s.GetPoliciesWithAssociatedScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPoliciesWithAssociatedScriptFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
