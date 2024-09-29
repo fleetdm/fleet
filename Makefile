@@ -76,6 +76,8 @@ define HELP_TEXT
 	make generate-dev - Generate and bundle required code in a watch loop
 	make generate-doc - Generate updated API documentation for activities, osquery flags
 
+	make dump-test-schema - update schema.sql from current migrations
+
     make clean        - Clean all build artifacts
 	make clean-assets - Clean assets only
 
