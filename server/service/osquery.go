@@ -1013,7 +1013,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1840,18 +1840,21 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	hostOrbitNodeKey *string,
+	hostScriptsEnabled *bool,
 	incomingPolicyResults map[uint]*bool,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
-		// We do not want to queue software installations on vanilla osquery hosts.
-		return nil
+		return nil // vanilla osquery hosts can't run scripts
 	}
 
-	// TODO skip if scripts are globally disabled
-	// TODO skip if scripts are disabled for this host
-	// TODO skip if script team doesn't match
-	// TODO skip if too many scripts are queued
-	// TODO validate script contents
+	// Bail if scripts are disabled globally
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.ServerSettings.ScriptsDisabled {
+		return nil
+	}
 
 	var policyTeamID uint
 	if hostTeamID == nil {
@@ -1935,6 +1938,21 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
+		// skip hosts with scripts disabled; skipping here so we log this case (vs. skipping non-orbit hosts earlier)
+		if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+			level.Debug(logger).Log("msg", "scripts are disabled for host")
+			return nil
+		}
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host pending script executions")
+		}
+		if len(allScriptsExecutionPending) > maxPendingScripts {
+			level.Debug(logger).Log("msg", "too many scripts pending for host")
+			return nil
+		}
+
+		// skip incompatible scripts
 		hostPlatform := fleet.PlatformFromHost(hostPlatform)
 		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
 			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
@@ -1942,28 +1960,51 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			continue
 		}
 
-		// TODO skip script request when there's a pending execution for the same script
+		// skip different-team scripts
+		var scriptTeamID uint
+		if scriptMetadata.TeamID != nil {
+			scriptTeamID = *scriptMetadata.TeamID
+		}
+		if policyTeamID != scriptTeamID {
+			level.Debug(logger).Log("msg", "script team does not match host team")
+			continue
+		}
 
-		// TODO start replacing with script queue call
+		thisScriptExecutionPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
+		}
+		if len(thisScriptExecutionPending) > 0 {
+			level.Debug(logger).Log("msg", "script is already pending on host")
+			continue
+		}
 
-		/*installUUID, err := svc.ds.InsertSoftwareInstallRequest(
-			ctx, hostID,
-			scriptMetadata.InstallerID,
-			false, // Set Self-service as false because this is triggered by Fleet.
-		)
+		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script contents")
+		}
+		runScriptRequest := fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  string(contents),
+			ScriptContentID: scriptMetadata.ScriptContentID,
+			TeamID:          policyTeamID,
+			// no user ID as scripts are executed by Fleet
+		}
+
+		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
-				"insert software install request: host_id=%d, software_installer_id=%d",
-				hostID, scriptMetadata.InstallerID,
+				"insert script run request; host_id=%d, script_id=%d",
+				hostID, scriptMetadata.ID,
 			)
 		}
-		level.Debug(logger).Log(
-			"msg", "install request sent",
-			"install_uuid", installUUID,
-		)*/
 
-		// TODO end of queue call to replace
+		level.Debug(logger).Log(
+			"msg", "script run request sent",
+			"execution_id", scriptResult.ExecutionID,
+		)
 	}
+
 	return nil
 }
 
