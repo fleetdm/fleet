@@ -144,6 +144,13 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	if p.TeamID == nil && p.ScriptID != nil {
 		return ctxerr.Wrap(ctx, errScriptIDOnGlobalPolicy, "save policy")
 	}
+
+	if p.TeamID != nil {
+		if err := assertTeamMatches(ctx, *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "save policy")
+		}
+	}
+
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	sql := `
@@ -168,6 +175,18 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	return cleanupPolicy(
 		ctx, ds.reader(ctx), ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
 	)
+}
+
+func assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
+	if softwareInstallerID != nil {
+		// TODO fail if wrong team
+	}
+
+	if scriptID != nil {
+		// TODO fail if wrong team
+	}
+
+	return nil
 }
 
 func cleanupPolicy(
@@ -613,7 +632,10 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
-	// TODO validate that script and installer IDs are for the same team as the policy
+	if err := assertTeamMatches(ctx, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create team policy")
+	}
+
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
