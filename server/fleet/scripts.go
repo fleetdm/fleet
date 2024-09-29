@@ -43,7 +43,7 @@ func (s *Script) ValidateNewScript() error {
 		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
-	// validate the script contents as if it were alreay a saved script
+	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
 	}

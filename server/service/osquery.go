@@ -1013,6 +1013,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1826,6 +1830,139 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			"msg", "install request sent",
 			"install_uuid", installUUID,
 		)
+	}
+	return nil
+}
+
+func (svc *Service) processScriptsForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// We do not want to queue software installations on vanilla osquery hosts.
+		return nil
+	}
+
+	// TODO skip if scripts are globally disabled
+	// TODO skip if scripts are disabled for this host
+	// TODO skip if script team doesn't match
+	// TODO skip if too many scripts are queued
+	// TODO validate script contents
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated scripts for the team.
+	policiesWithScript, err := svc.ds.GetPoliciesWithAssociatedScript(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with script")
+	}
+	if len(policiesWithScript) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to installers.
+	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
+	for _, policyWithScript := range policiesWithScript {
+		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
+	}
+	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithScriptsMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithScripts[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithScripts) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with scripts that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithScripts,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
+		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with scripts that are not newly failing.
+	var failingPoliciesWithScript []fleet.PolicyScriptData
+	for _, policyWithScript := range policiesWithScript {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
+		}
+	}
+
+	for _, failingPolicyWithScript := range failingPoliciesWithScript {
+		scriptMetadata, err := svc.ds.Script(ctx, failingPolicyWithScript.ScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", failingPolicyWithScript.ID,
+			"script_id", failingPolicyWithScript.ScriptID,
+			"script_name", scriptMetadata.Name,
+		)
+
+		hostPlatform := fleet.PlatformFromHost(hostPlatform)
+		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
+			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
+			level.Debug(logger).Log("msg", "script type does not match host platform")
+			continue
+		}
+
+		// TODO skip script request when there's a pending execution for the same script
+
+		// TODO start replacing with script queue call
+
+		/*installUUID, err := svc.ds.InsertSoftwareInstallRequest(
+			ctx, hostID,
+			scriptMetadata.InstallerID,
+			false, // Set Self-service as false because this is triggered by Fleet.
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert software install request: host_id=%d, software_installer_id=%d",
+				hostID, scriptMetadata.InstallerID,
+			)
+		}
+		level.Debug(logger).Log(
+			"msg", "install request sent",
+			"install_uuid", installUUID,
+		)*/
+
+		// TODO end of queue call to replace
 	}
 	return nil
 }
