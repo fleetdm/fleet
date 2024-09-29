@@ -1,10 +1,14 @@
 # Single sign-on (SSO)
 
-Fleet supports SSO and just-in-time (JIT) user provisioning using any identity provider (IdP) that supports SAML.
+Any user who can log in to Fleet with a password can log in using SSO.
 
-Fleet supports both service (SP) initiated login and IdP initiated login.
+Fleet supports [Okta](#okta), [Authentik](https://github.com/goauthentik/authentik), [Google Workspace](#google-workspace), and [Microsoft Active Directory (AD) / Entra ID](https://learn.microsoft.com/en-us/entra/architecture/auth-saml), as well as any other identity provider (IdP) that supports the SAML standard.  (Thankfully, this seems to be all of them.)
 
 To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
+
+> Notes:
+> - JIT? SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
+
 
 ## Okta
 
