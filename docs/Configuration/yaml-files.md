@@ -84,13 +84,34 @@ policies:
   platform: darwin
   critical: false
   calendar_event_enabled: false
-- name: Firefox on Linux installed and up to date
+- name: Firefox installed and up to date on Ubuntu
   platform: linux
-  description: "This policy checks that Firefox is installed and up to date."
-  resolution: "Install Firefox version 129.0.2 or higher."
-  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
+  description: "This policy checks that Firefox is installed on Ubuntu and up to date."
+  resolution: "Install Firefox DEB version 129.0.2 or higher."
+  query: |
+    SELECT 1 WHERE EXISTS (
+      -- This will mark the policies as successful on RHEL hosts.
+      -- This is only required if RHEL-based and Debian based system share a team.
+      SELECT 1 FROM os_version WHERE platform = 'rhel'
+    ) OR EXISTS (
+      SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0
+    );
   install_software:
     package_path: "../lib/linux-firefox.deb.package.yml"
+- name: 1Password installed and up to date on RHEL systems
+  platform: linux
+  description: "This policy checks that 1Password RPM is installed and up to date on RHEL-based systems."
+  resolution: "Install 1Password RPM version 8.10.44 or higher."
+  query: |
+    SELECT 1 WHERE EXISTS (
+      -- This will mark the policies as successfull on non-RHEL hosts.
+      -- This is only required if RHEL-based and Debian based system share a team.
+      SELECT 1 FROM os_version WHERE platform != 'rhel'
+    ) OR EXISTS (
+      SELECT 1 FROM rpm_packages WHERE name = '1password' AND version_compare(version, '8.10.44') >= 0
+    );
+  install_software:
+    package_path: "../lib/linux-1password.rpm.package.yml"
 ```
 
 `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
@@ -358,12 +379,16 @@ software:
 
 ##### Separate file
 
-`lib/software-name.package.yml`:
+> The following YAML uses Tailscale installer for Windows as an example.
+
+`lib/tailscale.exe.package.yml`:
 
 ```yaml
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
+# If uninstaller_script is not set, it will use default script defined by Fleet:
+# https://github.com/fleetdm/fleet/blob/main/pkg/file/scripts/uninstall_exe.ps1
 self_service: true
 ```
 
@@ -381,7 +406,7 @@ $installProcess = Start-Process $exeFilePath `
 ```yaml
 software:
   packages:
-    - path: ../lib/software-name.package.yml
+    - path: ../lib/tailscale.exe.package.yml
 # path is relative to default.yml or teams/team-name.yml
 ```
 
