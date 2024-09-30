@@ -1,6 +1,7 @@
 # scep
 
 > The contents of this directory were copied (in February 2024) from https://github.com/fleetdm/scep (the `remove-path-setting-on-scep-handler` branch) which was forked from https://github.com/micromdm/scep.
+> They were updated in September 2024 with changes up to github.com/micromdm/scep@781f8042a79cabcf61a5e6c01affdbadcb785932
 
 [![CI](https://github.com/micromdm/scep/workflows/CI/badge.svg)](https://github.com/micromdm/scep/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/micromdm/scep/v2.svg)](https://pkg.go.dev/github.com/micromdm/scep/v2)
@@ -16,7 +17,7 @@ Binary releases are available on the [releases page](https://github.com/micromdm
 To compile the SCEP client and server you will need [a Go compiler](https://golang.org/dl/) as well as standard tools like git, make, etc.
 
 1. Clone the repository and get into the source directory: `git clone https://github.com/micromdm/scep.git && cd scep`
-2. Compile the client and server binaries: `make`
+2. Compile the client and server binaries: `make` (for Windows: `make win`)
 
 The binaries will be compiled in the current directory and named after the architecture. I.e. `scepclient-linux-amd64` and `scepserver-linux-amd64`.
 
@@ -175,58 +176,6 @@ docker run -it --rm -v /path/to/ca/folder:/depot micromdm/scep:latest ca -init
 
 # run
 docker run -it --rm -v /path/to/ca/folder:/depot -p 8080:8080 micromdm/scep:latest
-```
-
-## SCEP library
-
-The core `scep` library can be used for both client and server operations.
-
-```
-go get github.com/micromdm/scep/scep
-```
-
-For detailed usage, see the [Go Reference](https://pkg.go.dev/github.com/micromdm/scep/v2/scep).
-
-Example (server):
-
-```go
-// read a request body containing SCEP message
-body, err := ioutil.ReadAll(r.Body)
-if err != nil {
-    // handle err
-}
-
-// parse the SCEP message
-msg, err := scep.ParsePKIMessage(body)
-if err != nil {
-    // handle err
-}
-
-// do something with msg
-fmt.Println(msg.MessageType)
-
-// extract encrypted pkiEnvelope
-err := msg.DecryptPKIEnvelope(CAcert, CAkey)
-if err != nil {
-    // handle err
-}
-
-// use the CSR from decrypted PKCS request and sign
-// MyCSRSigner returns an *x509.Certificate here
-crt, err := MyCSRSigner(msg.CSRReqMessage.CSR)
-if err != nil {
-    // handle err
-}
-
-// create a CertRep message from the original
-certRep, err := msg.Success(CAcert, CAkey, crt)
-if err != nil {
-    // handle err
-}
-
-// send response back
-// w is a http.ResponseWriter
-w.Write(certRep.Raw)
 ```
 
 ## Server library

@@ -257,7 +257,7 @@ const PlatformWrapper = ({
             Run this command with the{" "}
             <a
               className={`${baseClass}__command-line-tool`}
-              href="https://fleetdm.com/docs/using-fleet/fleetctl-cli"
+              href="https://fleetdm.com/learn-more-about/fleetctl"
               target="_blank"
               rel="noopener noreferrer"
             >

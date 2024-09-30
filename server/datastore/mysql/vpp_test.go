@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ func TestVPP(t *testing.T) {
 		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 		{"VPPTokensCRUD", testVPPTokensCRUD},
 		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
+		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
 	}
 
 	for _, c := range cases {
@@ -1200,4 +1202,98 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
 	assert.Error(t, err)
+}
+
+func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "Existing Title", Version: "0.0.1", Source: "apps", BundleIdentifier: "existing.title"},
+	}
+	software2 := []fleet.Software{
+		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	tests := []struct {
+		name string
+		app  *fleet.VPPApp
+	}{
+		{
+			name: "title that already exists, no bundle identifier in payload",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title",
+				LatestVersion:    "0.0.1",
+				BundleIdentifier: "",
+			},
+		},
+		{
+			name: "title that already exists, bundle identifier in payload",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title",
+				LatestVersion:    "0.0.2",
+				BundleIdentifier: "existing.title",
+			},
+		},
+		{
+			name: "title that already exists but doesn't have a bundle identifier",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title Without Bundle",
+				LatestVersion:    "0.0.3",
+				BundleIdentifier: "",
+			},
+		},
+		{
+			name: "title that already exists, no bundle identifier in DB, bundle identifier in payload",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title Without Bundle",
+				LatestVersion:    "0.0.3",
+				BundleIdentifier: "new.bundle.id",
+			},
+		},
+		{
+			name: "title that doesn't exist, no bundle identifier in payload",
+			app: &fleet.VPPApp{
+				Name:             "New Title",
+				LatestVersion:    "0.1.0",
+				BundleIdentifier: "",
+			},
+		},
+		{
+			name: "title that doesn't exist, with bundle identifier in payload",
+			app: &fleet.VPPApp{
+				Name:             "New Title",
+				LatestVersion:    "0.1.0",
+				BundleIdentifier: "new.title.bundle",
+			},
+		},
+	}
+
+	for _, platform := range fleet.VPPAppsPlatforms {
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("%s_%v", tt.name, platform), func(t *testing.T) {
+				tt.app.Platform = platform
+				var id uint
+				err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+					var err error
+					id, err = ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, tt.app)
+					return err
+				})
+				require.NoError(t, err)
+				require.NotEmpty(t, id)
+			})
+		}
+	}
 }

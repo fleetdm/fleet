@@ -4,6 +4,7 @@ package download
 import (
 	"compress/bzip2"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,15 +21,23 @@ import (
 const backoffMaxElapsedTime = 5 * time.Minute
 
 // Download downloads a file from a URL and writes it to path.
+//
+// It will retry requests until it succeeds. If the server returns a 404
+// then it will not retry and return a NotFound error.
 func Download(client *http.Client, u *url.URL, path string) error {
 	return download(client, u, path, false)
 }
 
 // DownloadAndExtract downloads and extracts a file from a URL and writes it to path.
 // The compression method is determined using extension from the url path. Only .gz, .bz2, or .xz extensions are supported.
+//
+// It will retry requests until it succeeds. If the server returns a 404
+// then it will not retry and return a NotFound error.
 func DownloadAndExtract(client *http.Client, u *url.URL, path string) error {
 	return download(client, u, path, true)
 }
+
+var NotFound = errors.New("resource not found")
 
 func download(client *http.Client, u *url.URL, path string, extract bool) error {
 	// atomically write to file
@@ -79,7 +88,12 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
+		switch {
+		case resp.StatusCode == http.StatusOK:
+			// OK
+		case resp.StatusCode == http.StatusNotFound:
+			return &backoff.PermanentError{Err: NotFound}
+		default:
 			return fmt.Errorf("unexpected status code %d", resp.StatusCode)
 		}
 

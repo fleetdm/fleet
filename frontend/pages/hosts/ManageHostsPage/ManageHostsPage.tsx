@@ -1430,16 +1430,11 @@ const ManageHostsPage = ({
         ? selectedLabel
         : undefined;
 
-    const statusDropdownClassnames = classNames(
-      `${baseClass}__status_dropdown`,
-      { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
-    );
-
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
           value={status || ""}
-          className={statusDropdownClassnames}
+          className={`${baseClass}__status_dropdown`}
           options={getHostSelectStatuses(isSandboxMode)}
           searchable={false}
           onChange={handleStatusDropdownChange}

@@ -145,7 +145,7 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 ### Generate a trial license key
 
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
-    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
+    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/048474d7199048e1bf0c4fc106632129) (internal video)
     - Pre-sales license key DRI is the Director of Solutions Consulting
     - Post-sales license key DRI is the VP of Customer Success
 
