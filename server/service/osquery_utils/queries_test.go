@@ -279,7 +279,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm_windows",
 		"munki_info",
 		"google_chrome_profiles",
-		"battery",
+		"battery_macos",
+		"battery_windows",
 		"os_windows",
 		"os_unix_like",
 		"os_chrome",
@@ -296,7 +297,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 25)
+	require.Len(t, queriesWithoutWinOSVuln, 26)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
