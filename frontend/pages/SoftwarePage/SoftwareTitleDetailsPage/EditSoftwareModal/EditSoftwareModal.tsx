@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
-import deepDifference from "utilities/deep_difference";
+import { isCancel } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -13,8 +13,11 @@ import softwareAPI, {
 } from "services/entities/software";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import deepDifference from "utilities/deep_difference";
+import { getFileDetails } from "utilities/file/fileUtils";
 
 import CustomLink from "components/CustomLink";
+import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
@@ -55,16 +58,34 @@ const EditSoftwareModal = ({
     installScript: "",
     selfService: false,
   });
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // TODO: This will cancel the request when the component unmounts. Notably when the back
+  // button is clicked, we haven't found a way to showing the native unload prompt. Without this effect,
+  // a long running request would continue in the background. What do we want to happen?
+  const abortRef = React.useRef(new AbortController());
+  useEffect(() => {
+    abortRef.current = new AbortController();
+    return () => {
+      abortRef.current.abort();
+    };
+  }, []);
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
   useEffect(() => {
     setEditSoftwareModalClasses(
       classnames(baseClass, {
-        [`${baseClass}--hidden`]: showConfirmSaveChangesModal,
+        [`${baseClass}--hidden`]:
+          showConfirmSaveChangesModal ||
+          (!!pendingUpdates.software && isUpdatingSoftware),
       })
     );
-  }, [showConfirmSaveChangesModal]);
+  }, [
+    showConfirmSaveChangesModal,
+    pendingUpdates.software,
+    isUpdatingSoftware,
+  ]);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -113,12 +134,17 @@ const EditSoftwareModal = ({
     // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.editSoftwarePackage(
-        formData,
+      abortRef.current = new AbortController();
+      await softwareAPI.editSoftwarePackage({
+        data: formData,
         softwareId,
         teamId,
-        UPLOAD_TIMEOUT
-      );
+        timeout: UPLOAD_TIMEOUT,
+        onUploadProgress: (progressEvent) => {
+          setUploadProgress(progressEvent.progress || 0);
+        },
+        signal: abortRef.current.signal,
+      });
 
       renderFlash(
         "success",
@@ -132,28 +158,31 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      const reason = getErrorReason(e);
-      if (reason.includes("Fleet couldn't read the version from")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}.
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-            />
-          </>
-        );
-      } else if (reason.includes("selected package is")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}
-          </>
-        );
-      } else {
-        renderFlash("error", getErrorMessage(e));
+      // we don't want to show an error if the request is canceled (e.g. user navigates away)
+      if (!isCancel(e)) {
+        const reason = getErrorReason(e);
+        if (reason.includes("Fleet couldn't read the version from")) {
+          renderFlash(
+            "error",
+            <>
+              Couldn&apos;t edit <b>{software.name}</b>. {reason}.
+              <CustomLink
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+                text="Learn more"
+              />
+            </>
+          );
+        } else if (reason.includes("selected package is")) {
+          renderFlash(
+            "error",
+            <>
+              Couldn&apos;t edit <b>{software.name}</b>. {reason}
+            </>
+          );
+        } else {
+          renderFlash("error", getErrorMessage(e));
+        }
       }
     }
     setIsUpdatingSoftware(false);
@@ -175,7 +204,6 @@ const EditSoftwareModal = ({
     const onlySelfServiceUpdated =
       Object.keys(updates).length === 1 && "selfService" in updates;
     if (!onlySelfServiceUpdated) {
-      console.log("non-self-service updates: ", updates);
       // Open the confirm save changes modal
       setShowConfirmSaveChangesModal(true);
     } else {
@@ -200,7 +228,6 @@ const EditSoftwareModal = ({
         <PackageForm
           className={`${baseClass}__package-form`}
           isEditingSoftware
-          isUploading={isUpdatingSoftware}
           onCancel={onExit}
           onSubmit={onEditSoftware}
           defaultSoftware={software}
@@ -216,6 +243,12 @@ const EditSoftwareModal = ({
           onClose={toggleConfirmSaveChangesModal}
           softwarePackageName={software?.name}
           onSaveChanges={onConfirmSoftwareChanges}
+        />
+      )}
+      {!!pendingUpdates.software && isUpdatingSoftware && (
+        <FileProgressModal
+          fileDetails={getFileDetails(pendingUpdates.software)}
+          fileProgress={uploadProgress}
         />
       )}
     </>

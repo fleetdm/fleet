@@ -1,19 +1,22 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
+import { isCancel } from "axios";
 
 import PATHS from "router/paths";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
   UPLOAD_TIMEOUT,
 } from "services/entities/software";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 
 import CustomLink from "components/CustomLink";
-
+import FileProgressModal from "components/FileProgressModal";
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
@@ -35,7 +38,21 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
+    null
+  );
+
+  // TODO: This will cancel the request when the component unmounts. Notably when the back
+  // button is clicked, we haven't found a way to showing the native unload prompt. Without this effect,
+  // a long running request would continue in the background. What do we want to happen?
+  const abortRef = React.useRef(new AbortController());
+  useEffect(() => {
+    abortRef.current = new AbortController();
+    return () => {
+      abortRef.current.abort();
+    };
+  }, []);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -48,7 +65,7 @@ const SoftwareCustomPackage = ({
     };
 
     // set up event listener to prevent user from leaving page while uploading
-    if (isUploading) {
+    if (uploadDetails) {
       addEventListener("beforeunload", beforeUnloadHandler);
       timeout = setTimeout(() => {
         removeEventListener("beforeunload", beforeUnloadHandler);
@@ -62,7 +79,7 @@ const SoftwareCustomPackage = ({
       removeEventListener("beforeunload", beforeUnloadHandler);
       clearTimeout(timeout);
     };
-  }, [isUploading]);
+  }, [uploadDetails]);
 
   const onCancel = () => {
     router.push(
@@ -74,25 +91,37 @@ const SoftwareCustomPackage = ({
 
   const onSubmit = async (formData: IPackageFormData) => {
     console.log("submit", formData);
-    setIsUploading(true);
+    if (!formData.software) {
+      renderFlash(
+        "error",
+        `Couldn't add. Please refresh the page and try again.`
+      );
+      return;
+    }
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
       renderFlash(
         "error",
         `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
       );
-      setIsUploading(false);
       return;
     }
+
+    setUploadDetails(getFileDetails(formData.software));
 
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage(
-        formData,
-        currentTeamId,
-        UPLOAD_TIMEOUT
-      );
+      abortRef.current = new AbortController();
+      await softwareAPI.addSoftwarePackage({
+        data: formData,
+        teamId: currentTeamId,
+        timeout: UPLOAD_TIMEOUT,
+        onUploadProgress: (progressEvent) => {
+          setUploadProgress(progressEvent.progress || 0);
+        },
+        signal: abortRef.current.signal,
+      });
       renderFlash(
         "success",
         <>
@@ -113,27 +142,30 @@ const SoftwareCustomPackage = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
-      const reason = getErrorReason(e);
-      if (
-        reason.includes("Couldn't add. Fleet couldn't read the version from")
-      ) {
-        renderFlash(
-          "error",
-          <>
-            {reason}{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-              iconColor="core-fleet-white"
-            />
-          </>
-        );
-      } else {
-        renderFlash("error", getErrorMessage(e));
+      // we don't want to show an error if the request is canceled (e.g. user navigates away)
+      if (!isCancel(e)) {
+        const reason = getErrorReason(e);
+        if (
+          reason.includes("Couldn't add. Fleet couldn't read the version from")
+        ) {
+          renderFlash(
+            "error",
+            <>
+              {reason}{" "}
+              <CustomLink
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+                text="Learn more"
+                iconColor="core-fleet-white"
+              />
+            </>
+          );
+        } else {
+          renderFlash("error", getErrorMessage(e));
+        }
       }
     }
-    setIsUploading(false);
+    setUploadDetails(null);
   };
 
   return (
@@ -142,10 +174,15 @@ const SoftwareCustomPackage = ({
         showSchemaButton={!isSidePanelOpen}
         onClickShowSchema={() => setSidePanelOpen(true)}
         className={`${baseClass}__package-form`}
-        isUploading={false}
         onCancel={onCancel}
         onSubmit={onSubmit}
       />
+      {uploadDetails && (
+        <FileProgressModal
+          fileDetails={uploadDetails}
+          fileProgress={uploadProgress}
+        />
+      )}
     </div>
   );
 };
