@@ -1009,6 +1009,9 @@ func TestDirectIngestBattery(t *testing.T) {
 		return nil
 	}
 
+	// reset the ds flag
+	ds.ReplaceHostBatteriesFuncInvoked = false
+
 	host = fleet.Host{
 		ID:       2,
 		Platform: "windows",

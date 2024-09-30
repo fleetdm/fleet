@@ -567,7 +567,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Query:            `SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestBattery,
-		Discovery:        discoveryTable("battery"),
+		Discovery:        discoveryTable("battery"), // added to Windows in v5.12.1 (https://github.com/osquery/osquery/releases/tag/5.12.1)
 	},
 	"os_windows": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
@@ -1320,11 +1320,16 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 				Health: fmt.Sprintf("%.40s", row["health"]),
 			})
 		case "windows":
+			health, err := generateWindowsBatteryHealth(row["designed_capacity"], row["max_capacity"])
+			if err != nil {
+				level.Error(logger).Log("op", "directIngestBattery", "hostID", host.ID, "err", err)
+			}
+
 			mapping = append(mapping, &fleet.HostBattery{
 				HostID:       host.ID,
 				SerialNumber: row["serial_number"],
 				CycleCount:   cycleCount,
-				Health:       generateWindowsBatteryHealth(row["designed_capacity"], row["max_capacity"]),
+				Health:       health,
 			})
 		}
 	}
@@ -1338,28 +1343,28 @@ const (
 	batteryDegradedThreshold = 80
 )
 
-func generateWindowsBatteryHealth(designedCapacity, maxCapacity string) string {
+func generateWindowsBatteryHealth(designedCapacity, maxCapacity string) (string, error) {
 	if designedCapacity == "" || maxCapacity == "" {
-		return batteryStatusUnknown
+		return batteryStatusUnknown, fmt.Errorf("missing battery capacity values, designed: %s, max: %s", designedCapacity, maxCapacity)
 	}
 
 	designed, err := strconv.ParseInt(designedCapacity, 10, 64)
 	if err != nil {
-		return batteryStatusUnknown
+		return batteryStatusUnknown, err
 	}
 
 	max, err := strconv.ParseInt(maxCapacity, 10, 64)
 	if err != nil {
-		return batteryStatusUnknown
+		return batteryStatusUnknown, err
 	}
 
 	health := float64(max) / float64(designed) * 100
 
 	if health < batteryDegradedThreshold {
-		return batteryStatusDegraded
+		return batteryStatusDegraded, nil
 	}
 
-	return batteryStatusGood
+	return batteryStatusGood, nil
 }
 
 func directIngestWindowsUpdateHistory(
