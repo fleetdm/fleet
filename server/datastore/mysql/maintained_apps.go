@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -127,6 +128,10 @@ WHERE NOT EXISTS (
 		(va.platform = fla.platform AND vat.team_id = ?)
 	)
 )`
+
+	if opt.MatchQuery != "" {
+		stmt += fmt.Sprintf(`AND (fla.name LIKE '%%%s%%')`, opt.MatchQuery)
+	}
 
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
 
