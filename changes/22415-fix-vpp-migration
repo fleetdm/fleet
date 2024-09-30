@@ -1,0 +1,1 @@
+* Fixed an issue with the migration adding support for multiple VPP tokens that would happen if a token is removed prior to upgrading Fleet.
