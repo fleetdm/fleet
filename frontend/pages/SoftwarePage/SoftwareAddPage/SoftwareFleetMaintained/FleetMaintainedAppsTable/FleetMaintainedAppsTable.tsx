@@ -11,10 +11,25 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 
 const baseClass = "fleet-maintained-apps-table";
+
+const EmptyFleetAppsTable = () => (
+  <EmptyTable
+    graphicName="empty-search-question"
+    header={"No items match the current search criteria"}
+    info={
+      <>
+        Can&apos; find app?{" "}
+        <CustomLink newTab url="" text="File and issue on GitHub" />
+      </>
+    }
+  />
+);
 
 interface IFleetMaintainedAppsTableProps {
   teamId: number;
@@ -143,7 +158,7 @@ const FleetMaintainedAppsTable = ({
       data={data?.fleet_maintained_apps ?? []}
       isLoading={isLoading}
       resultsTitle="items"
-      emptyComponent={() => <>EMPTY STATE TODO</>}
+      emptyComponent={EmptyFleetAppsTable}
       defaultSortHeader={orderKey}
       defaultSortDirection={orderDirection}
       defaultPageIndex={currentPage}
