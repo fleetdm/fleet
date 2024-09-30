@@ -56,15 +56,6 @@ const SoftwareVulnerabilities = ({
     setEmptyStateReason,
   ] = useState<IVulnerabilitiesEmptyStateReason>();
 
-  // isInitialLoad is used to show the Spinner only on the first render.
-  // This prevents the Spinner from flashing on every data refresh,
-  // noticeable when going between search and exact match search deselects search box.
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  useEffect(() => {
-    setIsInitialLoad(false);
-  }, []);
-
   const queryParams = {
     page: currentPage,
     per_page: perPage,
@@ -247,7 +238,10 @@ const SoftwareVulnerabilities = ({
     }
   }, [queryParams.exploit, isExactMatchQuery]);
 
-  if (isInitialLoad && (isLoading || isLoadingExactMatch)) {
+  // !tableData is used to show the Spinner only on the first render.
+  // This prevents the Spinner from flashing on every data refresh, noticable
+  // when going between search and exact match search deselects search box.
+  if (!tableData && (isLoading || isLoadingExactMatch)) {
     return <Spinner />;
   }
 
