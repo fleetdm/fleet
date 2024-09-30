@@ -451,7 +451,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 	filter1 := `
 		WHERE
 			(q.platform = '' OR q.platform IS NULL OR FIND_IN_SET(?, q.platform) != 0)
-			AND q.schedule_interval > 0
+			AND q.is_scheduled = 1
 			AND (q.automations_enabled IS TRUE OR (q.discard_data IS FALSE AND q.logging_type = ?))
 			AND (q.team_id IS NULL OR q.team_id = ?)
 		GROUP BY q.id

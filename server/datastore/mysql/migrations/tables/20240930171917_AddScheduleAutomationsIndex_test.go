@@ -88,7 +88,7 @@ func TestUp_20240930171917(t *testing.T) {
     WHERE (q.platform = ''
         OR q.platform IS NULL
         OR FIND_IN_SET('darwin', q.platform) != 0)
-    AND q.schedule_interval > 0
+    AND q.is_scheduled = 1
     AND(q.automations_enabled IS TRUE
         OR(q.discard_data IS FALSE
             AND q.logging_type = 'snapshot'))

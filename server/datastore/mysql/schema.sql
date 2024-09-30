@@ -1459,12 +1459,13 @@ CREATE TABLE `queries` (
   `automations_enabled` tinyint unsigned NOT NULL DEFAULT '0',
   `logging_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'snapshot',
   `discard_data` tinyint(1) NOT NULL DEFAULT '1',
+  `is_scheduled` tinyint(1) GENERATED ALWAYS AS ((`schedule_interval` > 0)) STORED NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_team_id_name_unq` (`team_id_char`,`name`),
   UNIQUE KEY `idx_name_team_id_unq` (`name`,`team_id_char`),
   KEY `author_id` (`author_id`),
   KEY `idx_team_id_saved_auto_interval` (`team_id`,`saved`,`automations_enabled`,`schedule_interval`),
-  KEY `idx_queries_schedule_automations` (`schedule_interval`,`automations_enabled`),
+  KEY `idx_queries_schedule_automations` (`is_scheduled`,`automations_enabled`),
   CONSTRAINT `queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `queries_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
