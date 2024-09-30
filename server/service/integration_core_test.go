@@ -8310,24 +8310,6 @@ func (s *integrationTestSuite) TestSSODisabled() {
 	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
 }
 
-func (s *integrationTestSuite) TestSandboxEndpoints() {
-	t := s.T()
-	validEmail := testUsers["user1"].Email
-	validPwd := testUsers["user1"].PlaintextPassword
-	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
-
-	// demo login endpoint always fails
-	formBody := make(url.Values)
-	formBody.Set("email", validEmail)
-	formBody.Set("password", validPwd)
-	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
-	require.NotEqual(t, http.StatusOK, res.StatusCode)
-
-	// installers endpoint is not enabled
-	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
-	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
-}
-
 func (s *integrationTestSuite) TestGetHostBatteries() {
 	t := s.T()
 
