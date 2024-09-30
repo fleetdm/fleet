@@ -1123,6 +1123,7 @@ type Service interface {
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error
+	ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows

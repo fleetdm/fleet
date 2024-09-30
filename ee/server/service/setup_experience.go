@@ -19,3 +19,21 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint,
 	return nil
 
 }
+
+func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+		TeamID: &teamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, 0, nil, err
+	}
+
+	// TODO mac only, setup expeience only
+	titles, count, meta, err := svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: opts,
+	})
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "retrieving list of software setup experience titles")
+	}
+
+	return titles, count, meta, nil
+}
