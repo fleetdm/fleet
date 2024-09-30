@@ -2,17 +2,11 @@
     "Type": "com.apple.configuration.passcode.settings",
     "Identifier": "com.fleetdm.config.passcode.settings",
     "Payload": {
-        "RequirePasscode": false,
-        "RequireAlphanumericPasscode": false,
         "RequireComplexPasscode": true,
         "MinimumLength": 10,
         "MinimumComplexCharacters": 1,
         "MaximumFailedAttempts": 11,
-        "FailedAttemptsResetInMinutes": null,
         "MaximumGracePeriodInMinutes": 1,
-        "MaximumInactivityInMinutes": 15,
-        "MaximumPasscodeAgeInDays": null,
-        "PasscodeReuseLimit": null,
-        "ChangeAtNextAuth": false
+        "MaximumInactivityInMinutes": 15
     }
 }
