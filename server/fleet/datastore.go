@@ -1729,7 +1729,7 @@ type Datastore interface {
 
 	////////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
-	SetSetupExperienceSoftwareTitles(ctx context.Contex, teamID uint, softwareTitleIDs []uint)
+	SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, softwareTitleIDs []uint)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
