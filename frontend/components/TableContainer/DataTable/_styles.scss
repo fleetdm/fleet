@@ -208,6 +208,12 @@ $shadow-transition-width: 10px;
         }
       }
 
+      .name__cell {
+        .link-cell {
+          white-space: pre;
+        }
+      }
+      
       td {
         height: 40px;
         padding: 0 $pad-large;
