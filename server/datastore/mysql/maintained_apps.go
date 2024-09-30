@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -129,11 +128,15 @@ WHERE NOT EXISTS (
 	)
 )`
 
-	if opt.MatchQuery != "" {
-		stmt += fmt.Sprintf(`AND (fla.name LIKE '%%%s%%')`, opt.MatchQuery)
+	args := []any{teamID, teamID}
+
+	if match := opt.MatchQuery; match != "" {
+		match = likePattern(match)
+		stmt += ` AND (fla.name LIKE ?)`
+		args = append(args, match)
 	}
 
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
