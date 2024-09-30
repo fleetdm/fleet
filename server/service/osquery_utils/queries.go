@@ -1303,7 +1303,7 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostBattery, 0, len(rows))
 	for _, row := range rows {
-		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		cycleCount, err := strconv.Atoi(EmptyToZero(row["cycle_count"]))
 		if err != nil {
 			return err
 		}
@@ -1313,7 +1313,7 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 			mapping = append(mapping, &fleet.HostBattery{
 				HostID:       host.ID,
 				SerialNumber: row["serial_number"],
-				CycleCount:   int(cycleCount),
+				CycleCount:   cycleCount,
 				// database type is VARCHAR(40) and since there isn't a
 				// canonical list of strings we can get for health, we
 				// truncate the value just in case.
@@ -1323,7 +1323,7 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 			mapping = append(mapping, &fleet.HostBattery{
 				HostID:       host.ID,
 				SerialNumber: row["serial_number"],
-				CycleCount:   int(cycleCount),
+				CycleCount:   cycleCount,
 				Health:       generateWindowsBatteryHealth(row["designed_capacity"], row["max_capacity"]),
 			})
 		}
@@ -1331,28 +1331,35 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
+const (
+	batteryStatusUnknown     = "Unknown"
+	batteryStatusDegraded    = "Check Battery"
+	batteryStatusGood        = "Good"
+	batteryDegradedThreshold = 80
+)
+
 func generateWindowsBatteryHealth(designedCapacity, maxCapacity string) string {
 	if designedCapacity == "" || maxCapacity == "" {
-		return "Unknown"
+		return batteryStatusUnknown
 	}
 
 	designed, err := strconv.ParseInt(designedCapacity, 10, 64)
 	if err != nil {
-		return "Unknown"
+		return batteryStatusUnknown
 	}
 
 	max, err := strconv.ParseInt(maxCapacity, 10, 64)
 	if err != nil {
-		return "Unknown"
+		return batteryStatusUnknown
 	}
 
 	health := float64(max) / float64(designed) * 100
 
-	if health < 50 {
-		return "Check Battery"
+	if health < batteryDegradedThreshold {
+		return batteryStatusDegraded
 	}
 
-	return "Good"
+	return batteryStatusGood
 }
 
 func directIngestWindowsUpdateHistory(

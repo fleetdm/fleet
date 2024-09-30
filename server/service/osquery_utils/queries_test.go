@@ -998,12 +998,12 @@ func TestDirectIngestBattery(t *testing.T) {
 
 	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
 		require.Equal(t, mappings, []*fleet.HostBattery{
-			{HostID: uint(2), SerialNumber: "a", CycleCount: 2, Health: "Good"},
-			{HostID: uint(2), SerialNumber: "b", CycleCount: 3, Health: "Check Battery"},
-			{HostID: uint(2), SerialNumber: "c", CycleCount: 4, Health: "Unknown"},
-			{HostID: uint(2), SerialNumber: "d", CycleCount: 5, Health: "Unknown"},
-			{HostID: uint(2), SerialNumber: "e", CycleCount: 6, Health: "Unknown"},
-			{HostID: uint(2), SerialNumber: "f", CycleCount: 7, Health: "Unknown"},
+			{HostID: uint(2), SerialNumber: "a", CycleCount: 2, Health: batteryStatusGood},
+			{HostID: uint(2), SerialNumber: "b", CycleCount: 3, Health: batteryStatusDegraded},
+			{HostID: uint(2), SerialNumber: "c", CycleCount: 4, Health: batteryStatusUnknown},
+			{HostID: uint(2), SerialNumber: "d", CycleCount: 5, Health: batteryStatusUnknown},
+			{HostID: uint(2), SerialNumber: "e", CycleCount: 6, Health: batteryStatusUnknown},
+			{HostID: uint(2), SerialNumber: "f", CycleCount: 7, Health: batteryStatusUnknown},
 		})
 		return nil
 	}
@@ -1014,8 +1014,8 @@ func TestDirectIngestBattery(t *testing.T) {
 	}
 
 	err = directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2000"}, // max_capacity > 50%
-		{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "1499"}, // max_capacity < 50%
+		{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2400"}, // max_capacity >= 80%
+		{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "2399"}, // max_capacity < 50%
 		{"serial_number": "c", "cycle_count": "4", "designed_capacity": "3000", "max_capacity": ""},     // missing max_capacity
 		{"serial_number": "d", "cycle_count": "5", "designed_capacity": "", "max_capacity": ""},         // missing designed_capacity and max_capacity
 		{"serial_number": "e", "cycle_count": "6", "designed_capacity": "", "max_capacity": "2000"},     // missing designed_capacity
