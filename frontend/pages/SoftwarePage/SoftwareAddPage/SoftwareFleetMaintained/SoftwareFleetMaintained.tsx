@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 import { Location } from "history";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { omit } from "lodash";
 
 import softwareAPI, {
   ISoftwareFleetMaintainedAppsQueryParams,
@@ -17,6 +18,12 @@ import FleetMaintainedAppsTable from "./FleetMaintainedAppsTable";
 import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
 
 const baseClass = "software-fleet-maintained";
+
+const DATA_STALE_TIME = 30000;
+const QUERY_OPTIONS = {
+  keepPreviousData: true,
+  staleTime: DATA_STALE_TIME,
+};
 
 interface IQueryKey extends ISoftwareFleetMaintainedAppsQueryParams {
   scope?: "fleet-maintained-apps";
@@ -47,7 +54,7 @@ const SoftwareFleetMaintained = ({
   } = location.query;
   const currentPage = page ? parseInt(page, 10) : DEFAULT_PAGE;
 
-  const { data, isLoading, isError } = useQuery<
+  const { data, isLoading, isFetching, isError } = useQuery<
     ISoftwareFleetMaintainedAppsResponse,
     AxiosError,
     ISoftwareFleetMaintainedAppsResponse,
@@ -64,12 +71,12 @@ const SoftwareFleetMaintained = ({
         team_id: currentTeamId,
       },
     ],
-    (options) => {
-      delete options.queryKey[0].scope;
-      return softwareAPI.getFleetMaintainedApps(options.queryKey[0]);
+    ({ queryKey: [queryKey] }) => {
+      return softwareAPI.getFleetMaintainedApps(omit(queryKey, "scope"));
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      ...QUERY_OPTIONS,
     }
   );
 
@@ -85,7 +92,7 @@ const SoftwareFleetMaintained = ({
     <div className={baseClass}>
       <FleetMaintainedAppsTable
         data={data}
-        isLoading={false}
+        isLoading={isFetching}
         router={router}
         query={query}
         teamId={currentTeamId}
