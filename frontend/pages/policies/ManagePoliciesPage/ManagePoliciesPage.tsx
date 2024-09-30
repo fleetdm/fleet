@@ -76,8 +76,13 @@ interface IManagePoliciesPageProps {
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_SORT_COLUMN = "name";
-const DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE =
-  "Successfully updated policy automations.";
+const [
+  DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG,
+  DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
+] = [
+  "Successfully updated policy automations.",
+  "Could not update policy automations. Please try again.",
+];
 
 const baseClass = "manage-policies-page";
 
@@ -506,12 +511,9 @@ const ManagePolicyPage = ({
       await (!isAllTeamsSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
         : configAPI.update(requestBody));
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
@@ -564,12 +566,9 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       await wait(100); // prevent race
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleInstallSoftwareModal();
       setIsUpdatingPolicies(false);
@@ -620,12 +619,9 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       await wait(100);
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       togglePolicyRunScriptModal();
       setIsUpdatingPolicies(false);
@@ -686,12 +682,9 @@ const ManagePolicyPage = ({
       await refetchTeamPolicies();
       await refetchTeamConfig();
 
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleCalendarEventsModal();
       setIsUpdatingPolicies(false);
