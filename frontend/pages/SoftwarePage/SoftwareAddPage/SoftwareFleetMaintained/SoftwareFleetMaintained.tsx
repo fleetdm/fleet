@@ -47,7 +47,7 @@ const SoftwareFleetMaintained = ({
   } = location.query;
   const currentPage = page ? parseInt(page, 10) : DEFAULT_PAGE;
 
-  const { data, isLoading, isError } = useQuery<
+  const { data, isLoading, isFetching, isError } = useQuery<
     ISoftwareFleetMaintainedAppsResponse,
     AxiosError,
     ISoftwareFleetMaintainedAppsResponse,
@@ -73,6 +73,8 @@ const SoftwareFleetMaintained = ({
     }
   );
 
+  console.log("loading:", isLoading, "fetching:", isFetching);
+
   if (isLoading) {
     return <Spinner />;
   }
@@ -85,7 +87,7 @@ const SoftwareFleetMaintained = ({
     <div className={baseClass}>
       <FleetMaintainedAppsTable
         data={data}
-        isLoading={false}
+        isLoading={isFetching}
         router={router}
         query={query}
         teamId={currentTeamId}

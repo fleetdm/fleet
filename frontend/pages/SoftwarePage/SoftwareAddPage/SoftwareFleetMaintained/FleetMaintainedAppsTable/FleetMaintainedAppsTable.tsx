@@ -5,6 +5,7 @@ import PATHS from "router/paths";
 import { ISoftwareFleetMaintainedAppsResponse } from "services/entities/software";
 import { getNextLocationPath } from "utilities/helpers";
 import { buildQueryStringFromParams } from "utilities/url";
+import { IFleetMaintainedApp } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -98,9 +99,10 @@ const FleetMaintainedAppsTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const handleRowClick = () => {
-    // TODO: change to correct path
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+  const handleRowClick = (row: IFleetMaintainedApp) => {
+    const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
+      row.id
+    )}?${buildQueryStringFromParams({
       team_id: teamId,
     })}`;
 
@@ -135,7 +137,7 @@ const FleetMaintainedAppsTable = ({
   };
 
   return (
-    <TableContainer<IFleetMaintainedAppsTableProps>
+    <TableContainer<IFleetMaintainedApp>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
       data={data?.fleet_maintained_apps ?? []}
