@@ -76,6 +76,8 @@ interface IManagePoliciesPageProps {
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_SORT_COLUMN = "name";
+const DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE =
+  "Successfully updated policy automations.";
 
 const baseClass = "manage-policies-page";
 
@@ -504,7 +506,7 @@ const ManagePolicyPage = ({
       await (!isAllTeamsSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
         : configAPI.update(requestBody));
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
     } catch {
       renderFlash(
         "error",
@@ -562,7 +564,7 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       await wait(100); // prevent race
       refetchTeamPolicies();
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
     } catch {
       renderFlash(
         "error",
@@ -618,7 +620,7 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       await wait(100);
       refetchTeamPolicies();
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
     } catch {
       renderFlash(
         "error",
@@ -684,7 +686,7 @@ const ManagePolicyPage = ({
       await refetchTeamPolicies();
       await refetchTeamConfig();
 
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MESSAGE);
     } catch {
       renderFlash(
         "error",
