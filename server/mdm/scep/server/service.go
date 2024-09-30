@@ -6,9 +6,8 @@ import (
 	"crypto/x509"
 	"errors"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
-
-	"github.com/go-kit/log"
+	"github.com/go-kit/kit/log"
+	"github.com/smallstep/scep"
 )
 
 // Service is the interface for all supported SCEP server operations.
@@ -47,7 +46,7 @@ type service struct {
 	// The (chainable) CSR signing function. Intended to handle all
 	// SCEP request functionality such as CSR & challenge checking, CA
 	// issuance, RA proxying, etc.
-	signer CSRSigner
+	signer CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
 	debugLogger log.Logger
@@ -83,7 +82,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		return nil, err
 	}
 
-	crt, err := svc.signer.SignCSR(msg.CSRReqMessage)
+	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
 	if err == nil && crt == nil {
 		err = errors.New("no signed certificate")
 	}
@@ -122,7 +121,7 @@ func WithAddlCA(ca *x509.Certificate) ServiceOption {
 }
 
 // NewService creates a new scep service
-func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
+func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSignerContext, opts ...ServiceOption) (Service, error) {
 	s := &service{
 		crt:         crt,
 		key:         key,

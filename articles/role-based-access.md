@@ -48,7 +48,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
 | Download added software                                                                                                                    |          |           | ✅         | ✅    |         |
-| Install software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
+| Install/uninstall software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
 | Filter software by team\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
@@ -130,7 +130,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
 | Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
 | Download added software                                                                                                          |               |                | ✅              | ✅         |              |
-| Install software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
+| Install/uninstall software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
 | Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |

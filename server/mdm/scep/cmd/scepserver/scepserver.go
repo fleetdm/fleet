@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	caCMD := flag.NewFlagSet("ca", flag.ExitOnError)
+	var caCMD = flag.NewFlagSet("ca", flag.ExitOnError)
 	{
 		if len(os.Args) >= 2 {
 			if os.Args[1] == "ca" {
@@ -148,9 +148,9 @@ func main() {
 		if *flSignServerAttrs {
 			signerOpts = append(signerOpts, scepdepot.WithSeverAttrs())
 		}
-		var signer scepserver.CSRSigner = scepdepot.NewSigner(depot, signerOpts...)
+		var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scepdepot.NewSigner(depot, signerOpts...))
 		if *flChallengePassword != "" {
-			signer = scepserver.ChallengeMiddleware(*flChallengePassword, signer)
+			signer = scepserver.StaticChallengeMiddleware(*flChallengePassword, signer)
 		}
 		if csrVerifier != nil {
 			signer = csrverifier.Middleware(csrVerifier, signer)
