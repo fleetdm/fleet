@@ -10,8 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, softwareTitleIDs []uint) error {
-	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(softwareTitleIDs)), ",")
+func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
+	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
 
 	stmtSelectInstallersIDs := fmt.Sprintf(`
 SELECT
@@ -25,7 +25,7 @@ WHERE
 	global_or_team_id = ?
 AND
 	st.id IN (%s)
-`, softwareTitleIDs)
+`, titleIDQuestionMarks)
 
 	stmtSelectVPPAppsTeamsID := fmt.Sprintf(`
 SELECT
@@ -67,16 +67,16 @@ WHERE id IN (%s)`
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var softwareIDs []uint
 		var vppAppTeamIDs []uint
-		titleIDs := make([]any, 0, len(softwareTitleIDs))
-		for _, id := range softwareTitleIDs {
+		titleIDArgs := make([]any, 0, len(titleIDs))
+		for _, id := range titleIDs {
 			titleIDs = append(titleIDs, id)
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &softwareIDs, stmtSelectInstallersIDs, titleIDs...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &softwareIDs, stmtSelectInstallersIDs, titleIDArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &vppAppTeamIDs, stmtSelectVPPAppsTeamsID, titleIDs...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &vppAppTeamIDs, stmtSelectVPPAppsTeamsID, titleIDArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
 		}
 
@@ -103,7 +103,3 @@ WHERE id IN (%s)`
 
 	return nil
 }
-
-// func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint) ([]string, error) {
-// 	return nil, nil
-// }
