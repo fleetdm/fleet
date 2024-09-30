@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240925171917, Down_20240925171917)
+	MigrationClient.AddMigration(Up_20240930171917, Down_20240930171917)
 }
 
-func Up_20240925171917(tx *sql.Tx) error {
+func Up_20240930171917(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE INDEX idx_queries_schedule_automations ON queries (schedule_interval, automations_enabled)
 	`)
@@ -20,6 +20,6 @@ func Up_20240925171917(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240925171917(tx *sql.Tx) error {
+func Down_20240930171917(tx *sql.Tx) error {
 	return nil
 }
