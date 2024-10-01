@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -67,6 +68,9 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy *fleet.NDESSCEPProxyInt
 	resp, err := client.Do(req)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sending request")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return ctxerr.New(ctx, fmt.Sprintf("unexpected status code: %d", resp.StatusCode))
 	}
 	// Make a transformer that converts MS-Win default to UTF8:
 	win16be := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)
