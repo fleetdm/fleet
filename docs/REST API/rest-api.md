@@ -946,7 +946,8 @@ None.
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": true
-    }
+    },
+    "client_url": "TODO" 
   },
   "agent_options": {
     "spec": {
@@ -1238,7 +1239,8 @@ Modifies the Fleet's configuration with the supplied information.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
-    }
+    },
+    "client_url": "TODO"
   },
   "agent_options": {
     "config": {
@@ -1714,6 +1716,7 @@ _Available in Fleet Premium._
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| client_url         | string  | Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy. |
 
 <br/>
 
