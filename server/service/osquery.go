@@ -1846,6 +1846,11 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		return nil // vanilla osquery hosts can't run scripts
 	}
+	// not logging here to avoid spamming logs on every policy failure for every no-scripts host even if the policy
+	// doesn't have a script attached
+	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+		return nil
+	}
 
 	// Bail if scripts are disabled globally
 	cfg, err := svc.ds.AppConfig(ctx)
@@ -1938,11 +1943,6 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
-		// skip hosts with scripts disabled; skipping here so we log this case (vs. skipping non-orbit hosts earlier)
-		if hostScriptsEnabled != nil && !*hostScriptsEnabled {
-			level.Debug(logger).Log("msg", "scripts are disabled for host")
-			return nil
-		}
 		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
