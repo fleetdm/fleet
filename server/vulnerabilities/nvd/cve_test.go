@@ -343,7 +343,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:windows:*:*": {
 			includedCVEs: []cve{
-				{ID: "CVE-2024-4030", resolvedInVersion: "3.12.4"},
+				{ID: "CVE-2024-4030", resolvedInVersion: "3.9.20"},
 			},
 			continuesToUpdate: true,
 		},

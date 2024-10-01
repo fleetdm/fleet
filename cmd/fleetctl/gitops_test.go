@@ -83,6 +83,18 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
@@ -236,6 +248,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -589,6 +613,17 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
 		return nil
+	}
+
+	// Needed for checking tokens
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	const (
@@ -1079,6 +1114,18 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil, 0, nil, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
@@ -1345,6 +1392,18 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return nil, 0, nil, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	globalFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
@@ -1602,6 +1661,18 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		enrolledTeamSecrets = team.Secrets
 		savedTeams[team.Name] = &team
 		return team, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
@@ -2233,6 +2304,15 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

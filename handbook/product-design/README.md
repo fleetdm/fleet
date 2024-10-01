@@ -102,15 +102,6 @@ What happens during expedited drafting?
 Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 
-### Draft a user story
-
-Product Designers [draft user stories](https://fleetdm.com/handbook/company/product-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
-
-If an issue's title or user story summary (_"as a…I want to…so that"_) does not match the intended change being discussed, the designer will move the issue to the "Needs clarity" column of the drafting board and assign the group product manager.  The group product manager will revisit ASAP and edit the issue title and user story summary, then reassign the designer and move the issue back to the "Prioritized" column.
-
-Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
-
-
 ### Consider a feature eligible to be flagged
 
 At Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities. The following highlights should be considered when deciding if we should leverage feature flags:
@@ -134,6 +125,30 @@ usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGN
 available in Google Drive.
 
 Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
+
+
+### Prepare reference docs for release
+
+Every change to how Fleet is used is reflected live on the website in reference documentation **at release day** (REST API, config surface, tables, and other already-existing docs under /docs/using-fleet).
+
+To make sure this happens, first, the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) @ mentions the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) in a message in [#help-engineering Slack channel](https://fleetdm.slack.com/archives/C019WG4GH0A) when we cut the release candidate (RC). 
+
+Next, the API design DRI reviews all user stories and bugs with the release milestone to check that all reference doc PRs are merged into the reference docs release branch. To see which stories were pushed to the next release, and thus which reference doc changes need to be removed from the branch, the API design DRI filters issues by the `~pushed` label and the next release's milestone.
+
+To signal that the reference docs branch is ready for release, the API design DRI opens a PR to `main`, adds the DRI for what goes in a release as the reviewer, and adds the release milestone.
+
+### Interview a Product Designer candidate
+
+Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications).
+
+1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
+2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
+2. **Deliver design challenge**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and ask them to complete and send their project back within 5 business days.
+5. **Schedule design challenge interview**: Send the candidate a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
+6. **Schedule EM interview**: Send the candidate a calendly link for 30m talk with the Engineering Manager (EM) of the [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) the candidate will be working with.
+7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
+
+If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
 ## Rituals

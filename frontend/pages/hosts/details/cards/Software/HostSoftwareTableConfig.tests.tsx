@@ -80,4 +80,21 @@ describe("generateActions", () => {
     const actions = generateActions(props);
     expect(actions.find((a) => a.value === "uninstall")).toBeUndefined();
   });
+
+  it("allows to install VPP apps even if scripts are disabled", () => {
+    const props: generateActionsProps = {
+      ...defaultProps,
+      hostScriptsEnabled: false,
+      app_store_app: {
+        app_store_id: "1",
+        self_service: false,
+        icon_url: "",
+        version: "",
+        last_install: { command_uuid: "", installed_at: "" },
+      },
+    };
+    const actions = generateActions(props);
+    expect(actions.find((a) => a.value === "install")?.disabled).toBe(false);
+    expect(actions.find((a) => a.value === "uninstall")).toBeUndefined();
+  });
 });

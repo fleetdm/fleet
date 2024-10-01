@@ -14366,3 +14366,41 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NoError(t, err)
 	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
 }
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a host without a team
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "DummyApp.app", Version: "0.0.2", Source: "apps"},
+	}
+	// we must ingest the title with an empty bundle identifier for this
+	// test to be valid
+	require.Empty(t, software[0].BundleIdentifier)
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Version:       "0.0.2",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+}
