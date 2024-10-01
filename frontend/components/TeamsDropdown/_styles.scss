@@ -40,10 +40,6 @@
   .Select-menu {
     padding-right: $pad-small; // moves scrollbar to edge of dropdown
     max-height: 66vh;
-
-    .dropdown__option {
-        white-space: preserve;
-    }
   }
 
   .Select-menu-outer {
@@ -109,7 +105,6 @@
         .Select-value-label {
           font-size: $large !important;
           line-height: 32px;
-          white-space: pre-wrap;
         }
       }
     }

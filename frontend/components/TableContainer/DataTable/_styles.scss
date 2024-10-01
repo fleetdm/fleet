@@ -208,10 +208,6 @@ $shadow-transition-width: 10px;
         }
       }
 
-      .name__cell, .name__cell *, .name__cell > * {
-          white-space: pre;
-      }
-      
       td {
         height: 40px;
         padding: 0 $pad-large;
@@ -246,7 +242,7 @@ $shadow-transition-width: 10px;
           > div {
             display: block;
             overflow: hidden;
-            white-space: pre;
+            white-space: nowrap;
             text-overflow: ellipsis;
           }
         }

@@ -24,9 +24,6 @@
       tbody {
         .name__cell {
           max-width: $col-md;
-          * {
-            white-space: pre;
-          }
         }
 
         .host_count__cell {
