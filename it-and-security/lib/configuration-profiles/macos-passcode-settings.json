@@ -2,7 +2,7 @@
     "Type": "com.apple.configuration.passcode.settings",
     "Identifier": "com.fleetdm.config.passcode.settings",
     "Payload": {
-        "RequireComplexPasscode": true,
+        "RequireAlphanumericPasscode": true,
         "MinimumLength": 10,
         "MinimumComplexCharacters": 1,
         "MaximumFailedAttempts": 11,
