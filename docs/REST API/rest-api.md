@@ -9547,7 +9547,7 @@ Add Fleet-maintained app so it's available for install.
 ```json
 {
   "fleet_maintained_app_id": 3,
-  "team_id": 2,
+  "team_id": 2
 }
 ```
 
