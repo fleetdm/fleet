@@ -373,7 +373,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 
 	if opt.SetupExperienceOnly {
-		defaultFilter += ` AND ( si.install_during_setup OR vat.install_during_setup )`
+		defaultFilter += ` AND ( si.install_during_setup = 1 OR vat.install_during_setup = 1 )`
 	}
 
 	if opt.Platform != "" {

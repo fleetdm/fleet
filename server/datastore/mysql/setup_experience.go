@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -110,18 +109,12 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, team
 	opts.IncludeMetadata = true
 	opts.After = ""
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, 0, nil, fleet.ErrNoContext
-	}
-
 	titles, count, meta, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		TeamID:              &teamID,
 		ListOptions:         opts,
 		Platform:            string(fleet.MacOSPlatform),
 		SetupExperienceOnly: true,
 	}, fleet.TeamFilter{
-		User:            vc.User,
 		IncludeObserver: true,
 		TeamID:          &teamID,
 	})
