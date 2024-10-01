@@ -529,7 +529,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		}
 		policy.SoftwareInstallerID = softwareInstallerID
 	}
-	if p.ScriptID != nil { // indicates that policy ID is changing, but might be to 0 to remove
+	if p.ScriptID != nil { // indicates that script ID is changing, but might be to 0 to remove
 		// If the associated script is changed (or it's set and the policy didn't have an associated script)
 		// then we clear the results of the policy so that automation can be triggered upon failure
 		// (automation is currently triggered on the first failure or when it goes from passing to failure).
