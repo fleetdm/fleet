@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
+  BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
 
@@ -180,7 +181,13 @@ const About = ({
     return (
       <DataSet
         title="Battery condition"
-        value={aboutData.batteries?.[0]?.health}
+        value={
+          <TooltipWrapper
+            tipContent={BATTERY_TOOLTIP[aboutData.batteries?.[0]?.health]}
+          >
+            {aboutData.batteries?.[0]?.health}
+          </TooltipWrapper>
+        }
       />
     );
   };
