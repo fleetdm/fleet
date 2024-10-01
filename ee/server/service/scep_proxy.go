@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Azure/go-ntlmssp"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
@@ -54,10 +55,9 @@ func NewSCEPProxyService(logger log.Logger) scepserver.Service {
 func ValidateNDESSCEPAdminURL(ctx context.Context, proxy *fleet.NDESSCEPProxyIntegration) error {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
-	client := &http.Client{
-		Transport: ntlmssp.Negotiator{
-			RoundTripper: &http.Transport{},
-		},
+	client := fleethttp.NewClient()
+	client.Transport = ntlmssp.Negotiator{
+		RoundTripper: fleethttp.NewTransport(),
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -76,6 +76,9 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy *fleet.NDESSCEPProxyInt
 	// Make a Reader that uses utf16bom:
 	unicodeReader := transform.NewReader(resp.Body, utf16bom)
 	bodyText, err := io.ReadAll(unicodeReader)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading response body")
+	}
 	htmlString := string(bodyText)
 
 	matches := challengeRegex.FindStringSubmatch(htmlString)

@@ -85,11 +85,21 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{asset.Name})
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset})
+		}
 		return ctxerr.Wrap(ctx, err, "get all mdm config assets by name")
 	}
 	if len(assets) == 0 {
-		return ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset})
-	} else if !bytes.Equal(assets[asset.Name].Value, asset.Value) {
+		// Should never happen
+		return ctxerr.New(ctx, fmt.Sprintf("no asset found for name %s", asset.Name))
+	}
+	currentAsset, ok := assets[asset.Name]
+	if !ok {
+		// Should never happen
+		return ctxerr.New(ctx, fmt.Sprintf("asset not found for name %s", asset.Name))
+	}
+	if !bytes.Equal(currentAsset.Value, asset.Value) {
 		return ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset})
 	}
 	// asset already exists and is the same, so not need to update
