@@ -1092,6 +1092,8 @@ type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPP
 
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
 
+type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2700,6 +2702,9 @@ type DataStore struct {
 
 	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
 	SetSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
+	ListSetupExperienceSoftwareTitlesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6454,4 +6459,11 @@ func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID
 	s.SetSetupExperienceSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetSetupExperienceSoftwareTitlesFunc(ctx, teamID, titleIDs)
+}
+
+func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
 }

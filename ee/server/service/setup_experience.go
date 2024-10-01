@@ -27,11 +27,7 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, teamID uint
 		return nil, 0, nil, err
 	}
 
-	titles, count, meta, err := svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
-		ListOptions:         opts,
-		Platform:            string(fleet.MacOSPlatform),
-		SetupExperienceOnly: true,
-	})
+	titles, count, meta, err := svc.ds.ListSetupExperienceSoftwareTitles(ctx, teamID, opts)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "retrieving list of software setup experience titles")
 	}
