@@ -1071,3 +1071,70 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 	return nil
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit setup experience start
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostStartSetupExperienceRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostStartSetupExperienceRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostStartSetupExperienceRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostStartSetupExperienceResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostStartSetupExperienceResponse) error() error { return r.Err }
+func (r orbitPostStartSetupExperienceResponse) Status() int  { return http.StatusAccepted }
+
+func postOrbitStartSetupExperienceEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostStartSetupExperienceRequest)
+	if err := svc.TODO(ctx); err != nil {
+		return orbitPostStartSetupExperienceResponse{Err: err}, nil
+	}
+	return orbitPostStartSetupExperienceResponse{}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post (Get) Orbit setup experience status
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostSetupExperienceStatusRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostSetupExperienceStatusRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostSetupExperienceStatusResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostSetupExperienceStatusResponse) error() error { return r.Err }
+
+func postOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostSetupExperienceStatusRequest)
+
+	_, err := svc.TODO(ctx)
+	if err != nil {
+		return orbitPostSetupExperienceStatusResponse{Err: err}, nil
+	}
+	return orbitPostSetupExperienceStatusResponse{}, nil
+}
