@@ -372,6 +372,15 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
+	if opt.SetupExperienceOnly {
+		defaultFilter += ` AND ( si.install_during_setup OR vat.install_during_setup )`
+	}
+
+	if opt.Platform != "" {
+		defaultFilter += ` AND ( si.platform = ? OR vat.platform = ? )`
+		args = append(args, opt.Platform, opt.Platform)
+	}
+
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args
 }
