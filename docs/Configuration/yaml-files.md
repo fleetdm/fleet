@@ -260,7 +260,7 @@ controls:
     script: ../lib/macos-script.sh
     software:
       - app_store_id: '1091189122'
-      - url: https://github.com/organinzation/repository/package-1.pkg
+      - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
