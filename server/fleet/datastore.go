@@ -1726,6 +1726,10 @@ type Datastore interface {
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
+
+	GetSetupExperienceScript(ctx context.Context, teamID uint) (*Script, error)
+	SetSetupExperienceScript(ctx context.Context, script *Script) error
+	DeleteSetupExperienceScript(ctx context.Context, teamID uint) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

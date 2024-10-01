@@ -1090,6 +1090,12 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
+type GetSetupExperienceScriptFunc func(ctx context.Context, teamID uint) (*fleet.Script, error)
+
+type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
+
+type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID uint) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2695,6 +2701,15 @@ type DataStore struct {
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
+
+	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
+	GetSetupExperienceScriptFuncInvoked bool
+
+	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
+	SetSetupExperienceScriptFuncInvoked bool
+
+	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
+	DeleteSetupExperienceScriptFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6442,4 +6457,25 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
+}
+
+func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.GetSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+	s.mu.Lock()
+	s.SetSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceScriptFunc(ctx, script)
+}
+
+func (s *DataStore) DeleteSetupExperienceScript(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.DeleteSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSetupExperienceScriptFunc(ctx, teamID)
 }

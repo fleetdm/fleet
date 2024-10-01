@@ -1120,6 +1120,10 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	GetSetupExperienceScript(ctx context.Context, teamID uint, downloadRequested bool) (*Script, []byte, error)
+	SetSetupExperienceScript(ctx context.Context, teamID uint, name string, r io.Reader) error
+	DeleteSetupExperienceScript(ctx context.Context, teamID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows
 
