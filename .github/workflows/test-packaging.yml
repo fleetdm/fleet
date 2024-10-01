@@ -19,6 +19,7 @@ on:
       - 'cmd/fleetctl/**.go'
       - 'pkg/**.go'
       - 'server/context/**.go'
+      - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'tools/fleetctl-docker/**'
       - 'tools/wix-docker/**'
