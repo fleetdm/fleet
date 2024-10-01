@@ -4295,8 +4295,10 @@ Resends a configuration profile for the specified host.
       "name": "Logic Pro",
       "software_package": null
       "app_store_app": {
-        "app_store_id": "1091189122"
+        "app_store_id": "1091189122",
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
         "version": "2.04",
+        "self_service": false,
         "last_install": {
           "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
           "installed_at": "2024-05-15T15:23:57Z"
@@ -6517,7 +6519,8 @@ None.
 ]
 ```
 
-Get Volume Purchasing Program (VPP)
+### Get Volume Purchasing Program (VPP)
+
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -8727,10 +8730,6 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
 - [Delete package or App Store app](#delete-package-or-app-store-app)
-- [Batch-apply software](#batch-apply-software)
-- [Batch-apply app store apps](#batch-apply-app-store-apps)
-- [Get token to download package](#get-token-to-download-package)
-- [Download package using a token](#download-package-using-a-token)
 
 ### List software
 
@@ -9101,9 +9100,10 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
-      "app_store_id": "1091189122",
+      "app_store_id": 1091189122,
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "self_service": true,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9181,6 +9181,7 @@ Returns information about the specified software version.
   }
 }
 ```
+
 
 ### Get operating system version
 
@@ -9454,6 +9455,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
@@ -9466,44 +9468,13 @@ Add App Store (VPP) app purchased in Apple Business Manager.
   "app_store_id": "497799835",
   "team_id": 2,
   "platform": "ipados"
+  "self_service": true
 }
 ```
 
 ##### Default response
 
 `Status: 200`
-
-### Download package
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
-| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
 
 ### Install package or App Store app
 
@@ -9562,7 +9533,7 @@ _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/install/:install_uuid/results`
 
-Get the results of a software package install. 
+Get the results of a software package install.
 
 To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API enpoints. Fleet uses an MDM command to install App Store apps.
 
@@ -9593,6 +9564,38 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
  }
 ```
 
+### Download package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
+| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
 ### Delete package or App Store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -9617,117 +9620,6 @@ Deletes software that's available for install (package or App Store app).
 ##### Default response
 
 `Status: 204`
-
-### Batch-apply software
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/batch`
-
-#### Parameters
-
-| Name      | Type   | In    | Description                                                                                                                                                           |
-| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request; omit this parameter if using `team_name`. Omitting these parameters will add software to "No Team". |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request; omit this parameter if using `team_id`. Omitting these parameters will add software to "No Team". |
-| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
-| software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
-| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
-
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
-
-#### Example
-
-`POST /api/v1/fleet/software/batch`
-
-##### Default response
-
-`Status: 204`
-
-### Batch-apply app store apps
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/app_store_apps/batch`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                                                                            |
-|-----------------|---------|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name       | integer | query | **Required**. The name of the team to add the app to.                                                                                                                                  |
-| dry_run         | bool    | query | If `true`, will validate the provided apps and return any validation errors, but will not apply the changes.                                                                           |
-| apps_store_apps | list    | body  | The list of objects containing `app_store_id`: a string representation of the app's App ID, `self_service`: a bool indicating if the app's installation can be initiated by end users. |
-
-> Note that this endpoint replaces all apps associated with a team.
-
-#### Example
-
-`POST /api/v1/fleet/software/app_store_apps/batch`
-
-#### Default response
-
-`Status: 204`
-
-### Get token to download package
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
-
-The returned token is a one-time use token that expires after 10 minutes.
-
-#### Parameters
-
-| Name              | Type    | In    | Description                                                      |
-|-------------------|---------|-------|------------------------------------------------------------------|
-| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
-| team_id           | integer | query | **Required**. The team ID containing the software package.       |
-| alt               | integer | query | **Required**. Must be specified and set to "media".              |
-
-#### Example
-
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
-}
-```
-
-### Download package using a token
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
-
-#### Parameters
-
-| Name              | Type    | In   | Description                                                              |
-|-------------------|---------|------|--------------------------------------------------------------------------|
-| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
-| token             | string  | path | **Required**. The token to download the software package.                |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
-
 
 ## Vulnerabilities
 
