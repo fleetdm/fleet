@@ -238,7 +238,10 @@ const SoftwareVulnerabilities = ({
     }
   }, [queryParams.exploit, isExactMatchQuery]);
 
-  if (isLoading || isLoadingExactMatch) {
+  // !tableData is used to show the Spinner only on the first render.
+  // This prevents the Spinner from flashing on every data refresh, noticable
+  // when going between search and exact match search deselects search box.
+  if (!tableData && (isLoading || isLoadingExactMatch)) {
     return <Spinner />;
   }
 

@@ -174,7 +174,7 @@ const InstallSoftwareModal = ({
       <li
         className={`${baseClass}__policy-row policy-row`}
         id={`policy-row--${policyId}`}
-        key={policyId}
+        key={`${policyId}-${enabled}`} // Re-renders when modifying enabled for truncation check
       >
         <Checkbox
           value={enabled}

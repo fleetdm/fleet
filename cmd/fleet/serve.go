@@ -1145,7 +1145,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package") {
+				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
+					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path, "/fleet/software/titles/")) {
 					// when uploading a software installer, the file might be large so
 					// the read timeout (to read the full request body) must be extended.
 					rc := http.NewResponseController(rw)

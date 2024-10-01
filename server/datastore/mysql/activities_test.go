@@ -991,7 +991,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
-	require.Equal(t, 1000, queriesLen)
+	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
 
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
@@ -1002,7 +1002,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
-	require.Equal(t, 500, queriesLen)
+	require.Equal(t, 250, queriesLen)
 
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)

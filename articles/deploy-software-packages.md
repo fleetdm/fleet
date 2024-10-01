@@ -14,7 +14,7 @@ Fleet [v4.50.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.50.0) int
 
 * An S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the installers.
 
-* Increase any load balancer timeouts to at least 5 minutes for the [Add software](https://fleetdm.com/docs/rest-api/rest-api#add-software) endpoint.
+* Increase any load balancer timeouts to at least 5 minutes for the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Modify package](https://fleetdm.com/docs/rest-api/rest-api#modify-package) endpoints.
 
 ## Step-by-step instructions
 
