@@ -128,7 +128,15 @@ WHERE NOT EXISTS (
 	)
 )`
 
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, []any{teamID, teamID}, &opt)
+	args := []any{teamID, teamID}
+
+	if match := opt.MatchQuery; match != "" {
+		match = likePattern(match)
+		stmt += ` AND (fla.name LIKE ?)`
+		args = append(args, match)
+	}
+
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {

@@ -5,15 +5,31 @@ import PATHS from "router/paths";
 import { ISoftwareFleetMaintainedAppsResponse } from "services/entities/software";
 import { getNextLocationPath } from "utilities/helpers";
 import { buildQueryStringFromParams } from "utilities/url";
+import { IFleetMaintainedApp } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 
 const baseClass = "fleet-maintained-apps-table";
+
+const EmptyFleetAppsTable = () => (
+  <EmptyTable
+    graphicName="empty-search-question"
+    header={"No items match the current search criteria"}
+    info={
+      <>
+        Can&apos; find app?{" "}
+        <CustomLink newTab url="" text="File and issue on GitHub" />
+      </>
+    }
+  />
+);
 
 interface IFleetMaintainedAppsTableProps {
   teamId: number;
@@ -98,9 +114,10 @@ const FleetMaintainedAppsTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const handleRowClick = () => {
-    // TODO: change to correct path
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+  const handleRowClick = (row: IFleetMaintainedApp) => {
+    const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
+      row.id
+    )}?${buildQueryStringFromParams({
       team_id: teamId,
     })}`;
 
@@ -135,13 +152,13 @@ const FleetMaintainedAppsTable = ({
   };
 
   return (
-    <TableContainer<IFleetMaintainedAppsTableProps>
+    <TableContainer<IFleetMaintainedApp>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
       data={data?.fleet_maintained_apps ?? []}
       isLoading={isLoading}
       resultsTitle="items"
-      emptyComponent={() => <>EMPTY STATE TODO</>}
+      emptyComponent={EmptyFleetAppsTable}
       defaultSortHeader={orderKey}
       defaultSortDirection={orderDirection}
       defaultPageIndex={currentPage}

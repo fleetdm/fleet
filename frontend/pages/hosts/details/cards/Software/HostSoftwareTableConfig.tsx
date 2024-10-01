@@ -94,8 +94,9 @@ export const generateActions = ({
     actions.splice(indexUninstallAction, 1);
     actions.splice(indexInstallAction, 1);
   } else {
-    // if host's scripts are disabled, disable install/uninstall with tooltip
-    if (!hostScriptsEnabled) {
+    // if host's scripts are disabled, and this isn't a VPP app, disable
+    // install/uninstall with tooltip
+    if (!hostScriptsEnabled && !app_store_app) {
       actions[indexInstallAction].disabled = true;
       actions[indexUninstallAction].disabled = true;
 

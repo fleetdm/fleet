@@ -2,8 +2,13 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { Location } from "history";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
+import { omit } from "lodash";
 
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  ISoftwareFleetMaintainedAppsQueryParams,
+  ISoftwareFleetMaintainedAppsResponse,
+} from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -13,6 +18,16 @@ import FleetMaintainedAppsTable from "./FleetMaintainedAppsTable";
 import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
 
 const baseClass = "software-fleet-maintained";
+
+const DATA_STALE_TIME = 30000;
+const QUERY_OPTIONS = {
+  keepPreviousData: true,
+  staleTime: DATA_STALE_TIME,
+};
+
+interface IQueryKey extends ISoftwareFleetMaintainedAppsQueryParams {
+  scope?: "fleet-maintained-apps";
+}
 
 interface ISoftwareFleetMaintainedProps {
   currentTeamId: number;
@@ -39,11 +54,29 @@ const SoftwareFleetMaintained = ({
   } = location.query;
   const currentPage = page ? parseInt(page, 10) : DEFAULT_PAGE;
 
-  const { data, isLoading, isError } = useQuery(
-    ["fleet-maintained", currentTeamId],
-    () => softwareAPI.getFleetMaintainedApps(currentTeamId),
+  const { data, isLoading, isFetching, isError } = useQuery<
+    ISoftwareFleetMaintainedAppsResponse,
+    AxiosError,
+    ISoftwareFleetMaintainedAppsResponse,
+    [IQueryKey]
+  >(
+    [
+      {
+        scope: "fleet-maintained-apps",
+        page: currentPage,
+        per_page: DEFAULT_PAGE_SIZE,
+        query,
+        order_direction,
+        order_key,
+        team_id: currentTeamId,
+      },
+    ],
+    ({ queryKey: [queryKey] }) => {
+      return softwareAPI.getFleetMaintainedApps(omit(queryKey, "scope"));
+    },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      ...QUERY_OPTIONS,
     }
   );
 
@@ -59,7 +92,7 @@ const SoftwareFleetMaintained = ({
     <div className={baseClass}>
       <FleetMaintainedAppsTable
         data={data}
-        isLoading={false}
+        isLoading={isFetching}
         router={router}
         query={query}
         teamId={currentTeamId}

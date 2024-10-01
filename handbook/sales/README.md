@@ -145,14 +145,19 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
 
 ### Conduct a POV
 
-We use the "tech eval test plan" as a guide when conducting a "POV" (Proof of Value) with a prospect. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. The tech eval test plan is the main document that will track success criteria for the tech eval. Before the Solutions Consultant (SC) creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________), the AE and SC will ask each other, at minimum, the following questions in order to enter the "Stage 3 - Requested POV" phase for the tech eval:
-1. Do we have a well-defined set of technical criteria to test?
+We use the "tech eval test plan" as a guide when conducting a "POV" (Proof of Value) with a prospect. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. The tech eval test plan is the main document that will track success criteria for the tech eval.
+
+When we have had sufficient meetings and demos, including an overview demo and a customized demo, and we have qualified the prospect, when the prospect asks to "kick the tires/do a POC/do a technical evaluation", the AE moves the opportuity to "Stage 3 - Requested POV" phase in Salesforce. Automation will generate the tech eval test plan. This doc will exist in Google Drive> Sales> Opportunities> "Account Name". 
+
+The AE and SC will work together to scope the POV with the prospect in this stage. The AE and SC will work together to answer the following questions:
+
+1. Do we have a well-defined set of technical criteria to test and are we confident that Fleet can meet this criteria to achieve a technical win?
 2. Do we have a timeline agreed upon?
 3. What are the key business outcomes that will be verified as a result of completing the tech eval?
 
-If the above questions cannot be answered, the opportunity should not progress to tech eval. Once the opportunity moves to the "Stage 3 - Requested POV" phase in Salesforce, automation will generate the tech eval test plan. This doc will exist in Google Drive> Sales> Opportunities> "Account Name". 
+If the above questions are answered successfully, the opportunity should progress to tech eval. If we cannot answer the questions above successfully, then the POV should not start unless approved by the CRO.
 
-Once there is agreement to proceed with the tech eval and success criteria have been defined and documented, follow this process:
+During Stage 4, follow this process:
 1. SC creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________).
 2. SC updates the issue labels to include: "~sc, :tech-eval" and the obfuscated "prospect-codename" label. See [Assign a customer a codename](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename). Instead of
    "customer-codename", prospects are labeled "prospect-codename". When a prospect purchases Fleet, the SC will edit this label from "prospect-codename" to "customer-codename".

@@ -330,6 +330,7 @@ const TeamDetailsWrapper = ({
         setBackendValidators({});
         refetchTeams();
         refetchMe();
+        toggleRenameTeamModal();
       } catch (response) {
         console.error(response);
         const errorObject = formatErrorResponse(response);

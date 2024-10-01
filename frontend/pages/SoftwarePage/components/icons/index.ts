@@ -33,6 +33,8 @@ import Figma from "./Figma";
 import Notion from "./Notion";
 import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
+import Postman from "./Postman";
+import OnePassword from "./OnePassword";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -49,10 +51,12 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
+  "mozilla firefox": Firefox,
   package: Package,
   safari: Safari,
   slack: Slack,
   "microsoft teams": Teams,
+  "microsoft visual studio code": VisualStudioCode,
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   "google chrome": ChromeApp,
@@ -64,13 +68,15 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   whatsapp: WhatsApp,
   notion: Notion,
   figma: Figma,
-  edge: Edge,
+  "microsoft edge": Edge,
   docker: Docker,
   cloudflare: Cloudflare,
   brave: Brave,
   box: Box,
-  "team viewer": TeamViewer,
+  teamviewer: TeamViewer,
   "windows defender": WindowsDefender,
+  postman: Postman,
+  "1password": OnePassword,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 

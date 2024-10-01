@@ -34,6 +34,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallersAssignedToPolicy", testDeleteSoftwareInstallersAssignedToPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
+		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 	}
 
 	for _, c := range cases {
@@ -1097,4 +1098,87 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	host2LastInstall, err = ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.Nil(t, host2LastInstall)
+}
+
+func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "Existing Title", Version: "0.0.1", Source: "apps", BundleIdentifier: "existing.title"},
+	}
+	software2 := []fleet.Software{
+		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	tests := []struct {
+		name    string
+		payload *fleet.UploadSoftwareInstallerPayload
+	}{
+		{
+			name: "title that already exists, no bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Existing Title",
+				Source: "apps",
+			},
+		},
+		{
+			name: "title that already exists, mismatched bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title",
+				Source:           "apps",
+				BundleIdentifier: "com.existing.bundle",
+			},
+		},
+		{
+			name: "title that already exists but doesn't have a bundle identifier",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Existing Title Without Bundle",
+				Source: "apps",
+			},
+		},
+		{
+			name: "title that already exists, no bundle identifier in DB, bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title Without Bundle",
+				Source:           "apps",
+				BundleIdentifier: "com.new.bundleid",
+			},
+		},
+		{
+			name: "title that doesn't exist, no bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "New Title",
+				Source: "some_source",
+			},
+		},
+		{
+			name: "title that doesn't exist, with bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "New Title With Bundle",
+				Source:           "some_source",
+				BundleIdentifier: "com.new.bundle",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
+			require.NoError(t, err)
+			require.NotEmpty(t, id)
+		})
+	}
 }
