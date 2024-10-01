@@ -5573,6 +5573,7 @@ solely on the response status code returned by this endpoint.
 ```
 
 ###### Example response body
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -5720,6 +5721,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
 - [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
 - [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
+- [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) 
 - [Get manual enrollment profile](#get-manual-enrollment-profile)
 - [Upload a bootstrap package](#upload-a-bootstrap-package)
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
@@ -5827,9 +5829,82 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 `Status: 204`
 
 
+### Get Over-the-Air (OTA) enrollment profile
+
+`GET /api/v1/fleet/enrollment_profiles/ota`
+
+The returned value is a signed `.mobileconfig` OTA enrollment profile. Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
+
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), install the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+
+Learn more about OTA profiles [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html).
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                                      |
+|-------------------|---------|-------|----------------------------------------------------------------------------------|
+| enroll_secret     | string  | query | **Required**. The enroll secret of the team this host will be assigned to.       |
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/ota?enroll_secret=foobar`
+
+##### Default response
+
+`Status: 200`
+
+> **Note:** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+  Content-Length: 542
+  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+  X-Content-Type-Options: nosniff
+```
+
+###### Example response body
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foobar</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	      <string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>Acme Inc.</string>
+    <key>PayloadDisplayName</key>
+    <string>Acme Inc. enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>
+```
+
+
 ### Get manual enrollment profile
 
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
+
+To add [human-device mapping](#get-human-device-mapping), add the end user's email to the enrollment profle. Learn how [here](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#basic-article).
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
