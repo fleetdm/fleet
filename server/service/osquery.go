@@ -1948,7 +1948,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
 		}
 		if len(allScriptsExecutionPending) > maxPendingScripts {
-			level.Debug(logger).Log("msg", "too many scripts pending for host")
+			level.Warn(logger).Log("msg", "too many scripts pending for host")
 			return nil
 		}
 
@@ -1956,7 +1956,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		hostPlatform := fleet.PlatformFromHost(hostPlatform)
 		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
 			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
-			level.Debug(logger).Log("msg", "script type does not match host platform")
+			level.Info(logger).Log("msg", "script type does not match host platform")
 			continue
 		}
 
@@ -1965,8 +1965,8 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if scriptMetadata.TeamID != nil {
 			scriptTeamID = *scriptMetadata.TeamID
 		}
-		if policyTeamID != scriptTeamID {
-			level.Debug(logger).Log("msg", "script team does not match host team")
+		if policyTeamID != scriptTeamID { // this should not happen
+			level.Error(logger).Log("msg", "script team does not match host team")
 			continue
 		}
 
