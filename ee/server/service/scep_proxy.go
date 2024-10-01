@@ -106,11 +106,11 @@ func ValidateNDESSCEPURL(ctx context.Context, proxy *fleet.NDESSCEPProxyIntegrat
 		return ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
 
-	_, certNum, err := client.GetCACert(ctx, "")
+	certs, _, err := client.GetCACert(ctx, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "could not retrieve CA certificate from SCEP URL")
 	}
-	if certNum < 1 {
+	if len(certs) == 0 {
 		return ctxerr.New(ctx, "SCEP URL did not return a CA certificate")
 	}
 	return nil

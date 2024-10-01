@@ -29,6 +29,10 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+// Functions that can be overwritten in tests
+var validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
+var validateNDESSCEPURL = eeservice.ValidateNDESSCEPURL
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
 ////////////////////////////////////////////////////////////////////////////////
@@ -324,11 +328,46 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
+	if license.IsPremium() && newAppConfig.Integrations.NDESSCEPProxy != nil {
+		validateAdminURL, validateSCEPURL := false, false
+		if oldAppConfig.Integrations.NDESSCEPProxy == nil {
+			validateAdminURL, validateSCEPURL = true, true
+		} else {
+			newSCEPProxy := newAppConfig.Integrations.NDESSCEPProxy
+			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy
+			if newSCEPProxy.URL != oldSCEPProxy.URL {
+				validateSCEPURL = true
+			}
+			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
+				newSCEPProxy.Username != oldSCEPProxy.Username ||
+				(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
+				validateAdminURL = true
+			}
+		}
+
+		if validateAdminURL {
+			if err = validateNDESSCEPAdminURL(ctx, newAppConfig.Integrations.NDESSCEPProxy); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy", err.Error())
+			}
+		}
+
+		if validateSCEPURL {
+			if err = validateNDESSCEPURL(ctx, newAppConfig.Integrations.NDESSCEPProxy, svc.logger); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+			}
+		}
+	}
+
 	// We apply the config that is incoming to the old one
 	appConfig.EnableStrictDecoding()
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if !license.IsPremium() && appConfig.Integrations.NDESSCEPProxy != nil {
+		appConfig.Integrations.NDESSCEPProxy = nil
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
@@ -423,40 +462,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	vppAssignments, err := svc.validateVPPAssignments(ctx, &newAppConfig.MDM, invalid, license)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
-	}
-
-	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
-	if license.IsPremium() && newAppConfig.Integrations.NDESSCEPProxy != nil {
-		validateAdminURL, validateSCEPURL := false, false
-		if oldAppConfig.Integrations.NDESSCEPProxy == nil {
-			validateAdminURL, validateSCEPURL = true, true
-		} else {
-			newSCEPProxy := newAppConfig.Integrations.NDESSCEPProxy
-			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy
-			if newSCEPProxy.URL != oldSCEPProxy.URL {
-				validateSCEPURL = true
-			}
-			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL || newSCEPProxy.Username != oldSCEPProxy.Username {
-				validateAdminURL = true
-			} else if newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword {
-				// We do not update password if it is empty or masked
-				validateAdminURL = true
-			}
-		}
-
-		if validateAdminURL {
-			if err = eeservice.ValidateNDESSCEPAdminURL(ctx, newAppConfig.Integrations.NDESSCEPProxy); err != nil {
-				invalid.Append("integrations.ndes_scep_proxy", err.Error())
-			}
-		}
-
-		if validateSCEPURL {
-			if err = eeservice.ValidateNDESSCEPURL(ctx, newAppConfig.Integrations.NDESSCEPProxy, svc.logger); err != nil {
-				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
-			}
-		}
-	} else {
-		appConfig.Integrations.NDESSCEPProxy = nil
 	}
 
 	if invalid.HasErrors() {

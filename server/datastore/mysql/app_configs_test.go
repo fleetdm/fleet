@@ -586,10 +586,18 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 	checkProxyConfig()
 	checkPassword()
 
-	// Set password to empty -- should not update
+	// Set password to empty -- password should not update
 	url = "https://newurl.com"
 	ac.Integrations.NDESSCEPProxy.Password = ""
 	ac.Integrations.NDESSCEPProxy.URL = url
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	checkProxyConfig()
+	checkPassword()
+
+	// Set password to a new value
+	password = "newpassword"
+	ac.Integrations.NDESSCEPProxy.Password = password
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 	checkProxyConfig()
