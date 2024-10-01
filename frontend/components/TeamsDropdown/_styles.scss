@@ -109,7 +109,7 @@
         .Select-value-label {
           font-size: $large !important;
           line-height: 32px;
-          white-space: preserve;
+          white-space: pre-wrap;
         }
       }
     }
