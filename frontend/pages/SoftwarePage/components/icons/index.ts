@@ -34,6 +34,7 @@ import Notion from "./Notion";
 import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
 import Postman from "./Postman";
+import OnePassword from "./OnePassword";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -75,6 +76,7 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   teamviewer: TeamViewer,
   "windows defender": WindowsDefender,
   postman: Postman,
+  "1password": OnePassword,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
