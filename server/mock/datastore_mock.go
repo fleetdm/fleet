@@ -1090,6 +1090,8 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
+type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2695,6 +2697,9 @@ type DataStore struct {
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
+
+	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
+	SetSetupExperienceSoftwareTitlesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6442,4 +6447,11 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
+}
+
+func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
+	s.mu.Lock()
+	s.SetSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceSoftwareTitlesFunc(ctx, teamID, titleIDs)
 }
