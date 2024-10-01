@@ -555,13 +555,19 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
-	"battery": {
+	"battery_macos": {
 		Query:            `SELECT serial_number, cycle_count, health FROM battery;`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestBattery,
 		// the "battery" table doesn't need a Discovery query as it is an official
 		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
 		// always present.
+	},
+	"battery_windows": {
+		Query:            `SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestBattery,
+		Discovery:        discoveryTable("battery"), // added to Windows in v5.12.1 (https://github.com/osquery/osquery/releases/tag/5.12.1)
 	},
 	"os_windows": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
@@ -1297,21 +1303,68 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostBattery, 0, len(rows))
 	for _, row := range rows {
-		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		cycleCount, err := strconv.Atoi(EmptyToZero(row["cycle_count"]))
 		if err != nil {
 			return err
 		}
-		mapping = append(mapping, &fleet.HostBattery{
-			HostID:       host.ID,
-			SerialNumber: row["serial_number"],
-			CycleCount:   int(cycleCount),
-			// database type is VARCHAR(40) and since there isn't a
-			// canonical list of strings we can get for health, we
-			// truncate the value just in case.
-			Health: fmt.Sprintf("%.40s", row["health"]),
-		})
+
+		switch host.Platform {
+		case "darwin":
+			mapping = append(mapping, &fleet.HostBattery{
+				HostID:       host.ID,
+				SerialNumber: row["serial_number"],
+				CycleCount:   cycleCount,
+				// database type is VARCHAR(40) and since there isn't a
+				// canonical list of strings we can get for health, we
+				// truncate the value just in case.
+				Health: fmt.Sprintf("%.40s", row["health"]),
+			})
+		case "windows":
+			health, err := generateWindowsBatteryHealth(row["designed_capacity"], row["max_capacity"])
+			if err != nil {
+				level.Error(logger).Log("op", "directIngestBattery", "hostID", host.ID, "err", err)
+			}
+
+			mapping = append(mapping, &fleet.HostBattery{
+				HostID:       host.ID,
+				SerialNumber: row["serial_number"],
+				CycleCount:   cycleCount,
+				Health:       health,
+			})
+		}
 	}
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
+}
+
+const (
+	batteryStatusUnknown     = "Unknown"
+	batteryStatusDegraded    = "Check Battery"
+	batteryStatusGood        = "Good"
+	batteryDegradedThreshold = 80
+)
+
+func generateWindowsBatteryHealth(designedCapacity, maxCapacity string) (string, error) {
+	if designedCapacity == "" || maxCapacity == "" {
+		return batteryStatusUnknown, fmt.Errorf("missing battery capacity values, designed: %s, max: %s", designedCapacity, maxCapacity)
+	}
+
+	designed, err := strconv.ParseInt(designedCapacity, 10, 64)
+	if err != nil {
+		return batteryStatusUnknown, err
+	}
+
+	max, err := strconv.ParseInt(maxCapacity, 10, 64)
+	if err != nil {
+		return batteryStatusUnknown, err
+	}
+
+	health := float64(max) / float64(designed) * 100
+
+	if health < batteryDegradedThreshold {
+		return batteryStatusDegraded, nil
+	}
+
+	return batteryStatusGood, nil
 }
 
 func directIngestWindowsUpdateHistory(

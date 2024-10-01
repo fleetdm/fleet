@@ -279,7 +279,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm_windows",
 		"munki_info",
 		"google_chrome_profiles",
-		"battery",
+		"battery_macos",
+		"battery_windows",
 		"os_windows",
 		"os_unix_like",
 		"os_chrome",
@@ -296,7 +297,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 25)
+	require.Len(t, queriesWithoutWinOSVuln, 26)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
@@ -984,7 +985,8 @@ func TestDirectIngestBattery(t *testing.T) {
 	}
 
 	host := fleet.Host{
-		ID: 1,
+		ID:       1,
+		Platform: "darwin",
 	}
 
 	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
@@ -992,6 +994,37 @@ func TestDirectIngestBattery(t *testing.T) {
 		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
 	})
 
+	require.NoError(t, err)
+	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
+
+	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+		require.Equal(t, mappings, []*fleet.HostBattery{
+			{HostID: uint(2), SerialNumber: "a", CycleCount: 2, Health: batteryStatusGood},
+			{HostID: uint(2), SerialNumber: "b", CycleCount: 3, Health: batteryStatusDegraded},
+			{HostID: uint(2), SerialNumber: "c", CycleCount: 4, Health: batteryStatusUnknown},
+			{HostID: uint(2), SerialNumber: "d", CycleCount: 5, Health: batteryStatusUnknown},
+			{HostID: uint(2), SerialNumber: "e", CycleCount: 6, Health: batteryStatusUnknown},
+			{HostID: uint(2), SerialNumber: "f", CycleCount: 7, Health: batteryStatusUnknown},
+		})
+		return nil
+	}
+
+	// reset the ds flag
+	ds.ReplaceHostBatteriesFuncInvoked = false
+
+	host = fleet.Host{
+		ID:       2,
+		Platform: "windows",
+	}
+
+	err = directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2400"}, // max_capacity >= 80%
+		{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "2399"}, // max_capacity < 50%
+		{"serial_number": "c", "cycle_count": "4", "designed_capacity": "3000", "max_capacity": ""},     // missing max_capacity
+		{"serial_number": "d", "cycle_count": "5", "designed_capacity": "", "max_capacity": ""},         // missing designed_capacity and max_capacity
+		{"serial_number": "e", "cycle_count": "6", "designed_capacity": "", "max_capacity": "2000"},     // missing designed_capacity
+		{"serial_number": "f", "cycle_count": "7", "designed_capacity": "foo", "max_capacity": "bar"},   // invalid designed_capacity and max_capacity
+	})
 	require.NoError(t, err)
 	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
