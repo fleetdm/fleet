@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
-import { isCancel } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -59,17 +58,6 @@ const EditSoftwareModal = ({
     selfService: false,
   });
   const [uploadProgress, setUploadProgress] = useState(0);
-
-  // TODO: This will cancel the request when the component unmounts. Notably when the back
-  // button is clicked, we haven't found a way to showing the native unload prompt. Without this effect,
-  // a long running request would continue in the background. What do we want to happen?
-  const abortRef = React.useRef(new AbortController());
-  useEffect(() => {
-    abortRef.current = new AbortController();
-    return () => {
-      abortRef.current.abort();
-    };
-  }, []);
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
@@ -134,7 +122,6 @@ const EditSoftwareModal = ({
     // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      abortRef.current = new AbortController();
       await softwareAPI.editSoftwarePackage({
         data: formData,
         softwareId,
@@ -143,7 +130,6 @@ const EditSoftwareModal = ({
         onUploadProgress: (progressEvent) => {
           setUploadProgress(progressEvent.progress || 0);
         },
-        signal: abortRef.current.signal,
       });
 
       renderFlash(
@@ -158,31 +144,28 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      // we don't want to show an error if the request is canceled (e.g. user navigates away)
-      if (!isCancel(e)) {
-        const reason = getErrorReason(e);
-        if (reason.includes("Fleet couldn't read the version from")) {
-          renderFlash(
-            "error",
-            <>
-              Couldn&apos;t edit <b>{software.name}</b>. {reason}.
-              <CustomLink
-                newTab
-                url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-                text="Learn more"
-              />
-            </>
-          );
-        } else if (reason.includes("selected package is")) {
-          renderFlash(
-            "error",
-            <>
-              Couldn&apos;t edit <b>{software.name}</b>. {reason}
-            </>
-          );
-        } else {
-          renderFlash("error", getErrorMessage(e));
-        }
+      const reason = getErrorReason(e);
+      if (reason.includes("Fleet couldn't read the version from")) {
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t edit <b>{software.name}</b>. {reason}.
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+            />
+          </>
+        );
+      } else if (reason.includes("selected package is")) {
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t edit <b>{software.name}</b>. {reason}
+          </>
+        );
+      } else {
+        renderFlash("error", getErrorMessage(e));
       }
     }
     setIsUpdatingSoftware(false);

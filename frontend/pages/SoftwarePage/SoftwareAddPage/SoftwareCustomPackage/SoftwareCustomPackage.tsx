@@ -1,6 +1,5 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import { isCancel } from "axios";
 
 import PATHS from "router/paths";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -42,17 +41,6 @@ const SoftwareCustomPackage = ({
   const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
     null
   );
-
-  // TODO: This will cancel the request when the component unmounts. Notably when the back
-  // button is clicked, we haven't found a way to showing the native unload prompt. Without this effect,
-  // a long running request would continue in the background. What do we want to happen?
-  const abortRef = React.useRef(new AbortController());
-  useEffect(() => {
-    abortRef.current = new AbortController();
-    return () => {
-      abortRef.current.abort();
-    };
-  }, []);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -112,7 +100,6 @@ const SoftwareCustomPackage = ({
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      abortRef.current = new AbortController();
       await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
@@ -120,7 +107,6 @@ const SoftwareCustomPackage = ({
         onUploadProgress: (progressEvent) => {
           setUploadProgress(progressEvent.progress || 0);
         },
-        signal: abortRef.current.signal,
       });
       renderFlash(
         "success",
@@ -142,27 +128,24 @@ const SoftwareCustomPackage = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
-      // we don't want to show an error if the request is canceled (e.g. user navigates away)
-      if (!isCancel(e)) {
-        const reason = getErrorReason(e);
-        if (
-          reason.includes("Couldn't add. Fleet couldn't read the version from")
-        ) {
-          renderFlash(
-            "error",
-            <>
-              {reason}{" "}
-              <CustomLink
-                newTab
-                url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-                text="Learn more"
-                iconColor="core-fleet-white"
-              />
-            </>
-          );
-        } else {
-          renderFlash("error", getErrorMessage(e));
-        }
+      const reason = getErrorReason(e);
+      if (
+        reason.includes("Couldn't add. Fleet couldn't read the version from")
+      ) {
+        renderFlash(
+          "error",
+          <>
+            {reason}{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+              iconColor="core-fleet-white"
+            />
+          </>
+        );
+      } else {
+        renderFlash("error", getErrorMessage(e));
       }
     }
     setUploadDetails(null);
