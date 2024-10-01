@@ -118,6 +118,7 @@ const HostSoftwareTable = ({
       />
     );
   }, [handleFilterDropdownChange, hostSoftwareFilter]);
+
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -148,9 +149,15 @@ const HostSoftwareTable = ({
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
 
+      if (hostSoftwareFilter === "vulnerableSoftware") {
+        newQueryParam.vulnerable = "true";
+      } else if (hostSoftwareFilter === "installableSoftware") {
+        newQueryParam.available_for_install = "true";
+      }
+
       return newQueryParam;
     },
-    []
+    [hostSoftwareFilter]
   );
 
   // TODO: Look into useDebounceCallback with dependencies

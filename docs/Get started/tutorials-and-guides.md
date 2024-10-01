@@ -6,7 +6,7 @@ A collection of guides to help you with Fleet.
 - [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet)  
 - [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet)  
 - [Sysadmin diaries: restoring fleetd](https://fleetdm.com/guides/sysadmin-diaries-restoring-fleetd)  
-- [How to uninstall osquery](https://fleetdm.com/guides/how-to-uninstall-osquery)  
+- [How to uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd)  
 - [Sysadmin diaries: device enrollment](https://fleetdm.com/guides/sysadmin-diaries-device-enrollment)  
 - [Sysadmin diaries: passcode profiles](https://fleetdm.com/guides/sysadmin-diaries-passcode-profiles)  
 - [Sysadmin diaries: lost device](https://fleetdm.com/guides/sysadmin-diaries-lost-device)  

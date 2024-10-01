@@ -26,7 +26,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -34,6 +33,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/smallstep/pkcs7"
+	"github.com/smallstep/scep"
 )
 
 // TestAppleMDMClient simulates a macOS MDM client.

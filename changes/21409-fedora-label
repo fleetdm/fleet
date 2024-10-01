@@ -1,0 +1,1 @@
+- added builtin label for Fedora Linux.  Warning: migrations will fail if a pre-existing 'Fedora Linux' label exists.  To resolve, delete the existing 'Fedora Linux' label.
