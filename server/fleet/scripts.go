@@ -406,6 +406,17 @@ type HostLockWipeStatus struct {
 	WipeScript *HostScriptResult
 }
 
+// ScriptResponse is the response type used when applying scripts by batch.
+type ScriptResponse struct {
+	// TeamID is the id of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// ID is the id of the script
+	ID uint `json:"id" db:"id"`
+	// Name is the name of the script
+	Name string `json:"name" db:"name"`
+}
+
 func (s *HostLockWipeStatus) IsPendingLock() bool {
 	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		// pending lock if an MDM command is queued but no result received yet

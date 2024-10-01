@@ -26,6 +26,12 @@ policies:
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
   - path: ./team_install_software.policies.yml
+  - name: Script run policy
+    platform: linux
+    description: This should run a script on failure
+    query: SELECT * from osquery_info;
+    run_script:
+      - path: ./lib/collect-fleetd-logs.sh
 software:
   packages:
     - path: ./microsoft-teams.pkg.software.yml

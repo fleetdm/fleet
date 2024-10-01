@@ -616,7 +616,7 @@ WHERE
 	return results, metaData, nil
 }
 
-func (ds *Datastore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+func (ds *Datastore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 	const loadExistingScripts = `
 SELECT
   name
@@ -631,6 +631,12 @@ DELETE FROM
   scripts
 WHERE
   global_or_team_id = ?
+`
+	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
+
+	const unsetScriptsNotInListFromPolicies = `
+UPDATE policies SET script_id = NULL
+WHERE script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))
 `
 
 	const deleteScriptsNotInList = `
@@ -652,6 +658,8 @@ ON DUPLICATE KEY UPDATE
   script_content_id = VALUES(script_content_id)
 `
 
+	const loadInsertedScripts = `SELECT id, team_id, name FROM scripts WHERE global_or_team_id = ?`
+
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
 	if tmID != nil {
@@ -669,7 +677,8 @@ ON DUPLICATE KEY UPDATE
 		incomingScripts[p.Name] = p
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var insertedScripts []fleet.ScriptResponse
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existingScripts []*fleet.Script
 
 		if len(incomingNames) > 0 {
@@ -692,22 +701,35 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		var (
-			stmt string
-			args []any
-			err  error
+			scriptsStmt  string
+			scriptsArgs  []any
+			policiesStmt string
+			policiesArgs []any
+			err          error
 		)
 		if len(keepNames) > 0 {
 			// delete the obsolete scripts
-			stmt, args, err = sqlx.In(deleteScriptsNotInList, globalOrTeamID, keepNames)
+			scriptsStmt, scriptsArgs, err = sqlx.In(deleteScriptsNotInList, globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
 			}
+
+			policiesStmt, policiesArgs, err = sqlx.In(unsetScriptsNotInListFromPolicies, globalOrTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
+			}
 		} else {
-			stmt = deleteAllScriptsInTeam
-			args = []any{globalOrTeamID}
+			scriptsStmt = deleteAllScriptsInTeam
+			scriptsArgs = []any{globalOrTeamID}
+
+			policiesStmt = unsetAllScriptsFromPolicies
+			policiesArgs = []any{globalOrTeamID}
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
+		}
+		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
 		}
 
 		// insert the new scripts and the ones that have changed
@@ -721,8 +743,17 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 		}
+
+		if err := sqlx.SelectContext(ctx, tx, &insertedScripts, loadInsertedScripts, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load inserted scripts")
+		}
+
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+
+	return insertedScripts, nil
 }
 
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {

@@ -1010,7 +1010,7 @@ type GetScriptIDByNameFunc func(ctx context.Context, name string, teamID *uint) 
 
 type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
 
-type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error
+type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -6169,7 +6169,7 @@ func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamI
 	return s.GetHostScriptDetailsFunc(ctx, hostID, teamID, opts, hostPlatform)
 }
 
-func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 	s.mu.Lock()
 	s.BatchSetScriptsFuncInvoked = true
 	s.mu.Unlock()

@@ -1588,7 +1588,7 @@ type Datastore interface {
 	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions, hostPlatform string) ([]*HostScriptDetail, *PaginationMetadata, error)
 
 	// BatchSetScripts sets the scripts for the given team or no team.
-	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
+	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)

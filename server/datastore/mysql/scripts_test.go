@@ -659,7 +659,7 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	applyAndExpect := func(newSet []*fleet.Script, tmID *uint, want []*fleet.Script) map[string]uint {
-		err := ds.BatchSetScripts(ctx, tmID, newSet)
+		responseFromSet, err := ds.BatchSetScripts(ctx, tmID, newSet)
 		require.NoError(t, err)
 
 		if tmID == nil {
@@ -669,12 +669,18 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// compare only the fields we care about
-		m := make(map[string]uint)
+		fromGetByScriptName := make(map[string]uint)
+		fromSetByScriptName := make(map[string]uint)
+		for _, gotScript := range responseFromSet {
+			fromSetByScriptName[gotScript.Name] = gotScript.ID
+		}
 		for _, gotScript := range got {
-			m[gotScript.Name] = gotScript.ID
+			fromGetByScriptName[gotScript.Name] = gotScript.ID
 			if gotScript.TeamID != nil && *gotScript.TeamID == 0 {
 				gotScript.TeamID = nil
 			}
+
+			require.Equal(t, fromGetByScriptName[gotScript.Name], gotScript.ID)
 			gotScript.ID = 0
 			gotScript.CreatedAt = time.Time{}
 			gotScript.UpdatedAt = time.Time{}
@@ -682,7 +688,7 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		// order is not guaranteed
 		require.ElementsMatch(t, want, got)
 
-		return m
+		return fromGetByScriptName
 	}
 
 	// apply empty set for no-team

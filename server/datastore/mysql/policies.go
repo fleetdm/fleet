@@ -804,6 +804,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		Query               string `db:"query"`
 		Platforms           string `db:"platforms"`
 		SoftwareInstallerID *uint  `db:"software_installer_id"`
+		ScriptID            *uint  `db:"script_id"`
 	}
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -817,10 +818,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		var args []interface{}
 		var err error
 		if teamID == nil {
-			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, script_id FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms, software_installer_id FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
+				"SELECT name, query, platforms, software_installer_id, script_id FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
@@ -850,8 +851,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			critical,
 			calendar_events_enabled,
 			software_installer_id,
+		    script_id,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -860,7 +862,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			platforms = VALUES(platforms),
 			critical = VALUES(critical),
 			calendar_events_enabled = VALUES(calendar_events_enabled),
-			software_installer_id = VALUES(software_installer_id)
+			software_installer_id = VALUES(software_installer_id),
+			script_id = VALUES(script_id)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -872,7 +875,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				res, err := tx.ExecContext(
 					ctx,
 					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
-					spec.CalendarEventsEnabled, softwareInstallerID,
+					spec.CalendarEventsEnabled, softwareInstallerID, spec.ScriptID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -899,6 +902,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							case teamID != nil &&
 								((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
 									(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
+								shouldRemoveAllPolicyMemberships = true
+								removePolicyStats = true
+							case teamID != nil &&
+								((prev.ScriptID == nil && spec.ScriptID != nil) ||
+									(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
 								shouldRemoveAllPolicyMemberships = true
 								removePolicyStats = true
 							case prev.Platforms != spec.Platform:
