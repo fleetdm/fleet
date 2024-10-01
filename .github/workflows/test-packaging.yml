@@ -15,9 +15,7 @@ on:
     paths:
       - 'cmd/fleetctl/**.go'
       - 'pkg/**.go'
-      - 'server/service/**.go'
       - 'server/context/**.go'
-      - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'tools/fleetctl-docker/**'
       - 'tools/wix-docker/**'
@@ -47,7 +45,10 @@ jobs:
         # packages, this worker needs to run on an x86_64 architecture.
         # `macos-latest` uses arm64 by default now, so please be careful when
         # updating this version.
-        os: [ubuntu-latest, macos-13]
+        #
+        # Currently only running on ubuntu because Docker and Colima are extremely
+        # unreliable on Github macOS runners.
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
