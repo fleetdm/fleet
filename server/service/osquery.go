@@ -1886,7 +1886,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to installers.
+	// Filter out results of policies that are not associated to scripts.
 	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
 	for _, policyWithScript := range policiesWithScript {
 		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
