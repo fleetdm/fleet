@@ -1,4 +1,6 @@
-import sendRequest from "services";
+import { AxiosProgressEvent } from "axios";
+
+import sendRequest, { sendRequestWithProgress } from "services";
 import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
@@ -238,11 +240,19 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addSoftwarePackage: (
-    data: IPackageFormData,
-    teamId?: number,
-    timeout?: number
-  ) => {
+  addSoftwarePackage: ({
+    data,
+    teamId,
+    timeout,
+    onUploadProgress,
+    signal,
+  }: {
+    data: IPackageFormData;
+    teamId?: number;
+    timeout?: number;
+    onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+    signal?: AbortSignal;
+  }) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
     if (!data.software) {
@@ -261,21 +271,32 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
-    return sendRequest(
-      "POST",
-      SOFTWARE_PACKAGE_ADD,
-      formData,
-      undefined,
+    return sendRequestWithProgress({
+      method: "POST",
+      path: SOFTWARE_PACKAGE_ADD,
+      data: formData,
       timeout,
-      true
-    );
+      skipParseError: true,
+      onUploadProgress,
+      signal,
+    });
   },
-  editSoftwarePackage: (
-    data: IPackageFormData,
-    softwareId: number,
-    teamId: number,
-    timeout?: number
-  ) => {
+
+  editSoftwarePackage: ({
+    data,
+    softwareId,
+    teamId,
+    timeout,
+    onUploadProgress,
+    signal,
+  }: {
+    data: IPackageFormData;
+    softwareId: number;
+    teamId: number;
+    timeout?: number;
+    onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+    signal?: AbortSignal;
+  }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
 
     const formData = new FormData();
@@ -287,15 +308,17 @@ export default {
     formData.append("post_install_script", data.postInstallScript || "");
     formData.append("uninstall_script", data.uninstallScript || "");
 
-    return sendRequest(
-      "PATCH",
-      EDIT_SOFTWARE_PACKAGE(softwareId),
-      formData,
-      undefined,
+    return sendRequestWithProgress({
+      method: "PATCH",
+      path: EDIT_SOFTWARE_PACKAGE(softwareId),
+      data: formData,
       timeout,
-      true
-    );
+      skipParseError: true,
+      onUploadProgress,
+      signal,
+    });
   },
+
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
