@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -1120,6 +1121,23 @@ func registerSCEP(
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
 	mux.Handle(apple_mdm.SCEPPath, scepHandler)
+	return nil
+}
+
+func RegisterSCEPProxy(
+	rootMux *http.ServeMux,
+	logger kitlog.Logger,
+) error {
+	scepService := eeservice.NewSCEPProxyService(
+		kitlog.With(logger, "component", "scep-proxy-service"),
+	)
+	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
+	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)
+	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
+	rootPath := "/mdm/scep/proxy/"
+	scepHandler := scepserver.MakeHTTPHandlerWithIdentifier(e, rootPath, scepLogger)
+	rootMux.Handle(rootPath, scepHandler)
 	return nil
 }
 

@@ -352,11 +352,20 @@ type GoogleCalendarIntegration struct {
 	ApiKey map[string]string `json:"api_key_json"`
 }
 
+// NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
+type NDESSCEPProxyIntegration struct {
+	URL      string `json:"url"`
+	AdminURL string `json:"admin_url"`
+	Username string `json:"username"`
+	Password string `json:"password"` // not stored here -- encrypted in DB
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
 	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	NDESSCEPProxy  *NDESSCEPProxyIntegration    `json:"ndes_scep_proxy"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

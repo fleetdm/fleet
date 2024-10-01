@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -49,6 +50,20 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 }
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
+	// Check if passwords need to be encrypted
+	if info.Integrations.NDESSCEPProxy != nil {
+		if info.Integrations.NDESSCEPProxy.Password != "" && info.Integrations.NDESSCEPProxy.Password != fleet.MaskedPassword {
+			err := ds.insertOrReplaceConfigAsset(ctx, fleet.MDMConfigAsset{
+				Name:  fleet.MDMAssetNDESPassword,
+				Value: []byte(info.Integrations.NDESSCEPProxy.Password),
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
+			}
+		}
+		info.Integrations.NDESSCEPProxy.Password = fleet.MaskedPassword
+	}
+
 	configBytes, err := json.Marshal(info)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling config")
@@ -65,6 +80,20 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 		return nil
 	})
+}
+
+func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{asset.Name})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get all mdm config assets by name")
+	}
+	if len(assets) == 0 {
+		return ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset})
+	} else if !bytes.Equal(assets[asset.Name].Value, asset.Value) {
+		return ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset})
+	}
+	// asset already exists and is the same, so not need to update
+	return nil
 }
 
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {

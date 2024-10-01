@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -422,6 +423,40 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	vppAssignments, err := svc.validateVPPAssignments(ctx, &newAppConfig.MDM, invalid, license)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
+	}
+
+	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
+	if license.IsPremium() && newAppConfig.Integrations.NDESSCEPProxy != nil {
+		validateAdminURL, validateSCEPURL := false, false
+		if oldAppConfig.Integrations.NDESSCEPProxy == nil {
+			validateAdminURL, validateSCEPURL = true, true
+		} else {
+			newSCEPProxy := newAppConfig.Integrations.NDESSCEPProxy
+			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy
+			if newSCEPProxy.URL != oldSCEPProxy.URL {
+				validateSCEPURL = true
+			}
+			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL || newSCEPProxy.Username != oldSCEPProxy.Username {
+				validateAdminURL = true
+			} else if newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword {
+				// We do not update password if it is empty or masked
+				validateAdminURL = true
+			}
+		}
+
+		if validateAdminURL {
+			if err = eeservice.ValidateNDESSCEPAdminURL(ctx, newAppConfig.Integrations.NDESSCEPProxy); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy", err.Error())
+			}
+		}
+
+		if validateSCEPURL {
+			if err = eeservice.ValidateNDESSCEPURL(ctx, newAppConfig.Integrations.NDESSCEPProxy, svc.logger); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+			}
+		}
+	} else {
+		appConfig.Integrations.NDESSCEPProxy = nil
 	}
 
 	if invalid.HasErrors() {
