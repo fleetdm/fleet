@@ -146,7 +146,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if p.TeamID != nil {
-		if err := assertTeamMatches(ctx, *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
+		if err := ds.assertTeamMatches(ctx, *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save policy")
 		}
 	}
@@ -177,13 +177,30 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-func assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
+var errMismatchedInstallerTeam = errors.New("software installer is associated with a different team")
+var errMismatchedScriptTeam = errors.New("script is associated with a different team")
+
+func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
 	if softwareInstallerID != nil {
-		// TODO fail if wrong team
+		var softwareInstallerTeamID uint
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
+
+		if err != nil {
+			return err
+		} else if softwareInstallerTeamID != teamID {
+			return errMismatchedInstallerTeam
+		}
 	}
 
 	if scriptID != nil {
-		// TODO fail if wrong team
+		var scriptTeamID uint
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
+
+		if err != nil {
+			return err
+		} else if scriptTeamID != teamID {
+			return errMismatchedScriptTeam
+		}
 	}
 
 	return nil
@@ -632,7 +649,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
-	if err := assertTeamMatches(ctx, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
+	if err := ds.assertTeamMatches(ctx, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
