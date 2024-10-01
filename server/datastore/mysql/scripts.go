@@ -1166,7 +1166,9 @@ WHERE
     SELECT 1 FROM software_installers si
     WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
   )
-		`
+  AND NOT EXISTS (
+    SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id)
+`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up unused script contents")
