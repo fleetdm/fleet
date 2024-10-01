@@ -29,4 +29,178 @@ MySQL. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=80410
 
 Sometimes we need data from rows that have been deleted from DB. For example, the activity feed may be retained forever, and it needs user info (or host info) that may not exist anymore.
 Going forward, we need to keep this data in a dedicated table(s). A reference unmerged PR is [here](https://github.com/fleetdm/fleet/pull/17472/files#diff-57a635e42320a87dd15a3ae03d66834f2cbc4fcdb5f3ebb7075d966b96f760afR16).
-The `id` may be the same as that of the original table. For example, if the `user` row is deleted, a new entry with the same `user.id` can be added to `user_persistent_info`.
+The `id` may be the same as that of the original table. For example, if the `user` row is deleted, a
+new entry with the same `user.id` can be added to `user_persistent_info`.
+
+## API Patterns
+
+These are a collection of API patterns that we follow. They are not set in stone
+but should be considered the norm where we only deviate from when there is a valid
+reason to do so.
+
+### Resource IDs
+
+Resource ids should always be returned as a number.
+
+```jsonc
+// response for GET /queries/1
+
+// good
+{
+  "query": {
+    "id": 1
+    ...
+  }
+}
+
+// bad
+{
+  "query": {
+    "id": "1"
+    ...
+  }
+}
+```
+
+### Resourse response
+
+The response for a resource should always be a JSON object with the resource
+as the key. This allows for extending the resposne JSON in the future if needed.
+
+```jsonc
+// response for GET /queries/1
+
+// good
+{
+  "query": {
+    "id": 1,
+    "name": "Test Query",
+    ...
+  }
+}
+
+// bad
+{
+  "id": 1,
+  "name": "Test Query",
+  ...
+}
+
+// response for GET /queries
+
+// good
+{
+  "queries": [
+    {
+      "id": 1,
+      ...
+    },
+    {
+      "id": 2,
+      ...
+    }
+  ]
+}
+
+// bad
+[
+  {
+    "id": 1,
+    ...
+  },
+  {
+    "id": 2,
+    ...
+  }
+]
+```
+
+## Pagination for list items endpoint
+
+Endpoints that return a collection of resources should have pagination `meta` data in the
+response to let the client know if there are more results that they can request.
+
+```jsonc
+// response to GET /software/titles endpoint
+
+// good
+{
+  "software_titles": [{...}],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+
+// bad
+{
+  "software_titles": [{...}]
+}
+```
+
+## Empty values in response
+
+We have a few conventions for empty values in a response. They are:
+
+- string values return an empty string
+- numbers and objects return `null`
+- arrays return an empty array
+- we do not omit response values
+
+we do this so it is clearer to the client what data they have to work with in the API response.
+
+```jsonc
+// response from GET /labels/1
+
+// good
+{
+  "label": {
+    "id": 1,
+    "description": ""
+    ...
+  }
+}
+
+// bad
+{
+  "label": {
+    "id": 1,
+    ... // "description" value is omitted
+  }
+}
+```
+
+```jsonc
+// response from GET /config
+
+// good
+{
+  ...
+  "mdm": {
+    "macos_settings": {
+      "custom_settings": []
+    }
+  }
+  ...
+}
+
+// bad
+{
+  ...
+  "mdm": {
+    "macos_settings": {
+      "custom_settings": null // "custom_settings" set to null
+    }
+  }
+  ...
+}
+
+// bad
+{
+  ...
+  "mdm": {
+    "macos_settings": {} // "custom_settings" has been omitted
+  }
+  ...
+}
+```
