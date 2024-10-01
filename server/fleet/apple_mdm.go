@@ -941,3 +941,28 @@ type MDMAppleSoftwareUpdateAsset struct {
 	ProductVersion string `json:"ProductVersion"`
 	Build          string `json:"Build"`
 }
+
+// MDMAppleSetupExperienceStatus represents the status of the MDM setup
+// experience for a macOS host.
+type MDMAppleSetupExperienceStatus struct {
+	BootstrapPackage *SetupExperienceBootstrapPackageStatus `json:"bootstrap_package,omitempty"`
+	Script           *SetupExperienceScriptStatus           `json:"script,omitempty"`
+	Software         []*SetupExperienceSoftwareStatus       `json:"software,omitempty"`
+}
+
+type SetupExperienceBootstrapPackageStatus struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+type SetupExperienceScriptStatus struct {
+	ExecutionID string `json:"execution_id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"`
+}
+
+type SetupExperienceSoftwareStatus struct {
+	SoftwareID uint   `json:"software_id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+}

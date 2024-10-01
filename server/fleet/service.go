@@ -968,6 +968,9 @@ type Service interface {
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
 	GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error)
 
+	StartHostSetupExperience(ctx context.Context) error
+	HostSetupExperienceStatus(ctx context.Context) (*MDMAppleSetupExperienceStatus, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

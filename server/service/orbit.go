@@ -1098,11 +1098,22 @@ func (r orbitPostStartSetupExperienceResponse) error() error { return r.Err }
 func (r orbitPostStartSetupExperienceResponse) Status() int  { return http.StatusAccepted }
 
 func postOrbitStartSetupExperienceEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*orbitPostStartSetupExperienceRequest)
-	if err := svc.TODO(ctx); err != nil {
+	if err := svc.StartHostSetupExperience(ctx); err != nil {
 		return orbitPostStartSetupExperienceResponse{Err: err}, nil
 	}
 	return orbitPostStartSetupExperienceResponse{}, nil
+}
+
+func (svc *Service) StartHostSetupExperience(ctx context.Context) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+	_ = host
+	panic("unimplemented")
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -1125,16 +1136,27 @@ func (r *orbitPostSetupExperienceStatusRequest) orbitHostNodeKey() string {
 
 type orbitPostSetupExperienceStatusResponse struct {
 	Err error `json:"error,omitempty"`
+	*fleet.MDMAppleSetupExperienceStatus
 }
 
 func (r orbitPostSetupExperienceStatusResponse) error() error { return r.Err }
 
 func postOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*orbitPostSetupExperienceStatusRequest)
-
-	_, err := svc.TODO(ctx)
+	_, err := svc.HostSetupExperienceStatus(ctx)
 	if err != nil {
 		return orbitPostSetupExperienceStatusResponse{Err: err}, nil
 	}
 	return orbitPostSetupExperienceStatusResponse{}, nil
+}
+
+func (svc *Service) HostSetupExperienceStatus(ctx context.Context) (*fleet.MDMAppleSetupExperienceStatus, error) {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+	_ = host
+	panic("unimplemented")
 }
