@@ -559,7 +559,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to determine battery health of macOS and Windows hosts
 		// based on the cycle count, designed capacity, and max capacity of the battery.
 		// The `health` column is ommitted due to a known osquery issue with M1 Macs
-		// (https://github.com/fleetdm/fleet/issues/6763) and it's absence on Windows.
+		// (https://github.com/fleetdm/fleet/issues/6763) and its absence on Windows.
 		Query:            `SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery`,
 		Platforms:        []string{"windows", "darwin"},
 		DirectIngestFunc: directIngestBattery,
