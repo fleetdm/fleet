@@ -16,7 +16,9 @@ func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamI
 
 	stmtSelectInstallersIDs := fmt.Sprintf(`
 SELECT
-	si.id
+	si.id,
+	st.name,
+	si.platform,
 FROM
 	software_titles st
 LEFT JOIN
@@ -30,7 +32,9 @@ AND
 
 	stmtSelectVPPAppsTeamsID := fmt.Sprintf(`
 SELECT
-	vat.id
+	vat.id,
+	st.name,
+	vat.platform,
 FROM
 	software_titles st
 LEFT JOIN
@@ -66,19 +70,35 @@ SET install_during_setup = true
 WHERE id IN (%s)`
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var softwareIDPlatforms []idPlatformTuple
 		var softwareIDs []uint
+		var vppIDPlatforms []idPlatformTuple
 		var vppAppTeamIDs []uint
 		titleIDArgs := make([]any, 0, len(titleIDs))
 		for _, id := range titleIDs {
 			titleIDs = append(titleIDs, id)
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &softwareIDs, stmtSelectInstallersIDs, titleIDArgs...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &vppAppTeamIDs, stmtSelectVPPAppsTeamsID, titleIDArgs...); err != nil {
+		for _, tuple := range softwareIDPlatforms {
+			if tuple.Platform != string(fleet.MacOSPlatform) {
+				return ctxerr.Errorf(ctx, "only MacOS supported, unsupported software installer: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
+			}
+			softwareIDs = append(softwareIDs, tuple.ID)
+		}
+
+		if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
+		}
+
+		for _, tuple := range vppIDPlatforms {
+			if tuple.Platform != string(fleet.MacOSPlatform) {
+				return ctxerr.Errorf(ctx, "only MacOS supported, unsupported AppStoreApp title: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
+			}
+			vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 		}
 
 		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers); err != nil {
@@ -124,4 +144,10 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, team
 	}
 
 	return titles, count, meta, nil
+}
+
+type idPlatformTuple struct {
+	ID       uint   `db:"id"`
+	Name     string `db:"title"`
+	Platform string `db:"platform"`
 }
