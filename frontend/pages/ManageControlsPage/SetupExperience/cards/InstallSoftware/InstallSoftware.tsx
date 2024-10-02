@@ -14,13 +14,17 @@ import AddInstallSoftware from "./components/AddInstallSoftware";
 
 const baseClass = "install-software";
 
+// This is so large because we want to get all the software titles that are
+// available for install so we can correctly display the selected count.
+const PER_PAGE_SIZE = 3000;
+
 interface IInstallSoftwareProps {
   currentTeamId: number;
 }
 
 const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
-  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState([]);
+  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>([]);
 
   const { data, isLoading, isError } = useQuery(
     ["install-software", currentTeamId],
@@ -28,10 +32,14 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       softwareAPI.getSoftwareTitles({
         teamId: currentTeamId,
         availableForInstall: true,
+        perPage: PER_PAGE_SIZE,
       }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
+      onSuccess: (softwareTitles) => {
+        setSelectedSoftwareIds(softwareTitles.map((software) => software.id));
+      },
     }
   );
 
@@ -44,7 +52,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (data) {
+    if (selectedSoftwareIds) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware
