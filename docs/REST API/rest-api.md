@@ -9553,7 +9553,7 @@ Add Fleet-maintained app so it's available for install.
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
 ### Download package
 
