@@ -916,6 +916,10 @@ type GetABMTokenCountFunc func(ctx context.Context) (int, error)
 
 type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
+type StartHostSetupExperienceFunc func(ctx context.Context, hostUUID string) error
+
+type GetHostSetupExperienceStatusFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleSetupExperienceStatus, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2434,6 +2438,12 @@ type DataStore struct {
 
 	GetABMTokenOrgNamesAssociatedWithTeamFunc        GetABMTokenOrgNamesAssociatedWithTeamFunc
 	GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked bool
+
+	StartHostSetupExperienceFunc        StartHostSetupExperienceFunc
+	StartHostSetupExperienceFuncInvoked bool
+
+	GetHostSetupExperienceStatusFunc        GetHostSetupExperienceStatusFunc
+	GetHostSetupExperienceStatusFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5833,6 +5843,20 @@ func (s *DataStore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, t
 	s.GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetABMTokenOrgNamesAssociatedWithTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) StartHostSetupExperience(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.StartHostSetupExperienceFuncInvoked = true
+	s.mu.Unlock()
+	return s.StartHostSetupExperienceFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostSetupExperienceStatus(ctx context.Context, hostUUID string) (*fleet.MDMAppleSetupExperienceStatus, error) {
+	s.mu.Lock()
+	s.GetHostSetupExperienceStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostSetupExperienceStatusFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

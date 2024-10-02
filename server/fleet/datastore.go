@@ -1404,6 +1404,13 @@ type Datastore interface {
 	// - the tokens targeting that team as default for any platform.
 	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
 
+	// StartHostSetupExperience creates the install requests for all software and
+	// script execution and marks them as pending.
+	StartHostSetupExperience(ctx context.Context, hostUUID string) error
+	// GetHostSetupExperienceStatus returns the current status of the host setup
+	// experience flow.
+	GetHostSetupExperienceStatus(ctx context.Context, hostUUID string) (*MDMAppleSetupExperienceStatus, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
