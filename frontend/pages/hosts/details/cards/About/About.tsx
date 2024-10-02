@@ -174,7 +174,8 @@ const About = ({
   const renderBattery = () => {
     if (
       aboutData.batteries === null ||
-      typeof aboutData.batteries !== "object"
+      typeof aboutData.batteries !== "object" ||
+      aboutData.batteries?.[0]?.health === "Unknown"
     ) {
       return null;
     }
