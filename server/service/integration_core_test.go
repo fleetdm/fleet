@@ -8327,8 +8327,8 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	require.NoError(t, err)
 
 	bats := []*fleet.HostBattery{
-		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
-		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Poor"},
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Normal"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Service recommended"},
 	}
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
 
@@ -8338,7 +8338,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
@@ -8347,7 +8347,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 }
 
