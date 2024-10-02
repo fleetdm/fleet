@@ -105,17 +105,13 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	var packageID string
 	switch payload.Extension {
 	case "pkg":
-		var sb strings.Builder
-		_, _ = sb.WriteString("(\n")
-		for _, pkgID := range payload.PackageIDs {
-			_, _ = sb.WriteString(fmt.Sprintf("  \"%s\"\n", pkgID))
-		}
-		_, _ = sb.WriteString(")") // no ending newline
-		packageID = sb.String()
+		// For pkgs we've decided to use the app's name instead of relying on pkgutil.
+		// See https://github.com/fleetdm/fleet/issues/22571.
+		// In future iterations we may start using the stored package_ids.
+		packageID = fmt.Sprintf("\"%s\"", payload.Title)
 	default:
 		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
 	}
-
 	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
 }
 
