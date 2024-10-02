@@ -872,10 +872,15 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				if spec.SoftwareTitleID != nil {
 					softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
 				}
+				scriptID := spec.ScriptID
+				if *spec.ScriptID == 0 {
+					scriptID = nil
+				}
+
 				res, err := tx.ExecContext(
 					ctx,
 					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
-					spec.CalendarEventsEnabled, softwareInstallerID, spec.ScriptID,
+					spec.CalendarEventsEnabled, softwareInstallerID, scriptID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")

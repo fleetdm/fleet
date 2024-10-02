@@ -3977,6 +3977,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		TeamID:            &team1.ID,
 	})
 	require.NoError(t, err)
 	require.Nil(t, p1.SoftwareInstallerID)
@@ -4001,10 +4002,23 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
 	// Policy p4 in "No team" with associated installer.
+	noTeamInstallerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            ptr.Uint(fleet.PolicyNoTeamID),
+	})
 	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
 		Name:                "p4",
 		Query:               "SELECT 4;",
-		SoftwareInstallerID: ptr.Uint(installerID),
+		SoftwareInstallerID: ptr.Uint(noTeamInstallerID),
 	})
 	require.NoError(t, err)
 	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
