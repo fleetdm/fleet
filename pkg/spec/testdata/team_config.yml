@@ -31,7 +31,8 @@ policies:
     description: This should run a script on failure
     query: SELECT * from osquery_info;
     run_script:
-      - path: ./lib/collect-fleetd-logs.sh
+      path: ./lib/collect-fleetd-logs.sh
+  - path: ./script-policy.yml
 software:
   packages:
     - path: ./microsoft-teams.pkg.software.yml

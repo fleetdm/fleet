@@ -242,7 +242,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				// Check policies
 				expectedPoliciesCount := 5
 				if test.isTeam {
-					expectedPoliciesCount = 6
+					expectedPoliciesCount = 8
 				}
 				require.Len(t, gitops.Policies, expectedPoliciesCount)
 				assert.Equal(t, "😊 Failing policy", gitops.Policies[0].Name)
@@ -255,6 +255,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "Microsoft Teams on macOS installed and up to date", gitops.Policies[5].Name)
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
 					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+
+					assert.Equal(t, "Script run policy", gitops.Policies[6].Name)
+					assert.NotNil(t, gitops.Policies[6].RunScript)
+					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[6].RunScript.Path)
+
+					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[7].Name)
+					assert.NotNil(t, gitops.Policies[7].RunScript)
+					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[7].RunScript.Path)
 				}
 			},
 		)
