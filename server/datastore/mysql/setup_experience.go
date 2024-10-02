@@ -15,7 +15,6 @@ func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID uint) 
 SELECT
   id,
   team_id,
-  global_or_team_id,
   name,
   script_content_id,
   created_at,
