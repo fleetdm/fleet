@@ -560,6 +560,7 @@ SELECT
 	hsi.self_service,
 	hsi.host_deleted_at,
 	hsi.created_at as created_at,
+	hsi.updated_at as updated_at,
 	si.user_id AS software_installer_user_id,
 	si.user_name AS software_installer_user_name,
 	si.user_email AS software_installer_user_email
