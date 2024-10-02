@@ -1241,6 +1241,7 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		TeamID:            &team1.ID,
 	})
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installerID)
