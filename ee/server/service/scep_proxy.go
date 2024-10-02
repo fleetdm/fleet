@@ -95,7 +95,8 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyInte
 			return ctxerr.New(ctx,
 				"the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created")
 		}
-		return ctxerr.New(ctx, "could not retrieve the enrollment challenge password")
+		return ctxerr.New(ctx,
+			"could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again")
 	}
 	return nil
 }
@@ -103,12 +104,12 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyInte
 func ValidateNDESSCEPURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration, logger log.Logger) error {
 	client, err := scepclient.New(proxy.URL, logger)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating SCEP client")
+		return ctxerr.Wrap(ctx, err, "creating SCEP client; invalid SCEP URL; please correct and try again")
 	}
 
 	certs, _, err := client.GetCACert(ctx, "")
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "could not retrieve CA certificate from SCEP URL")
+		return ctxerr.Wrap(ctx, err, "could not retrieve CA certificate from SCEP URL; invalid SCEP URL; please correct and try again")
 	}
 	if len(certs) == 0 {
 		return ctxerr.New(ctx, "SCEP URL did not return a CA certificate")
