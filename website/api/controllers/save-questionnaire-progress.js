@@ -216,7 +216,18 @@ module.exports = {
     } catch(err){
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
-    // Only update CRM records if the user's psychological stage changes.
+    // Create a dictionary of values to send to the CRM for this user.
+    let contactInformation = {
+      emailAddress: this.req.me.emailAddress,
+      firstName: this.req.me.firstName,
+      lastName: this.req.me.lastName,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+      organization: this.req.me.organization,
+      psychologicalStage,
+      getStartedResponses: questionnaireProgressAsAFormattedString,
+      contactSource: 'Website - Sign up',
+    };
+    // If the user's psychologicalStage changes, add a psychologicalStageChangeReason to the contactInformation dictionary that we'll update the CRM record with.
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
       if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
@@ -226,25 +237,17 @@ module.exports = {
           psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }
-      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
+      contactInformation.psychologicalStageChangeReason = psychologicalStageChangeReason;
+      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage has changed (otherwise this is set to the current value)
       psychologicalStageLastChangedAt = Date.now();
-      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: this.req.me.emailAddress,
-        firstName: this.req.me.firstName,
-        lastName: this.req.me.lastName,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        organization: this.req.me.organization,
-        psychologicalStage,
-        psychologicalStageChangeReason,
-        getStartedResponses: questionnaireProgressAsAFormattedString,
-        contactSource: 'Website - Sign up',
-      }).exec((err)=>{
-        if(err){
-          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-        }
-        return;
-      });
     }//ﬁ
+    // Update the CRM record for this user.
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
+      if(err){
+        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
+      }
+      return;
+    });
     // Update the user's database model.
     await User.updateOne({id: userRecord.id})
     .set({
