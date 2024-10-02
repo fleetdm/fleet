@@ -11593,7 +11593,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.NotEmpty(t, respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
 	assert.NotEmpty(t, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 	assert.NotContains(t, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript, "$PACKAGE_ID")
-	assert.Contains(t, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript, "com.example.dummy")
+	assert.Contains(t, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript, "\"DummyApp.app\"")
 
 	// install/uninstall request fails for the wrong platform
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, pkgTitleID), nil, http.StatusBadRequest, &resp)
