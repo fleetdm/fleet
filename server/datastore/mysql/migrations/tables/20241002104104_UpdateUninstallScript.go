@@ -44,34 +44,48 @@ func Up_20241002104104(tx *sql.Tx) error {
 
 	// Get script ids for uninstall scripts from software_installers platform = "darwin" and extension = "pkg"
 	getUninstallScriptIDs := `
-	SELECT DISTINCT uninstall_script_content_id
+	SELECT id, uninstall_script_content_id
 	FROM software_installers
 	WHERE platform = "darwin" AND extension = "pkg"
 `
-	var ids []uint
+	type scripts struct {
+		ID              uint `db:"id"`
+		ScriptContentID uint `db:"uninstall_script_content_id"`
+	}
+
+	var uninstallScripts []scripts
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
-	if err := txx.Select(&ids, getUninstallScriptIDs); err != nil {
+	if err := txx.Select(&uninstallScripts, getUninstallScriptIDs); err != nil {
 		return fmt.Errorf("failed to find uninstall script IDs: %w", err)
 	}
 
-	updateScriptContents := func(id uint, contents string) error {
+	insertScriptContents := func(contents string) (uint, error) {
 		const stmt = `
-		UPDATE script_contents
-		SET contents = ?, md5_checksum = UNHEX(?)
-		WHERE id = ?
+INSERT INTO
+  script_contents (
+	  md5_checksum, contents
+  )
+VALUES (UNHEX(?),?)
+ON DUPLICATE KEY UPDATE
+  id=LAST_INSERT_ID(id)
 		`
 		rawChecksum := md5.Sum([]byte(contents)) //nolint:gosec
 		md5Checksum := []byte(strings.ToUpper(hex.EncodeToString(rawChecksum[:])))
-		_, err := tx.Exec(stmt, contents, md5Checksum, id)
+		res, err := tx.Exec(stmt, md5Checksum, contents)
 		if err != nil {
-			return fmt.Errorf("update script contents: %w", err)
+			return 0, fmt.Errorf("update script contents: %w", err)
+		}
+		newID, err := res.LastInsertId()
+		if err != nil {
+			return 0, fmt.Errorf("get last insert ID: %w", err)
 		}
 
-		return nil
+		return uint(newID), nil
 	}
 
 	// Go to script contents and check if it is the default uninstall script
-	for _, id := range ids {
+	for _, script := range uninstallScripts {
+		scriptContentID := script.ScriptContentID
 		getUninstallScript := `
 		SELECT contents
 		FROM script_contents
@@ -79,7 +93,7 @@ func Up_20241002104104(tx *sql.Tx) error {
 	`
 		var contents string
 		// The script id must exist due to FK constraint on software_installers.uninstall_script_content_id
-		if err := txx.Get(&contents, getUninstallScript, id); err != nil {
+		if err := txx.Get(&contents, getUninstallScript, scriptContentID); err != nil {
 			return fmt.Errorf("failed to find uninstall script content: %w", err)
 		}
 
@@ -91,9 +105,20 @@ func Up_20241002104104(tx *sql.Tx) error {
 			// Prepare new script
 			newContents := strings.ReplaceAll(newScript, "$PACKAGE_ID", fmt.Sprintf("(%s)", packageIDs))
 			// Write new script
-			if err := updateScriptContents(id, newContents); err != nil {
-				return fmt.Errorf("failed to update uninstall script content for script ID %d: %w", id, err)
+			newID, err := insertScriptContents(newContents)
+			if err != nil {
+				return fmt.Errorf("failed to update uninstall script content for script ID %d: %w", scriptContentID, err)
 			}
+
+			// Update software_installers to point to new script
+			updateUninstallScript := `
+			UPDATE software_installers
+			SET uninstall_script_content_id = ?
+			WHERE id = ?`
+			if _, err := tx.Exec(updateUninstallScript, newID, script.ID); err != nil {
+				return fmt.Errorf("failed to update uninstall script ID %d: %w", script.ID, err)
+			}
+
 		}
 	}
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-#VICTOR
+
 # Fleet extracts and saves package IDs.
 pkg_ids=$PACKAGE_ID
 
@@ -11,8 +11,9 @@ do
   location=$(pkgutil --pkg-info "$pkg_id" | grep -i "location" | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')
   # Check if this package id corresponds to a valid/installed package
   if [[ ! -z "$volume" && ! -z "$location" ]]; then
-    # Remove individual files/directories belonging to package
-    pkgutil --files "$pkg_id" | sed -e 's@^@'"$volume""$location"'/@' | tr '\n' '\0' | xargs -n 1 -0 rm -rf
+    # Remove individual directories that end with ".app" belonging to the package.
+    # Only process directories that end with ".app" to prevent Fleet from removing top level directories.
+    pkgutil --only-dirs --files "$pkg_id" | grep "\.app$" | sed -e 's@^@'"$volume""$location"'/@' | tr '\n' '\0' | xargs -n 1 -0 rm -rf
     # Remove receipts
     pkgutil --forget "$pkg_id"
   else
