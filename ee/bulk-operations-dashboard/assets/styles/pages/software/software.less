@@ -8,6 +8,15 @@
     font-size: 14px;
     line-height: 150%;
   }
+  small {
+    font-size: 12px;
+    line-height: 150%;
+  }
+  a {
+    color: @core-vibrant-blue;
+    font-weight: 700;
+    border-bottom: none;
+  }
   .table td {
     font-size: 14px;
     line-height: 150%;
@@ -107,13 +116,15 @@
   }
 
   .affected-teams-link {
-    // color: #007697;
+    color: #515774;
     cursor: pointer;
+    font-weight: 400;
   }
   .truncated-affected-teams {
-    color: #007697;
+    color: @core-vibrant-blue;
     cursor: pointer;
     position: relative;
+    font-weight: 400;
     .teams-tooltip {
       display: none;
     }
@@ -145,8 +156,23 @@
       }
     }
   }
+
   .pointer {
     cursor: pointer;
+  }
+  .advanced-options-btn {
+    color: #6A67FE;
+    font-family: Inter;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 21px;
+    cursor: pointer;
+    img {
+      height: 16px;
+    }
+  }
+  .rotate {
+    transform: rotate(180deg);
   }
   [purpose='software-upload-input'] {
     display: flex;
@@ -170,12 +196,16 @@
   }
 
   [purpose='software-information'] {
+    [purpose='edited-software-information'] {
+      width: 100%;
+    }
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: start;
+    // flex-direction: column;
+    // justify-content: center;
+    // align-items: start;
+    align-items: center;
     gap: 16px;
-    // align-self: stretch;
+    position: relative;
     border-radius: 4px;
     padding: 16px 24px;
     height: 72px;
@@ -184,6 +214,16 @@
     margin-bottom: 24px;
     img {
       margin-right: 16px;
+    }
+    [purpose='edit-upload-btn'] {
+      position: absolute;
+      right: 24px;
+      bottom: 28%;
+    }
+    [purpose='file-selected-edit-upload-btn'] {
+      position: absolute;
+      right: -144px;
+      bottom: 28%;
     }
   }
   [purpose='teams-picker'] {

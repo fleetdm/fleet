@@ -78,6 +78,7 @@
           </tr>
         </tbody>
       </table>
+      <!-- <pre><code>{{softwareToDisplay}}</code></pre> -->
     </div>
     <div v-else>
       <h3 class="px-3 text-center mx-auto pt-5">No software matching the selected filters were found.</h3>
@@ -89,40 +90,80 @@
         <h3 class="mb-4">Edit software</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
-      <ajax-form action="editSoftware" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editSoftwareFormRules" @submitted="submittedForm()">
-        <div purpose="software-information" v-if="!formData.newSoftwares">
-          <div class="d-flex flex-row justify-content-start">
-            <img style="height: 40px; width: 34px;" alt="Windows software" src="/images/software-icon-ps1-34x40@2x.png" v-if="softwareToEdit.platform === 'Windows'">
-            <img style="height: 40px; width: 34px;" alt="macOs and Linux software" src="/images/software-icon-sh-34x40@2x.png" v-else>
-            <div class="d-flex flex-column">
-              <p><strong>{{softwareToEdit.name}}</strong></p>
-              <p class="muted">{{softwareToEdit.platform}}</p>
+      <ajax-form  :handle-submitting="handleSubmittingEditSoftwareForm"  :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editSoftwareFormRules" @submitted="submittedForm()">
+        <div purpose="software-information">
+          <div class="d-flex flex-row justify-content-start" >
+            <div class="d-flex" >
+              <img style="height: 40px; width: 34px;" alt="macOs and Linux software" src="/images/icon-software-34x40@2x.png">
+              <div class="d-flex flex-column">
+                <p v-if="!formData.newSoftware"><strong>{{softwareToEdit.name}}</strong></p>
+                <p v-else><strong>{{newSoftwareFilename}}</strong></p>
+                <p class="muted">{{softwareToEdit.platform}}</p>
+              </div>
             </div>
+            <file-upload purpose="edit-upload-btn" :uploaded-filename.sync="newSoftwareFilename" id="edit-file-upload" mode="software-pencil" :disabled="syncing" v-model="formData.newSoftware"></file-upload>
           </div>
         </div>
-        <file-upload id="edit-file-upload" mode="softwares" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newSoftware"></file-upload>
+        <a class="advanced-options-btn d-flex flex-row align-items-center" @click="showAdvancedOptions = !showAdvancedOptions">Advanced options <img class="d-inline ml-2" src="/images/icon-chevron-down-32x32@2x.png" :class="[showAdvancedOptions ? 'rotate' : '']" ></a>
+        <div v-if="showAdvancedOptions">
+          <div class="my-4">
+            <p class="mb-2"><strong>Pre-install query</strong></p>
+            <ace-editor v-model="formData.preInstallQuery" mode="fleet" :value="formData.preInstallQuery"></ace-editor>
+            <p><small>Software will be installed only if the <a href="https://fleetdm.com/tables/account_policy_data" target="_blank">query returns results <img style="display: inline; height: 12px;" src="/images/icon-external-link-12x12@2x.png"></a></small></p>
+          </div>
+          <div class="my-4" v-if="softwareToEdit.platform !== 'Windows'">
+            <p class="mb-2"><strong>Install script</strong></p>
+            <ace-editor v-model="formData.installScript" mode="sh" :value="formData.installScript"></ace-editor>
+            <p><small>Use the $INSTALLER_PATH variable to point to the installer. Currently, Shell scripts are supported.</small></p>
+          </div>
+          <div class="my-4" v-else>
+            <p class="mb-2"><strong>Install script</strong></p>
+            <ace-editor v-model="formData.installScript" mode="powershell" :value="formData.installScript"></ace-editor>
+            <p><small>Use the $INSTALLER_PATH variable to point to the installer. Currently, Powershell scripts are supported.</small></p>
+          </div>
+          <div class="my-4" v-if="softwareToEdit.platform !== 'Windows'">
+            <p class="mb-2"><strong>Post-install script</strong></p>
+            <ace-editor v-model="formData.postInstallScript" mode="sh" :value="formData.postInstallScript"></ace-editor>
+            <p><small>Currently, Shell scripts are supported.</small></p>
+          </div>
+          <div class="my-4" v-else>
+            <p class="mb-2"><strong>Post-install script</strong></p>
+            <ace-editor v-model="formData.postInstallScript" mode="powershell" :value="formData.postInstallScript"></ace-editor>
+            <p><small>Currently, Powershell scripts are supported.</small></p>
+          </div>
+          <div class="my-4" v-if="softwareToEdit.platform !== 'Windows'">
+            <p class="mb-2"><strong>Uninstall script</strong></p>
+            <ace-editor v-model="formData.uninstallScript" mode="sh" :value="formData.uninstallScript"></ace-editor>
+            <p><small>Currently, Shell scripts are supported.</small></p>
+          </div>
+          <div class="my-4"  v-else>
+            <p class="mb-2"><strong>Uninstall script</strong></p>
+            <ace-editor v-model="formData.uninstallScript" mode="powershell" :value="formData.uninstallScript"></ace-editor>
+            <p><small>Currently, Powershell scripts are supported.</small></p>
+          </div>
+        </div>
         <div purpose="teams-picker" class="mt-4">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
         </div>
-        <cloud-error v-if="cloudError === 'softwareNameDoesNotMatch'">The new software file name identifier must match the old softwares’ file name.</cloud-error>
-        <cloud-error v-else-if="cloudError"></cloud-error>
+        <cloud-error v-if="cloudError && cloudError.exit === 'wrongInstallerExtension'">{{cloudError.responseInfo.body}}</cloud-error>
+        <cloud-error v-if="cloudError && cloudError === 'softwareNameDoesNotMatch'">The new software file name identifier must match the old softwares’ file name.</cloud-error>
+        <!-- <cloud-error v-else-if="cloudError">{{cloudError}}</cloud-error> -->
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <ajax-button :syncing.sync="syncing" purpose="modal-button" type="submit">Save</ajax-button>
         </div>
       </ajax-form>
     </div>
   </modal>
-  <%//  ╔╦╗╔═╗╦  ╔═╗╔╦╗╔═╗  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗
-    //   ║║║╣ ║  ║╣  ║ ║╣   ╚═╗║  ╠╦╝║╠═╝ ║
-    //  ═╩╝╚═╝╩═╝╚═╝ ╩ ╚═╝  ╚═╝╚═╝╩╚═╩╩   ╩ %>
+  <%//  ╔╦╗╔═╗╦  ╔═╗╔╦╗╔═╗
+    //   ║║║╣ ║  ║╣  ║ ║╣
+    //  ═╩╝╚═╝╩═╝╚═╝ ╩ ╚═╝  %>
   <modal v-if="modal === 'delete-software'" hide-close-button="true" @close="closeModal()">
     <div class="d-flex flex-row justify-content-between">
       <h3 class="mb-4">Delete software</h3>
       <div class="pointer" @click="closeModal()">&times;</div>
     </div>
-    <p class="mb-2">Delete this software from all teams.</p>
-    <p>This will cancel the software from running.</p>
+    <p>{{formData.software.name}} will be removed from your library.</p>
     <ajax-form :handle-submitting="handleSubmittingDeleteSoftwareForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editSoftwareFormRules" @submitted="submittedForm()">
       <cloud-error v-if="cloudError"></cloud-error>
     <div class="d-flex flex-row justify-content-end align-items-center">
@@ -131,9 +172,9 @@
     </div>
     </ajax-form>
   </modal>
-  <%//  ╔═╗╔╦╗╔╦╗  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗
-    //  ╠═╣ ║║ ║║  ╚═╗║  ╠╦╝║╠═╝ ║
-    //  ╩ ╩═╩╝═╩╝  ╚═╝╚═╝╩╚═╩╩   ╩ %>
+  <%//  ╔═╗╔╦╗╔╦╗
+    //  ╠═╣ ║║ ║║
+    //  ╩ ╩═╩╝═╩╝ %>
   <modal v-if="modal === 'add-software'" hide-close-button="true" @close="closeModal()">
     <div>
       <div class="d-flex flex-row justify-content-between">
