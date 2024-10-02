@@ -58,7 +58,7 @@ module.exports = {
       newSoftware = undefined;
     }
     var WritableStream = require('stream').Writable;
-    let { Readable } = require('stream');
+    // let { Readable } = require('stream');
     let axios = require('axios');
     // Cast the strings in the newTeamIds array to numbers.
     newTeamIds = newTeamIds.map(Number);
@@ -69,7 +69,7 @@ module.exports = {
       let softwareName;
       let softwareMime;
       if(software.teams && !newSoftware) {
-        console.log('Editing deployed software!');
+        // console.log('Editing deployed software!');
         // This software is deployed.
         // get software from Fleet instance and upload to s3.
         let teamIdToGetInstallerFrom = software.teams[0].fleetApid;
@@ -139,35 +139,33 @@ module.exports = {
         // },{});
         // console.log(foo);
         // console.timeEnd('fleetInstance»s3(cp)');
-        console.time('fleetInstance»s3(upload+stream)');
+        // console.time('fleetInstance»s3(upload+stream)');
         let softwareStream = await sails.helpers.http.getStream.with({
-          url: dowloadApiUrl,
+          url: downloadApiUrl,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         });
         let tempUploadedSoftware = await sails.uploadOne(softwareStream);
-        console.timeEnd('fleetInstance»s3(upload+stream)');
-        console.log(tempUploadedSoftware);
+        // console.timeEnd('fleetInstance»s3(upload+stream)');
+        // console.log(tempUploadedSoftware);
         softwareFd = tempUploadedSoftware.fd;
         softwareName = software.name;
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
-        console.log('replacing software package!');
+        // console.log('replacing software package!');
         let uploadedSoftware = await sails.uploadOne(newSoftware);
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
         softwareMime = uploadedSoftware.type;
         let newSoftwareExtension = '.'+softwareName.split('.').pop();
         let existingSoftwareExtension = '.'+software.name.split('.').pop();
-        console.log('new extension!', newSoftwareExtension)
-        console.log('old extension!', existingSoftwareExtension)
         if(newSoftwareExtension !== existingSoftwareExtension) {
           await sails.rm(softwareFd);
-          throw {wrongInstallerExtension: `Couldn't edit ${software.name}. The selected package should be a ${existingSoftwareExtension} file`}
+          throw {wrongInstallerExtension: `Couldn't edit ${software.name}. The selected package should be a ${existingSoftwareExtension} file`};
         }
       } else {
-        console.log('Editing undeployed software!');
+        // console.log('Editing undeployed software!');
         softwareFd = software.uploadFd;
         softwareName = software.name;
         softwareMime = software.uploadMime;
@@ -197,7 +195,7 @@ module.exports = {
 
                       let FormData = require('form-data');
                       let form = new FormData();
-                      form.append('team_id', team); // eslint-disable-line camelcase
+                      form.append('team_id', team);
                       form.append('install_script', installScript);
                       form.append('post_install_script', postInstallScript);
                       form.append('pre_install_query', preInstallQuery);
@@ -213,7 +211,7 @@ module.exports = {
                               Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                               ...form.getHeaders()
                             },
-                          })
+                          });
                         } catch(error){
                           throw new Error('Failed to upload file:'+ require('util').inspect(error, {depth: null}));
                         }
@@ -228,42 +226,43 @@ module.exports = {
                     };//ƒ
                     return receiver__;
                   }
-                }
+                };
               },
-            }).intercept((err)=>{
-              throw 'softwareUploadFailed'
+            })
+          .intercept((unusedErr)=>{
+            throw 'softwareUploadFailed';
+          });
+        }// After every new team this is deployed to.
+        if(newSoftware) {
+          // If a new installer package was provided, send patch requests to update the installer package on teams that it is already deployed to.
+          for(let teamApid of unchangedTeamIds) {
+            // console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
+            await sails.helpers.http.sendHttpRequest.with({
+              method: 'DELETE',
+              baseUrl: sails.config.custom.fleetBaseUrl,
+              url: `/api/v1/fleet/software/titles/${software.fleetApid}/available_for_install?team_id=${teamApid}`,
+              headers: {
+                Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+              }
             });
-          }// After every new team this is deployed to.
-          if(newSoftware) {
-            // If a new installer package was provided, send patch requests to update the installer package on teams that it is already deployed to.
-            for(let teamApid of unchangedTeamIds) {
-              console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
-              await sails.helpers.http.sendHttpRequest.with({
-                method: 'DELETE',
-                baseUrl: sails.config.custom.fleetBaseUrl,
-                url: `/api/v1/fleet/software/titles/${software.fleetApid}/available_for_install?team_id=${teamApid}`,
-                headers: {
-                  Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-                }
-              });
-              await sails.cp(softwareFd, {},
-              {
-                adapter: ()=>{
+            await sails.cp(softwareFd, {},
+            {
+              adapter: ()=>{
                 return {
                   ls: undefined,
                   rm: undefined,
                   read: undefined,
                   receive: (unusedOpts)=>{
-                    // This `_write` method is invoked each time a new file is received
-                    // from the Readable stream (Upstream) which is pumping filestreams
-                    // into this receiver.  (filename === `__newFile.filename`).
+                  // This `_write` method is invoked each time a new file is received
+                  // from the Readable stream (Upstream) which is pumping filestreams
+                  // into this receiver.  (filename === `__newFile.filename`).
                     var receiver__ = WritableStream({ objectMode: true });
                     // Create a new drain (writable stream) to send through the individual bytes of this file.
                     receiver__._write = (__newFile, encoding, doneWithThisFile)=>{
 
                       let FormData = require('form-data');
                       let form = new FormData();
-                      form.append('team_id', teamApid); // eslint-disable-line camelcase
+                      form.append('team_id', teamApid);
                       form.append('install_script', installScript);
                       form.append('post_install_script', postInstallScript);
                       form.append('pre_install_query', preInstallQuery);
@@ -279,22 +278,22 @@ module.exports = {
                               Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                               ...form.getHeaders()
                             },
-                          })
+                          });
                         } catch(error){
                           throw new Error('Failed to upload file:'+ require('util').inspect(error, {depth: null}));
                         }
                       })()
-                      .then(()=>{
-                        console.log('ok supposedly a file is finished uploading');
-                        doneWithThisFile();
-                      })
-                      .catch((err)=>{
-                        doneWithThisFile(err);
-                      });
+                    .then(()=>{
+                      console.log('ok supposedly a file is finished uploading');
+                      doneWithThisFile();
+                    })
+                    .catch((err)=>{
+                      doneWithThisFile(err);
+                    });
                     };//ƒ
                     return receiver__;
                   }
-                }
+                };
               },
             });
           }// After every team the software is currently deployed to.
@@ -320,15 +319,15 @@ module.exports = {
         // If this is a deployed software that is being unassigned, save information about the uploaded file in our s3 bucket.
         if(newSoftware) {
           // remove the old copy.
-          console.log('Removing old package for ',softwareName);
+          // console.log('Removing old package for ',softwareName);
           await UndeployedSoftware.create({
             uploadFd: softwareFd,
             uploadMime: softwareMime,
             name: softwareName,
             platform: _.endsWith(softwareName, '.deb') ? 'Linux' : _.endsWith(softwareName, '.pkg') ? 'macOS' : 'Windows',
-          })
+          });
         } else {
-          console.log('undeploying ',softwareName);
+          // console.log('undeploying ',softwareName);
           // Save the information about the undeployed software in the app's DB.
           await UndeployedSoftware.create({
             uploadFd: softwareFd,
@@ -359,7 +358,7 @@ module.exports = {
           name: softwareName,
           uploadMime: softwareMime,
           uploadFd: softwareFd,
-        })
+        });
       }
     } else if(preInstallQuery !== software.preInstallQuery ||
       installScript !== software.installScript ||
@@ -368,7 +367,7 @@ module.exports = {
       // PATCH /api/v1/fleet/software/titles/:title_id/package
       if(newTeamIds.length !== 0) {
         for(let teamApid of newTeamIds){
-          let updatedSoftware = await sails.helpers.http.sendHttpRequest.with({
+          await sails.helpers.http.sendHttpRequest.with({
             method: 'PATCH',
             baseUrl: sails.config.custom.fleetBaseUrl,
             url: `/api/v1/fleet/software/titles/${software.fleetApid}/package?team_id=${teamApid}`,
@@ -377,13 +376,13 @@ module.exports = {
               Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
             },
             body: {
-              team_id: teamApid,
-              pre_install_query: preInstallQuery,
-              install_script: installScript,
-              post_install_script: postInstallScript,
-              uninstall_script: uninstallScript,
+              team_id: teamApid, // eslint-disable-line camelcase
+              pre_install_query: preInstallQuery, // eslint-disable-line camelcase
+              install_script: installScript, // eslint-disable-line camelcase
+              post_install_script: postInstallScript, // eslint-disable-line camelcase
+              uninstall_script: uninstallScript, // eslint-disable-line camelcase
             }
-          })
+          });
         }
       } else if(software.id) {
         await UndeployedSoftware.updateOne({id: software.id}).set({
@@ -391,7 +390,7 @@ module.exports = {
           installScript,
           postInstallScript,
           uninstallScript,
-        })
+        });
       }
     }
 

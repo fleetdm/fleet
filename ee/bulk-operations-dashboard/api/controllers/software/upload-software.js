@@ -38,10 +38,9 @@ module.exports = {
 
   fn: async function ({newSoftware, teams}) {
     let util = require('util');
-    let uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: 'bod-test-installers'});
+    let uploadedSoftware = await sails.uploadOne(newSoftware);
     if(!teams) {
       let datelessFilename = uploadedSoftware.filename.replace(/^\d{4}-\d{2}-\d{2}\s/, '');
-      let extension = '.'+uploadedSoftware.filename.split('.').pop();
       // Build a dictonary of information about this software to return to the softwares page.
       let newSoftwareInfo = {
         name: datelessFilename,
@@ -70,7 +69,7 @@ module.exports = {
                   let axios = require('axios');
                   let FormData = require('form-data');
                   let form = new FormData();
-                  form.append('team_id', teamApid); // eslint-disable-line camelcase
+                  form.append('team_id', teamApid);
                   form.append('software', __newFile, {
                     filename: uploadedSoftware.filename,
                     contentType: 'application/octet-stream'
@@ -82,13 +81,13 @@ module.exports = {
                           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                           ...form.getHeaders()
                         },
-                      })
+                      });
                     } catch(error){
-                      throw new Error('Failed to upload file:'+ require('util').inspect(error));
+                      throw new Error('Failed to upload file:'+ util.inspect(error));
                     }
                   })()
                   .then(()=>{
-                    console.log('ok supposedly a file is finished uploading');
+                    // console.log('ok supposedly a file is finished uploading');
                     doneWithThisFile();
                   })
                   .catch((err)=>{
@@ -97,11 +96,9 @@ module.exports = {
                 };//ƒ
                 return receiver__;
               }
-            }
+            };
           }
-        }).tolerate((err)=>{
-          sails.log(err.code);
-          console.log(_.keysIn(err))
+        }).tolerate((unusedErr)=>{
           throw 'softwareAlreadyExistsOnThisTeam';
         });
       }

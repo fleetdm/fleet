@@ -82,7 +82,7 @@ module.exports = {
           postInstallScript: packageInformation.post_install_script,
           uninstallScript: packageInformation.uninstall_script,
           teams: [],
-        }
+        };
         let teamInfo = {
           softwareFleetApid: softwareWithInstaller.id,
           fleetApid: teamApid,
@@ -101,7 +101,7 @@ module.exports = {
       allSoftware.push(software);
     }
     allSoftware = _.uniq(allSoftware, 'fleetApid');
-    let undeployedSoftware = await UndeployedSoftware.find()
+    let undeployedSoftware = await UndeployedSoftware.find();
     allSoftware = allSoftware.concat(undeployedSoftware);
 
     return {software: allSoftware, teams};

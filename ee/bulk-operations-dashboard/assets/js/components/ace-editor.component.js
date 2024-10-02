@@ -109,7 +109,7 @@ parasails.registerComponent('aceEditor', {
     //  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╔╦╗╔═╗╔╦╗╦ ╦╔═╗╔╦╗╔═╗
     //  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║║║║╣  ║ ╠═╣║ ║ ║║╚═╗
     //  ╩  ╩╚═╩ ╚╝ ╩ ╩ ╩ ╚═╝  ╩ ╩╚═╝ ╩ ╩ ╩╚═╝═╩╝╚═╝
-    _getCurriedDoSetFn: function(idx) {
+    _getCurriedDoSetFn: function() {
       return async (newVal)=>{
         // Note that it is the responsibility of the userland contents of the
         // slot to make sure this incoming value is proper.  For example, if

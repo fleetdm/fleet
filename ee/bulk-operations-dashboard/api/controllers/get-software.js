@@ -24,11 +24,7 @@ module.exports = {
       }
     })
     .timeout(120000)
-    .intercept((err)=>{
-      sails.log(err)
-      sails.log(err.raw)
-    })
-    // .retry(['requestFailed', {name: 'TimeoutError'}]);
+    .retry(['requestFailed', {name: 'TimeoutError'}]);
 
     let allTeams = teamsResponseData.teams;
     let teams = [];
@@ -86,7 +82,7 @@ module.exports = {
           postInstallScript: packageInformation.post_install_script,
           uninstallScript: packageInformation.uninstall_script,
           teams: [],
-        }
+        };
         let teamInfo = {
           softwareFleetApid: softwareWithInstaller.id,
           fleetApid: teamApid,
@@ -103,7 +99,7 @@ module.exports = {
       allSoftware.push(software);
     }
     allSoftware = _.uniq(allSoftware, 'fleetApid');
-    let undeployedSoftware = await UndeployedSoftware.find()
+    let undeployedSoftware = await UndeployedSoftware.find();
     allSoftware = allSoftware.concat(undeployedSoftware);
     return allSoftware;
 

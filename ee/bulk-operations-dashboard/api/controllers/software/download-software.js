@@ -41,13 +41,11 @@ module.exports = {
     if(!fleetApid && !id){
       return this.res.badRequest();
     }
-    let softwareContents;
-    let filename;
     let downloading;
 
     if(id){
       let softwareToDownload = await UndeployedSoftware.findOne({id: id});
-      downloading = await sails.startDownload(softwareToDownload.uploadFd, {bucket: 'bod-test-installers'});
+      downloading = await sails.startDownload(softwareToDownload.uploadFd);
       this.res.type(softwareToDownload.uploadMime);
       this.res.attachment(softwareToDownload.name);
       return downloading;
@@ -69,7 +67,7 @@ module.exports = {
         }
       });
       this.res.attachment(filename);
-      return downloading
+      return downloading;
     }
   }
 

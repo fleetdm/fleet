@@ -87,8 +87,8 @@ parasails.registerPage('software', {
       }
     },
     submittedForm: async function() {
-
-
+      this.syncing = false;
+      this.closeModal();
     },
     closeModal: async function() {
       this.modal = '';
@@ -109,11 +109,7 @@ parasails.registerPage('software', {
       if(argins.newTeamIds === [undefined]){
         argins.newTeamIds = [];
       }
-      await Cloud.editSoftware.with(argins)
-      .tolerate((err)=>{
-        this.cloudError = err;
-        this.syncing = false;
-      });;
+      await Cloud.editSoftware.with(argins);
       if(!this.cloudError) {
         this.syncing = false;
         this.closeModal();
@@ -122,25 +118,12 @@ parasails.registerPage('software', {
     },
     handleSubmittingAddSoftwareForm: async function() {
       let argins = _.clone(this.formData);
-      await Cloud.uploadSoftware.with({newSoftware: argins.newSoftware, teams: argins.teams})
-      // .tolerate((err)=>{
-      //   console.log(this.cloudError);
-      //   this.cloudError = err;
-      //   this.syncing = false;
-      // });;
-      // if(!this.cloudError) {
-        this.syncing = false;
-        this.closeModal();
-        await this._getSoftware();
-      // }
+      await Cloud.uploadSoftware.with({newSoftware: argins.newSoftware, teams: argins.teams});
+      await this._getSoftware();
     },
     handleSubmittingDeleteSoftwareForm: async function() {
       let argins = _.clone(this.formData);
-      await Cloud.deleteSoftware.with({software: argins.software})
-      .tolerate((err)=>{
-        this.cloudError = err;
-        this.syncing = false;
-      });;
+      await Cloud.deleteSoftware.with({software: argins.software});
       if(!this.cloudError) {
         this.syncing = false;
         this.closeModal();

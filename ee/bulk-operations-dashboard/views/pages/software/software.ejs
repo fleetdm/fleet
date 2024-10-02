@@ -78,7 +78,6 @@
           </tr>
         </tbody>
       </table>
-      <!-- <pre><code>{{softwareToDisplay}}</code></pre> -->
     </div>
     <div v-else>
       <h3 class="px-3 text-center mx-auto pt-5">No software matching the selected filters were found.</h3>
@@ -104,12 +103,12 @@
             <file-upload purpose="edit-upload-btn" :uploaded-filename.sync="newSoftwareFilename" id="edit-file-upload" mode="software-pencil" :disabled="syncing" v-model="formData.newSoftware"></file-upload>
           </div>
         </div>
-        <a class="advanced-options-btn d-flex flex-row align-items-center" @click="showAdvancedOptions = !showAdvancedOptions">Advanced options <img class="d-inline ml-2" src="/images/icon-chevron-down-32x32@2x.png" :class="[showAdvancedOptions ? 'rotate' : '']" ></a>
+        <a class="advanced-options-btn d-flex flex-row align-items-center" @click="showAdvancedOptions = !showAdvancedOptions">Advanced options <img class="d-inline ml-2" src="/images/icon-chevron-down-32x32@2x.png" alt="chevron" :class="[showAdvancedOptions ? 'rotate' : '']" ></a>
         <div v-if="showAdvancedOptions">
           <div class="my-4">
             <p class="mb-2"><strong>Pre-install query</strong></p>
             <ace-editor v-model="formData.preInstallQuery" mode="fleet" :value="formData.preInstallQuery"></ace-editor>
-            <p><small>Software will be installed only if the <a href="https://fleetdm.com/tables/account_policy_data" target="_blank">query returns results <img style="display: inline; height: 12px;" src="/images/icon-external-link-12x12@2x.png"></a></small></p>
+            <p><small>Software will be installed only if the <a href="https://fleetdm.com/tables/account_policy_data" target="_blank">query returns results <img style="display: inline; height: 12px;" alt="external link" src="/images/icon-external-link-12x12@2x.png"></a></small></p>
           </div>
           <div class="my-4" v-if="softwareToEdit.platform !== 'Windows'">
             <p class="mb-2"><strong>Install script</strong></p>
@@ -147,8 +146,7 @@
           <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
         </div>
         <cloud-error v-if="cloudError && cloudError.exit === 'wrongInstallerExtension'">{{cloudError.responseInfo.body}}</cloud-error>
-        <cloud-error v-if="cloudError && cloudError === 'softwareNameDoesNotMatch'">The new software file name identifier must match the old softwares’ file name.</cloud-error>
-        <!-- <cloud-error v-else-if="cloudError">{{cloudError}}</cloud-error> -->
+        <cloud-error v-else-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <ajax-button :syncing.sync="syncing" purpose="modal-button" type="submit">Save</ajax-button>
         </div>
