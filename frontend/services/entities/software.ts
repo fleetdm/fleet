@@ -136,6 +136,7 @@ interface IAddFleetMaintainedAppPostBody {
   pre_install_query?: string;
   install_script?: string;
   post_install_script?: string;
+  uninstall_script?: string;
   self_service?: boolean;
 }
 
@@ -376,6 +377,7 @@ export default {
       pre_install_query: formData.preInstallQuery,
       install_script: formData.installScript,
       post_install_script: formData.postInstallScript,
+      uninstall_script: formData.uninstallScript,
       self_service: formData.selfService,
     };
 

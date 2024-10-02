@@ -5,9 +5,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -15,7 +19,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript string, selfService bool) error {
+func (svc *Service) AddFleetMaintainedApp(
+	ctx context.Context,
+	teamID *uint,
+	appID uint,
+	installScript, preInstallQuery, postInstallScript, uninstallScript string,
+	selfService bool,
+) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -59,6 +69,21 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		filename = app.Name
 	}
 
+	installScript = file.Dos2UnixNewlines(installScript)
+	if installScript == "" {
+		installScript = app.InstallScript
+	}
+
+	uninstallScript = file.Dos2UnixNewlines(uninstallScript)
+	if uninstallScript == "" {
+		uninstallScript = app.UninstallScript
+	}
+
+	installerURL, err := url.Parse(app.InstallerURL)
+	if err != nil {
+		return err
+	}
+
 	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:     installerReader,
@@ -68,6 +93,8 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		Version:           app.Version,
 		Filename:          filename,
 		Platform:          string(app.Platform),
+		Source:            "apps",
+		Extension:         strings.TrimPrefix(filepath.Ext(installerURL.Path), "."),
 		BundleIdentifier:  app.BundleIdentifier,
 		StorageID:         app.SHA256,
 		FleetLibraryAppID: &app.ID,
@@ -75,6 +102,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 		PostInstallScript: postInstallScript,
 		SelfService:       selfService,
 		InstallScript:     installScript,
+		UninstallScript:   uninstallScript,
 	}
 
 	// Create record in software installers table

@@ -6,6 +6,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   isPackageType,
   isWindowsPackageType,
+  isFleetMaintainedPackageType,
   PackageType,
 } from "interfaces/package_type";
 
@@ -46,6 +47,10 @@ const getPostInstallHelpText = (pkgType: PackageType) => {
 };
 
 const getUninstallHelpText = (pkgType: PackageType) => {
+  if (isFleetMaintainedPackageType(pkgType)) {
+    return "Currently, shell scripts are supported";
+  }
+
   return (
     <>
       $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[pkgType]} from

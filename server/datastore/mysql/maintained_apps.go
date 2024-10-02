@@ -122,9 +122,9 @@ WHERE NOT EXISTS (
 	WHERE
 		st.bundle_identifier = fla.bundle_identifier
 	AND (
-		(si.platform = fla.platform AND si.team_id = ?)
+		(si.platform = fla.platform AND si.global_or_team_id = ?)
 		OR
-		(va.platform = fla.platform AND vat.team_id = ?)
+		(va.platform = fla.platform AND vat.global_or_team_id = ?)
 	)
 )`
 
