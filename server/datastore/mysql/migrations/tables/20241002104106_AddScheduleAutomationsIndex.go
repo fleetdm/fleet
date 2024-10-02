@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240930171917, Down_20240930171917)
+	MigrationClient.AddMigration(Up_20241002104106, Down_20241002104106)
 }
 
-func Up_20240930171917(tx *sql.Tx) error {
+func Up_20241002104106(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE queries
 		ADD COLUMN is_scheduled BOOLEAN GENERATED ALWAYS AS (schedule_interval > 0) STORED NOT NULL
@@ -28,6 +28,6 @@ func Up_20240930171917(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240930171917(tx *sql.Tx) error {
+func Down_20241002104106(tx *sql.Tx) error {
 	return nil
 }
