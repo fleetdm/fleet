@@ -133,4 +133,44 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, installerID3, titles[0].ID)
 	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	require.NoError(t, err)
+
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	require.NoError(t, err)
+
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	require.NoError(t, err)
+
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE adam_id IN (?, ?, ?)", vpp1.AdamID, vpp2.AdamID, vpp3.AdamID)
+		return err
+	})
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, vpp1.AdamID, titles[1].AppStoreApp.AppStoreID)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, vpp3.AdamID, titles[1].AppStoreApp.AppStoreID)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
 }
