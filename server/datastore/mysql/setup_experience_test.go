@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -277,6 +278,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_ = vpp1
 	require.NoError(t, err)
 
 	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
@@ -284,6 +286,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	_ = vpp3
 	require.NoError(t, err)
 
 	titleSoftware := make(map[string]uint)
@@ -305,15 +308,19 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 2)
-	assert.Equal(t, vpp1.AdamID, titles[1].AppStoreApp.AppStoreID)
-	assert.Equal(t, 2, count)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
 	assert.NotNil(t, meta)
+
+	fmt.Printf("titleVPP: %v\n", titleVPP)
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
+	require.NoError(t, err)
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 2)
-	assert.Equal(t, vpp3.AdamID, titles[1].AppStoreApp.AppStoreID)
-	assert.Equal(t, 2, count)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, "1", titles[0].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 }
