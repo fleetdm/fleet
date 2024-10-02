@@ -873,7 +873,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
 				}
 				scriptID := spec.ScriptID
-				if *spec.ScriptID == 0 {
+				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
 				}
 
