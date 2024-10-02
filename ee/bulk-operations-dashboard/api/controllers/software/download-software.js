@@ -12,10 +12,14 @@ module.exports = {
       type: 'number',
       description: 'The database ID of the undeployed software to download.'
     },
-    uuid: {
+    fleetApid: {
       type: 'string',
-      description: 'The uuid of a software on a team.'
+      description: 'The fleetApid of a software on a team.'
     },
+    teamApid: {
+      type: 'string',
+      description: 'The team API ID of a team that the software is deployed to.'
+    }
   },
 
 
@@ -27,45 +31,46 @@ module.exports = {
     },
 
     notFound: {
-      description: 'No software exists with the specified ID or UUID.',
+      description: 'No software exists with the specified ID.',
       responseType: 'notFound'
     },
   },
 
 
-  fn: async function ({id, uuid}) {
-    if(!uuid && !id){
+  fn: async function ({id, fleetApid, teamApid}) {
+    if(!fleetApid && !id){
       return this.res.badRequest();
     }
-    let datePrefix = new Date().toISOString();
-    datePrefix = datePrefix.split('T')[0] +'_';
     let softwareContents;
     let filename;
-    let download;
+    let downloading;
 
     if(id){
       let softwareToDownload = await UndeployedSoftware.findOne({id: id});
-
-      filename = datePrefix + softwareToDownload.name + softwareToDownload.softwareType;
-      softwareContents = softwareToDownload.softwareContents;
-      if(softwareToDownload.softwareType === '.msi'){
-        this.res.type('application/x-msdownload');
-      } else if(softwareToDownload.softwareType === '.exe') {
-        this.res.type('application/x-msdos-program');
-      } else if(softwareToDownload.softwareType === '.deb') {
-        this.res.type('application/x-debian-package')
-      } else if(softwareToDownload.softwareType === '.pkg') {
-        this.res.type('application/octet-stream')
-      }
-      download = softwareContents;
+      downloading = await sails.startDownload(softwareToDownload.uploadFd, {bucket: 'bod-test-installers'});
+      this.res.type(softwareToDownload.uploadMime);
+      this.res.attachment(softwareToDownload.name);
+      return downloading;
     } else {
-
+      // Get information about the installer package from the Fleet server.
+      let packageInformation = await sails.helpers.http.get.with({
+        url: `${sails.config.custom.fleetBaseUrl}/api/latest/fleet/software/titles/${fleetApid}?team_id=${teamApid}&available_for_install=true`,
+        headers: {
+          Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+        }
+      });
+      let filename = packageInformation.software_title.software_package.name;
+      // [?]: https://fleetdm.com/docs/rest-api/rest-api#download-package
+      // GET /api/v1/fleet/software/titles/:software_title_id/package?team_id=${teamId}
+      let downloading = await sails.helpers.http.getStream.with({
+        url: `${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${fleetApid}/package?alt=media&team_id=${teamApid}`,
+        headers: {
+          Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+        }
+      });
+      this.res.attachment(filename);
+      return downloading
     }
-    // All done.
-    this.res.attachment(filename);
-    // All done.
-    return download;
-
   }
 
 
