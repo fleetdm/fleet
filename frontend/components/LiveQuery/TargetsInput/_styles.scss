@@ -20,6 +20,10 @@
         overflow: auto;
       }
 
+      &__data-table-block > div {
+        display: flex;
+      }
+
       // Properly vertically aligns host issue icon
       .display_name__cell {
         display: inline-flex;
@@ -91,8 +95,15 @@
     }
   }
 
+  // Empty loading height matches height of empty and error state
+  .loading-overlay + .data-table__wrapper {
+    .data-table__table .data-table__no-rows {
+      min-height: 225px;
+    }
+  }
+
   .data-table-block .data-table__no-rows {
-    min-height: 225px; // Match empty and error state
+    min-height: 25px;
   }
 
   .loading-overlay {
