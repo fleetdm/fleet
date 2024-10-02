@@ -62,8 +62,8 @@ parasails.registerComponent('aceEditor', {
       // ^^ The clone is to prevent entanglement risk.
     }
     if(this.mode){
-      if(!['sh', 'fleet'].includes(this.mode)){
-        throw new Error(`Invalid mode passed into <ace-editor> component, currently, only 'sh' and 'fleet' are supported.`);
+      if(!['sh', 'fleet', 'powershell'].includes(this.mode)){
+        throw new Error(`Invalid mode passed into <ace-editor> component, currently, only 'sh' and 'fleet' are supported.`, this.mode);
       }
     }
   },
