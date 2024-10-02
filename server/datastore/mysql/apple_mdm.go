@@ -5407,9 +5407,102 @@ LIMIT 1`
 }
 
 func (ds *Datastore) StartHostSetupExperience(ctx context.Context, hostUUID string) error {
-	panic("unimplemented")
+	// TODO(mna): create software install requests, log them in
+	// setup_experience_status_results as pending.
+
+	// TODO(mna): create script execution request, log it in
+	// setup_experience_status_results as pending.
+
+	// TODO(mna): log bootstrap package in setup_experience_status_results as
+	// pending (the "install request" of the bootstrap package should already be
+	// taken care of, actually it should already be completed by the time /start
+	// is hit? regardless, use the status of the associated MDM command to
+	// determine its current status)
+
+	const (
+		insertSwStmt = `
+			INSERT INTO host_software_installs
+			(execution_id, host_id, software_installer_id, user_id, self_service)
+			VALUES
+			(?, ?, ?, ?, ?)
+`
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	})
 }
 
 func (ds *Datastore) GetHostSetupExperienceStatus(ctx context.Context, hostUUID string) (*fleet.MDMAppleSetupExperienceStatus, error) {
-	panic("unimplemented")
+	const stmt = `
+SELECT 
+	sesr.type,
+	sesr.name,
+	sesr.status,
+	sesr.script_execution_id,
+	sesr.host_software_installs_id
+FROM
+	setup_experience_status_results sesr
+WHERE
+	sesr.host_uuid = ?
+`
+
+	var statusResults []struct {
+		Type                   string  `db:"type"`
+		Name                   string  `db:"name"`
+		Status                 string  `db:"status"`
+		ScriptExecutionID      *string `db:"script_execution_id"`
+		HostSoftwareInstallsID *uint   `db:"host_software_installs_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &statusResults, stmt, hostUUID); err != nil {
+		return nil, err
+	}
+	if len(statusResults) == 0 {
+		// no entry in setup_experience_status_results for that host means there
+		// were no bootstrap package, no software installs and no script execution
+		// requests, signal this by returning a not found error.
+		return nil, notFound("SetupExperienceStatusResults").WithName(hostUUID)
+	}
+
+	response := &fleet.MDMAppleSetupExperienceStatus{}
+	for _, result := range statusResults {
+		switch result.Type {
+		case "bootstrap-package":
+			if response.BootstrapPackage != nil {
+				return nil, ctxerr.Errorf(ctx, "duplicate setup experience bootstrap package entry for host %s", hostUUID)
+			}
+			response.BootstrapPackage = &fleet.SetupExperienceBootstrapPackageStatus{
+				Name:   result.Name,
+				Status: result.Status, // TODO(mna): status is not spec'd in the API docs, should it be translated to a more UI-friendly string?
+			}
+
+		case "software-install":
+			// id should never be nil, but just in case
+			var softwareID uint
+			if result.HostSoftwareInstallsID != nil {
+				softwareID = *result.HostSoftwareInstallsID
+			}
+			response.Software = append(response.Software, &fleet.SetupExperienceSoftwareStatus{
+				SoftwareID: softwareID, // TODO: do we want the software install request ID here or the software title ID?
+				Name:       result.Name,
+				Status:     result.Status,
+			})
+
+		case "post-install-script":
+			if response.Script != nil {
+				return nil, ctxerr.Errorf(ctx, "duplicate setup experience script entry for host %s", hostUUID)
+			}
+			// id should never be nil, but just in case
+			var executionID string
+			if result.ScriptExecutionID != nil {
+				executionID = *result.ScriptExecutionID
+			}
+			response.Script = &fleet.SetupExperienceScriptStatus{
+				ExecutionID: executionID,
+				Name:        result.Name,
+				Status:      result.Status,
+			}
+
+		default:
+			return nil, ctxerr.Errorf(ctx, "unknown setup experience status type for host %s: %s", hostUUID, result.Type)
+		}
+	}
+	return response, nil
 }
