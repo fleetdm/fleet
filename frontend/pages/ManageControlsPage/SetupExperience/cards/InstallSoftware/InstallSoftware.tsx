@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
-import softwareAPI from "services/entities/software";
+import { ISoftwareTitle } from "interfaces/software";
+import softwareAPI, {
+  ISoftwareTitlesResponse,
+} from "services/entities/software";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -26,7 +30,11 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>([]);
 
-  const { data, isLoading, isError } = useQuery(
+  const { isLoading, isError } = useQuery<
+    ISoftwareTitlesResponse,
+    AxiosError,
+    ISoftwareTitle[]
+  >(
     ["install-software", currentTeamId],
     () =>
       softwareAPI.getSoftwareTitles({

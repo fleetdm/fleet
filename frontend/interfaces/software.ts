@@ -101,6 +101,7 @@ export interface ISoftwareTitle {
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   browser?: string;
+  install_during_setup: boolean;
 }
 
 export interface ISoftwareTitleDetails {
