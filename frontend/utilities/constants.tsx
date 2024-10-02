@@ -348,13 +348,11 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
   "Service recommended": (
     <span>
-      Current maximum capacity has fallen below
+      Current maximum capacity has fallen
       <br />
-      80% of its designed capacity or the cycle count
+      below 80% of its designed capacity
       <br />
-      has reached 1000. Consider having the battery
-      <br />
-      checked or replaced.
+      or the cycle count has reached 1000.
     </span>
   ),
 };
