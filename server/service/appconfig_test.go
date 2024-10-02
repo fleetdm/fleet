@@ -1415,14 +1415,17 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 		},
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		if appConfig.Integrations.NDESSCEPProxy != nil {
-			appConfig.Integrations.NDESSCEPProxy.Password = fleet.MaskedPassword
+		if appConfig.Integrations.NDESSCEPProxy.Valid {
+			appConfig.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
 		}
 		return appConfig, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 		appConfig = conf
 		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: 1}}, nil
 	}
 
 	jsonPayloadBase := `
@@ -1444,7 +1447,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	// SCEP proxy not configured for free users
 	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
-	assert.Nil(t, ac.Integrations.NDESSCEPProxy)
+	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
 
 	origValidateNDESSCEPURL := validateNDESSCEPURL
 	origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
@@ -1453,12 +1456,12 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 		validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
 	})
 	validateNDESSCEPURLCalled := false
-	validateNDESSCEPURL = func(_ context.Context, _ *fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
 		validateNDESSCEPURLCalled = true
 		return nil
 	}
 	validateNDESSCEPAdminURLCalled := false
-	validateNDESSCEPAdminURL = func(_ context.Context, _ *fleet.NDESSCEPProxyIntegration) error {
+	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
 		validateNDESSCEPAdminURLCalled = true
 		return nil
 	}
@@ -1469,10 +1472,10 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	require.NoError(t, err)
 	checkSCEPProxy := func() {
 		require.NotNil(t, ac.Integrations.NDESSCEPProxy)
-		assert.Equal(t, scepURL, ac.Integrations.NDESSCEPProxy.URL)
-		assert.Equal(t, adminURL, ac.Integrations.NDESSCEPProxy.AdminURL)
-		assert.Equal(t, username, ac.Integrations.NDESSCEPProxy.Username)
-		assert.Equal(t, fleet.MaskedPassword, ac.Integrations.NDESSCEPProxy.Password)
+		assert.Equal(t, scepURL, ac.Integrations.NDESSCEPProxy.Value.URL)
+		assert.Equal(t, adminURL, ac.Integrations.NDESSCEPProxy.Value.AdminURL)
+		assert.Equal(t, username, ac.Integrations.NDESSCEPProxy.Value.Username)
+		assert.Equal(t, fleet.MaskedPassword, ac.Integrations.NDESSCEPProxy.Value.Password)
 	}
 	checkSCEPProxy()
 	assert.True(t, validateNDESSCEPURLCalled)
@@ -1484,6 +1487,15 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	validateNDESSCEPAdminURLCalled = false
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, fleet.MaskedPassword)
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	checkSCEPProxy()
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+
+	// Validation not done if there is no change, part 2
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+	ac, err = svc.ModifyAppConfig(ctx, []byte(`{"integrations":{}}`), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	checkSCEPProxy()
 	assert.False(t, validateNDESSCEPURLCalled)
@@ -1513,11 +1525,11 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	// Validation fails
 	validateNDESSCEPURLCalled = false
 	validateNDESSCEPAdminURLCalled = false
-	validateNDESSCEPURL = func(_ context.Context, _ *fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
 		validateNDESSCEPURLCalled = true
 		return errors.New("**invalid** 1")
 	}
-	validateNDESSCEPAdminURL = func(_ context.Context, _ *fleet.NDESSCEPProxyIntegration) error {
+	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
 		validateNDESSCEPAdminURLCalled = true
 		return errors.New("**invalid** 2")
 	}
@@ -1528,4 +1540,33 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.True(t, validateNDESSCEPURLCalled)
 	assert.True(t, validateNDESSCEPAdminURLCalled)
 
+	// Reset validation
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+		validateNDESSCEPURLCalled = true
+		return nil
+	}
+	validateNDESSCEPAdminURLCalled = false
+	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+		validateNDESSCEPAdminURLCalled = true
+		return nil
+	}
+
+	// Config cleared with explicit null
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+	payload := `
+{
+	"integrations": {
+		"ndes_scep_proxy": null
+	}
+}
+`
+	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
+	// Also check what was saved.
+	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
 }

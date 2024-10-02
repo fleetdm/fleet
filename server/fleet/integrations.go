@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
@@ -365,7 +366,8 @@ type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
 	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
-	NDESSCEPProxy  *NDESSCEPProxyIntegration    `json:"ndes_scep_proxy"`
+	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
+	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

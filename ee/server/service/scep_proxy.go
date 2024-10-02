@@ -53,7 +53,7 @@ func NewSCEPProxyService(logger log.Logger) scepserver.Service {
 	}
 }
 
-func ValidateNDESSCEPAdminURL(ctx context.Context, proxy *fleet.NDESSCEPProxyIntegration) error {
+func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
 	client := fleethttp.NewClient()
@@ -100,7 +100,7 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy *fleet.NDESSCEPProxyInt
 	return nil
 }
 
-func ValidateNDESSCEPURL(ctx context.Context, proxy *fleet.NDESSCEPProxyIntegration, logger log.Logger) error {
+func ValidateNDESSCEPURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration, logger log.Logger) error {
 	client, err := scepclient.New(proxy.URL, logger)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating SCEP client")

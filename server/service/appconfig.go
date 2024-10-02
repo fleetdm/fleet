@@ -329,13 +329,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
-	if license.IsPremium() && newAppConfig.Integrations.NDESSCEPProxy != nil {
+	if license.IsPremium() && newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid {
+
 		validateAdminURL, validateSCEPURL := false, false
-		if oldAppConfig.Integrations.NDESSCEPProxy == nil {
+		newSCEPProxy := newAppConfig.Integrations.NDESSCEPProxy.Value
+		if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
 			validateAdminURL, validateSCEPURL = true, true
 		} else {
-			newSCEPProxy := newAppConfig.Integrations.NDESSCEPProxy
-			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy
+			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
 			if newSCEPProxy.URL != oldSCEPProxy.URL {
 				validateSCEPURL = true
 			}
@@ -347,13 +348,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 
 		if validateAdminURL {
-			if err = validateNDESSCEPAdminURL(ctx, newAppConfig.Integrations.NDESSCEPProxy); err != nil {
+			if err = validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
 				invalid.Append("integrations.ndes_scep_proxy", err.Error())
 			}
 		}
 
 		if validateSCEPURL {
-			if err = validateNDESSCEPURL(ctx, newAppConfig.Integrations.NDESSCEPProxy, svc.logger); err != nil {
+			if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
 				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
 			}
 		}
@@ -366,8 +367,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if !license.IsPremium() && appConfig.Integrations.NDESSCEPProxy != nil {
-		appConfig.Integrations.NDESSCEPProxy = nil
+	if !license.IsPremium() {
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the

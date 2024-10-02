@@ -51,17 +51,19 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	// Check if passwords need to be encrypted
-	if info.Integrations.NDESSCEPProxy != nil {
-		if info.Integrations.NDESSCEPProxy.Password != "" && info.Integrations.NDESSCEPProxy.Password != fleet.MaskedPassword {
+	if info.Integrations.NDESSCEPProxy.Valid {
+		if info.Integrations.NDESSCEPProxy.Set &&
+			info.Integrations.NDESSCEPProxy.Value.Password != "" &&
+			info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
 			err := ds.insertOrReplaceConfigAsset(ctx, fleet.MDMConfigAsset{
 				Name:  fleet.MDMAssetNDESPassword,
-				Value: []byte(info.Integrations.NDESSCEPProxy.Password),
+				Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
 			})
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
 			}
 		}
-		info.Integrations.NDESSCEPProxy.Password = fleet.MaskedPassword
+		info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
 	}
 
 	configBytes, err := json.Marshal(info)

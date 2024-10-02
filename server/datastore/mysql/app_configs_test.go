@@ -549,11 +549,15 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 	url := "https://localhost:8080/mscep/mscep.dll"
 	password := "password"
 
-	ac.Integrations.NDESSCEPProxy = &fleet.NDESSCEPProxyIntegration{
-		AdminURL: adminURL,
-		Username: username,
-		Password: password,
-		URL:      url,
+	ac.Integrations.NDESSCEPProxy = optjson.Any[fleet.NDESSCEPProxyIntegration]{
+		Valid: true,
+		Set:   true,
+		Value: fleet.NDESSCEPProxyIntegration{
+			AdminURL: adminURL,
+			Username: username,
+			Password: password,
+			URL:      url,
+		},
 	}
 
 	err = ds.SaveAppConfig(ctx, ac)
@@ -563,10 +567,10 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 		result, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, result.Integrations.NDESSCEPProxy)
-		assert.Equal(t, url, result.Integrations.NDESSCEPProxy.URL)
-		assert.Equal(t, adminURL, result.Integrations.NDESSCEPProxy.AdminURL)
-		assert.Equal(t, username, result.Integrations.NDESSCEPProxy.Username)
-		assert.Equal(t, fleet.MaskedPassword, result.Integrations.NDESSCEPProxy.Password)
+		assert.Equal(t, url, result.Integrations.NDESSCEPProxy.Value.URL)
+		assert.Equal(t, adminURL, result.Integrations.NDESSCEPProxy.Value.AdminURL)
+		assert.Equal(t, username, result.Integrations.NDESSCEPProxy.Value.Username)
+		assert.Equal(t, fleet.MaskedPassword, result.Integrations.NDESSCEPProxy.Value.Password)
 	}
 
 	checkProxyConfig()
@@ -580,7 +584,7 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 	checkPassword()
 
 	// Set password to masked password -- should not update
-	ac.Integrations.NDESSCEPProxy.Password = fleet.MaskedPassword
+	ac.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 	checkProxyConfig()
@@ -588,8 +592,8 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 
 	// Set password to empty -- password should not update
 	url = "https://newurl.com"
-	ac.Integrations.NDESSCEPProxy.Password = ""
-	ac.Integrations.NDESSCEPProxy.URL = url
+	ac.Integrations.NDESSCEPProxy.Value.Password = ""
+	ac.Integrations.NDESSCEPProxy.Value.URL = url
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 	checkProxyConfig()
@@ -597,7 +601,7 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 
 	// Set password to a new value
 	password = "newpassword"
-	ac.Integrations.NDESSCEPProxy.Password = password
+	ac.Integrations.NDESSCEPProxy.Value.Password = password
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 	checkProxyConfig()
