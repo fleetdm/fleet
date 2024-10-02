@@ -1,3 +1,9 @@
+## Fleet 4.57.2 (Oct 02, 2024)
+
+### Bug fixes
+
+* Fixed software uninstaller script for `pkg`s to only remove '.app' directories installed by the package.
+
 ## Fleet 4.57.1 (Oct 01, 2024)
 
 ### Bug fixes
