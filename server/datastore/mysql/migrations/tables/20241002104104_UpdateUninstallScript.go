@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"database/sql"
 	_ "embed"
 	"encoding/hex"
@@ -78,11 +78,12 @@ func Up_20241002104104(tx *sql.Tx) error {
 		WHERE id = ?
 	`
 		var contents string
+		// The script id must exist due to FK constraint on software_installers.uninstall_script_content_id
 		if err := txx.Get(&contents, getUninstallScript, id); err != nil {
 			return fmt.Errorf("failed to find uninstall script content: %w", err)
 		}
 
-		// Check if it matches the regex
+		// Check if script contents match the regex
 		matches := existingUninstallScript.FindStringSubmatch(contents)
 		if matches != nil {
 			packageIDs := matches[existingUninstallScript.SubexpIndex("packageIDs")]
