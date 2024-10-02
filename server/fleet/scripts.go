@@ -375,6 +375,8 @@ type SoftwareInstallerPayload struct {
 	UninstallScript   string `json:"uninstall_script"`
 	PostInstallScript string `json:"post_install_script"`
 	SelfService       bool   `json:"self_service"`
+	FleetMaintained   bool   `json:"-"`
+	Filename          string `json:"-"`
 }
 
 type HostLockWipeStatus struct {

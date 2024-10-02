@@ -1122,6 +1122,15 @@ type Service interface {
 
 	// TODO(JVE): comment here
 	OrbitSetupExperienceReady(ctx context.Context, hostNodeKey string) error
+	///////////////////////////////////////////////////////////////////////////////
+	// Fleet-maintained apps
+
+	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript string, selfService bool) error
+	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
+	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
+	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows
