@@ -6,6 +6,8 @@ import installMsi from "../../pkg/file/scripts/install_msi.ps1";
 import installExe from "../../pkg/file/scripts/install_exe.ps1";
 // @ts-ignore
 import installDeb from "../../pkg/file/scripts/install_deb.sh";
+// @ts-ignore
+import installRPM from "../../pkg/file/scripts/install_rpm.sh";
 
 /*
  * getInstallScript returns a string with a script to install the
@@ -20,6 +22,8 @@ const getDefaultInstallScript = (fileName: string): string => {
       return installMsi;
     case "deb":
       return installDeb;
+    case "rpm":
+      return installRPM;
     case "exe":
       return installExe;
     default:

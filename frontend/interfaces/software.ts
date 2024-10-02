@@ -270,7 +270,7 @@ export interface ISoftwareInstallResults {
 
 // ISoftwareInstallerType defines the supported installer types for
 // software uploaded by the IT admin.
-export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
+export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "rpm" | "exe";
 
 export interface ISoftwareLastInstall {
   install_uuid: string;

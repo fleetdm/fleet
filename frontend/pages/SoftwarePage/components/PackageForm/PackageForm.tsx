@@ -51,7 +51,7 @@ interface IPackageFormProps {
   className?: string;
 }
 
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb";
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
 
 const PackageForm = ({
   showSchemaButton = false,

@@ -511,8 +511,18 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			beforeInstallRequest := time.Now()
 			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, false)
 			require.NoError(t, err)
+
+			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+			require.NoError(t, err)
+			require.NotNil(t, res.UpdatedAt)
+			require.Less(t, beforeInstallRequest, res.CreatedAt)
+			createdAt := res.CreatedAt
+			require.Less(t, beforeInstallRequest, *res.UpdatedAt)
+
+			beforeInstallResult := time.Now()
 			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 				HostID:                    host.ID,
 				InstallUUID:               installUUID,
@@ -524,7 +534,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 
 			require.Equal(t, installUUID, res.InstallUUID)
@@ -534,6 +544,10 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
 			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)
 			require.Equal(t, tc.installScriptOutput, res.Output)
+			require.NotNil(t, res.CreatedAt)
+			require.Equal(t, createdAt, res.CreatedAt)
+			require.NotNil(t, res.UpdatedAt)
+			require.Less(t, beforeInstallResult, *res.UpdatedAt)
 		})
 	}
 }
