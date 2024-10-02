@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 
 	"github.com/fatih/color"
+	"golang.org/x/text/unicode/norm"
 )
 
 func WriteExpiredLicenseBanner(w io.Writer) {
@@ -55,4 +57,11 @@ func JSONStrictDecode(r io.Reader, v interface{}) error {
 	}
 
 	return nil
+}
+
+func Preprocess(input string) string {
+	// Remove leading/trailing whitespace.
+	input = strings.TrimSpace(input)
+	// Normalize Unicode characters.
+	return norm.NFC.String(input)
 }

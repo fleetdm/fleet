@@ -328,11 +328,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// We apply the config that is incoming to the old one
+	appConfig.EnableStrictDecoding()
+	if err := json.Unmarshal(p, &appConfig); err != nil {
+		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
-	if license.IsPremium() && newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid {
+	switch {
+	case !license.IsPremium():
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+	case !newAppConfig.Integrations.NDESSCEPProxy.Set:
+		// Nothing is set -- keep the old value
+		appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
+	case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+	default:
+		// User is updating the setting
+		appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+		appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
+		appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
+		// do not preprocess password
 
 		validateAdminURL, validateSCEPURL := false, false
-		newSCEPProxy := newAppConfig.Integrations.NDESSCEPProxy.Value
+		newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
 		if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
 			validateAdminURL, validateSCEPURL = true, true
 		} else {
@@ -358,17 +379,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
 			}
 		}
-	}
-
-	// We apply the config that is incoming to the old one
-	appConfig.EnableStrictDecoding()
-	if err := json.Unmarshal(p, &appConfig); err != nil {
-		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	if !license.IsPremium() {
-		appConfig.Integrations.NDESSCEPProxy.Valid = false
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the

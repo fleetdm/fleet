@@ -1427,6 +1427,9 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{ID: 1}}, nil
 	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, token *fleet.ABMToken) error {
+		return nil
+	}
 
 	jsonPayloadBase := `
 {
@@ -1485,9 +1488,9 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	appConfig = ac
 	validateNDESSCEPURLCalled = false
 	validateNDESSCEPAdminURLCalled = false
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, fleet.MaskedPassword)
+	jsonPayload = fmt.Sprintf(jsonPayloadBase, " "+scepURL, adminURL+" ", " "+username+" ", fleet.MaskedPassword)
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
+	require.NoError(t, err, jsonPayload)
 	checkSCEPProxy()
 	assert.False(t, validateNDESSCEPURLCalled)
 	assert.False(t, validateNDESSCEPAdminURLCalled)
