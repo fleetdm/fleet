@@ -15,12 +15,12 @@ module.exports = {
     name: {
       type: 'string',
       required: true,
-      description: 'The name of the software on the Fleet instance.',
+      description: 'The filename of the software installer package.',
     },
 
     platform: {
       type: 'string',
-      description: 'The type of operating system this software is for.',
+      description: 'The type of operating system this software installer is for.',
       required: true,
       isIn: [
         'macOS',
@@ -29,23 +29,34 @@ module.exports = {
       ],
     },
 
-    softwareType: {
+    uploadMime: {
       type: 'string',
-      description: 'The file extension of the installer software.',
-      required: true,
-      isIn: [
-        '.exe',
-        '.pkg',
-        '.msi',
-        '.deb',
-      ],
+      description: 'The mime type of the uploaded software installer'
     },
 
-    softwareContents: {
-      type: 'ref',
-      columnType: 'bytea',
-      required: true,
-      // description: 'The contents of the software stored as a string.',
+    uploadFd: {
+      type: 'string',
+      description: 'The name of the installer file.'
+    },
+
+    preInstallQuery: {
+      type: 'string',
+      defaultsTo: '',
+    },
+
+    installScript: {
+      type: 'string',
+      defaultsTo: '',
+    },
+
+    postInstallScript: {
+      type: 'string',
+      defaultsTo: '',
+    },
+
+    uninstallScript: {
+      type: 'string',
+      defaultsTo: '',
     },
 
 
