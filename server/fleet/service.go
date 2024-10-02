@@ -1120,6 +1120,9 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	// TODO(JVE): comment here
+	OrbitSetupExperienceReady(ctx context.Context, hostNodeKey string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows
 

@@ -1,6 +1,8 @@
 package update
 
 import (
+	"os/exec"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -36,10 +38,10 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 
 	// TODO: we probably want to ensure that swiftDialog is always installed if we're going to be
 	// using it offline.
-	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
-		log.Debug().Msg("got false needs migration and false renew enrollment")
-		return nil
-	}
+	// if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
+	// 	log.Debug().Msg("got false needs migration and false renew enrollment")
+	// 	return nil
+	// }
 
 	updaterHasTarget := s.UpdateRunner.HasRunnerOptTarget("swiftDialog")
 	runnerHasLocalHash := s.UpdateRunner.HasLocalHash("swiftDialog")
@@ -56,6 +58,11 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 			s.UpdateRunner.updater.RemoveTargetInfo("swiftDialog")
 			return err
 		}
+	}
+	log.Debug().Msg("going to launch swift dialog zzzzzz")
+	cmd := exec.Command("/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app/Contents/MacOS/Dialog", "-t", "foo")
+	if err := cmd.Run(); err != nil {
+		log.Error().Msg(err.Error())
 	}
 
 	return nil

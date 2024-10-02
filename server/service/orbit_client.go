@@ -390,6 +390,16 @@ func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareIns
 	return resp.SoftwareInstallDetails, nil
 }
 
+func (oc *OrbitClient) SetupExperienceReady() error {
+	verb, path := "POST", "/api/fleet/orbit/setup_experience/ready"
+	var resp postOrbitSetupExperienceReadyResponse
+	if err := oc.authenticatedRequest(verb, path, &postOrbitSetupExperienceReadyRequest{}, &resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
 	verb, path := "POST", "/api/fleet/orbit/software_install/result"
 	var resp orbitPostSoftwareInstallResultResponse
@@ -412,8 +422,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	return resp.GetFilePath(), nil
 }
 
-type NullFileResponse struct {
-}
+type NullFileResponse struct{}
 
 func (f *NullFileResponse) Handle(resp *http.Response) error {
 	_, _, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
