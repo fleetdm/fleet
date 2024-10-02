@@ -52,12 +52,12 @@ AND
 	stmtUnsetInstallers := `
 UPDATE software_installers
 SET install_during_setup = false
-WHERE team_or_global_id = ?`
+WHERE global_or_team_id = ?`
 
 	stmtUnsetVPPAppsTeams := `
 UPDATE vpp_apps_teams vat
 SET install_during_setup = false
-WHERE team_or_global_id = ?`
+WHERE global_or_team_id = ?`
 
 	stmtSetInstallers := `
 UPDATE software_installers
@@ -71,15 +71,17 @@ WHERE id IN (%s)`
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var softwareIDPlatforms []idPlatformTuple
-		var softwareIDs []uint
+		var softwareIDs []any
 		var vppIDPlatforms []idPlatformTuple
-		var vppAppTeamIDs []uint
+		var vppAppTeamIDs []any
 		titleIDArgs := make([]any, 0, len(titleIDs))
+		titleIDAndTeam := []any{teamID}
 		for _, id := range titleIDs {
-			titleIDs = append(titleIDs, id)
+			titleIDArgs = append(titleIDArgs, id)
+			titleIDAndTeam = append(titleIDAndTeam, id)
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDArgs...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
 		}
 
@@ -90,7 +92,7 @@ WHERE id IN (%s)`
 			softwareIDs = append(softwareIDs, tuple.ID)
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDArgs...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
 		}
 
@@ -101,19 +103,29 @@ WHERE id IN (%s)`
 			vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers); err != nil {
+		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "unsetting software installers")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams); err != nil {
+		if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtSetInstallers); err != nil {
+		if len(softwareIDs) == 0 {
+			// 0 is not a valid ID, but it stops sql syntax error
+			softwareIDs = append(softwareIDs, 0)
+		}
+		stmtSetInstallersLoop := fmt.Sprintf(stmtSetInstallers, questionMarks(len(softwareIDs)))
+		if _, err := tx.ExecContext(ctx, stmtSetInstallersLoop, softwareIDs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting software installers")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeams); err != nil {
+		if len(vppAppTeamIDs) == 0 {
+			// 0 is not a valid ID, but it stops sql syntax error
+			vppAppTeamIDs = append(vppAppTeamIDs, 0)
+		}
+		stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
+		if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting vpp app teams")
 		}
 
@@ -148,6 +160,10 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, team
 
 type idPlatformTuple struct {
 	ID       uint   `db:"id"`
-	Name     string `db:"title"`
+	Name     string `db:"name"`
 	Platform string `db:"platform"`
+}
+
+func questionMarks(number int) string {
+	return strings.Join(slices.Repeat([]string{"?"}, number), ",")
 }
