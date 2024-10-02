@@ -1105,15 +1105,11 @@ func postOrbitStartSetupExperienceEndpoint(ctx context.Context, request interfac
 }
 
 func (svc *Service) StartHostSetupExperience(ctx context.Context) error {
-	// this is not a user-authenticated endpoint
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return fleet.OrbitError{Message: "internal error: missing host from request context"}
-	}
-	_ = host
-	panic("unimplemented")
+	return fleet.ErrMissingLicense
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -1150,13 +1146,9 @@ func postOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interfa
 }
 
 func (svc *Service) HostSetupExperienceStatus(ctx context.Context) (*fleet.MDMAppleSetupExperienceStatus, error) {
-	// this is not a user-authenticated endpoint
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
-	}
-	_ = host
-	panic("unimplemented")
+	return nil, fleet.ErrMissingLicense
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -1402,4 +1403,28 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 		}, "validating ABM token")
 	}
 	return encryptedToken, decryptedToken, nil
+}
+
+func (svc *Service) StartHostSetupExperience(ctx context.Context) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+	_ = host
+	panic("unimplemented")
+}
+
+func (svc *Service) HostSetupExperienceStatus(ctx context.Context) (*fleet.MDMAppleSetupExperienceStatus, error) {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+	_ = host
+	panic("unimplemented")
 }
