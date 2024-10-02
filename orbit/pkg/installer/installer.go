@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
@@ -40,6 +41,9 @@ type QueryClient interface {
 type Runner struct {
 	OsqueryClient QueryClient
 	OrbitClient   Client
+
+	// limit execution time of the various scripts run during software installation
+	installerExecutionTimeout time.Duration
 
 	// osquerySocketPath is used to establish the osquery connection
 	// if it's ever lost or disconnected
@@ -68,9 +72,10 @@ type Runner struct {
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Runner {
 	r := &Runner{
-		OrbitClient:       client,
-		osquerySocketPath: socketPath,
-		scriptsEnabled:    scriptsEnabled,
+		OrbitClient:               client,
+		osquerySocketPath:         socketPath,
+		scriptsEnabled:            scriptsEnabled,
+		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
 	}
 
 	return r
@@ -274,6 +279,9 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", -1, fmt.Errorf("writing script: %w", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), r.installerExecutionTimeout)
+	defer cancel()
 
 	execFn := r.execCmdFn
 	if execFn == nil {
