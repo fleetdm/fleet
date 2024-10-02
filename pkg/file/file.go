@@ -42,6 +42,8 @@ func ExtractInstallerMetadata(r io.Reader) (*InstallerMetadata, error) {
 	switch extension {
 	case "deb":
 		meta, err = ExtractDebMetadata(br)
+	case "rpm":
+		meta, err = ExtractRPMMetadata(br)
 	case "exe":
 		meta, err = ExtractPEMetadata(br)
 	case "pkg":
@@ -59,12 +61,16 @@ func ExtractInstallerMetadata(r io.Reader) (*InstallerMetadata, error) {
 	return meta, err
 }
 
+// typeFromBytes deduces the type from the magic bytes.
+// See https://en.wikipedia.org/wiki/List_of_file_signatures.
 func typeFromBytes(br *bufio.Reader) (string, error) {
 	switch {
 	case hasPrefix(br, []byte{0x78, 0x61, 0x72, 0x21}):
 		return "pkg", nil
 	case hasPrefix(br, []byte("!<arch>\ndebian")):
 		return "deb", nil
+	case hasPrefix(br, []byte{0xed, 0xab, 0xee, 0xdb}):
+		return "rpm", nil
 	case hasPrefix(br, []byte{0xd0, 0xcf}):
 		return "msi", nil
 	case hasPrefix(br, []byte("MZ")):

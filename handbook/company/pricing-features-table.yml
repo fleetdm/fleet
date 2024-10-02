@@ -378,7 +378,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
 - industryName: Enforce disk encryption
-  description: Encrypt system drives on macOS, Windows, Ubuntu Linux and Fedora Linux computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
+  description: Encrypt system drives on macOS, Windows, Ubuntu Linux and Fedora Linux computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]

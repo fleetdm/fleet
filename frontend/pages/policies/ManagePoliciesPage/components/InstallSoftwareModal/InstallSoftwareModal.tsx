@@ -28,6 +28,7 @@ const getPlatformDisplayFromPackageSuffix = (packageName: string) => {
     case "pkg":
       return "macOS";
     case "deb":
+    case "rpm":
       return "Linux";
     case "exe":
       return "Windows";

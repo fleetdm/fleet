@@ -23,6 +23,7 @@ const getSupportedScriptTypeText = (pkgType: PackageType) => {
 const PKG_TYPE_TO_ID_TEXT = {
   pkg: "package IDs",
   deb: "package name",
+  rpm: "package name",
   msi: "product code",
   exe: "software name",
 } as const;
