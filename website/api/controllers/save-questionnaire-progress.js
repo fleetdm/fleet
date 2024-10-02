@@ -21,7 +21,7 @@ module.exports = {
         'what-does-your-team-manage-eo-it',
         'what-does-your-team-manage-vm',
         'what-do-you-manage-mdm',
-        'cross-platform-mdm',
+        'message-about-cross-platform-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',
@@ -57,7 +57,6 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnaireAnswers);
     }
-
     // Tease out what liur buying situation will now be (or is and was, if it's not changing)
     let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.primaryBuyingSituation : formData.primaryBuyingSituation;
 
@@ -212,7 +211,8 @@ module.exports = {
       questionnaireProgressAsAFormattedString = JSON.stringify(getStartedProgress)
       .replace(/[\{|\}|"]/g, '')// Remove the curly braces and quotation marks wrapping JSON objects
       .replace(/,/g, '\n')// Replace commas with newlines.
-      .replace(/:\w+:/g, ':\t');// Replace the key from the formData with a color and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+      .replace(/:\w+:/g, ':\t')// Replace the key from the formData with a colon and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+      .replace(/(true)/g, 'step completed');// Replace any "true" answers with "step completed".
     } catch(err){
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
