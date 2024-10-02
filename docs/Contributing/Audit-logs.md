@@ -1223,6 +1223,7 @@ Generated when a software installer is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer as of this update (including if unchanged).
+- "software_title_id": ID of edited software title.
 - "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
@@ -1233,6 +1234,7 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
+  "software_title_id": 2341,
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true
