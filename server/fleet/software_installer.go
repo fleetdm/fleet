@@ -363,6 +363,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 	switch ext {
 	case "deb":
 		return "deb_packages", nil
+	case "rpm":
+		return "rpm_packages", nil
 	case "exe", "msi":
 		return "programs", nil
 	case "pkg":
@@ -378,7 +380,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb":
+	case "deb", "rpm":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil

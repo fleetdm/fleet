@@ -354,7 +354,9 @@ software:
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
 
-> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string. 
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+
+`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
 ##### Separate file
 

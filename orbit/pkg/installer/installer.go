@@ -22,8 +22,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type QueryResponse = osquery_gen.ExtensionResponse
-type QueryResponseStatus = osquery_gen.ExtensionStatus
+type (
+	QueryResponse       = osquery_gen.ExtensionResponse
+	QueryResponseStatus = osquery_gen.ExtensionStatus
+)
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
@@ -202,7 +204,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
 	}
 
-	log.Debug().Msgf("about to download software installer")
+	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
 	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 	if err != nil {
 		return payload, err
@@ -233,7 +235,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	}
 
 	if installer.PostInstallScript != "" {
-		log.Debug().Msgf("about to run post-install script")
+		log.Debug().Msgf("about to run post-install script for %s", installerPath)
 		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
