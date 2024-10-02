@@ -20,5 +20,5 @@ const (
 	// post-install, "implicit" uninstall after a failure of the post-install
 	// script, and "explicit" uninstall request. This does NOT include the
 	// download time.
-	MaxHostSoftwareInstallExecutionTime = 1 * time.Hour
+	MaxHostSoftwareInstallExecutionTime = 5 * time.Minute // to help QA only, the production value is 1h
 )
