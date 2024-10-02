@@ -1,6 +1,7 @@
 import React from "react";
 
 import SectionHeader from "components/SectionHeader";
+import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 
 const baseClass = "install-software";
 
@@ -12,7 +13,7 @@ const InstallSoftware = ({}: IInstallSoftwareProps) => {
       <SectionHeader title="Bootstrap package" />
       <div className={`${baseClass}__content`}>
         <div>col 1</div>
-        <div>col 2</div>
+        <InstallSoftwarePreview />
       </div>
     </div>
   );
