@@ -91,7 +91,8 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 
 ### Change a Fleetie's job title
 When Digital Experience receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
-1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
+1. The Head of Digital Experience will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Head of Digital Experience will inform the requesting manager as to why.
+1. If approved, update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search the spreadsheet for the Fleetie in need of a job title change.
     - Input the new job title in the Fleetie's row in the "Job title" cell.
     - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.

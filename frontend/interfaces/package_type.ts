@@ -1,4 +1,4 @@
-const unixPackageTypes = ["pkg", "deb"] as const;
+const unixPackageTypes = ["pkg", "deb", "rpm"] as const;
 const windowsPackageTypes = ["msi", "exe"] as const;
 export const packageTypes = [
   ...unixPackageTypes,

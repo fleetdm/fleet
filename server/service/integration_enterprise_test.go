@@ -14404,3 +14404,74 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 }
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
+	ctx := context.Background()
+	t := s.T()
+
+	// Fedora and RHEL have hosts.platform = 'rhel'.
+	host := createOrbitEnrolledHost(t, "rhel", "", s.ds)
+
+	// Upload an RPM package.
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script",
+		PreInstallQuery:   "pre install query",
+		PostInstallScript: "post install script",
+		Filename:          "ruby.rpm",
+		Title:             "ruby",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "rpm_packages")
+
+	latestInstallUUID := func() string {
+		var id string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+		})
+		return id
+	}
+
+	// Send a request to the host to install the RPM package.
+	var installSoftwareResp installSoftwareResponse
+	beforeInstallRequest := time.Now()
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &installSoftwareResp)
+	installUUID := latestInstallUUID()
+
+	// Simulate host installing the RPM package.
+	beforeInstallResult := time.Now()
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 1,
+			"install_script_output": "failed"
+		}`, *host.OrbitNodeKey, installUUID)),
+		http.StatusNoContent,
+	)
+
+	var resp getSoftwareInstallResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/install/%s/results", installUUID), nil, http.StatusOK, &resp)
+	assert.Equal(t, host.ID, resp.Results.HostID)
+	assert.Equal(t, installUUID, resp.Results.InstallUUID)
+	assert.Equal(t, fleet.SoftwareInstallFailed, resp.Results.Status)
+	assert.NotNil(t, resp.Results.PreInstallQueryOutput)
+	assert.Equal(t, fleet.SoftwareInstallerQuerySuccessCopy, *resp.Results.PreInstallQueryOutput)
+	assert.NotNil(t, resp.Results.Output)
+	assert.Equal(t, fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed"), *resp.Results.Output)
+	assert.Empty(t, resp.Results.PostInstallScriptOutput)
+	assert.Less(t, beforeInstallRequest, resp.Results.CreatedAt)
+	assert.Greater(t, time.Now(), resp.Results.CreatedAt)
+	assert.NotNil(t, resp.Results.UpdatedAt)
+	assert.Less(t, beforeInstallResult, *resp.Results.UpdatedAt)
+
+	wantAct := fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
+		InstallUUID:     installUUID,
+		Status:          string(fleet.SoftwareInstallFailed),
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+}
