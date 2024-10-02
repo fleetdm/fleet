@@ -1,33 +1,44 @@
 import React, { useContext, useState } from "react";
-import classnames from "classnames";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+  IVppApp,
+} from "services/entities/mdm_apple";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
-import Radio from "components/forms/fields/Radio";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import DataError from "components/DataError";
+import Radio from "components/forms/fields/Radio";
 import Checkbox from "components/forms/fields/Checkbox";
-import { InjectedRouter } from "react-router";
-import { buildQueryStringFromParams } from "utilities/url";
-import { getErrorMessage, getUniqueAppId } from "./helpers";
 
-const baseClass = "add-software-vpp-form";
+import SoftwareIcon from "../icons/SoftwareIcon";
+import {
+  generateRedirectQueryParams,
+  getErrorMessage,
+  getUniqueAppId,
+  teamHasVPPToken,
+} from "./helpers";
+
+const baseClass = "app-store-vpp";
 
 const EnableVppCard = () => {
   return (
-    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
-      <div className={`${baseClass}__enable-vpp-message`}>
+    <Card borderRadiusSize="medium">
+      <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          Volume Purchasing Program (VPP) isn&apos;t enabled
+          <b>No Volume Purchasing Program (VPP) token assigned</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first enable VPP.
+          To add App Store apps, assign a VPP token to this team.
         </p>
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_VPP}
@@ -40,8 +51,8 @@ const EnableVppCard = () => {
 };
 
 const NoVppAppsCard = () => (
-  <Card borderRadiusSize="medium" paddingSize="xxxlarge">
-    <div className={`${baseClass}__no-software-message`}>
+  <Card borderRadiusSize="medium">
+    <div className={`${baseClass}__no-software`}>
       <p className={`${baseClass}__no-software-title`}>
         You don&apos;t have any App Store apps
       </p>
@@ -118,33 +129,50 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
   );
 };
 
-interface IAddSoftwareVppFormProps {
+interface IAppStoreVppProps {
   teamId: number;
-  hasVppToken: boolean;
   router: InjectedRouter;
-  vppApps?: IVppApp[];
+  onExit: () => void;
+  setAddedSoftwareToken: (token: string) => void;
 }
 
-const AddSoftwareVppForm = ({
+const AppStoreVpp = ({
   teamId,
-  hasVppToken,
   router,
-  vppApps,
-}: IAddSoftwareVppFormProps) => {
+  onExit,
+  setAddedSoftwareToken,
+}: IAppStoreVppProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isSelfService, setIsSelfService] = useState(false);
 
-  const goBackToSoftwareTitles = (availableInstall?: boolean) => {
-    router.push(
-      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-        team_id: teamId,
-        available_for_install: availableInstall,
-      })}`
-    );
-  };
+  const {
+    data: vppInfo,
+    isLoading: isLoadingVppInfo,
+    error: errorVppInfo,
+  } = useQuery<IGetVppTokensResponse, AxiosError>(
+    ["vppInfo"],
+    () => mdmAppleAPI.getVppTokens(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      staleTime: 30000,
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
+    }
+  );
+
+  const hasVPPToken = teamHasVPPToken(teamId, vppInfo?.vpp_tokens);
+
+  const {
+    data: vppApps,
+    isLoading: isLoadingVppApps,
+    error: errorVppApps,
+  } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: hasVPPToken,
+    staleTime: 30000,
+    select: (res) => res.app_store_apps,
+  });
 
   const onSelectApp = (app: IVppApp) => {
     setIsSubmitDisabled(false);
@@ -154,13 +182,10 @@ const AddSoftwareVppForm = ({
     }
   };
 
-  const onAddSoftware = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
+  const onAddSoftware = async () => {
     if (!selectedApp) {
       return;
     }
-
-    setIsUploading(true);
 
     try {
       await mdmAppleAPI.addVppApp(
@@ -172,16 +197,19 @@ const AddSoftwareVppForm = ({
       renderFlash(
         "success",
         <>
-          <b>{selectedApp.name}</b> successfully added.
+          <b>{selectedApp.name}</b> successfully added. Go to Host details page
+          to install software.
         </>
       );
 
-      goBackToSoftwareTitles(true);
+      const queryParams = generateRedirectQueryParams(teamId, isSelfService);
+      // any unique string - triggers SW refetch
+      setAddedSoftwareToken(`${Date.now()}`);
+      router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }
-
-    setIsUploading(false);
+    onExit();
   };
 
   const renderSelfServiceContent = (platform: string) => {
@@ -206,17 +234,24 @@ const AddSoftwareVppForm = ({
   };
 
   const renderContent = () => {
-    if (!hasVppToken) {
+    if (isLoadingVppInfo || isLoadingVppApps) {
+      return <Spinner />;
+    }
+
+    if (!hasVPPToken) {
       return <EnableVppCard />;
+    }
+
+    if (errorVppInfo || errorVppApps) {
+      return <DataError className={`${baseClass}__error`} />;
     }
 
     if (vppApps) {
       if (vppApps.length === 0) {
         return <NoVppAppsCard />;
       }
-
       return (
-        <div className={`${baseClass}__form-fields`}>
+        <div className={`${baseClass}__modal-body`}>
           <VppAppList
             apps={vppApps}
             selectedApp={selectedApp}
@@ -233,38 +268,27 @@ const AddSoftwareVppForm = ({
         </div>
       );
     }
-
     return null;
   };
 
-  const contentWrapperClasses = classnames(`${baseClass}__content-wrapper`, {
-    [`${baseClass}__content-disabled`]: isUploading,
-  });
-
   return (
-    <form className={baseClass} onSubmit={onAddSoftware}>
-      {isUploading && <div className={`${baseClass}__overlay`} />}
-      <div className={contentWrapperClasses}>
-        <p>Apple App Store apps purchased via Apple Business Manager:</p>
-        <div className={`${baseClass}__form-content`}>
-          <>{renderContent()}</>
-          <div className={`${baseClass}__action-buttons`}>
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={isSubmitDisabled}
-              isLoading={isUploading}
-            >
-              Add software
-            </Button>
-            <Button onClick={goBackToSoftwareTitles} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </div>
+    <div className={baseClass}>
+      {renderContent()}
+      <div className="modal-cta-wrap">
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={isSubmitDisabled}
+          onClick={onAddSoftware}
+        >
+          Add software
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
+        </Button>
       </div>
-    </form>
+    </div>
   );
 };
 
-export default AddSoftwareVppForm;
+export default AppStoreVpp;

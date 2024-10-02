@@ -1,19 +1,17 @@
-import React, { ReactNode } from "react";
+import React from "react";
 
 import classnames from "classnames";
 
 interface IHeaderCellProps {
-  value: ReactNode;
+  value: string | JSX.Element; // either a string or a TooltipWrapper
   isSortedDesc?: boolean;
   disableSortBy?: boolean;
-  tootip?: ReactNode;
 }
 
 const HeaderCell = ({
   value,
   isSortedDesc,
   disableSortBy,
-  tootip,
 }: IHeaderCellProps): JSX.Element => {
   let sortArrowClass = "";
   if (isSortedDesc === undefined) {

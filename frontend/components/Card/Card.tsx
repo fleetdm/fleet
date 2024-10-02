@@ -22,13 +22,7 @@ interface ICardProps {
    *
    * These correspond to the padding sizes in the design system. Look at
    * `padding.scss` for values */
-  paddingSize?:
-    | "small"
-    | "medium"
-    | "large"
-    | "xlarge"
-    | "xxlarge"
-    | "xxxlarge";
+  paddingSize?: "small" | "medium" | "large" | "xlarge" | "xxlarge";
   /**
    * @deprecated Use `paddingSize` prop instead.
    *

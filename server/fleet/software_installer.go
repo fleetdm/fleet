@@ -116,8 +116,6 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
-	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -324,7 +322,6 @@ type UploadSoftwareInstallerPayload struct {
 	SelfService       bool
 	UserID            uint
 	URL               string
-	FleetLibraryAppID *uint
 	PackageIDs        []string
 	UninstallScript   string
 	Extension         string

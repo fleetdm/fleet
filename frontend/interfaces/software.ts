@@ -389,21 +389,3 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
-
-export interface IFleetMaintainedApp {
-  id: number;
-  name: string;
-  version: string;
-  platform: string;
-}
-
-export interface IFleetMaintainedAppDetails {
-  id: number;
-  name: string;
-  version: string;
-  platform: string;
-  pre_install_script: string; // TODO: is this needed?
-  install_script: string;
-  post_install_script: string; // TODO: is this needed?
-  uninstall_script: string;
-}

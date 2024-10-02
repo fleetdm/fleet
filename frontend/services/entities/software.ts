@@ -6,19 +6,12 @@ import {
   ISoftwareVersion,
   ISoftwareTitle,
   ISoftwareTitleDetails,
-  IFleetMaintainedApp,
-  IFleetMaintainedAppDetails,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import {
-  createMockFleetMaintainedApp,
-  createMockFleetMaintainedAppDetails,
-} from "__mocks__/softwareMock";
-import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -107,29 +100,6 @@ export interface IGetSoftwareVersionQueryKey
 
 export interface ISoftwareInstallTokenResponse {
   token: string;
-}
-
-export interface ISoftwareFleetMaintainedAppsResponse {
-  fleet_maintained_apps: IFleetMaintainedApp[];
-  count: number;
-  counts_updated_at: string | null;
-  meta: {
-    has_next_results: boolean;
-    has_previous_results: boolean;
-  };
-}
-
-export interface IFleetMaintainedAppResponse {
-  fleet_maintained_app: IFleetMaintainedAppDetails;
-}
-
-interface IAddFleetMaintainedAppPostBody {
-  team_id: number;
-  fleet_maintained_app_id: number;
-  pre_install_query?: string;
-  install_script?: string;
-  post_install_script?: string;
-  self_service?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -315,63 +285,5 @@ export default {
     const { SOFTWARE_INSTALL_RESULTS } = endpoints;
     const path = SOFTWARE_INSTALL_RESULTS(installUuid);
     return sendRequest("GET", path);
-  },
-
-  getFleetMaintainedApps: (
-    teamId: number
-  ): Promise<ISoftwareFleetMaintainedAppsResponse> => {
-    const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APPS}?team_id=${teamId}`;
-
-    return new Promise((resolve) => {
-      resolve({
-        fleet_maintained_apps: [
-          createMockFleetMaintainedApp({
-            name: "edge",
-          }),
-        ],
-        count: 1,
-        counts_updated_at: "2021-09-01T00:00:00Z",
-        meta: {
-          has_next_results: false,
-          has_previous_results: false,
-        },
-      });
-    });
-
-    // return sendRequest("GET", path);
-  },
-
-  getFleetMainainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
-    const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
-
-    return new Promise((resolve) => {
-      resolve({
-        fleet_maintained_app: createMockFleetMaintainedAppDetails({
-          name: "box",
-        }),
-      });
-    });
-
-    // return sendRequest("GET", path);
-  },
-
-  addFleetMaintainedApp: (
-    teamId: number,
-    formData: IAddFleetMaintainedData
-  ) => {
-    const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
-
-    const body: IAddFleetMaintainedAppPostBody = {
-      team_id: teamId,
-      fleet_maintained_app_id: formData.appId,
-      pre_install_query: formData.preInstallQuery,
-      install_script: formData.installScript,
-      post_install_script: formData.postInstallScript,
-      self_service: formData.selfService,
-    };
-
-    return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
   },
 };

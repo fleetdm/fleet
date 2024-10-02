@@ -130,9 +130,8 @@ INSERT INTO software_installers (
     self_service,
 	user_id,
 	user_name,
-	user_email,
-	fleet_library_app_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
+	user_email
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
 
 	args := []interface{}{
 		tid,
@@ -152,7 +151,6 @@ INSERT INTO software_installers (
 		payload.UserID,
 		payload.UserID,
 		payload.UserID,
-		payload.FleetLibraryAppID,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
@@ -336,8 +334,7 @@ SELECT
 	si.uninstall_script_content_id,
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
-	si.platform,
-	si.fleet_library_app_id
+	si.platform
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id

@@ -442,8 +442,6 @@ type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.Ho
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
-
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -1092,10 +1090,6 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
-type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
-
-type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
-
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1729,9 +1723,6 @@ type DataStore struct {
 
 	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
 	UploadedSoftwareExistsFuncInvoked bool
-
-	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
-	ListAvailableFleetMaintainedAppsFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -2704,12 +2695,6 @@ type DataStore struct {
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
-
-	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
-	GetMaintainedAppByIDFuncInvoked bool
-
-	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
-	UpsertMaintainedAppFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4189,13 +4174,6 @@ func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier
 	s.UploadedSoftwareExistsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UploadedSoftwareExistsFunc(ctx, bundleIdentifier, teamID)
-}
-
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListAvailableFleetMaintainedAppsFunc(ctx, teamID, opt)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -6464,18 +6442,4 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
-}
-
-func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	s.mu.Lock()
-	s.GetMaintainedAppByIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMaintainedAppByIDFunc(ctx, appID)
-}
-
-func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
-	s.mu.Lock()
-	s.UpsertMaintainedAppFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpsertMaintainedAppFunc(ctx, app)
 }

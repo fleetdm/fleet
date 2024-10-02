@@ -1726,21 +1726,6 @@ type Datastore interface {
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Fleet-maintained apps
-	//
-
-	// ListAvailableFleetMaintainedApps returns a list of
-	// Fleet-maintained apps available to a specific team
-	ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
-
-	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
-	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
-
-	// UpsertMaintainedApp inserts or updates a maintained app using the updated
-	// metadata provided via app.
-	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

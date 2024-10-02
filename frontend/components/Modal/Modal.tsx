@@ -31,11 +31,6 @@ export interface IModalProps {
    * @default false
    */
   isContentDisabled?: boolean;
-  /** `disableClosingModal` can be set to disable the users ability to manually
-   * close the modal.
-   * @default false
-   * */
-  disableClosingModal?: boolean;
   className?: string;
 }
 
@@ -48,7 +43,6 @@ const Modal = ({
   isHidden = false,
   isLoading = false,
   isContentDisabled = false,
-  disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
@@ -58,16 +52,12 @@ const Modal = ({
       }
     };
 
-    if (!disableClosingModal) {
-      document.addEventListener("keydown", closeWithEscapeKey);
-    }
+    document.addEventListener("keydown", closeWithEscapeKey);
 
     return () => {
-      if (!disableClosingModal) {
-        document.removeEventListener("keydown", closeWithEscapeKey);
-      }
+      document.removeEventListener("keydown", closeWithEscapeKey);
     };
-  }, [disableClosingModal, onExit]);
+  }, []);
 
   useEffect(() => {
     if (onEnter) {
@@ -111,13 +101,11 @@ const Modal = ({
       <div className={modalContainerClasses}>
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
-          {!disableClosingModal && (
-            <div className={`${baseClass}__ex`}>
-              <Button className="button button--unstyled" onClick={onExit}>
-                <Icon name="close" color="core-fleet-black" size="medium" />
-              </Button>
-            </div>
-          )}
+          <div className={`${baseClass}__ex`}>
+            <Button className="button button--unstyled" onClick={onExit}>
+              <Icon name="close" color="core-fleet-black" size="medium" />
+            </Button>
+          </div>
         </div>
 
         <div className={contentWrapperClasses}>
