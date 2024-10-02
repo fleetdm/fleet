@@ -44,13 +44,15 @@ func Up_20241002104104(tx *sql.Tx) error {
 
 	// Get script ids for uninstall scripts from software_installers platform = "darwin" and extension = "pkg"
 	getUninstallScriptIDs := `
-	SELECT id, uninstall_script_content_id
-	FROM software_installers
-	WHERE platform = "darwin" AND extension = "pkg"
+	SELECT si.id, si.uninstall_script_content_id, st.name
+	FROM software_installers si
+	JOIN software_titles st ON si.title_id = st.id
+	WHERE si.platform = "darwin" AND si.extension = "pkg"
 `
 	type scripts struct {
-		ID              uint `db:"id"`
-		ScriptContentID uint `db:"uninstall_script_content_id"`
+		ID              uint   `db:"id"`
+		ScriptContentID uint   `db:"uninstall_script_content_id"`
+		AppName         string `db:"name"`
 	}
 
 	var uninstallScripts []scripts
@@ -100,10 +102,8 @@ ON DUPLICATE KEY UPDATE
 		// Check if script contents match the regex
 		matches := existingUninstallScript.FindStringSubmatch(contents)
 		if matches != nil {
-			packageIDs := matches[existingUninstallScript.SubexpIndex("packageIDs")]
-
 			// Prepare new script
-			newContents := strings.ReplaceAll(newScript, "$PACKAGE_ID", fmt.Sprintf("(%s)", packageIDs))
+			newContents := strings.ReplaceAll(newScript, "$PACKAGE_ID", script.AppName)
 			// Write new script
 			newID, err := insertScriptContents(newContents)
 			if err != nil {
