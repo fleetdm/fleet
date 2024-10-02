@@ -4015,6 +4015,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            ptr.Uint(fleet.PolicyNoTeamID),
 	})
+	require.NoError(t, err)
 	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
 		Name:                "p4",
 		Query:               "SELECT 4;",
