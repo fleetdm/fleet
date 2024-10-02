@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -48,6 +49,13 @@ func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID uint, na
 		Name:           name,
 		ScriptContents: string(b),
 	}
+
+	// setup experience is only supported for macOS currently so we need to override the file
+	// extension check in the general script validation
+	if filepath.Ext(script.Name) != ".sh" {
+		return fleet.NewInvalidArgumentError("script", "File type not supported. Only .sh file type is allowed.")
+	}
+	// now we can do our normal script validation
 	if err := script.ValidateNewScript(); err != nil {
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}

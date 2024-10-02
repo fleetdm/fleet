@@ -1208,3 +1208,36 @@ func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
 }
+
+func (s *integrationMDMTestSuite) TestSetupExperienceScriptCRUD() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create a new script
+	body, headers := generateNewScriptMultipartRequest(t,
+		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+
+	// get script metadata
+	var getScriptResp getSetupExperienceScriptResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK, &getScriptResp)
+	require.Equal(t, "script42.sh", getScriptResp.Name)
+	require.NotNil(t, getScriptResp.TeamID)
+	require.Equal(t, tm.ID, *getScriptResp.TeamID)
+	require.NotZero(t, getScriptResp.ID)
+	require.NotZero(t, getScriptResp.CreatedAt)
+	require.NotZero(t, getScriptResp.UpdatedAt)
+
+	// get script contents
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d&alt=media", tm.ID), nil, http.StatusOK)
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "hello"`, string(b))
+	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script42.sh"), res.Header.Get("Content-Disposition"))
+}

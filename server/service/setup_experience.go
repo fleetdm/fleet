@@ -27,7 +27,7 @@ type getSetupExperienceScriptResponse struct {
 func (r getSetupExperienceScriptResponse) error() error { return r.Err }
 
 func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(getSetupExperienceScriptRequest)
+	req := request.(*getSetupExperienceScriptRequest)
 	downloadRequested := req.Alt == "media"
 	script, content, err := svc.GetSetupExperienceScript(ctx, req.TeamID, downloadRequested)
 	if err != nil {
@@ -93,7 +93,7 @@ type setSetupExperienceScriptResponse struct {
 func (r setSetupExperienceScriptResponse) error() error { return r.Err }
 
 func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(setSetupExperienceScriptRequest)
+	req := request.(*setSetupExperienceScriptRequest)
 
 	scriptFile, err := req.Script.Open()
 	if err != nil {
@@ -129,7 +129,7 @@ func (r deleteSetupExperienceScriptResponse) error() error { return r.Err }
 // func (r deleteSetupExperienceScriptResponse) Status() int  { return http.StatusNoContent }
 
 func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(deleteSetupExperienceScriptRequest)
+	req := request.(*deleteSetupExperienceScriptRequest)
 	if err := svc.DeleteSetupExperienceScript(ctx, req.TeamID); err != nil {
 		return deleteSetupExperienceScriptResponse{Err: err}, nil
 	}
