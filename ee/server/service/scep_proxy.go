@@ -93,7 +93,7 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy *fleet.NDESSCEPProxyInt
 	if challenge == "" {
 		if strings.Contains(htmlString, fullPasswordCache) {
 			return ctxerr.New(ctx,
-				"the password cache is full; please increase the number of cached passwords by NDES; by default, NDES caches 5 password and they expire 60 minutes after they are created")
+				"the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created")
 		}
 		return ctxerr.New(ctx, "could not retrieve the enrollment challenge password")
 	}
