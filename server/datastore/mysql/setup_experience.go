@@ -18,14 +18,14 @@ func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamI
 SELECT
 	si.id,
 	st.name,
-	si.platform,
+	si.platform
 FROM
 	software_titles st
 LEFT JOIN
 	software_installers si
 	ON st.id = si.title_id
 WHERE
-	global_or_team_id = ?
+	si.global_or_team_id = ?
 AND
 	st.id IN (%s)
 `, titleIDQuestionMarks)
@@ -34,7 +34,7 @@ AND
 SELECT
 	vat.id,
 	st.name,
-	vat.platform,
+	vat.platform
 FROM
 	software_titles st
 LEFT JOIN
@@ -44,7 +44,7 @@ LEFT JOIN
 	vpp_apps_teams vat
 	ON va.adam_id = vat.adam_id
 WHERE
-	global_or_team_id = ?
+	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
 `, titleIDQuestionMarks)
