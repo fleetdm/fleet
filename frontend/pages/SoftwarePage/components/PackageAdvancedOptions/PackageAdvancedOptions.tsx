@@ -69,6 +69,8 @@ interface IPackageAdvancedOptionsProps {
   installScript: string;
   postInstallScript?: string;
   uninstallScript?: string;
+  showSchemaButton?: boolean;
+  onClickShowSchema?: () => void;
   onChangePreInstallQuery: (value?: string) => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
@@ -76,12 +78,14 @@ interface IPackageAdvancedOptionsProps {
 }
 
 const PackageAdvancedOptions = ({
+  showSchemaButton = false,
   errors,
   selectedPackage,
   preInstallQuery,
   installScript,
   postInstallScript,
   uninstallScript,
+  onClickShowSchema = noop,
   onChangePreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
@@ -99,7 +103,7 @@ const PackageAdvancedOptions = ({
     return (
       <AdvancedOptionsFields
         className={`${baseClass}__input-fields`}
-        showSchemaButton={false}
+        showSchemaButton={showSchemaButton}
         installScriptHelpText={getInstallHelpText(ext)}
         postInstallScriptHelpText={getPostInstallHelpText(ext)}
         uninstallScriptHelpText={getUninstallHelpText(ext)}
@@ -108,7 +112,7 @@ const PackageAdvancedOptions = ({
         installScript={installScript}
         postInstallScript={postInstallScript}
         uninstallScript={uninstallScript}
-        onClickShowSchema={noop}
+        onClickShowSchema={onClickShowSchema}
         onChangePreInstallQuery={onChangePreInstallQuery}
         onChangeInstallScript={onChangeInstallScript}
         onChangePostInstallScript={onChangePostInstallScript}
@@ -128,9 +132,10 @@ const PackageAdvancedOptions = ({
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         disabled={!selectedPackage}
         disabledTooltipContent={
-          selectedPackage
-            ? "Choose a file to modify advanced options."
-            : undefined
+          <>
+            Choose a file to modify <br />
+            advanced options.
+          </>
         }
       />
       {showAdvancedOptions && !!selectedPackage && renderAdvancedOptions()}

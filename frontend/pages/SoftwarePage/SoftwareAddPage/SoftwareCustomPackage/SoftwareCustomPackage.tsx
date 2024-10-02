@@ -1,43 +1,46 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
+import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import softwareAPI, {
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_MB,
+  UPLOAD_TIMEOUT,
+} from "services/entities/software";
+
+import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 
-import PATHS from "router/paths";
-import { NotificationContext } from "context/notification";
-import softwareAPI from "services/entities/software";
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
-
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import CustomLink from "components/CustomLink";
+import FileProgressModal from "components/FileProgressModal";
+import PackageForm from "pages/SoftwarePage/components/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
-import PackageForm from "../PackageForm";
-import { IPackageFormData } from "../PackageForm/PackageForm";
-import { getErrorMessage } from "../AddSoftwareModal/helpers";
+import { getErrorMessage } from "./helpers";
 
-const baseClass = "add-package";
+const baseClass = "software-custom-package";
 
-// 8 minutes + 15 seconds to account for extra roundtrip time.
-export const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
-export const MAX_FILE_SIZE_MB = 500;
-export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
-interface IAddPackageProps {
-  teamId: number;
+interface ISoftwarePackageProps {
+  currentTeamId: number;
   router: InjectedRouter;
-  onExit: () => void;
-  setAddedSoftwareToken: (token: string) => void;
+  isSidePanelOpen: boolean;
+  setSidePanelOpen: (isOpen: boolean) => void;
 }
 
-const AddPackage = ({
-  teamId,
+const SoftwareCustomPackage = ({
+  currentTeamId,
   router,
-  onExit,
-  setAddedSoftwareToken,
-}: IAddPackageProps) => {
+  isSidePanelOpen,
+  setSidePanelOpen,
+}: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
+    null
+  );
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -50,7 +53,7 @@ const AddPackage = ({
     };
 
     // set up event listener to prevent user from leaving page while uploading
-    if (isUploading) {
+    if (uploadDetails) {
       addEventListener("beforeunload", beforeUnloadHandler);
       timeout = setTimeout(() => {
         removeEventListener("beforeunload", beforeUnloadHandler);
@@ -64,25 +67,47 @@ const AddPackage = ({
       removeEventListener("beforeunload", beforeUnloadHandler);
       clearTimeout(timeout);
     };
-  }, [isUploading]);
+  }, [uploadDetails]);
 
-  const onAddPackage = async (formData: IPackageFormData) => {
-    setIsUploading(true);
+  const onCancel = () => {
+    router.push(
+      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+        team_id: currentTeamId,
+      })}`
+    );
+  };
+
+  const onSubmit = async (formData: IPackageFormData) => {
+    console.log("submit", formData);
+    if (!formData.software) {
+      renderFlash(
+        "error",
+        `Couldn't add. Please refresh the page and try again.`
+      );
+      return;
+    }
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
       renderFlash(
         "error",
         `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
       );
-      onExit();
-      setIsUploading(false);
       return;
     }
+
+    setUploadDetails(getFileDetails(formData.software));
 
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage(formData, teamId, UPLOAD_TIMEOUT);
+      await softwareAPI.addSoftwarePackage({
+        data: formData,
+        teamId: currentTeamId,
+        timeout: UPLOAD_TIMEOUT,
+        onUploadProgress: (progressEvent) => {
+          setUploadProgress(progressEvent.progress || 0);
+        },
+      });
       renderFlash(
         "success",
         <>
@@ -93,14 +118,12 @@ const AddPackage = ({
         </>
       );
 
-      const newQueryParams: QueryParams = { team_id: teamId };
+      const newQueryParams: QueryParams = { team_id: currentTeamId };
       if (formData.selfService) {
         newQueryParams.self_service = true;
       } else {
         newQueryParams.available_for_install = true;
       }
-      // any unique string - triggers SW refetch
-      setAddedSoftwareToken(`${Date.now()}`);
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
@@ -125,20 +148,26 @@ const AddPackage = ({
         renderFlash("error", getErrorMessage(e));
       }
     }
-
-    onExit();
-    setIsUploading(false);
+    setUploadDetails(null);
   };
 
   return (
     <div className={baseClass}>
       <PackageForm
-        isUploading={isUploading}
-        onCancel={onExit}
-        onSubmit={onAddPackage}
+        showSchemaButton={!isSidePanelOpen}
+        onClickShowSchema={() => setSidePanelOpen(true)}
+        className={`${baseClass}__package-form`}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
       />
+      {uploadDetails && (
+        <FileProgressModal
+          fileDetails={uploadDetails}
+          fileProgress={uploadProgress}
+        />
+      )}
     </div>
   );
 };
 
-export default AddPackage;
+export default SoftwareCustomPackage;

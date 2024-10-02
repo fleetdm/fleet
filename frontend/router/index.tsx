@@ -79,7 +79,7 @@ import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
 import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
-import SoftwarePackage from "pages/SoftwarePage/SoftwareAddPage/SoftwarePackage";
+import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 
@@ -284,7 +284,7 @@ const routes = (
                 path="fleet-maintained"
                 component={SoftwareFleetMaintained}
               />
-              <Route path="package" component={SoftwarePackage} />
+              <Route path="package" component={SoftwareCustomPackage} />
               <Route path="app-store" component={SoftwareAppStore} />
             </Route>
             <Route
