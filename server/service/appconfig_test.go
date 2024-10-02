@@ -1398,7 +1398,6 @@ func TestModifyEnableAnalytics(t *testing.T) {
 }
 
 func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
-	t.Parallel()
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 	scepURL := "https://example.com/mscep/mscep.dll"
