@@ -7,7 +7,7 @@ const baseClass = "bootstrap-package-preview";
 const BootstrapPackagePreview = () => {
   return (
     <div className={baseClass}>
-      <h2>End user experience</h2>
+      <h3>End user experience</h3>
       <p>
         The bootstrap package is automatically installed after the end user
         authenticates and agrees to the EULA during the <b>Remote Management</b>{" "}

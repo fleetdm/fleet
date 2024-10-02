@@ -2,14 +2,14 @@ import React from "react";
 
 import Card from "components/Card";
 
-import OsPrefillPreview from "../../../../../../../../assets/images/os-prefill-preview.gif";
+import InstallSoftwarePreviewImg from "../../../../../../../../assets/images/install-software-preview.png";
 
 const baseClass = "install-software-preview";
 
 const InstallSoftwarePreview = () => {
   return (
     <Card color="gray" paddingSize="xxlarge" className={baseClass}>
-      <h2>End user experience</h2>
+      <h3>End user experience</h3>
       <p>
         When the end user completes the macOS Setup Assistant, they will see
         software being installed. User will not be able to continue until
@@ -21,8 +21,8 @@ const InstallSoftwarePreview = () => {
       </p>
       <img
         className={`${baseClass}__preview-img`}
-        src={OsPrefillPreview}
-        alt="OS setup preview"
+        src={InstallSoftwarePreviewImg}
+        alt="install software preview"
       />
     </Card>
   );
