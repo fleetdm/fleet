@@ -424,6 +424,10 @@ func main() {
 
 		opt := update.DefaultOptions
 
+		// TODO(JVE): figure out how we'll indicate to orbit that it's running in a "setup
+		// experience situation" and that it should download swiftDialog right away
+		opt.Targets["swiftDialog"] = update.SwiftDialogMacOSTarget
+
 		if c.Bool("fleet-desktop") {
 			switch runtime.GOOS {
 			case "darwin":
@@ -499,7 +503,8 @@ func main() {
 				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
 
-			targets := []string{"orbit", "osqueryd"}
+			targets := []string{"orbit", "osqueryd", "swiftDialog"}
+
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
@@ -870,6 +875,9 @@ func main() {
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+			if err := orbitClient.SetupExperienceReady(); err != nil {
+				log.Error().Err(err).Msg("failed to mark as ready for setup experience")
+			}
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))

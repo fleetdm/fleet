@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -269,6 +272,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			"task", "runPostDEPReleaseDevice",
 			"msg", fmt.Sprintf("profile %s has been deployed", prof.Identifier),
 		)
+	}
+
+	if os.Getenv("JVE_SETUP_EXPERIENCE") != "" {
+		slog.With("filename", "server/worker/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: setup experience configured. release should happen when device hits the /setup_experience/ready endpoint. ")
+		return nil
 	}
 
 	// release the device
