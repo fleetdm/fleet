@@ -847,6 +847,20 @@ policies:
 	assert.ErrorContains(t, err, "install_software can only be set on team policies")
 }
 
+func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  run_script:
+    path: ./some_path.sh
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "run_script can only be set on team policies")
+}
+
 func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
 	t.Parallel()
 	config := getTeamConfig([]string{"policies"})
@@ -945,6 +959,64 @@ software:
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+}
+
+func TestGitOpsTeamPolicyWithInvalidRunScript(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  run_script:
+    path: ./some_path.sh
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "script file does not exist")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  run_script:
+    path:
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "empty run_script path")
+
+	// Policy references a script not present in the team.
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./script-policy.yml
+software:
+controls:
+  scripts:
+    - path: ./top.policies2.yml
+
+`
+	path, basePath := createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "script-policy.yml"),
+		filepath.Join(basePath, "script-policy.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = file.Copy(
+		filepath.Join("testdata", "lib", "collect-fleetd-logs.sh"),
+		filepath.Join(basePath, "lib", "collect-fleetd-logs.sh"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err,
+		"policy script not found on team",
+	)
 }
 
 func getGlobalConfig(optsToExclude []string) string {

@@ -7595,13 +7595,15 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 			teamActivity = fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name)
 		}
 
-		// create and check activities
-		s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: scripts}, http.StatusOK, "team_id", teamIDStr)
+		// create, check activities, and check scripts response
+		var scriptsBatchResponse batchSetScriptsResponse
+		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "team_id", teamIDStr)
 		s.lastActivityMatches(
 			fleet.ActivityTypeEditedScript{}.ActivityName(),
 			teamActivity,
 			0,
 		)
+		require.Len(t, scriptsBatchResponse.Scripts, len(scripts))
 
 		// check that the right values got stored in the db
 		var listResp listScriptsResponse
