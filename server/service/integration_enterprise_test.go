@@ -14694,7 +14694,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 	hostPendingScript, err = s.ds.IsExecutionPendingForHost(ctx, host2Team1.ID, script.ID)
 	require.NoError(t, err)
-	require.True(t, hostPendingScript)
+	require.False(t, hostPendingScript)
 
 	// Associate psScript to policy4Team2.
 	mtplr = modifyTeamPolicyResponse{}

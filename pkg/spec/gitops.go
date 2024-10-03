@@ -562,7 +562,7 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 		return errors.New("empty run_script path")
 	}
 
-	_, err := os.Open(resolveApplyRelativePath(baseDir, policy.RunScript.Path))
+	_, err := os.Stat(resolveApplyRelativePath(baseDir, policy.RunScript.Path))
 	if err != nil {
 		return fmt.Errorf("script file does not exist %q: %v", policy.RunScript.Path, err)
 	}
