@@ -31,7 +31,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>([]);
 
-  const { isLoading, isError } = useQuery<
+  const { data, isLoading, isError } = useQuery<
     ISoftwareTitlesResponse,
     AxiosError,
     ISoftwareTitle[]
@@ -63,10 +63,12 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (selectedSoftwareIds) {
+    if (selectedSoftwareIds && data) {
+      console.log(data);
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware
+            noSoftware={data.length === 0}
             selectedSoftwareIds={selectedSoftwareIds}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
           />

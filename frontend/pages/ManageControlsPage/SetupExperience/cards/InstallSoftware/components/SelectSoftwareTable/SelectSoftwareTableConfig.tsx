@@ -14,7 +14,7 @@ import { Column } from "react-table";
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 
-const generateTableHeaders = (): ISelectSoftwareTableConfig[] => {
+const generateTableConfig = (): ISelectSoftwareTableConfig[] => {
   const headerConfigs: ISelectSoftwareTableConfig[] = [
     {
       Header: "Name",
@@ -41,4 +41,4 @@ const generateTableHeaders = (): ISelectSoftwareTableConfig[] => {
   return headerConfigs;
 };
 
-export default generateTableHeaders;
+export default generateTableConfig;

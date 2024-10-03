@@ -6,11 +6,13 @@ import CustomLink from "components/CustomLink";
 const baseClass = "add-install-software";
 
 interface IAddInstallSoftwareProps {
+  noSoftware: boolean;
   selectedSoftwareIds: number[];
   onAddSoftware: () => void;
 }
 
 const AddInstallSoftware = ({
+  noSoftware,
   selectedSoftwareIds,
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
@@ -34,6 +36,7 @@ const AddInstallSoftware = ({
           className={`${baseClass}__button`}
           variant="brand"
           onClick={onAddSoftware}
+          disabled={noSoftware}
         >
           {buttonText}
         </Button>
