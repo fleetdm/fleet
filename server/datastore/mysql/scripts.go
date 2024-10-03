@@ -725,11 +725,11 @@ ON DUPLICATE KEY UPDATE
 			policiesStmt = unsetAllScriptsFromPolicies
 			policiesArgs = []any{globalOrTeamID}
 		}
-		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
-		}
 		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
+		}
+		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
 		}
 
 		// insert the new scripts and the ones that have changed
