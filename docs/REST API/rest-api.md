@@ -4230,7 +4230,7 @@ Resends a configuration profile for the specified host.
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
-| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| query   | string | query | Search query keywords. Searchable fields include `name` and `vulnerabilities`. |
 | available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
