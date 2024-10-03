@@ -15,6 +15,7 @@ import Spinner from "components/Spinner";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
+import SelectSoftwareModal from "./components/SelectSoftwareModal";
 
 const baseClass = "install-software";
 
@@ -51,6 +52,8 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     }
   );
 
+  const onSave = () => {};
+
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -79,6 +82,12 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     <div className={baseClass}>
       <SectionHeader title="Install software" />
       <>{renderContent()}</>
+      {showSelectSoftwareModal && (
+        <SelectSoftwareModal
+          onSave={onSave}
+          onExit={() => setShowSelectSoftwareModal(false)}
+        />
+      )}
     </div>
   );
 };
