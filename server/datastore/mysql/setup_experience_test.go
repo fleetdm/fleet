@@ -291,7 +291,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	titleSoftware := make(map[string]uint)
 	titleVPP := make(map[string]uint)
 
-	softwareTitles, count, meta, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team1.ID}, fleet.TeamFilter{TeamID: &team1.ID})
+	softwareTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team1.ID}, fleet.TeamFilter{TeamID: &team1.ID})
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
@@ -302,7 +302,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	softwareTitles, count, meta, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team2.ID}, fleet.TeamFilter{TeamID: &team2.ID})
+	softwareTitles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team2.ID}, fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
@@ -337,6 +337,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 0)
 	require.Equal(t, 0, count)
+	require.NotNil(t, meta)
 
 	// Assign one vpp and one installer app
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"], titleSoftware["file1"]})
