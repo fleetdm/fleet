@@ -124,6 +124,8 @@ func scanVulnerabilities(
 		return fmt.Errorf("create vulnerabilities databases directory: %w", err)
 	}
 
+	panic("foo")
+
 	var vulnAutomationEnabled string
 
 	// only one vuln automation (i.e. webhook or integration) can be enabled at a
