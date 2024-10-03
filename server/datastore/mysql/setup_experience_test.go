@@ -3,7 +3,6 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -313,14 +312,35 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
 	assert.NotNil(t, meta)
 
-	fmt.Printf("titleVPP: %v\n", titleVPP)
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
 	require.NoError(t, err)
 
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 1)
-	assert.Equal(t, 1, count)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
 	assert.Equal(t, "1", titles[0].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 0)
+	require.Equal(t, 0, count)
+
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"], titleSoftware["file1"]})
+	require.NoError(t, err)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
+
+	// iOS app
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
+	require.Error(t, err)
+
+	// iOS app
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["3"]})
+	require.Error(t, err)
 }

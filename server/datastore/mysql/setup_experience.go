@@ -16,6 +16,7 @@ func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamI
 
 	stmtSelectInstallersIDs := fmt.Sprintf(`
 SELECT
+	st.id AS title_id,
 	si.id,
 	st.name,
 	si.platform
@@ -32,6 +33,7 @@ AND
 
 	stmtSelectVPPAppsTeamsID := fmt.Sprintf(`
 SELECT
+	st.id AS title_id,
 	vat.id,
 	st.name,
 	vat.platform
@@ -74,9 +76,11 @@ WHERE id IN (%s)`
 		var softwareIDs []any
 		var vppIDPlatforms []idPlatformTuple
 		var vppAppTeamIDs []any
+		missingTitleIDs := make(map[uint]struct{})
 		titleIDArgs := make([]any, 0, len(titleIDs))
 		titleIDAndTeam := []any{teamID}
 		for _, id := range titleIDs {
+			missingTitleIDs[id] = struct{}{}
 			titleIDArgs = append(titleIDArgs, id)
 			titleIDAndTeam = append(titleIDAndTeam, id)
 		}
@@ -86,6 +90,7 @@ WHERE id IN (%s)`
 		}
 
 		for _, tuple := range softwareIDPlatforms {
+			delete(missingTitleIDs, tuple.TitleID)
 			if tuple.Platform != string(fleet.MacOSPlatform) {
 				return ctxerr.Errorf(ctx, "only MacOS supported, unsupported software installer: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
 			}
@@ -97,10 +102,19 @@ WHERE id IN (%s)`
 		}
 
 		for _, tuple := range vppIDPlatforms {
+			delete(missingTitleIDs, tuple.TitleID)
 			if tuple.Platform != string(fleet.MacOSPlatform) {
 				return ctxerr.Errorf(ctx, "only MacOS supported, unsupported AppStoreApp title: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
 			}
 			vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
+		}
+
+		if len(missingTitleIDs) > 0 {
+			var keys []string
+			for k := range missingTitleIDs {
+				keys = append(keys, fmt.Sprintf("%d", k))
+			}
+			return ctxerr.Errorf(ctx, "title IDs not availabe: %s", strings.Join(keys, ","))
 		}
 
 		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers, teamID); err != nil {
@@ -111,22 +125,18 @@ WHERE id IN (%s)`
 			return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 		}
 
-		if len(softwareIDs) == 0 {
-			// 0 is not a valid ID, but it stops sql syntax error
-			softwareIDs = append(softwareIDs, 0)
-		}
-		stmtSetInstallersLoop := fmt.Sprintf(stmtSetInstallers, questionMarks(len(softwareIDs)))
-		if _, err := tx.ExecContext(ctx, stmtSetInstallersLoop, softwareIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting software installers")
+		if len(softwareIDs) > 0 {
+			stmtSetInstallersLoop := fmt.Sprintf(stmtSetInstallers, questionMarks(len(softwareIDs)))
+			if _, err := tx.ExecContext(ctx, stmtSetInstallersLoop, softwareIDs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting software installers")
+			}
 		}
 
-		if len(vppAppTeamIDs) == 0 {
-			// 0 is not a valid ID, but it stops sql syntax error
-			vppAppTeamIDs = append(vppAppTeamIDs, 0)
-		}
-		stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
-		if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting vpp app teams")
+		if len(vppAppTeamIDs) > 0 {
+			stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
+			if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting vpp app teams")
+			}
 		}
 
 		return nil
@@ -160,6 +170,7 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, team
 
 type idPlatformTuple struct {
 	ID       uint   `db:"id"`
+	TitleID  uint   `db:"title_id"`
 	Name     string `db:"name"`
 	Platform string `db:"platform"`
 }

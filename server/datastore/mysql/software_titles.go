@@ -359,6 +359,15 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		args = append(args, match, match)
 	}
 
+	if opt.SetupExperienceOnly {
+		additionalWhere += ` AND ( si.install_during_setup = 1 OR vat.install_during_setup = 1 )`
+	}
+
+	if opt.Platform != "" {
+		additionalWhere += ` AND ( si.platform = ? OR vap.platform = ? )`
+		args = append(args, opt.Platform, opt.Platform)
+	}
+
 	// default to "a software installer or VPP app exists", and see next condition.
 	defaultFilter := fmt.Sprintf(`
 		((si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s)
@@ -370,15 +379,6 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 	if opt.SelfServiceOnly {
 		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
-	}
-
-	if opt.SetupExperienceOnly {
-		defaultFilter += ` AND ( si.install_during_setup = 1 OR vat.install_during_setup = 1 )`
-	}
-
-	if opt.Platform != "" {
-		defaultFilter += ` AND ( si.platform = ? OR vat.platform = ? )`
-		args = append(args, opt.Platform, opt.Platform)
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
