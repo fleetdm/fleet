@@ -414,7 +414,7 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
-## Changing someone's position
+## Request a role change for a Fleetie
 
 From time to time, someone's job title changes. The hiring manager can use the following steps to change someone's position:
 1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (where "xxxxxx" is the Fleetie's name and YYYY is the current year) for discussion and invite the CEO and Head of Digital Experience.
