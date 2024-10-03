@@ -5,6 +5,9 @@ import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { AxiosResponse } from "axios";
+import { IApiError } from "../../../../../interfaces/errors";
+import { getErrorMessage } from "../ScriptUploader/helpers";
 
 const baseClass = "delete-script-modal";
 
@@ -27,8 +30,15 @@ const DeleteScriptModal = ({
     try {
       await scriptAPI.deleteScript(id);
       renderFlash("success", "Successfully deleted!");
-    } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+    } catch (e) {
+      const error = e as AxiosResponse<IApiError>;
+      const apiErrMessage = getErrorMessage(error);
+      renderFlash(
+        "error",
+        apiErrMessage.includes("Policy automation")
+          ? apiErrMessage
+          : "Couldn’t delete. Please try again."
+      );
     }
     onDone();
   };
