@@ -31,7 +31,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>([]);
 
-  const { data, isLoading, isError } = useQuery<
+  const { data: softwareTitles, isLoading, isError } = useQuery<
     ISoftwareTitlesResponse,
     AxiosError,
     ISoftwareTitle[]
@@ -46,13 +46,22 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
-      onSuccess: (softwareTitles) => {
-        setSelectedSoftwareIds(softwareTitles.map((software) => software.id));
+      onSuccess: (data) => {
+        setSelectedSoftwareIds(
+          data.reduce<number[]>((acc, software) => {
+            if (software.install_during_setup) {
+              acc.push(software.id);
+            }
+            return acc;
+          }, [])
+        );
       },
     }
   );
 
-  const onSave = () => {};
+  const onSave = () => {
+    console.log("save");
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -63,12 +72,11 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (selectedSoftwareIds && data) {
-      console.log(data);
+    if (selectedSoftwareIds && softwareTitles) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware
-            noSoftware={data.length === 0}
+            noSoftware={softwareTitles.length === 0}
             selectedSoftwareIds={selectedSoftwareIds}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
           />
@@ -84,8 +92,9 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     <div className={baseClass}>
       <SectionHeader title="Install software" />
       <>{renderContent()}</>
-      {showSelectSoftwareModal && (
+      {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
+          software={softwareTitles}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}
         />

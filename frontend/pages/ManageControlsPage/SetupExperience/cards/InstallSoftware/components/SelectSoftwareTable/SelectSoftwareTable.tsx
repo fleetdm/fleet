@@ -22,7 +22,7 @@ const SelectSoftwareTable = ({ software }: ISelectSoftwareTableProps) => {
       columnConfigs={tabelConfig}
       isLoading={false}
       emptyComponent={() => null}
-      showMarkAllPages={false}
+      showMarkAllPages
       isAllPagesSelected={false}
     />
   );
