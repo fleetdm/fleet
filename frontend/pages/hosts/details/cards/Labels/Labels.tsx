@@ -25,9 +25,7 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
           variant="label"
           className="list__button"
         >
-          {label.label_type === "builtin" &&
-          label.name in LABEL_DISPLAY_MAP &&
-          (label.name as keyof typeof LABEL_DISPLAY_MAP)
+          {label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
             ? LABEL_DISPLAY_MAP[label.name as keyof typeof LABEL_DISPLAY_MAP]
             : label.name}
         </Button>
