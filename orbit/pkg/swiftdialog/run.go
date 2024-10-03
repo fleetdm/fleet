@@ -10,14 +10,17 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // SwiftDialog really wants the command file to be mode 666 for some reason
 // https://github.com/swiftDialog/swiftDialog/wiki/Gotchas
-var CommandFilePerms = fs.FileMode(0666)
+var CommandFilePerms = fs.FileMode(0o666)
 
-var ErrKilled = errors.New("process killed")
-var ErrWindowClosed = errors.New("window closed")
+var (
+	ErrKilled       = errors.New("process killed")
+	ErrWindowClosed = errors.New("window closed")
+)
 
 type SwiftDialog struct {
 	cancel      context.CancelCauseFunc
@@ -107,6 +110,11 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 		close(sd.done)
 		cancel(ErrWindowClosed)
 	}()
+
+	// This sleep makes sure that SD is fully up and running and has access to the command file.
+	// We've found that if we start sending commands to the command file without this sleep, the
+	// commands may be lost.
+	time.Sleep(500 * time.Millisecond)
 
 	return sd, nil
 }
