@@ -15,6 +15,7 @@ type addFleetMaintainedAppRequest struct {
 	PreInstallQuery   string `json:"pre_install_query"`
 	PostInstallScript string `json:"post_install_script"`
 	SelfService       bool   `json:"self_service"`
+	UninstallScript   string `json:"uninstall_script"`
 }
 
 type addFleetMaintainedAppResponse struct {
@@ -27,7 +28,16 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	req := request.(*addFleetMaintainedAppRequest)
 	ctx, cancel := context.WithTimeout(ctx, maintainedapps.InstallerTimeout)
 	defer cancel()
-	err := svc.AddFleetMaintainedApp(ctx, req.TeamID, req.AppID, req.InstallScript, req.PreInstallQuery, req.PostInstallScript, req.SelfService)
+	err := svc.AddFleetMaintainedApp(
+		ctx,
+		req.TeamID,
+		req.AppID,
+		req.InstallScript,
+		req.PreInstallQuery,
+		req.PostInstallScript,
+		req.UninstallScript,
+		req.SelfService,
+	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			err = fleet.NewGatewayTimeoutError("Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
@@ -38,7 +48,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	return &addFleetMaintainedAppResponse{}, nil
 }
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript string, selfService bool) error {
+func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

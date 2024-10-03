@@ -137,8 +137,11 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		return ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
 	}
 
-	installScript := installScriptForApp(app, &cask)
-	uninstallScript := uninstallScriptForApp(app, &cask)
+	installScript, err := installScriptForApp(app, &cask)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "create install script for cask %s", app.Identifier)
+	}
+	uninstallScript := uninstallScriptForApp(&cask)
 
 	_, err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:    cask.Name[0],
@@ -153,16 +156,6 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		UninstallScript:  uninstallScript,
 	})
 	return ctxerr.Wrap(ctx, err, "upsert maintained app")
-}
-
-func installScriptForApp(app maintainedApp, cask *brewCask) string {
-	// TODO: implement install script based on cask and app installer format
-	return "install"
-}
-
-func uninstallScriptForApp(app maintainedApp, cask *brewCask) string {
-	// TODO: implement uninstall script based on cask and app installer format
-	return "uninstall"
 }
 
 type brewCask struct {
@@ -195,9 +188,28 @@ type brewArtifact struct {
 	Binary []optjson.StringOr[*brewBinaryTarget] `json:"binary"`
 }
 
+// The choiceChanges file is a property list containing an array of dictionaries. Each dictionary has the following three keys:
+//
+// Key                     Description
+// choiceIdentifier        Identifier for the choice to be modified (string)
+// choiceAttribute         One of the attribute names described below (string)
+// attributeSetting        A setting that depends on the choiceAttribute, described below (number or string)
+//
+// The choiceAttribute and attributeSetting values are as follows:
+//
+// choiceAttribute    attributeSetting   Description
+// selected           (number) 1         to select the choice, 0 to deselect it
+// enabled            (number) 1         to enable the choice, 0 to disable it
+// visible            (number) 1         to show the choice, 0 to hide it
+// customLocation     (string)           path at which to install the choice (see below)
+type brewPkgConfig struct {
+	ChoiceIdentifier string `json:"choiceIdentifier" plist:"choiceIdentifier"`
+	ChoiceAttribute  string `json:"choiceAttribute" plist:"choiceAttribute"`
+	AttributeSetting int    `json:"attributeSetting" plist:"attributeSetting"`
+}
+
 type brewPkgChoices struct {
-	// At the moment we don't care about the "choices" field on the pkg.
-	Choices []any `json:"choices"`
+	Choices []brewPkgConfig `json:"choices"`
 }
 
 type brewBinaryTarget struct {
