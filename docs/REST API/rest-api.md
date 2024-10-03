@@ -4274,7 +4274,7 @@ Resends a configuration profile for the specified host.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
-      ],
+      ]
     },
     {
       "id": 134,
