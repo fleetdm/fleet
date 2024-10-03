@@ -1399,7 +1399,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 
 func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
 	scepURL := "https://example.com/mscep/mscep.dll"
 	adminURL := "https://example.com/mscep_admin/"
 	username := "user"
@@ -1428,6 +1428,9 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, token *fleet.ABMToken) error {
 		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
 	}
 
 	jsonPayloadBase := `
