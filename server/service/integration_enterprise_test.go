@@ -14576,8 +14576,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
 	// TODO this will change when actual install scripts are created.
 	actualApp := listMAResp.FleetMaintainedApps[0]
-	actualApp.InstallScript = "install"
-	actualApp.UninstallScript = "uninstall"
+	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
+	require.NotEmpty(t, getMAResp.FleetMaintainedApp.UninstallScript)
+	getMAResp.FleetMaintainedApp.InstallScript = ""
+	getMAResp.FleetMaintainedApp.UninstallScript = ""
 	require.Equal(t, actualApp, *getMAResp.FleetMaintainedApp)
 
 	// Add an ingested app to the team

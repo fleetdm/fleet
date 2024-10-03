@@ -3,6 +3,51 @@
 # variables
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
 
+remove_launchctl_service() {
+  local service="$1"
+  local booleans=("true" "false")
+  local plist_status
+  local paths
+  local sudo
+
+  echo "Removing launchctl service ${service}"
+
+  for sudo in "${booleans[@]}"; do
+    plist_status=$(launchctl list "${service}" 2>/dev/null)
+
+    if [[ $plist_status == \{* ]]; then
+      if [[ $sudo == "true" ]]; then
+        sudo launchctl remove "${service}"
+      else
+        launchctl remove "${service}"
+      fi
+      sleep 1
+    fi
+
+    paths=(
+      "/Library/LaunchAgents/${service}.plist"
+      "/Library/LaunchDaemons/${service}.plist"
+    )
+
+    # if not using sudo, prepend the home directory to the paths
+    if [[ $sudo == "false" ]]; then
+      for i in "${!paths[@]}"; do
+        paths[i]="${HOME}${paths[i]}"
+      done
+    fi
+
+    for path in "${paths[@]}"; do
+      if [[ -e "$path" ]]; then
+        if [[ $sudo == "true" ]]; then
+          sudo rm -f -- "$path"
+        else
+          rm -f -- "$path"
+        fi
+      fi
+    done
+  done
+}
+
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
@@ -60,51 +105,6 @@ trash() {
   else
     echo "$target_file doesn't exist."
   fi
-}
-
-remove_launchctl_service() {
-  local service="$1"
-  local booleans=("true" "false")
-  local plist_status
-  local paths
-  local sudo
-
-  echo "Removing launchctl service ${service}"
-
-  for sudo in "${booleans[@]}"; do
-    plist_status=$(launchctl list "${service}" 2>/dev/null)
-
-    if [[ $plist_status == \{* ]]; then
-      if [[ $sudo == "true" ]]; then
-        sudo launchctl remove "${service}"
-      else
-        launchctl remove "${service}"
-      fi
-      sleep 1
-    fi
-
-    paths=(
-      "/Library/LaunchAgents/${service}.plist"
-      "/Library/LaunchDaemons/${service}.plist"
-    )
-
-    # if not using sudo, prepend the home directory to the paths
-    if [[ $sudo == "false" ]]; then
-      for i in "${!paths[@]}"; do
-        paths[i]="${HOME}${paths[i]}"
-      done
-    fi
-
-    for path in "${paths[@]}"; do
-      if [[ -e "$path" ]]; then
-        if [[ $sudo == "true" ]]; then
-          sudo rm -f -- "$path"
-        else
-          rm -f -- "$path"
-        fi
-      fi
-    done
-  done
 }
 
 remove_launchctl_service 'com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp'

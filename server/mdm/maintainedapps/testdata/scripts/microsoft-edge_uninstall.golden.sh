@@ -3,6 +3,27 @@
 # variables
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
 
+trash() {
+  local logged_in_user="$1"
+  local target_file="$2"
+  local timestamp="$(date +%Y-%m-%d-%s)"
+
+  # replace ~ with /Users/$logged_in_user
+  if [[ "$target_file" == ~* ]]; then
+    target_file="/Users/$logged_in_user${target_file:1}"
+  fi
+
+  local trash="/Users/$logged_in_user/.Trash"
+  local file_name="$(basename "${target_file}")"
+
+  if [[ -e "$target_file" ]]; then
+    echo "removing $target_file."
+    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
+  else
+    echo "$target_file doesn't exist."
+  fi
+}
+
 remove_launchctl_service() {
   local service="$1"
   local booleans=("true" "false")
@@ -46,27 +67,6 @@ remove_launchctl_service() {
       fi
     done
   done
-}
-
-trash() {
-  local logged_in_user="$1"
-  local target_file="$2"
-  local timestamp="$(date +%Y-%m-%d-%s)"
-
-  # replace ~ with /Users/$logged_in_user
-  if [[ "$target_file" == ~* ]]; then
-    target_file="/Users/$logged_in_user${target_file:1}"
-  fi
-
-  local trash="/Users/$logged_in_user/.Trash"
-  local file_name="$(basename "${target_file}")"
-
-  if [[ -e "$target_file" ]]; then
-    echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
-  else
-    echo "$target_file doesn't exist."
-  fi
 }
 
 remove_launchctl_service 'com.microsoft.EdgeUpdater.update-internal.109.0.1518.89.system'
