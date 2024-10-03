@@ -3,6 +3,7 @@
 # variables
 APPDIR="/Applications/"
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
+# functions
 
 trash() {
   local logged_in_user="$1"

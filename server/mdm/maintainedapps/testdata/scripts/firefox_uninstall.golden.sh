@@ -3,6 +3,7 @@
 # variables
 APPDIR="/Applications/"
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
+# functions
 
 quit_application() {
   local bundle_id="$1"

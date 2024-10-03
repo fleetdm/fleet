@@ -332,9 +332,17 @@ func (s *scriptBuilder) String() string {
 	}
 
 	if len(s.functions) > 0 {
-		for _, fn := range s.functions {
+		// write functions, order them alphabetically to produce deterministic
+		// scripts.
+		script.WriteString("# functions\n")
+		keys := make([]string, 0, len(s.functions))
+		for name := range s.functions {
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		for _, name := range keys {
 			script.WriteString("\n")
-			script.WriteString(fn)
+			script.WriteString(s.functions[name])
 			script.WriteString("\n")
 		}
 	}
