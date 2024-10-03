@@ -1071,3 +1071,15 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 	return nil
 }
+
+type getOrbitSetupExperienceStatusRequest struct{}
+
+type getOrbitSetupExperienceStatusResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
+
+func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	return nil, nil
+}
