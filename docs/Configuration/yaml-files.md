@@ -704,7 +704,7 @@ Can only be configured for all teams (`org_settings`).
 
 ##### client_url
 
-Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy (default: base URL of the Fleet instance provided during setup).
+Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features (default: base URL of the Fleet instance provided during setup).
 
 ##### Example
 
