@@ -46,8 +46,15 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
-      onSuccess: (softwareTitles) => {
-        setSelectedSoftwareIds(softwareTitles.map((software) => software.id));
+      onSuccess: (data) => {
+        setSelectedSoftwareIds(
+          data.reduce<number[]>((acc, software) => {
+            if (software.install_during_setup) {
+              acc.push(software.id);
+            }
+            return acc;
+          }, [])
+        );
       },
     }
   );
