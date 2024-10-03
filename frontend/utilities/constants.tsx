@@ -264,7 +264,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   iPadOS: "platform",
 } as const;
 
-// For labels we display different than what is returned from the API
+// For some builtin labels, display different strings than what API returns
 export const LABEL_DISPLAY_MAP: Partial<
   Record<PlatformLabelNameFromAPI, string>
 > = {
