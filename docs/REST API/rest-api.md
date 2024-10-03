@@ -8789,7 +8789,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [Add Fleet library app](#add-fleet-library-app)
+- [List Fleet-maintained apps](#list-fleet-maintained-apps)
+- [Get Fleet-maintained app](#get-fleet-maintained-app)
+- [Add Fleet-maintained app](#add-fleet-maintained-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -9098,8 +9100,8 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Firefox.app",
-    "bundle_identifier": "org.mozilla.firefox",
+    "name": "Falcon.app",
+    "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9108,10 +9110,12 @@ Returns information about the specified software. By default, `versions` are sor
       "uploaded_at": "2024-04-01T14:22:58Z",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+      "automatic_install_query": "SELECT 1 FROM apps WHERE name='Falcon.app';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
-      "automatic_install": true,
+      "install_method": "automatic",
+      "fleet_maintained": true,
       "status": {
         "installed": 3,
         "pending_install": 1,
@@ -9527,7 +9531,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 #### Example
 
-`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+`POST /api/v1/fleet/software/app_store_apps`
 
 ##### Request body
 
@@ -9543,6 +9547,133 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 ##### Default response
 
 `Status: 200`
+
+### List Fleet-maintained apps
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+List available Fleet-maintained apps.
+
+`GET /api/v1/fleet/software/fleet_maintained_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | query | **Required**. The team ID. Filters Fleet-maintained apps to only include apps available for the specified team.  |
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page.  |
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_maintained_apps?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_maintained_apps": [
+    {
+      "id": 1,
+      "name": "1Password",
+      "version": "8.10.40",
+      "platform": "darwin"
+    },
+    {
+      "id": 2,
+      "name": "Adobe Acrobat Reader",
+      "version": "24.002.21005",
+      "platform": "darwin"
+    },
+    {
+      "id": 3,
+      "name": "Box Drive",
+      "version": "2.39.179",
+      "platform": "darwin"
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get Fleet-maintained app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+Returns information about the specified Fleet-maintained app.
+
+`GET /api/v1/fleet/software/fleet_maintained_apps/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The Fleet-maintained app's ID. |
+
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_maintained_apps/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_maintained_app": {
+    "id": 1,
+    "name": "1Password",
+    "filename": "1Password-8.10.44-aarch64.zip",
+    "version": "8.10.40",
+    "platform": "darwin",
+    "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
+    "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+  }
+}
+```
+
+### Add Fleet-maintained app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Add Fleet-maintained app so it's available for install.
+
+`POST /api/v1/fleet/software/fleet_maintained_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
+| team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| install_method | string | body | Defines if software install will be triggered automatically. Possible options are `manual` and `automatic`. If not specified default is `manual`. |
+
+
+#### Example
+
+`POST /api/v1/fleet/software/fleet_maintained_apps`
+
+##### Request body
+
+```json
+{
+  "fleet_maintained_app_id": 3,
+  "team_id": 2
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ### Install package or App Store app
 
