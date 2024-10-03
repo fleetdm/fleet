@@ -79,7 +79,7 @@ define HELP_TEXT
 	make dump-test-schema - update schema.sql from current migrations
 	make generate-mock    - update mock data store
 
-    make clean        - Clean all build artifacts
+	make clean        - Clean all build artifacts
 	make clean-assets - Clean assets only
 
 	make build        - Build the code

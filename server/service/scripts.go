@@ -241,12 +241,12 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
 		}
 
-		r, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
+		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(r) > 0 {
+		if isQueued {
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script is already queued on the given host.`).WithStatus(http.StatusConflict)
 		}
 

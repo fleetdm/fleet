@@ -1970,11 +1970,11 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			continue
 		}
 
-		thisScriptExecutionPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
+		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
 		}
-		if len(thisScriptExecutionPending) > 0 {
+		if scriptIsAlreadyPending {
 			level.Debug(logger).Log("msg", "script is already pending on host")
 			continue
 		}

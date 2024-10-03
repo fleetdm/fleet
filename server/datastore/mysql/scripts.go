@@ -228,7 +228,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 	return results, nil
 }
 
-func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error) {
 	const getStmt = `
 		SELECT
 		  1
@@ -242,9 +242,9 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 
 	var results []*uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "is execution pending for host")
+		return false, ctxerr.Wrap(ctx, err, "is execution pending for host")
 	}
-	return results, nil
+	return len(results) > 0, nil
 }
 
 func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {

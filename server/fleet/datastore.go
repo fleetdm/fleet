@@ -641,7 +641,7 @@ type Datastore interface {
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
-	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore

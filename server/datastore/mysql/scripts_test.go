@@ -652,7 +652,7 @@ VALUES
 		insertResults(t, 42, scripts[2], now.Add(-2*time.Minute), "execution-3-4", nil)
 		r, err := ds.IsExecutionPendingForHost(ctx, 42, scripts[2].ID)
 		require.NoError(t, err)
-		require.Len(t, r, 1)
+		require.True(t, r)
 	})
 }
 

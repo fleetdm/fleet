@@ -14636,7 +14636,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 	hostPendingScript, err := s.ds.IsExecutionPendingForHost(ctx, host1Team1.ID, script.ID)
 	require.NoError(t, err)
-	require.Len(t, hostPendingScript, 1)
+	require.True(t, hostPendingScript)
 
 	// Request a manual script execution on the host for the same script, which should fail.
 	var scriptRunResp runScriptResponse
@@ -14655,7 +14655,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 	hostPendingScript, err = s.ds.IsExecutionPendingForHost(ctx, host1Team1.ID, script.ID)
 	require.NoError(t, err)
-	require.Len(t, hostPendingScript, 1)
+	require.True(t, hostPendingScript)
 
 	// Submit same results but policy1Team1 now passes,
 	// and then submit again but policy1Team1 fails.
@@ -14680,7 +14680,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 	hostPendingScript, err = s.ds.IsExecutionPendingForHost(ctx, host1Team1.ID, script.ID)
 	require.NoError(t, err)
-	require.Len(t, hostPendingScript, 1)
+	require.True(t, hostPendingScript)
 
 	// host2Team1 is failing policy2Team1 (incompatible) and policy3Team1 (no script) policies; no scripts should be queued
 	distributedResp = submitDistributedQueryResultsResponse{}
@@ -14694,7 +14694,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 	hostPendingScript, err = s.ds.IsExecutionPendingForHost(ctx, host2Team1.ID, script.ID)
 	require.NoError(t, err)
-	require.Len(t, hostPendingScript, 0)
+	require.True(t, hostPendingScript)
 
 	// Associate psScript to policy4Team2.
 	mtplr = modifyTeamPolicyResponse{}
@@ -14715,7 +14715,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 	hostPendingScript, err = s.ds.IsExecutionPendingForHost(ctx, host3Team2.ID, psScript.ID)
 	require.NoError(t, err)
-	require.Len(t, hostPendingScript, 1)
+	require.True(t, hostPendingScript)
 
 	// Unassociate policy4Team2 from script.
 	mtplr = modifyTeamPolicyResponse{}

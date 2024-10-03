@@ -464,7 +464,7 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
-type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -4258,7 +4258,7 @@ func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt
 	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
 }
 
-func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error) {
 	s.mu.Lock()
 	s.IsExecutionPendingForHostFuncInvoked = true
 	s.mu.Unlock()
