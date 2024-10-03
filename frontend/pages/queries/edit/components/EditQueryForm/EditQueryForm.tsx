@@ -487,6 +487,7 @@ const EditQueryForm = ({
         <div
           className={queryNameWrapperClasses}
           onFocus={() => setIsEditingName(true)}
+          onBlur={() => setIsEditingName(false)}
           onClick={editName}
         >
           <AutoSizeInputField
