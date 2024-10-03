@@ -38,6 +38,7 @@ func TestScripts(t *testing.T) {
 		{"TestInsertScriptContents", testInsertScriptContents},
 		{"TestCleanupUnusedScriptContents", testCleanupUnusedScriptContents},
 		{"TestGetAnyScriptContents", testGetAnyScriptContents},
+		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1273,4 +1274,35 @@ func testGetAnyScriptContents(t *testing.T, ds *Datastore) {
 	result, err := ds.GetAnyScriptContents(ctx, uint(id))
 	require.NoError(t, err)
 	require.Equal(t, contents, string(result))
+}
+
+func testDeleteScriptsAssignedToPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		TeamID:         &team1.ID,
+		ScriptContents: "hello world",
+	})
+	require.NoError(t, err)
+
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:     "p1",
+		Query:    "SELECT 1;",
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+
+	err = ds.DeleteScript(ctx, script.ID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteScriptWithAssociatedPolicy)
+
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+
+	err = ds.DeleteScript(ctx, script.ID)
+	require.NoError(t, err)
 }
