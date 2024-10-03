@@ -134,8 +134,8 @@ func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
 // no team.
 func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/batch"
-	var scriptResponses []fleet.ScriptResponse
-	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, scriptResponses, opts.RawQuery())
+	var resp batchSetScriptsResponse
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, opts.RawQuery())
 
-	return scriptResponses, err
+	return resp.Scripts, err
 }

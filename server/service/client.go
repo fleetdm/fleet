@@ -1605,7 +1605,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			scriptID, ok := scriptIDsByName[*config.Policies[i].RunScriptName]
 			if !ok {
 				if !dryRun { // this shouldn't happen
-					logFn("[!] reference to an unknown script: %s\n", config.Policies[i].RunScriptName)
+					logFn("[!] reference to an unknown script: %s\n", *config.Policies[i].RunScriptName)
 				}
 				continue
 			}

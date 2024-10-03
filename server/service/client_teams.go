@@ -91,10 +91,9 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	}
 	query.Add("team_name", tmName)
 
-	var scriptResults []fleet.ScriptResponse
-	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, scriptResults, query.Encode())
-
-	return scriptResults, err
+	var resp batchSetScriptsResponse
+	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
+	return resp.Scripts, err
 }
 
 func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
