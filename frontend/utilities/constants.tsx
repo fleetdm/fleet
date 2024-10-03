@@ -336,6 +336,27 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
+export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
+  Normal: (
+    <span>
+      Current maximum capacity is at least
+      <br />
+      80% of its designed capacity and the
+      <br />
+      cycle count is below 1000.
+    </span>
+  ),
+  "Service recommended": (
+    <span>
+      Current maximum capacity has fallen
+      <br />
+      below 80% of its designed capacity
+      <br />
+      or the cycle count has reached 1000.
+    </span>
+  ),
+};
+
 export const DEFAULT_CREATE_USER_ERRORS = {
   email: "",
   name: "",
