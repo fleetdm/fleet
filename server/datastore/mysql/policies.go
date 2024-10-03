@@ -177,8 +177,8 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var errMismatchedInstallerTeam = errors.New("software installer is associated with a different team")
-var errMismatchedScriptTeam = errors.New("script is associated with a different team")
+var errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
+var errMismatchedScriptTeam = &fleet.BadRequestError{Message: "script is associated with a different team"}
 
 func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
 	if softwareInstallerID != nil {
@@ -186,6 +186,9 @@ func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwar
 		err := sqlx.GetContext(ctx, ds.reader(ctx), &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
 
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return &fleet.BadRequestError{Message: "A software installer with the supplied ID does not exist"}
+			}
 			return err
 		} else if softwareInstallerTeamID != teamID {
 			return errMismatchedInstallerTeam
@@ -197,6 +200,9 @@ func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwar
 		err := sqlx.GetContext(ctx, ds.reader(ctx), &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
 
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return &fleet.BadRequestError{Message: "A script with the supplied ID does not exist"}
+			}
 			return err
 		} else if scriptTeamID != teamID {
 			return errMismatchedScriptTeam
