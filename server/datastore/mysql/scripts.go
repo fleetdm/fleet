@@ -435,7 +435,7 @@ WHERE
 	return contents, nil
 }
 
-var errDeleteScriptWithAssociatedPolicy = errors.New("Couldn't delete. Policy automation uses this script. Please disable policy automation for this script and try again.")
+var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this script. Please remove this script from associated policy automations and try again."}
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
