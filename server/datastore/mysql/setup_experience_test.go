@@ -302,6 +302,17 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	softwareTitles, count, meta, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team2.ID}, fleet.TeamFilter{TeamID: &team2.ID})
+	require.NoError(t, err)
+
+	for _, title := range softwareTitles {
+		if title.AppStoreApp != nil {
+			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+		} else if title.SoftwarePackage != nil {
+			titleSoftware[title.SoftwarePackage.Name] = title.ID
+		}
+	}
+
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleSoftware["file1"]})
 	require.NoError(t, err)
 
@@ -327,6 +338,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 0)
 	require.Equal(t, 0, count)
 
+	// Assign one vpp and one installer app
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"], titleSoftware["file1"]})
 	require.NoError(t, err)
 
@@ -336,11 +348,30 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
 
-	// iOS app
+	// iOS software
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
-	require.Error(t, err)
+	require.ErrorContains(t, err, "unsupported")
 
-	// iOS app
+	// ios vpp app
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["2"]})
+	require.ErrorContains(t, err, "unsupported")
+
+	// wrong team
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["3"]})
-	require.Error(t, err)
+	require.ErrorContains(t, err, "not available")
+
+	// good other team assignment
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleVPP["3"]})
+	require.NoError(t, err)
+
+	// non-existent title ID
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{999})
+	require.ErrorContains(t, err, "not available")
+
+	// Failures and other team assignments didn't affected the number of apps on team 1
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
 }

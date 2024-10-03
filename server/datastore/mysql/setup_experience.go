@@ -114,7 +114,7 @@ WHERE id IN (%s)`
 			for k := range missingTitleIDs {
 				keys = append(keys, fmt.Sprintf("%d", k))
 			}
-			return ctxerr.Errorf(ctx, "title IDs not availabe: %s", strings.Join(keys, ","))
+			return ctxerr.Errorf(ctx, "title IDs not available: %s", strings.Join(keys, ","))
 		}
 
 		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers, teamID); err != nil {
