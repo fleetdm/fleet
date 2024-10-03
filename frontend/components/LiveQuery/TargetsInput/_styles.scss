@@ -97,14 +97,15 @@
 
   // Empty loading height matches height of empty and error state
   .loading-overlay + .data-table__wrapper {
-    .data-table__table .data-table__no-rows {
+    .data-table__no-rows {
       min-height: 225px;
+
+      tbody {
+        min-height: 173px;
+      }
     }
   }
-
-  .data-table-block .data-table__no-rows {
-    min-height: 25px;
-  }
+  // End
 
   .loading-overlay {
     position: absolute;
