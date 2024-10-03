@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240909145426(t *testing.T) {
+func TestUp_20241003145349(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create an existing software installer before the migration

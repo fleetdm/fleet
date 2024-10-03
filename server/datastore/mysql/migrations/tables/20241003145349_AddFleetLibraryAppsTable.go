@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240909145426, Down_20240909145426)
+	MigrationClient.AddMigration(Up_20241003145349, Down_20241003145349)
 }
 
-func Up_20240909145426(tx *sql.Tx) error {
+func Up_20241003145349(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE fleet_library_apps (
 	id                int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -66,6 +66,6 @@ ALTER TABLE software_installers
 	return nil
 }
 
-func Down_20240909145426(tx *sql.Tx) error {
+func Down_20241003145349(tx *sql.Tx) error {
 	return nil
 }

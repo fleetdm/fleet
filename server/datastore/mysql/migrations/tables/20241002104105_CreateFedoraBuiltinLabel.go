@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240927081858, Down_20240927081858)
+	MigrationClient.AddMigration(Up_20241002104105, Down_20241002104105)
 }
 
-func Up_20240927081858(tx *sql.Tx) error {
+func Up_20241002104105(tx *sql.Tx) error {
 	const stmt = `
 		INSERT INTO labels (
 			name,
@@ -52,6 +52,6 @@ func Up_20240927081858(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240927081858(tx *sql.Tx) error {
+func Down_20241002104105(tx *sql.Tx) error {
 	return nil
 }

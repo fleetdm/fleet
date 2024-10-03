@@ -279,8 +279,7 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm_windows",
 		"munki_info",
 		"google_chrome_profiles",
-		"battery_macos",
-		"battery_windows",
+		"battery",
 		"os_windows",
 		"os_unix_like",
 		"os_chrome",
@@ -297,7 +296,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 26)
+	require.Len(t, queriesWithoutWinOSVuln, 25)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
@@ -975,58 +974,87 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 }
 
 func TestDirectIngestBattery(t *testing.T) {
-	ds := new(mock.Store)
-	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
-		require.Equal(t, mappings, []*fleet.HostBattery{
-			{HostID: uint(1), SerialNumber: "a", CycleCount: 2, Health: "Good"},
-			{HostID: uint(1), SerialNumber: "c", CycleCount: 3, Health: strings.Repeat("z", 40)},
+	tests := []struct {
+		name            string
+		input           map[string]string
+		expectedBattery *fleet.HostBattery
+	}{
+		{
+			name:            "max_capacity >= 80%, cycleCount < 1000",
+			input:           map[string]string{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "a", CycleCount: 2, Health: batteryStatusGood},
+		},
+		{
+			name:            "max_capacity < 50%",
+			input:           map[string]string{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "2399"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "b", CycleCount: 3, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "missing max_capacity",
+			input:           map[string]string{"serial_number": "c", "cycle_count": "4", "designed_capacity": "3000", "max_capacity": ""},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "c", CycleCount: 4, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "missing designed_capacity and max_capacity",
+			input:           map[string]string{"serial_number": "d", "cycle_count": "5", "designed_capacity": "", "max_capacity": ""},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "d", CycleCount: 5, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "missing designed_capacity",
+			input:           map[string]string{"serial_number": "e", "cycle_count": "6", "designed_capacity": "", "max_capacity": "2000"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "e", CycleCount: 6, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "invalid designed_capacity and max_capacity",
+			input:           map[string]string{"serial_number": "f", "cycle_count": "7", "designed_capacity": "foo", "max_capacity": "bar"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "f", CycleCount: 7, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "cycleCount >= 1000",
+			input:           map[string]string{"serial_number": "g", "cycle_count": "1000", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "g", CycleCount: 1000, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "cycleCount >= 1000 with degraded health",
+			input:           map[string]string{"serial_number": "h", "cycle_count": "1001", "designed_capacity": "3000", "max_capacity": "2399"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "h", CycleCount: 1001, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "missing cycle_count",
+			input:           map[string]string{"serial_number": "i", "cycle_count": "", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "i", CycleCount: 0, Health: batteryStatusGood},
+		},
+		{
+			name:            "missing cycle_count with degraded health",
+			input:           map[string]string{"serial_number": "j", "cycle_count": "", "designed_capacity": "3000", "max_capacity": "2399"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "j", CycleCount: 0, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "invalid cycle_count",
+			input:           map[string]string{"serial_number": "k", "cycle_count": "foo", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "k", CycleCount: 0, Health: batteryStatusGood},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+				require.Len(t, mappings, 1)
+				require.Equal(t, tt.expectedBattery, mappings[0])
+				return nil
+			}
+
+			host := fleet.Host{
+				ID: 1,
+			}
+
+			err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{tt.input})
+			require.NoError(t, err)
+			require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 		})
-		return nil
 	}
-
-	host := fleet.Host{
-		ID:       1,
-		Platform: "darwin",
-	}
-
-	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"serial_number": "a", "cycle_count": "2", "health": "Good"},
-		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
-	})
-
-	require.NoError(t, err)
-	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
-
-	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
-		require.Equal(t, mappings, []*fleet.HostBattery{
-			{HostID: uint(2), SerialNumber: "a", CycleCount: 2, Health: batteryStatusGood},
-			{HostID: uint(2), SerialNumber: "b", CycleCount: 3, Health: batteryStatusDegraded},
-			{HostID: uint(2), SerialNumber: "c", CycleCount: 4, Health: batteryStatusUnknown},
-			{HostID: uint(2), SerialNumber: "d", CycleCount: 5, Health: batteryStatusUnknown},
-			{HostID: uint(2), SerialNumber: "e", CycleCount: 6, Health: batteryStatusUnknown},
-			{HostID: uint(2), SerialNumber: "f", CycleCount: 7, Health: batteryStatusUnknown},
-		})
-		return nil
-	}
-
-	// reset the ds flag
-	ds.ReplaceHostBatteriesFuncInvoked = false
-
-	host = fleet.Host{
-		ID:       2,
-		Platform: "windows",
-	}
-
-	err = directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2400"}, // max_capacity >= 80%
-		{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "2399"}, // max_capacity < 50%
-		{"serial_number": "c", "cycle_count": "4", "designed_capacity": "3000", "max_capacity": ""},     // missing max_capacity
-		{"serial_number": "d", "cycle_count": "5", "designed_capacity": "", "max_capacity": ""},         // missing designed_capacity and max_capacity
-		{"serial_number": "e", "cycle_count": "6", "designed_capacity": "", "max_capacity": "2000"},     // missing designed_capacity
-		{"serial_number": "f", "cycle_count": "7", "designed_capacity": "foo", "max_capacity": "bar"},   // invalid designed_capacity and max_capacity
-	})
-	require.NoError(t, err)
-	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
 
 func TestDirectIngestOSWindows(t *testing.T) {
