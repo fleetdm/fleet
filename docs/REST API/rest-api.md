@@ -848,7 +848,7 @@ None.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -948,7 +948,7 @@ None.
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": true
     },
-    "client_url": "TODO"
+    "client_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "spec": {
@@ -1135,7 +1135,7 @@ Modifies the Fleet's configuration with the supplied information.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -1242,7 +1242,7 @@ Modifies the Fleet's configuration with the supplied information.
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
     },
-    "client_url": "TODO"
+    "client_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "config": {
@@ -1719,7 +1719,7 @@ _Available in Fleet Premium._
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
-| client_url         | string  | Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy. |
+| client_url         | string  | Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy (default: base URL of the Fleet instance provided during setup). |
 
 <br/>
 
