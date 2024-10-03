@@ -287,6 +287,19 @@ will be disabled and/or hidden in the UI.
 
               res.locals.me = sanitizedUser;
 
+              // Track a website page view in the CRM for logged-in users:
+              sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateWebsiteActivity.with({
+                emailAddress: sanitizedUser.emailAddress,
+                firstName: sanitizedUser.firstName,
+                lastName: sanitizedUser.lastName,
+                organization: sanitizedUser.organization,
+                pageUrlVisited: `https://fleetdm.com/${req.url}`,
+              }).exec((err)=>{
+                if(err){
+                  sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                }
+                return;
+              });
               // Include information on the locals as to whether billing features
               // are enabled for this app, and whether email verification is required.
               res.locals.isBillingEnabled = sails.config.custom.enableBillingFeatures;
