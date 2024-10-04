@@ -405,7 +405,7 @@ WHERE
 	return &dest, nil
 }
 
-var errDeleteInstallerWithAssociatedPolicy = &fleet.BadRequestError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+var errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
