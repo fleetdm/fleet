@@ -308,7 +308,7 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
-- - `script` is the path to a custom setup script to run after the host is first setup.
+- `script` is the path to a custom setup script to run after the host is first setup.
 - `software` is a list of references to either a `package_path` matching a package in the `software` section below or an `app_store_id` to install when the host is first setup.
 
 #### macos_migration
