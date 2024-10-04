@@ -6187,13 +6187,13 @@ Body: <blob>
 
 _Available in Fleet Premium_
 
-List software that will be installed during setup.
+List software that will be automatically installed during macOS setup.
 
 `GET /api/v1/fleet/setup_experience/software`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use 0 to filter by hosts assigned to "No team". |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
 
@@ -6211,10 +6211,10 @@ List software that will be installed during setup.
   "software_titles": [
     {
       "id": 1,
-      "name": "Software A",
+      "name": "Google Chrome.app",
       "versions_count": 3,
-      "source": "App Store",
-      "browser": "Chrome",
+      "source": "apps",
+      "browser": "",
       "hosts_count": 10,
       "installed_during_setup": true,
       "versions": [
@@ -6238,29 +6238,6 @@ List software that will be installed during setup.
         "app_store_id": 201,
         "version": "1.0.0"
       }
-    },
-    {
-      "id": 2,
-      "name": "Software B",
-      "versions_count": 2,
-      "source": "Direct Download",
-      "browser": "Firefox",
-      "hosts_count": 5,
-      "installed_during_setup": false,
-      "versions": [
-        {
-          "id": 201,
-          "version": "2.0.0",
-          "vulnerabilities": []
-        },
-        {
-          "id": 202,
-          "version": "2.1.0",
-          "vulnerabilities": ["CVE-2022-12345"]
-        }
-      ],
-      "software_package": null,
-      "app_store_app": null
     }
   ],
   {
@@ -6272,6 +6249,29 @@ List software that will be installed during setup.
   },
 }
 ```
+
+### List setup experience software
+
+_Available in Fleet Premium_
+
+List software that will be automatically installed during macOS setup.
+
+`GET /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
