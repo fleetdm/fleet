@@ -3,18 +3,9 @@
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
-## battery_macos
+## battery
 
-- Platforms: darwin
-
-- Query:
-```sql
-SELECT serial_number, cycle_count, health FROM battery;
-```
-
-## battery_windows
-
-- Platforms: windows
+- Platforms: windows, darwin
 
 - Discovery query:
 ```sql

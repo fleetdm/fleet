@@ -7,6 +7,7 @@ import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
+  ILoadTeamPolicyResponse,
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
@@ -63,6 +64,7 @@ export default {
       resolution,
       platform,
       critical,
+      // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
@@ -85,8 +87,10 @@ export default {
       resolution,
       platform,
       critical,
+      // automations-related fields
       calendar_events_enabled,
       software_title_id,
+      script_id,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -100,6 +104,7 @@ export default {
       critical,
       calendar_events_enabled,
       software_title_id,
+      script_id,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
@@ -115,7 +120,7 @@ export default {
 
     return sendRequest("POST", path, { ids });
   },
-  load: (team_id: number, id: number) => {
+  load: (team_id: number, id: number): Promise<ILoadTeamPolicyResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
     return sendRequest("GET", path);
