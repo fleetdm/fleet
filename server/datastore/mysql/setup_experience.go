@@ -11,12 +11,15 @@ import (
 func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
 	const stmt = `
 SELECT 
+	id, 
 	host_uuid, 
-	type, 
 	name, 
 	status, 
+	software_installer_id, 
 	host_software_installs_id, 
+	vpp_app_team_id, 
 	nano_command_uuid, 
+	setup_experience_script_id, 
 	script_execution_id, 
 	error
 FROM setup_experience_status_results

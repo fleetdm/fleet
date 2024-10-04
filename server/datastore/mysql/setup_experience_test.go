@@ -3,11 +3,14 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,36 +35,62 @@ func TestSetupExperience(t *testing.T) {
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	hostUUID := uuid.NewString()
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname: "host1",
-		UUID:     hostUUID,
-		Platform: "darwin",
-	})
+
+	// VPP setup: create a token so that we can insert a VPP app
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
 	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{BundleIdentifier: "com.test.test", Name: "test.app", LatestVersion: "1.0.0"}, nil)
+	require.NoError(t, err)
+	var vppAppsTeamsID uint
+	err = sqlx.GetContext(context.Background(), ds.reader(ctx),
+		&vppAppsTeamsID, `SELECT id FROM vpp_apps_teams WHERE adam_id = ?`,
+		vppApp.AdamID,
+	)
+	require.NoError(t, err)
+
+	// Create a software installer
+	// We need a new user first
 	user, err := ds.NewUser(ctx, &fleet.User{Name: "Foo", Email: "foo@example.com", GlobalRole: ptr.String("admin"), Password: []byte("12characterslong!")})
 	require.NoError(t, err)
-	id, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID})
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, id, false)
-	require.NoError(t, err)
+
+	// TODO: use DS methods once those are written
+	var scriptID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, type, name, status, host_software_installs_id) VALUES (?, ?, ?, ?, ?)`,
-			hostUUID, fleet.TypeSoftwareInstall, "software", fleet.StatusPending, 1)
+		res, err := q.ExecContext(ctx, `INSERT INTO setup_experience_scripts (name) VALUES (?)`,
+			"test_script")
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		scriptID = uint(id)
+		return nil
+	})
+
+	// Software installer step
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, name, status, software_installer_id) VALUES (?, ?, ?, ?)`,
+			hostUUID, "software", fleet.StatusPending, installerID)
 		require.NoError(t, err)
 		return nil
 	})
 
-	cmdUUID := uuid.NewString()
+	// VPP app step
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, type, name, status, nano_command_uuid) VALUES (?, ?, ?, ?, ?)`,
-			hostUUID, fleet.TypeBootstrapPackage, "bootstrap", fleet.StatusPending, cmdUUID)
+		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, name, status, vpp_app_team_id) VALUES (?, ?, ?, ?)`,
+			hostUUID, "vpp", fleet.StatusPending, vppAppsTeamsID)
 		require.NoError(t, err)
 		return nil
 	})
 
+	// Setup script step
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, type, name, status, script_execution_id) VALUES (?, ?, ?, ?, ?)`,
-			hostUUID, fleet.TypePostInstallScript, "script", fleet.StatusPending, 1)
+		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, name, status, setup_experience_script_id) VALUES (?, ?, ?, ?)`,
+			hostUUID, "script", fleet.StatusPending, scriptID)
 		require.NoError(t, err)
 		return nil
 	})
@@ -69,11 +98,29 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
 	require.NoError(t, err)
 	require.Len(t, res, 3)
-	r := res[0]
-	require.Equal(t, hostUUID, r.HostUUID)
-	require.Equal(t, fleet.TypeSoftwareInstall, r.Type)
-	require.Equal(t, "software", r.Name)
-	require.Equal(t, fleet.StatusPending, r.Status)
-	require.Equal(t, ptr.Uint(uint(1)), r.HostSoftwareInstallsID)
-	require.Nil(t, r.Error)
+	for i, s := range []*fleet.SetupExperienceStatusResult{
+		{
+			ID:                  1,
+			HostUUID:            hostUUID,
+			Name:                "software",
+			Status:              fleet.StatusPending,
+			SoftwareInstallerID: ptr.Uint(installerID),
+		},
+		{
+			ID:           2,
+			HostUUID:     hostUUID,
+			Name:         "vpp",
+			Status:       fleet.StatusPending,
+			VPPAppTeamID: ptr.Uint(vppAppsTeamsID),
+		},
+		{
+			ID:                      3,
+			HostUUID:                hostUUID,
+			Name:                    "script",
+			Status:                  fleet.StatusPending,
+			SetupExperienceScriptID: ptr.Uint(scriptID),
+		},
+	} {
+		require.Equal(t, s, res[i])
+	}
 }
