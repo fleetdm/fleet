@@ -1,17 +1,22 @@
 import React from "react";
 
+import PATHS from "router/paths";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
+import LinkWithContext from "components/LinkWithContext";
 
 const baseClass = "add-install-software";
 
 interface IAddInstallSoftwareProps {
+  currentTeamId: number;
   softwareTitles: ISoftwareTitle[];
   onAddSoftware: () => void;
 }
 
 const AddInstallSoftware = ({
+  currentTeamId,
   softwareTitles,
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
@@ -20,17 +25,39 @@ const AddInstallSoftware = ({
     (software) => software.install_during_setup
   );
 
-  const addedText =
-    hasNoSoftware || !hasSelectedSoftware
-      ? "No software added."
-      : `${
+  let addedText = <></>;
+  let buttonText = "";
+
+  if (hasNoSoftware) {
+    addedText = (
+      <>
+        No software available to add. Please{" "}
+        <LinkWithContext
+          to={PATHS.SOFTWARE_TITLES}
+          currentQueryParams={{ team_id: currentTeamId }}
+          withParams={{ type: "query", names: ["team_id"] }}
+        >
+          upload software
+        </LinkWithContext>{" "}
+        to be able to add during setup experience.{" "}
+      </>
+    );
+    buttonText = "Add software";
+  } else if (!hasSelectedSoftware) {
+    addedText = <>No software added.</>;
+    buttonText = "Add software";
+  } else {
+    addedText = (
+      <>
+        {
           softwareTitles.filter((software) => software.install_during_setup)
             .length
-        } software will be installed during setup.`;
-  const buttonText =
-    !hasNoSoftware && !hasSelectedSoftware
-      ? "Add software"
-      : "Show selected software";
+        }{" "}
+        software will be installed during setup.
+      </>
+    );
+    buttonText = "Show selected software";
+  }
 
   return (
     <div className={baseClass}>

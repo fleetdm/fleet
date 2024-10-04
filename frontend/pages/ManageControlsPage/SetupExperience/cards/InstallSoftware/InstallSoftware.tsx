@@ -66,6 +66,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware
+            currentTeamId={currentTeamId}
             softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
           />
