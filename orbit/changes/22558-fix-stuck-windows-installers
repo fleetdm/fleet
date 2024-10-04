@@ -1,1 +1,0 @@
-* Added a timeout to all script executions during software installs to prevent having install requests stuck in pending state forever.

@@ -18,7 +18,7 @@ parasails.registerPage('start', {
       'what-does-your-team-manage-eo-it': {},
       'what-does-your-team-manage-vm': {},
       'what-do-you-manage-mdm': {},
-      'cross-platform-mdm': {stepCompleted: true},
+      'message-about-cross-platform-mdm': {stepCompleted: true},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
       'deploy-fleet-in-your-environment': {stepCompleted: true},
@@ -198,10 +198,10 @@ parasails.registerPage('start', {
           } else if(primaryBuyingSituation === 'vm') {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(primaryBuyingSituation === 'mdm') {
-            this.currentStep = 'cross-platform-mdm';
+            this.currentStep = 'message-about-cross-platform-mdm';
           }
           break;
-        case 'cross-platform-mdm':
+        case 'message-about-cross-platform-mdm':
           this.currentStep = 'what-do-you-manage-mdm';
           break;
         case 'lets-talk-to-your-team':
@@ -300,9 +300,9 @@ parasails.registerPage('start', {
           nextStepInForm = 'is-it-any-good';
           break;
         case 'what-do-you-manage-mdm':
-          nextStepInForm = 'cross-platform-mdm';
+          nextStepInForm = 'message-about-cross-platform-mdm';
           break;
-        case 'cross-platform-mdm':
+        case 'message-about-cross-platform-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':

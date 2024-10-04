@@ -51,6 +51,10 @@
     padding: $pad-xxlarge;
   }
 
+  &__padding-xxxlarge {
+    padding: $pad-xxxlarge;
+  }
+
   // 40px padding
   // TODO: remove when we've replaced all instances of largePadding with
   // paddingSize prop
