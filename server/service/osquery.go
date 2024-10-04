@@ -1989,6 +1989,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			ScriptContentID: scriptMetadata.ScriptContentID,
 			ScriptID:        &scriptMetadata.ID,
 			TeamID:          policyTeamID,
+			PolicyID:        &failingPolicyWithScript.ID,
 			// no user ID as scripts are executed by Fleet
 		}
 

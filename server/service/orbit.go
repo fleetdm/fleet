@@ -742,6 +742,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					ScriptExecutionID: hsr.ExecutionID,
 					ScriptName:        scriptName,
 					Async:             !hsr.SyncRequest,
+					PolicyID:          hsr.PolicyID,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")

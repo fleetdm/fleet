@@ -1171,6 +1171,7 @@ type ActivityTypeRanScript struct {
 	ScriptExecutionID string `json:"script_execution_id"`
 	ScriptName        string `json:"script_name"`
 	Async             bool   `json:"async"`
+	PolicyID          *uint  `json:"policy_id"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
