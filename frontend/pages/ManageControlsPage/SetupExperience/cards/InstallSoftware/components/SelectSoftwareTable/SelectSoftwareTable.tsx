@@ -35,6 +35,8 @@ const SelectSoftwareTable = ({
       isAllPagesSelected={false}
       disablePagination
       searchable
+      searchQueryColumn="name"
+      isClientSideFilter
       onClearSelection={() => onChangeSelectAll(false)}
     />
   );
