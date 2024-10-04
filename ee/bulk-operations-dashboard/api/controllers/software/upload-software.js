@@ -38,8 +38,9 @@ module.exports = {
 
   fn: async function ({newSoftware, teams}) {
     let util = require('util');
-    let uploadedSoftware = await sails.uploadOne(newSoftware);
+    let uploadedSoftware;
     if(!teams) {
+      uploadedSoftware = await sails.uploadOne(newSoftware);
       let datelessFilename = uploadedSoftware.filename.replace(/^\d{4}-\d{2}-\d{2}\s/, '');
       // Build a dictonary of information about this software to return to the softwares page.
       let newSoftwareInfo = {
@@ -51,9 +52,11 @@ module.exports = {
       };
       await UndeployedSoftware.create(newSoftwareInfo);
     } else {
-      for(let teamApid of teams){
+      for(let teamApid of teams) {
+        uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: 500000000});
+        console.log(uploadedSoftware);
         var WritableStream = require('stream').Writable;
-        await sails.cp(uploadedSoftware.fd, {}, {
+        await sails.cp(uploadedSoftware.fd, {adapter: require('skipper-disk')}, {
           adapter: ()=>{
             return {
               ls: undefined,
@@ -103,7 +106,7 @@ module.exports = {
         });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
-      await sails.rm(uploadedSoftware.fd);
+      await sails.rm(uploadedSoftware.fd, {adapter: require('skipper-disk')});
     }
     return;
 

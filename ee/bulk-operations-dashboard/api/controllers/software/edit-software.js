@@ -19,7 +19,7 @@ module.exports = {
     },
     software: {
       type: {},
-      description: ''
+      description: 'The software that will be editted.'
     },
 
     preInstallQuery: {
@@ -74,87 +74,19 @@ module.exports = {
         // get software from Fleet instance and upload to s3.
         let teamIdToGetInstallerFrom = software.teams[0].fleetApid;
         let downloadApiUrl = `${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${software.fleetApid}/package?alt=media&team_id=${teamIdToGetInstallerFrom}`;
-        // console.time('fleetInstance»s3(cp)');
-        // let foo = await sails.cp(downloadApiUrl, {
-        //   adapter: () => {
-        //     return {
-        //       ls: undefined,
-        //       rm: undefined,
-        //       receive: undefined,
-        //       read: (downloadApiUrl) => {
-        //         // Create a readable stream
-        //         const readable = new Readable({
-        //           read() {
-        //             // Empty _read method; we'll handle data pushing with events below
-        //           }
-        //         });
-
-        //         // Now we'll fetch the data asynchronously and pipe it into the readable stream
-        //         (async () => {
-        //           try {
-        //             const streamResponse = await axios({
-        //               url: downloadApiUrl,
-        //               method: 'GET',
-        //               responseType: 'stream',
-        //               headers: {
-        //                 Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-        //               },
-        //             });
-
-        //             console.log('Received stream from API, piping data...');
-
-        //             // Pipe data from the response stream into the readable stream
-        //             streamResponse.data.on('data', (chunk) => {
-        //               const canContinue = readable.push(chunk);
-        //               if (!canContinue) {
-        //                 streamResponse.data.pause();  // Pause if we can't push more data
-        //               }
-        //             });
-
-        //             // Resume the stream when readable is ready
-        //             readable.on('drain', () => {
-        //               streamResponse.data.resume();
-        //             });
-
-        //             // When the source stream ends, we signal end of the readable stream
-        //             streamResponse.data.on('end', () => {
-        //               readable.push(null); // Signal end of stream
-        //             });
-
-        //             // Handle any errors from the source stream
-        //             streamResponse.data.on('error', (err) => {
-        //               readable.emit('error', err); // Propagate the error to the readable stream
-        //             });
-
-        //           } catch (error) {
-        //             console.error('Error during read operation:', error);
-        //             readable.emit('error', new Error('Failed to download file: ' + error.message));
-        //           }
-        //         })();
-
-        //         return readable;
-        //       },
-        //     };
-        //   },
-        // },{});
-        // console.log(foo);
-        // console.timeEnd('fleetInstance»s3(cp)');
-        // console.time('fleetInstance»s3(upload+stream)');
         let softwareStream = await sails.helpers.http.getStream.with({
           url: downloadApiUrl,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         });
-        let tempUploadedSoftware = await sails.uploadOne(softwareStream);
-        // console.timeEnd('fleetInstance»s3(upload+stream)');
-        // console.log(tempUploadedSoftware);
+        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {adapter: require('skipper-disk'),  maxBytes: 500000000});
         softwareFd = tempUploadedSoftware.fd;
         softwareName = software.name;
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
         // console.log('replacing software package!');
-        let uploadedSoftware = await sails.uploadOne(newSoftware);
+        let uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: 500000000});
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
         softwareMime = uploadedSoftware.type;
@@ -178,7 +110,11 @@ module.exports = {
         let unchangedTeamIds = _.difference(currentSoftwareTeamIds, removedTeams);
         for(let team of addedTeams) {
           // Send an api request to send the file to the Fleet server for each added team.
-          await sails.cp(softwareFd, {},
+          let adapterForUploadedFile = {};
+          if(!software.id) {
+            adapterForUploadedFile = {adapter: require('skipper-disk'), maxBytes: 500000000};
+          }
+          await sails.cp(softwareFd, adapterForUploadedFile,
             {
               adapter: ()=>{
                 return {
@@ -217,7 +153,7 @@ module.exports = {
                         }
                       })()
                       .then(()=>{
-                        console.log('ok supposedly a file is finished uploading');
+                        // console.log('ok supposedly a file is finished uploading');
                         doneWithThisFile();
                       })
                       .catch((err)=>{
@@ -230,7 +166,7 @@ module.exports = {
               },
             })
           .intercept((unusedErr)=>{
-            throw 'softwareUploadFailed';
+            return 'softwareUploadFailed';
           });
         }// After every new team this is deployed to.
         if(newSoftware) {
@@ -245,7 +181,7 @@ module.exports = {
                 Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
               }
             });
-            await sails.cp(softwareFd, {},
+            await sails.cp(softwareFd, adapterForUploadedFile,
             {
               adapter: ()=>{
                 return {
@@ -284,7 +220,7 @@ module.exports = {
                         }
                       })()
                     .then(()=>{
-                      console.log('ok supposedly a file is finished uploading');
+                      // console.log('ok supposedly a file is finished uploading');
                       doneWithThisFile();
                     })
                     .catch((err)=>{

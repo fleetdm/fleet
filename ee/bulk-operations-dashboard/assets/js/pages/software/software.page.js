@@ -94,6 +94,7 @@ parasails.registerPage('software', {
       this.modal = '';
       this.formErrors = {};
       this.formData = {};
+      this.showAdvancedOptions = false;
       await this.forceRender();
     },
     clickChangeTeamFilter: async function(teamApid) {
