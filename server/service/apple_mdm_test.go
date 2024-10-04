@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -2209,6 +2210,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	hostUUID, hostUUID2 := "ABC-DEF", "GHI-JKL"
 	contents1 := []byte("test-content-1")
+	expectedContents1 := []byte("test-content-1") // used for Fleet variable substitution
 	contents2 := []byte("test-content-2")
 	contents4 := []byte("test-content-4")
 
@@ -2267,10 +2269,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			mu.Unlock()
 			require.NoError(t, err)
 
-			if !bytes.Equal(p7.Content, contents1) && !bytes.Equal(p7.Content, contents2) &&
+			if !bytes.Equal(p7.Content, expectedContents1) && !bytes.Equal(p7.Content, contents2) &&
 				!bytes.Equal(p7.Content, contents4) {
 				require.Failf(t, "profile contents don't match", "expected to contain %s, %s or %s but got %s",
-					contents1, contents2, contents4, p7.Content)
+					expectedContents1, contents2, contents4, p7.Content)
 			}
 		case "RemoveProfile":
 			require.ElementsMatch(t, []string{hostUUID, hostUUID2}, id)
@@ -2419,9 +2421,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 	checkAndReset := func(t *testing.T, want bool, invoked *bool) {
 		if want {
-			require.True(t, *invoked)
+			assert.True(t, *invoked)
 		} else {
-			require.False(t, *invoked)
+			assert.False(t, *invoked)
 		}
 		*invoked = false
 	}
@@ -2529,6 +2531,199 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+	})
+
+	// Zero profiles to remove
+	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+		return nil, nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		if failedCall {
+			failedCheck(payload)
+			return nil
+		}
+
+		// next call will be failed call, until reset
+		failedCall = true
+
+		// first time it is called, it is to set the status to pending and all
+		// host profiles have a command uuid
+		cmdUUIDByProfileUUIDInstall := make(map[string]string)
+		cmdUUIDByProfileUUIDRemove := make(map[string]string)
+		copies := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(payload))
+		for i, p := range payload {
+			if p.OperationType == fleet.MDMOperationTypeInstall {
+				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
+				if ok {
+					require.Equal(t, existing, p.CommandUUID)
+				} else {
+					cmdUUIDByProfileUUIDInstall[p.ProfileUUID] = p.CommandUUID
+				}
+			} else {
+				require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
+				existing, ok := cmdUUIDByProfileUUIDRemove[p.ProfileUUID]
+				if ok {
+					require.Equal(t, existing, p.CommandUUID)
+				} else {
+					cmdUUIDByProfileUUIDRemove[p.ProfileUUID] = p.CommandUUID
+				}
+			}
+
+			// clear the command UUID (in a copy so that it does not affect the
+			// pointed-to struct) from the payload for the subsequent checks
+			copyp := *p
+			copyp.CommandUUID = ""
+			copies[i] = &copyp
+		}
+
+		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:       p1,
+				ProfileIdentifier: "com.add.profile",
+				HostUUID:          hostUUID,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+			},
+			{
+				ProfileUUID:       p2,
+				ProfileIdentifier: "com.add.profile.two",
+				HostUUID:          hostUUID,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+			},
+			{
+				ProfileUUID:       p2,
+				ProfileIdentifier: "com.add.profile.two",
+				HostUUID:          hostUUID2,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+			},
+			{
+				ProfileUUID:       p4,
+				ProfileIdentifier: "com.add.profile.four",
+				HostUUID:          hostUUID2,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+			},
+		}, copies)
+		return nil
+	}
+
+	// Enable NDES
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = "https://test.example.com"
+		appCfg.MDM.EnabledAndConfigured = true
+		appCfg.Integrations.NDESSCEPProxy.Valid = true
+		return appCfg, nil
+	}
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	t.Run("replace $FLEET_VAR_"+FleetVarNDESSCEPProxyURL, func(t *testing.T) {
+		var failedCount int
+		failedCall = false
+		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			failedCount++
+			require.Len(t, payload, 0)
+		}
+		enqueueFailForOp = ""
+		newContents := "$FLEET_VAR_" + FleetVarNDESSCEPProxyURL
+		originalContents1 := contents1
+		originalExpectedContents1 := expectedContents1
+		contents1 = []byte(newContents)
+		expectedContents1 = []byte("https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID,
+			p1)))
+		t.Cleanup(func() {
+			contents1 = originalContents1
+			expectedContents1 = originalExpectedContents1
+		})
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		require.NoError(t, err)
+		require.Equal(t, 1, failedCount)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
+		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
+		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+	})
+
+	t.Run("preprocessor fails on $FLEET_VAR_"+FleetVarHostEndUserEmailIDP, func(t *testing.T) {
+		var failedCount int
+		failedCall = false
+		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			failedCount++
+			require.Len(t, payload, 0)
+		}
+		enqueueFailForOp = ""
+		newContents := "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP
+		originalContents1 := contents1
+		contents1 = []byte(newContents)
+		t.Cleanup(func() {
+			contents1 = originalContents1
+		})
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			return nil, errors.New("GetHostEmailsFuncError")
+		}
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
+		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
+		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+	})
+
+	t.Run("bad $FLEET_VAR", func(t *testing.T) {
+		var failedCount int
+		failedCall = false
+		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			failedCount++
+			require.Len(t, payload, 0)
+		}
+		enqueueFailForOp = ""
+
+		// All profiles will have bad contents
+		badContents := "bad-content: $FLEET_VAR_BOZO"
+		originalContents1 := contents1
+		originalContents2 := contents2
+		originalContents4 := contents4
+		contents1 = []byte(badContents)
+		contents2 = []byte(badContents)
+		contents4 = []byte(badContents)
+		t.Cleanup(func() {
+			contents1 = originalContents1
+			contents2 = originalContents2
+			contents4 = originalContents4
+		})
+
+		profilesToInstall, err := ds.ListMDMAppleProfilesToInstallFunc(ctx)
+		hostUUIDs := make([]string, 0, len(profilesToInstall))
+		for _, p := range profilesToInstall {
+			hostUUIDs = append(hostUUIDs, p.HostUUID)
+		}
+
+		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+			require.NotNil(t, profile)
+			require.NotNil(t, profile.Status)
+			assert.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
+			assert.Contains(t, profile.Detail, "FLEET_VAR_BOZO")
+			for i, hu := range hostUUIDs {
+				if hu == profile.HostUUID {
+					// remove element
+					hostUUIDs = append(hostUUIDs[:i], hostUUIDs[i+1:]...)
+					break
+				}
+			}
+			return nil
+		}
+
+		err = ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		require.NoError(t, err)
+		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
+		require.Equal(t, 1, failedCount)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
+		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
+		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+		checkAndReset(t, true, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	})
 }
 

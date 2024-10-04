@@ -3541,6 +3541,8 @@ func preprocessProfileContents(
 					valid = false
 					break
 				}
+			case FleetVarHostEndUserEmailIDP:
+				// No extra validation needed for this variable
 			default:
 				// Error out if we find an unknown variable
 				for _, hostUUID := range target.hostUUIDs {
@@ -3653,6 +3655,7 @@ func preprocessProfileContents(
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
+				profileContents[newProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
 		}
 		// Remove the parent target, since we will use host-specific targets
