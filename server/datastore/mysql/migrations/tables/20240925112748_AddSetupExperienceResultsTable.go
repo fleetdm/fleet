@@ -57,13 +57,23 @@ CREATE TABLE setup_experience_status_results (
 	type		ENUM('bootstrap-package', 'software-install', 'post-install-script') NOT NULL,
 	name		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	status		ENUM('pending', 'running', 'success', 'failure') NOT NULL,
+	
+	-- Software installer reference
+	software_installer_id INT(10) UNSIGNED,
 	-- Software installs reference
 	host_software_installs_id INT(10) UNSIGNED,
+
+	-- VPP app reference
+	vpp_app_id INT(10) UNSIGNED,
 	-- VPP app install reference
 	nano_command_uuid VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+
+	-- Script reference
+	script_id INT(10) UNSIGNED,
 	-- Script execution reference
 	script_execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci,
 	error 		VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+	
 
 	PRIMARY KEY (id),
 
