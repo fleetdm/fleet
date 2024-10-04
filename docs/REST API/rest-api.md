@@ -6250,29 +6250,6 @@ List software that will be automatically installed during macOS setup.
 }
 ```
 
-### List setup experience software
-
-_Available in Fleet Premium_
-
-List software that will be automatically installed during macOS setup.
-
-`GET /api/v1/fleet/setup_experience/software`
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
-| page | integer | query | Page number of the results to fetch. |
-| per_page | integer | query | Results per page. |
-
-
-#### Example
-
-`GET /api/v1/fleet/setup_experience/software?team_id=3`
-
-##### Default response
-
-`Status: 200`
-
 ---
 
 ## Commands
