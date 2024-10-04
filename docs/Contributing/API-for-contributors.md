@@ -2781,6 +2781,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger FileVault key escrow](#trigger-filevault-key-escrow)
 - [Report an agent error](#report-an-agent-error)
+- [Register a device with the setup experience](#register-a-device-with-the-setup-experience)
 
 #### Refetch device's host
 
@@ -3183,6 +3184,73 @@ Notifies the server about an agent error, resulting in two outcomes:
 ##### Default response
 
 `Status: 500`
+
+### Register a device with the setup experience
+
+`POST /api/v1/fleet/device/{token}/setup_experience/start`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/start`
+
+##### Default response
+
+`Status: 201`
+
+### Get the status of a device in the setup experience
+
+`GET /api/v1/fleet/device/{token}/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "bootstrap_package": {
+    "name": "botstrap_package.pkg",
+    "status": "completed"
+  },
+  "script": {
+    "execution_id": "02e4abba-7d96-4f5b-8c18-ffc5de71bd45",
+    "name": "setup-macos.sh",
+    "status": "pending"
+  },
+  "software": [
+    {
+      "software_title_id": 1,
+      "name": "Google Chrome.app",
+      "status": "installed"
+    },
+    {
+      "software_title_id": 2,
+      "name": "Zoom.us.app",
+      "status": "pending"
+    },
+    {
+      "software_title_id": 3,
+      "name": "Slack.app",
+      "status": "failed"
+    }
+  ]
+}
+```
 
 ---
 
