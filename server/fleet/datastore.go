@@ -641,7 +641,7 @@ type Datastore interface {
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
-	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -686,6 +686,7 @@ type Datastore interface {
 		hostID *uint) ([]HostPolicyMembershipData, error)
 	// GetPoliciesWithAssociatedInstaller returns team policies that have an associated installer.
 	GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicySoftwareInstallerData, error)
+	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 
 	// Methods used for async processing of host policy query results.
@@ -1587,7 +1588,7 @@ type Datastore interface {
 	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions, hostPlatform string) ([]*HostScriptDetail, *PaginationMetadata, error)
 
 	// BatchSetScripts sets the scripts for the given team or no team.
-	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
+	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)

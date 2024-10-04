@@ -67,6 +67,8 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
+		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
+		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 	}
 	for _, c := range cases {
@@ -1241,6 +1243,7 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		TeamID:            &team1.ID,
 	})
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installerID)
@@ -3948,6 +3951,16 @@ func testNewGlobalPolicyWithInstaller(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, errSoftwareTitleIDOnGlobalPolicy)
 }
 
+func testNewGlobalPolicyWithScript(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	_, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		Query:    "SELECT 1;",
+		ScriptID: ptr.Uint(1),
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errScriptIDOnGlobalPolicy)
+}
+
 func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3976,6 +3989,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		TeamID:            &team1.ID,
 	})
 	require.NoError(t, err)
 	require.Nil(t, p1.SoftwareInstallerID)
@@ -4000,12 +4014,33 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
 	// Policy p4 in "No team" with associated installer.
+	noTeamInstallerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            ptr.Uint(fleet.PolicyNoTeamID),
+	})
+	require.NoError(t, err)
 	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p4",
+		Query:               "SELECT 4;",
+		SoftwareInstallerID: ptr.Uint(noTeamInstallerID),
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
 		Name:                "p4",
 		Query:               "SELECT 4;",
 		SoftwareInstallerID: ptr.Uint(installerID),
 	})
-	require.NoError(t, err)
+	require.Error(t, err, "software installer is associated with a different team")
+
 	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
 	require.NoError(t, err)
 	require.Len(t, policiesWithInstallers, 1)
@@ -4035,6 +4070,10 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	err = ds.SavePolicy(ctx, p1, false, false)
 	require.NoError(t, err)
 
+	p1.SoftwareInstallerID = ptr.Uint(noTeamInstallerID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.Error(t, err, "software installer is associated with a different team")
+
 	p2, err = ds.Policy(ctx, p2.ID)
 	require.NoError(t, err)
 	require.NotNil(t, p2.SoftwareInstallerID)
@@ -4051,6 +4090,120 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithInstallers)
+}
+
+func testTeamPoliciesWithScript(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Sierra", "sierra@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"}) // team2 has no policies
+	require.NoError(t, err)
+
+	// Policy p1 has no associated script.
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p1",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: nil,
+	})
+	require.NoError(t, err)
+	// Create and associate a script to p2.
+	script, err := ds.NewScript(context.Background(), &fleet.Script{
+		TeamID:         &team1.ID,
+		Name:           "hello-world.sh",
+		ScriptContents: "echo 'Hello World'",
+	})
+	require.NoError(t, err)
+	require.Nil(t, p1.ScriptID)
+	p2, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p2",
+		Query:    "SELECT 1;",
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, p2.ScriptID)
+	require.Equal(t, script.ID, *p2.ScriptID)
+	// Create p3 as global policy.
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "p3",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.ScriptID)
+	require.Equal(t, script.ID, *p2.ScriptID)
+
+	// Policy p4 in "No team" with associated script.
+	noTeamScript, err := ds.NewScript(context.Background(), &fleet.Script{
+		Name:           "hello-world.sh",
+		ScriptContents: "echo 'Hello NoTeam'",
+	})
+	require.NoError(t, err)
+	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p4",
+		Query:    "SELECT 4;",
+		ScriptID: &noTeamScript.ID,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p4",
+		Query:    "SELECT 4;",
+		ScriptID: &script.ID,
+	})
+	require.Error(t, err, "script is associated with a different team")
+
+	policiesWithScripts, err := ds.GetPoliciesWithAssociatedScript(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithScripts, 1)
+	require.Equal(t, p4.ID, policiesWithScripts[0].ID)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+
+	// p1 has no associated scripts.
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithScripts, 1)
+	require.Equal(t, p2.ID, policiesWithScripts[0].ID)
+	require.Equal(t, script.ID, policiesWithScripts[0].ScriptID)
+
+	// p2 has associated script but belongs to team1.
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team2.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+
+	p1.ScriptID = ptr.Uint(script.ID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.NoError(t, err)
+
+	p1.ScriptID = ptr.Uint(noTeamScript.ID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.Error(t, err, "script is associated with a different team")
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.ScriptID)
+	require.Equal(t, script.ID, *p2.ScriptID)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{p1.ID, p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithScripts, 2)
+	require.Equal(t, p1.ID, policiesWithScripts[0].ID)
+	require.Equal(t, script.ID, policiesWithScripts[0].ScriptID)
+	require.Equal(t, p2.ID, policiesWithScripts[1].ID)
+	require.Equal(t, script.ID, policiesWithScripts[1].ScriptID)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team2.ID, []uint{p1.ID, p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
 }
 
 func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {

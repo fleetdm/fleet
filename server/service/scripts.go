@@ -241,12 +241,12 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
 		}
 
-		r, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
+		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(r) > 0 {
+		if isQueued {
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script is already queued on the given host.`).WithStatus(http.StatusConflict)
 		}
 
@@ -804,25 +804,25 @@ type batchSetScriptsRequest struct {
 }
 
 type batchSetScriptsResponse struct {
-	Err error `json:"error,omitempty"`
+	Scripts []fleet.ScriptResponse `json:"scripts"`
+	Err     error                  `json:"error,omitempty"`
 }
 
 func (r batchSetScriptsResponse) error() error { return r.Err }
 
-func (r batchSetScriptsResponse) Status() int { return http.StatusNoContent }
-
 func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetScriptsRequest)
-	if err := svc.BatchSetScripts(ctx, req.TeamID, req.TeamName, req.Scripts, req.DryRun); err != nil {
+	scriptList, err := svc.BatchSetScripts(ctx, req.TeamID, req.TeamName, req.Scripts, req.DryRun)
+	if err != nil {
 		return batchSetScriptsResponse{Err: err}, nil
 	}
-	return batchSetScriptsResponse{}, nil
+	return batchSetScriptsResponse{Scripts: scriptList}, nil
 }
 
-func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) error {
+func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error) {
 	if maybeTmID != nil && maybeTmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
 	}
 
 	var teamID *uint
@@ -833,16 +833,16 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		if err != nil {
 			// If this is a dry run, the team may not have been created yet
 			if dryRun && fleet.IsNotFound(err) {
-				return nil
+				return nil, nil
 			}
-			return err
+			return nil, err
 		}
 		teamID = &team.ID
 		teamName = &team.Name
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// any duplicate name in the provided set results in an error
@@ -856,12 +856,12 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		}
 
 		if err := script.ValidateNewScript(); err != nil {
-			return ctxerr.Wrap(ctx,
+			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
 		}
 
 		if byName[script.Name] {
-			return ctxerr.Wrap(ctx,
+			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
 				"duplicate script by name")
 		}
@@ -870,11 +870,12 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	}
 
 	if dryRun {
-		return nil
+		return nil, nil
 	}
 
-	if err := svc.ds.BatchSetScripts(ctx, teamID, scripts); err != nil {
-		return ctxerr.Wrap(ctx, err, "batch saving scripts")
+	scriptResponses, err := svc.ds.BatchSetScripts(ctx, teamID, scripts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch saving scripts")
 	}
 
 	if err := svc.NewActivity(
@@ -882,9 +883,9 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 			TeamID:   teamID,
 			TeamName: teamName,
 		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
 	}
-	return nil
+	return scriptResponses, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {

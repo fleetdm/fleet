@@ -120,6 +120,19 @@ policies:
     query: SELECT 1 FROM apps WHERE name = 'Microsoft Teams.app' AND version_compare(bundle_short_version, '24193.1707.3028.4282') >= 0;
     install_software:
       package_path: ./microsoft-teams.pkg.software.yml
+  - name: Script run policy
+    platform: linux
+    description: This should run a script on failure
+    query: SELECT * from osquery_info;
+    run_script:
+      path: ./lib/collect-fleetd-logs.sh
+  - name: 🔥 Failing policy with script
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+    run_script:
+      path: ./lib/collect-fleetd-logs.sh
 software:
   packages:
     - path: ./microsoft-teams.pkg.software.yml
