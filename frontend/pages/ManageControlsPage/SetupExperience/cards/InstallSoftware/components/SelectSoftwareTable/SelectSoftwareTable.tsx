@@ -9,21 +9,33 @@ import generateTableConfig from "./SelectSoftwareTableConfig";
 const baseClass = "select-software-table";
 
 interface ISelectSoftwareTableProps {
-  software: ISoftwareTitle[];
+  softwareTitles: ISoftwareTitle[];
+  onChangeSoftwareSelect: (select: boolean, id: number) => void;
+  onChangeSelectAll: (selectAll: boolean) => void;
 }
 
-const SelectSoftwareTable = ({ software }: ISelectSoftwareTableProps) => {
-  const tabelConfig = generateTableConfig();
+const SelectSoftwareTable = ({
+  softwareTitles,
+  onChangeSoftwareSelect,
+  onChangeSelectAll,
+}: ISelectSoftwareTableProps) => {
+  const tabelConfig = generateTableConfig(
+    onChangeSelectAll,
+    onChangeSoftwareSelect
+  );
 
   return (
     <TableContainer
       className={baseClass}
-      data={software}
+      data={softwareTitles}
       columnConfigs={tabelConfig}
       isLoading={false}
       emptyComponent={() => null}
       showMarkAllPages
       isAllPagesSelected={false}
+      disablePagination
+      searchable
+      onClearSelection={() => onChangeSelectAll(false)}
     />
   );
 };

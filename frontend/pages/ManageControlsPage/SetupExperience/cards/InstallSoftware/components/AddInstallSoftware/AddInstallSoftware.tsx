@@ -2,25 +2,35 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import { ISoftwareTitle } from "interfaces/software";
 
 const baseClass = "add-install-software";
 
 interface IAddInstallSoftwareProps {
-  noSoftware: boolean;
-  selectedSoftwareIds: number[];
+  softwareTitles: ISoftwareTitle[];
   onAddSoftware: () => void;
 }
 
 const AddInstallSoftware = ({
-  noSoftware,
-  selectedSoftwareIds,
+  softwareTitles,
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
+  const hasNoSoftware = softwareTitles.length === 0;
+  const hasSelectedSoftware = softwareTitles.some(
+    (software) => software.install_during_setup
+  );
+
   const addedText =
-    selectedSoftwareIds.length === 0
+    hasNoSoftware || !hasSelectedSoftware
       ? "No software added."
-      : `${selectedSoftwareIds.length} software will be installed during setup.`;
-  const buttonText = "Add software";
+      : `${
+          softwareTitles.filter((software) => software.install_during_setup)
+            .length
+        } software will be installed during setup.`;
+  const buttonText =
+    !hasNoSoftware && !hasSelectedSoftware
+      ? "Add software"
+      : "Show selected software";
 
   return (
     <div className={baseClass}>
@@ -36,7 +46,7 @@ const AddInstallSoftware = ({
           className={`${baseClass}__button`}
           variant="brand"
           onClick={onAddSoftware}
-          disabled={noSoftware}
+          disabled={hasNoSoftware}
         >
           {buttonText}
         </Button>

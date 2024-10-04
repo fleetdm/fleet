@@ -12,29 +12,46 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 
+export interface EnhancedSoftwareTitle extends ISoftwareTitle {
+  isSelected: boolean;
+}
+
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type ISelectionCellProps = CellProps<ISoftwareTitle>;
 
-const generateTableConfig = (): ISelectSoftwareTableConfig[] => {
+const generateTableConfig = (
+  onSelectAll: (selectAll: boolean) => void,
+  onSelectSoftware: (select: boolean, id: number) => void
+): ISelectSoftwareTableConfig[] => {
   const headerConfigs: ISelectSoftwareTableConfig[] = [
     {
       id: "selection",
       Header: (cellProps: ITableHeaderProps) => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
+        const {
+          checked,
+          indeterminate,
+        } = cellProps.getToggleAllRowsSelectedProps();
+
         const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
+          value: checked,
+          indeterminate,
+          onChange: () => {
+            onSelectAll(!checked);
+            cellProps.toggleAllRowsSelected();
+          },
         };
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ISelectionCellProps) => {
-        const props = cellProps.row.getToggleRowSelectedProps();
+        const { checked } = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
+          value: checked,
+          onChange: () => {
+            onSelectSoftware(!checked, cellProps.row.original.id);
+            cellProps.row.toggleRowSelected();
+          },
         };
         return <Checkbox {...checkboxProps} />;
       },

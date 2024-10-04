@@ -29,13 +29,13 @@ interface IInstallSoftwareProps {
 
 const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
-  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>([]);
 
-  const { data: softwareTitles, isLoading, isError } = useQuery<
-    ISoftwareTitlesResponse,
-    AxiosError,
-    ISoftwareTitle[]
-  >(
+  const {
+    data: softwareTitles,
+    isLoading,
+    isError,
+    refetch: refetchSoftwareTitles,
+  } = useQuery<ISoftwareTitlesResponse, AxiosError, ISoftwareTitle[]>(
     ["install-software", currentTeamId],
     () =>
       softwareAPI.getSoftwareTitles({
@@ -46,16 +46,16 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
-      onSuccess: (data) => {
-        setSelectedSoftwareIds(
-          data.reduce<number[]>((acc, software) => {
-            if (software.install_during_setup) {
-              acc.push(software.id);
-            }
-            return acc;
-          }, [])
-        );
-      },
+      // onSuccess: (data) => {
+      //   setSelectedSoftwareIds(
+      //     data.reduce<number[]>((acc, software) => {
+      //       if (software.install_during_setup) {
+      //         acc.push(software.id);
+      //       }
+      //       return acc;
+      //     }, [])
+      //   );
+      // },
     }
   );
 
@@ -72,12 +72,11 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (selectedSoftwareIds && softwareTitles) {
+    if (softwareTitles) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware
-            noSoftware={softwareTitles.length === 0}
-            selectedSoftwareIds={selectedSoftwareIds}
+            softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
           />
           <InstallSoftwarePreview />
@@ -94,7 +93,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       <>{renderContent()}</>
       {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
-          software={softwareTitles}
+          softwareTitles={softwareTitles}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}
         />
