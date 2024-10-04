@@ -405,7 +405,7 @@ WHERE
 	return &dest, nil
 }
 
-var errDeleteInstallerWithAssociatedPolicy = errors.New("Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.")
+var errDeleteInstallerWithAssociatedPolicy = &fleet.BadRequestError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
@@ -417,7 +417,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
 			}
 			if count > 0 {
-				return ctxerr.Wrap(ctx, errDeleteInstallerWithAssociatedPolicy, "delete software installer")
+				return errDeleteInstallerWithAssociatedPolicy
 			}
 		}
 		return ctxerr.Wrap(ctx, err, "delete software installer")
