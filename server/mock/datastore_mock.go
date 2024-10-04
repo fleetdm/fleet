@@ -622,6 +622,8 @@ type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) err
 
 type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
+type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string) ([]string, error)
+
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
@@ -1993,6 +1995,9 @@ type DataStore struct {
 
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
+
+	GetHostEmailsFunc        GetHostEmailsFunc
+	GetHostEmailsFuncInvoked bool
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
@@ -4804,6 +4809,13 @@ func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context,
 	s.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc(ctx, hostID, fleetEnrollmentRef)
+}
+
+func (s *DataStore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
+	s.mu.Lock()
+	s.GetHostEmailsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostEmailsFunc(ctx, hostUUID, source)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error {

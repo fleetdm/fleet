@@ -171,10 +171,9 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 }
 
 type Any[T any] struct {
-	Set       bool
-	Valid     bool
-	Value     T
-	ZeroValue func() T
+	Set   bool
+	Valid bool
+	Value T
 }
 
 func (s Any[T]) MarshalJSON() ([]byte, error) {
@@ -190,10 +189,9 @@ func (s *Any[T]) UnmarshalJSON(data []byte) error {
 	s.Valid = false
 
 	if bytes.Equal(data, []byte("null")) {
-		// The key was set to null, blank the value if possible
-		if s.ZeroValue != nil {
-			s.Value = s.ZeroValue()
-		}
+		// The key was set to null, set value to zero/default value
+		var zero T
+		s.Value = zero
 		return nil
 	}
 

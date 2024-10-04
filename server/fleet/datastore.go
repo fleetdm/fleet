@@ -885,6 +885,8 @@ type Datastore interface {
 	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
 	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
 	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
+	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
+	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for

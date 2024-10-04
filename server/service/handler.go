@@ -1135,9 +1135,8 @@ func RegisterSCEPProxy(
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
-	rootPath := "/mdm/scep/proxy/"
-	scepHandler := scepserver.MakeHTTPHandlerWithIdentifier(e, rootPath, scepLogger)
-	rootMux.Handle(rootPath, scepHandler)
+	scepHandler := scepserver.MakeHTTPHandlerWithIdentifier(e, apple_mdm.SCEPProxyPath, scepLogger)
+	rootMux.Handle(apple_mdm.SCEPProxyPath, scepHandler)
 	return nil
 }
 

@@ -54,6 +54,11 @@ func NewSCEPProxyService(logger log.Logger) scepserver.Service {
 }
 
 func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
+	_, err := GetNDESSCEPChallenge(ctx, proxy)
+	return err
+}
+
+func GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
 	client := fleethttp.NewClient()
@@ -62,15 +67,17 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyInte
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating request")
+		return "", ctxerr.Wrap(ctx, err, "creating request")
 	}
 	req.SetBasicAuth(username, password)
 	resp, err := client.Do(req)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sending request")
+		return "", ctxerr.Wrap(ctx, err, "sending request")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return ctxerr.New(ctx, fmt.Sprintf("unexpected status code: %d", resp.StatusCode))
+		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
+			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
+			resp.StatusCode)})
 	}
 	// Make a transformer that converts MS-Win default to UTF8:
 	win16be := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)
@@ -81,7 +88,7 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyInte
 	unicodeReader := transform.NewReader(resp.Body, utf16bom)
 	bodyText, err := io.ReadAll(unicodeReader)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading response body")
+		return "", ctxerr.Wrap(ctx, err, "reading response body")
 	}
 	htmlString := string(bodyText)
 
@@ -92,13 +99,13 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyInte
 	}
 	if challenge == "" {
 		if strings.Contains(htmlString, fullPasswordCache) {
-			return ctxerr.New(ctx,
-				"the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created")
+			return "", ctxerr.Wrap(ctx,
+				NDESPasswordCacheFullError{msg: "the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created"})
 		}
-		return ctxerr.New(ctx,
-			"could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again")
+		return "", ctxerr.Wrap(ctx,
+			NDESInvalidError{msg: "could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"})
 	}
-	return nil
+	return challenge, nil
 }
 
 func ValidateNDESSCEPURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration, logger log.Logger) error {

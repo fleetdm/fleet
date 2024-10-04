@@ -12,19 +12,23 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/go-units"
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -45,6 +49,25 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"go.mozilla.org/pkcs7"
+)
+
+const (
+	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
+	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
+	// Currently, we assume the variables are fully unique and not substrings of each other.
+	FleetVarNDESSCEPChallenge   = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL    = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP = "HOST_END_USER_EMAIL_IDP"
+)
+
+var (
+	profileVariableRegex            = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
+	fleetVarNDESSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPChallenge,
+		FleetVarNDESSCEPChallenge))
+	fleetVarNDESSCEPProxyURLRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPProxyURL,
+		FleetVarNDESSCEPProxyURL))
+	fleetVarHostEndUserEmailIDP = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
+		FleetVarHostEndUserEmailIDP))
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -3168,6 +3191,16 @@ func ReconcileAppleDeclarations(
 	return nil
 }
 
+// install/removeTargets are maps from profileUUID -> command uuid and host
+// UUIDs as the underlying MDM services are optimized to send one command to
+// multiple hosts at the same time. Note that the same command uuid is used
+// for all hosts in a given install/remove target operation.
+type cmdTarget struct {
+	cmdUUID   string
+	profIdent string
+	hostUUIDs []string
+}
+
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -3240,15 +3273,6 @@ func ReconcileAppleProfiles(
 	// command.
 	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
 
-	// install/removeTargets are maps from profileUUID -> command uuid and host
-	// UUIDs as the underlying MDM services are optimized to send one command to
-	// multiple hosts at the same time. Note that the same command uuid is used
-	// for all hosts in a given install/remove target operation.
-	type cmdTarget struct {
-		cmdUUID   string
-		profIdent string
-		hostUUIDs []string
-	}
 	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
@@ -3359,6 +3383,12 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
+	// Insert variables into profile contents
+	err = preprocessProfileContents(ctx, appConfig, ds, installTargets, profileContents)
+	if err != nil {
+		return err
+	}
+
 	type remoteResult struct {
 		Err     error
 		CmdUUID string
@@ -3436,6 +3466,231 @@ func ReconcileAppleProfiles(
 	}
 
 	return nil
+}
+
+func preprocessProfileContents(
+	ctx context.Context,
+	appConfig *fleet.AppConfig,
+	ds fleet.Datastore,
+	targets map[string]*cmdTarget,
+	profileContents map[string]mobileconfig.Mobileconfig,
+) error {
+
+	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
+	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
+
+	isNDESSCEPConfigured := func(profUUID string, target *cmdTarget) (bool, error) {
+		if !license.IsPremium(ctx) {
+			for _, hostUUID := range target.hostUUIDs {
+				err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+					CommandUUID:   target.cmdUUID,
+					HostUUID:      hostUUID,
+					Status:        &fleet.MDMDeliveryFailed,
+					Detail:        "NDES SCEP Proxy requires a Fleet Premium license.",
+					OperationType: fleet.MDMOperationTypeInstall,
+				})
+				if err != nil {
+					return false, err
+				}
+			}
+			return false, nil
+		}
+		if !appConfig.Integrations.NDESSCEPProxy.Valid {
+			for _, hostUUID := range target.hostUUIDs {
+				err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+					CommandUUID: target.cmdUUID,
+					HostUUID:    hostUUID,
+					Status:      &fleet.MDMDeliveryFailed,
+					Detail: "NDES SCEP Proxy is not configured. " +
+						"Please configure in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.",
+					OperationType: fleet.MDMOperationTypeInstall,
+				})
+				if err != nil {
+					return false, err
+				}
+			}
+		}
+		return appConfig.Integrations.NDESSCEPProxy.Valid, nil
+	}
+
+	var addedTargets map[string]*cmdTarget
+	for profUUID, target := range targets {
+		contents, ok := profileContents[profUUID]
+		if !ok {
+			// This should never happen
+			continue
+		}
+
+		// Check if Fleet variables are present.
+		contentsStr := string(contents)
+		fleetVars := findFleetVariables(contentsStr)
+		if len(fleetVars) == 0 {
+			continue
+		}
+
+		// Do common validation that applies to all hosts in the target
+		valid := true
+		for fleetVar := range fleetVars {
+			switch fleetVar {
+			case FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL:
+				configured, err := isNDESSCEPConfigured(profUUID, target)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking NDES SCEP configuration")
+				}
+				if !configured {
+					valid = false
+					break
+				}
+			default:
+				// Error out if we find an unknown variable
+				for _, hostUUID := range target.hostUUIDs {
+					err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+						CommandUUID: target.cmdUUID,
+						HostUUID:    hostUUID,
+						Status:      &fleet.MDMDeliveryFailed,
+						Detail: fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
+							fleetVar),
+						OperationType: fleet.MDMOperationTypeInstall,
+					})
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for unknown variable")
+					}
+				}
+				valid = false
+				break
+			}
+		}
+		if !valid {
+			// We marked the profile as failed, so we will not do any additional processing on it
+			delete(targets, profUUID)
+			continue
+		}
+
+		// Currently, all supported Fleet variables are unique per host, so we split the profile into multiple profiles.
+		// We generate a new temporary profileUUID which is currently only used to install the profile.
+		// The profileUUID in host_mdm_apple_profiles is still the original profileUUID.
+		if addedTargets == nil {
+			addedTargets = make(map[string]*cmdTarget, 1)
+		}
+		for _, hostUUID := range target.hostUUIDs {
+			newProfUUID := uuid.NewString()
+			hostContents := contentsStr
+
+			failed := false
+			for fleetVar := range fleetVars {
+				switch fleetVar {
+				case FleetVarNDESSCEPChallenge:
+					// Insert the SCEP challenge into the profile contents
+					challenge, err := eeservice.GetNDESSCEPChallenge(ctx, appConfig.Integrations.NDESSCEPProxy.Value)
+					if err != nil {
+						detail := ""
+						switch {
+						case errors.As(err, &eeservice.NDESInvalidError{}):
+							detail = fmt.Sprintf("Invalid NDES admin credentials. "+
+								"Fleet couldn't populate $FLEET_VAR_%s. "+
+								"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.",
+								FleetVarNDESSCEPChallenge)
+						case errors.As(err, &eeservice.NDESPasswordCacheFullError{}):
+							detail = fmt.Sprintf("The NDES password cache is full. "+
+								"Fleet couldn't populate $FLEET_VAR_%s. "+
+								"Please increase the number of cached passwords in NDES and try again.",
+								FleetVarNDESSCEPChallenge)
+						default:
+							detail = fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", FleetVarNDESSCEPChallenge, err.Error())
+						}
+						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:   target.cmdUUID,
+							HostUUID:      hostUUID,
+							Status:        &fleet.MDMDeliveryFailed,
+							Detail:        detail,
+							OperationType: fleet.MDMOperationTypeInstall,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for NDES SCEP challenge")
+						}
+						failed = true
+						break
+					}
+					hostContents = fleetVarNDESSCEPChallengeRegexp.ReplaceAllString(hostContents, challenge)
+				case FleetVarNDESSCEPProxyURL:
+					// Insert the SCEP URL into the profile contents
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
+						url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
+					hostContents = fleetVarNDESSCEPProxyURLRegexp.ReplaceAllString(hostContents, proxyURL)
+				case FleetVarHostEndUserEmailIDP:
+					// Insert the end user email IDP into the profile contents
+					emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+					if err != nil {
+						// This is a server error, so we exit.
+						return ctxerr.Wrap(ctx, err, "getting host emails")
+					}
+					if len(emails) == 0 {
+						// Error if we can't retrieve the end user email IDP
+						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID: target.cmdUUID,
+							HostUUID:    hostUUID,
+							Status:      &fleet.MDMDeliveryFailed,
+							Detail: fmt.Sprintf("There is no IdP email for this host. "+
+								"Fleet couldn't populate $FLEET_VAR_%s. "+
+								"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
+								FleetVarHostEndUserEmailIDP),
+							OperationType: fleet.MDMOperationTypeInstall,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user email IdP")
+						}
+						failed = true
+						break
+					}
+					hostContents = fleetVarHostEndUserEmailIDP.ReplaceAllString(hostContents, emails[0])
+				default:
+					// This was handled in the above switch statement, so we should never reach this case
+				}
+			}
+			if !failed {
+				addedTargets[newProfUUID] = &cmdTarget{
+					cmdUUID:   target.cmdUUID,
+					profIdent: target.profIdent,
+					hostUUIDs: []string{hostUUID},
+				}
+			}
+		}
+		// Remove the parent target, since we will use host-specific targets
+		delete(targets, profUUID)
+	}
+	if len(addedTargets) > 0 {
+		// Add the new host-specific targets to the original targets map
+		for profUUID, target := range addedTargets {
+			targets[profUUID] = target
+		}
+	}
+	return nil
+}
+
+func findFleetVariables(contents string) map[string]interface{} {
+	var result map[string]interface{}
+	matches := profileVariableRegex.FindAllStringSubmatch(contents, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	nameToIndex := make(map[string]int, 2)
+	for i, name := range profileVariableRegex.SubexpNames() {
+		if name == "" {
+			continue
+		}
+		nameToIndex[name] = i
+	}
+	for _, match := range matches {
+		for _, i := range nameToIndex {
+			if match[i] != "" {
+				if result == nil {
+					result = make(map[string]interface{})
+				}
+				result[match[i]] = struct{}{}
+			}
+		}
+	}
+	return result
 }
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP

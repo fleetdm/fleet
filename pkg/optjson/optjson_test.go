@@ -452,27 +452,21 @@ func TestAny(t *testing.T) {
 		return Any[Item]{Set: true, Valid: true, Value: item}
 	}
 
-	zeroValue := func() Item { return Item{ID: -1} }
-
 	cases := []struct {
 		data      string
 		wantErr   string
 		wantRes   Any[Item]
 		marshalAs string
-		zeroValue func() Item
 	}{
 		{data: `{ "id": 1, "name": "bozo" }`, wantErr: "", wantRes: SetItem(Item{ID: 1, Name: "bozo"}),
 			marshalAs: `{"id":1,"name":"bozo"}`},
 		{data: `null`, wantErr: "", wantRes: Any[Item]{Set: true, Valid: false}, marshalAs: `null`},
-		{data: `null`, wantErr: "", wantRes: Any[Item]{Set: true, Valid: false, Value: Item{ID: -1}},
-			marshalAs: `null`, zeroValue: zeroValue},
 		{data: `[]`, wantErr: "cannot unmarshal array", wantRes: Any[Item]{Set: true, Valid: false, Value: Item{}}, marshalAs: `null`},
 	}
 
 	for _, c := range cases {
 		t.Run(c.data, func(t *testing.T) {
 			var s Any[Item]
-			s.ZeroValue = c.zeroValue
 			err := json.Unmarshal([]byte(c.data), &s)
 
 			if c.wantErr != "" {
@@ -481,11 +475,7 @@ func TestAny(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			assert.Equal(t, c.wantRes.Set, s.Set)
-			assert.Equal(t, c.wantRes.Valid, s.Valid)
-			assert.Equal(t, c.wantRes.Value.ID, s.Value.ID)
-			assert.Equal(t, c.wantRes.Value.Name, s.Value.Name)
-			// Don't compare ZeroValue, it's a function
+			assert.Equal(t, c.wantRes, s)
 
 			b, err := json.Marshal(s)
 			require.NoError(t, err)
