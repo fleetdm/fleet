@@ -1719,7 +1719,7 @@ _Available in Fleet Premium._
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
-| client_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features (default: base URL of the Fleet instance provided during setup). |
+| client_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) |
 
 <br/>
 
