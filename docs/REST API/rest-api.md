@@ -6250,6 +6250,7 @@ List software that can or will be automatically installed during macOS setup. If
     "meta": {
       "has_next_results": false,
       "has_previous_results": false
+    }
   },
 }
 ```
