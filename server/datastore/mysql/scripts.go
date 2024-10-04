@@ -81,7 +81,8 @@ func truncateScriptResult(output string) string {
 }
 
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
-	string, error) {
+	string, error,
+) {
 	const resultExistsStmt = `
 	SELECT
 		1
@@ -1208,6 +1209,10 @@ WHERE
   AND NOT EXISTS (
     SELECT 1 FROM software_installers si
     WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM fleet_library_apps fla
+			WHERE script_contents.id IN (fla.install_script_content_id, fla.uninstall_script_content_id)
   )
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)

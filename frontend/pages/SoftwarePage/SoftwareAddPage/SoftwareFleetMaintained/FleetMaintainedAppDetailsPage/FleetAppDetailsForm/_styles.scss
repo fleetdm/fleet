@@ -1,0 +1,19 @@
+.fleet-app-details-form {
+
+  &__advanced-options-section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    align-items: flex-start;
+  }
+
+  &__advanced-options-fields {
+    width: 100%;
+  }
+
+  &__form-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+  }
+}
