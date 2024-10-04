@@ -9,12 +9,12 @@ import {
 } from "interfaces/schedulable_query";
 import { buildQueryStringFromParams } from "utilities/url";
 
-// Mock API requests to be used in developing FE for #7765 in parallel with BE development
-// import { sendRequest } from "services/mock_service/service/service";
-
 export default {
   create: (createQueryRequestBody: ICreateQueryRequestBody) => {
     const { QUERIES } = endpoints;
+    if (createQueryRequestBody.name) {
+      createQueryRequestBody.name = createQueryRequestBody.name.trim();
+    }
 
     return sendRequest("POST", QUERIES, createQueryRequestBody);
   },
@@ -82,6 +82,9 @@ export default {
   update: (id: number, updateParams: IModifyQueryRequestBody) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
+    if (updateParams.name) {
+      updateParams.name = updateParams.name.trim();
+    }
 
     return sendRequest("PATCH", path, updateParams);
   },

@@ -1,0 +1,31 @@
+.fleet-maintained-app-details-page {
+  &__back-to-add-software {
+    margin-bottom: $pad-medium;
+  }
+
+  h1 {
+    margin-bottom: $pad-large;
+  }
+
+  &__page-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__fleet-app-summary {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__fleet-app-summary--title {
+    font-weight: $bold;
+    font-size: $small;
+  }
+
+  &__fleet-app-summary--info {
+    font-size: $x-small;
+    display: flex;
+    gap: $pad-xsmall;
+  }
+}

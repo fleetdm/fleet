@@ -75,6 +75,7 @@ Here's how:
 
 
 ### Update personnel details
+
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
 1. Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
     - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
@@ -89,10 +90,10 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 > Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
 
 
-### Change a Fleetie's job title
-When Digital Experience receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
-1. The Head of Digital Experience will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Head of Digital Experience will inform the requesting manager as to why.
-1. If approved, update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
+### Change a Fleetie's role
+
+When Digital Experience receives [notification of a Fleetie's role changing](https://fleetdm.com/handbook/company/leadership#request-a-role-change-for-a-fleetie), The Head of Digital Experience will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Head of Digital Experience will inform the requesting manager as to why. If approved, use the following steps to change a Fleetie's role:  
+1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search the spreadsheet for the Fleetie in need of a job title change.
     - Input the new job title in the Fleetie's row in the "Job title" cell.
     - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
@@ -112,6 +113,7 @@ When Digital Experience receives notification of a Fleetie's job title changing,
 
 
 ### Change a Fleetie's manager
+
 When Digital Experience receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
@@ -156,8 +158,8 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 4. If the manager has deferred to Digital Experience, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
 
 
-
 ### Prepare salary benchmarking information
+
 1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
 2. Copy the template text and paste at the end of the document.
 3. Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
@@ -190,6 +192,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
 
 ### Grant equity
+
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
 
 Doing an equity grant involves:
@@ -206,6 +209,7 @@ For the status of stock option grants, exercises, and all other _common stock_ i
 
 
 ### Review an NDA
+
 We need to review an NDA anytime a vendor, customer or other party wants to:
 - Use their own NDA rather than Fleet's standard NDA, or
 - "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
@@ -219,7 +223,9 @@ When reading an NDA, we want to pay close attention to the following:
 - Should you find any clauses in steps 2 or 3 that are beyond the scope of protecting both party's confidential information in a customer NDA or an altered version of Fleet's NDA, reject this language and communicate that Fleet cannot agree to those terms.
 - Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in Digital Experience, who will consult legal counsel if necessary to resolve any concerns.
 
+
 ### Review a vendor agreement
+
 When reviewing contracts from a vendor, Fleet is concerned about the following:
 - If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
 - We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
@@ -227,7 +233,9 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 - We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
 - Remember, once we have signed the agreement - we're stuck with it. If any clause in the agreement appears strange or gives you pause or concern, it is better to seek clarification than to commit to something that might be detrimental to Fleet.  Contracts are fairly standardized, and you'll quickly learn what is normal and what feels out of place.  Unusual clauses or wording that seems out of the ordinary should get a second set of eyes just to be sure, do not hesitate to reach out to Nathanael Holliday with questions, who will reach out to legal counsel as necessary.
 
+
 ### Review an order form
+
 - We should always check order forms for additional terms that go beyond the scope of the order form (caps on price increases, for example).
 - Be sure the order form includes contact information + billing address and information so that Fleet knows how and who to invoice for payment.
 - Verify that the payment terms are correct and matches what's in the agreement. This is a frequent common mistake as companies usually have default payment terms and overlook changing them to match atypical payment terms.
@@ -235,11 +243,15 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 - Check that the amount on the order form reflects what Fleet agreed to, as this is the amount that the customer will expect to be invoiced for.
 - Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday in Digital Experience with concerns.
 
+
 ### Review a non-standard subscription agreement
+
 We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
 When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
 
+
 ### QA a change to fleetdm.com
+
 Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
@@ -778,6 +790,14 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 8. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+
+
+### Cancel a Fleet Premium subscription
+
+Use the following steps to cancel a Fleet Premium subscription:
+1. Log into [Stripe](https://dashboard.stripe.com/dashboard) (login in 1Password) and paste the customer's email they used to sign up in the search bar at the top of the page.
+2. Select the subscription related to the email and use the "Actions" drop-down to "Cancel immediately".
+3. Reach out to the community member (using the [correct email template](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit#heading=h.vw9mkh5e9msx)) and let them know their subscription was canceled.
 
 
 ## Rituals

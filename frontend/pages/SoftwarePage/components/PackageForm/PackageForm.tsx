@@ -1,5 +1,6 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
 import React, { useContext, useState } from "react";
+import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
@@ -9,7 +10,6 @@ import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
-import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
@@ -17,15 +17,6 @@ import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import { generateFormValidation } from "./helpers";
 
 export const baseClass = "package-form";
-
-const UploadingSoftware = () => {
-  return (
-    <div className={`${baseClass}__uploading-message`}>
-      <Spinner centered={false} />
-      <p>Uploading software. This may take a few minutes to finish.</p>
-    </div>
-  );
-};
 
 export interface IPackageFormData {
   software: File | null;
@@ -46,9 +37,10 @@ export interface IFormValidation {
 }
 
 interface IPackageFormProps {
-  isUploading: boolean;
+  showSchemaButton?: boolean;
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
+  onClickShowSchema?: () => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -56,12 +48,14 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
+  className?: string;
 }
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
 
 const PackageForm = ({
-  isUploading,
+  showSchemaButton = false,
+  onClickShowSchema,
   onCancel,
   onSubmit,
   isEditingSoftware = false,
@@ -71,6 +65,7 @@ const PackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
+  className,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -163,65 +158,65 @@ const PackageForm = ({
 
   const isSubmitDisabled = !formValidation.isValid;
 
+  const classNames = classnames(baseClass, className);
+
   return (
-    <div className={baseClass}>
-      {isUploading ? (
-        <UploadingSoftware /> // Note: Sarah is replacing uploading state as subsequent 4.57 feature
-      ) : (
-        <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
-          <FileUploader
-            canEdit={isEditingSoftware}
-            graphicName={"file-pkg"}
-            accept={ACCEPTED_EXTENSIONS}
-            message=".pkg, .msi, .exe, .deb, or .rpm"
-            onFileUpload={onFileSelect}
-            buttonMessage="Choose file"
-            buttonType="link"
-            className={`${baseClass}__file-uploader`}
-            fileDetails={
-              formData.software ? getFileDetails(formData.software) : undefined
+    <div className={classNames}>
+      <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
+        <FileUploader
+          canEdit={isEditingSoftware}
+          graphicName={"file-pkg"}
+          accept={ACCEPTED_EXTENSIONS}
+          message=".pkg, .msi, .exe, .deb, or .rpm"
+          onFileUpload={onFileSelect}
+          buttonMessage="Choose file"
+          buttonType="link"
+          className={`${baseClass}__file-uploader`}
+          fileDetails={
+            formData.software ? getFileDetails(formData.software) : undefined
+          }
+        />
+        <Checkbox
+          value={formData.selfService}
+          onChange={onToggleSelfServiceCheckbox}
+        >
+          <TooltipWrapper
+            tipContent={
+              <>
+                End users can install from{" "}
+                <b>Fleet Desktop {">"} Self-service</b>.
+              </>
             }
-          />
-          <Checkbox
-            value={formData.selfService}
-            onChange={onToggleSelfServiceCheckbox}
           >
-            <TooltipWrapper
-              tipContent={
-                <>
-                  End users can install from{" "}
-                  <b>Fleet Desktop {">"} Self-service</b>.
-                </>
-              }
-            >
-              Self-service
-            </TooltipWrapper>
-          </Checkbox>
-          <PackageAdvancedOptions
-            selectedPackage={formData.software}
-            errors={{
-              preInstallQuery: formValidation.preInstallQuery?.message,
-              postInstallScript: formValidation.postInstallScript?.message,
-            }}
-            preInstallQuery={formData.preInstallQuery}
-            installScript={formData.installScript}
-            postInstallScript={formData.postInstallScript}
-            uninstallScript={formData.uninstallScript}
-            onChangePreInstallQuery={onChangePreInstallQuery}
-            onChangeInstallScript={onChangeInstallScript}
-            onChangePostInstallScript={onChangePostInstallScript}
-            onChangeUninstallScript={onChangeUninstallScript}
-          />
-          <div className="modal-cta-wrap">
-            <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
-              {isEditingSoftware ? "Save" : "Add software"}
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      )}
+            Self-service
+          </TooltipWrapper>
+        </Checkbox>
+        <PackageAdvancedOptions
+          showSchemaButton={showSchemaButton}
+          selectedPackage={formData.software}
+          errors={{
+            preInstallQuery: formValidation.preInstallQuery?.message,
+            postInstallScript: formValidation.postInstallScript?.message,
+          }}
+          preInstallQuery={formData.preInstallQuery}
+          installScript={formData.installScript}
+          postInstallScript={formData.postInstallScript}
+          uninstallScript={formData.uninstallScript}
+          onClickShowSchema={onClickShowSchema}
+          onChangePreInstallQuery={onChangePreInstallQuery}
+          onChangeInstallScript={onChangeInstallScript}
+          onChangePostInstallScript={onChangePostInstallScript}
+          onChangeUninstallScript={onChangeUninstallScript}
+        />
+        <div className="form-buttons">
+          <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
+            {isEditingSoftware ? "Save" : "Add software"}
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </div>
   );
 };

@@ -1,0 +1,1 @@
+* Return 409 instead of 500 when trying to delete an installer associated with a policy automation.

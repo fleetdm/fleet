@@ -22,7 +22,6 @@ Use the Fleet APIs to automate Fleet.
 - [Users](https://fleetdm.com/docs/rest-api/users)
 - [Vulnerabilities](https://fleetdm.com/docs/rest-api/vulnerabilities)
 
-
 ## API errors
 
 Fleet returns API errors as a JSON document with the following fields:
