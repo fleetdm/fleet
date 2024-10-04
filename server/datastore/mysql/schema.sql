@@ -1626,8 +1626,11 @@ CREATE TABLE `setup_experience_status_results` (
   `type` enum('bootstrap-package','software-install','post-install-script') COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('pending','running','success','failure') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `software_installer_id` int unsigned DEFAULT NULL,
   `host_software_installs_id` int unsigned DEFAULT NULL,
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
   `nano_command_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `setup_experience_script_id` int unsigned DEFAULT NULL,
   `script_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1635,7 +1638,13 @@ CREATE TABLE `setup_experience_status_results` (
   KEY `idx_setup_experience_scripts_hsi_id` (`host_software_installs_id`),
   KEY `idx_setup_experience_scripts_nano_command_uuid` (`nano_command_uuid`),
   KEY `idx_setup_experience_scripts_script_execution_id` (`script_execution_id`),
-  CONSTRAINT `fk_setup_experience_status_results_hsi_id` FOREIGN KEY (`host_software_installs_id`) REFERENCES `host_software_installs` (`id`) ON DELETE CASCADE
+  KEY `fk_setup_experience_status_results_si_id` (`software_installer_id`),
+  KEY `fk_setup_experience_status_results_va_id` (`vpp_app_team_id`),
+  KEY `fk_setup_experience_status_results_ses_id` (`setup_experience_script_id`),
+  CONSTRAINT `fk_setup_experience_status_results_hsi_id` FOREIGN KEY (`host_software_installs_id`) REFERENCES `host_software_installs` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setup_experience_status_results_ses_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setup_experience_status_results_si_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setup_experience_status_results_va_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
