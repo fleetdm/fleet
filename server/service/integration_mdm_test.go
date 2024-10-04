@@ -11392,3 +11392,57 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 }
+
+func (s *integrationMDMTestSuite) TestSetupExperience() {
+	t := s.T()
+	ds := s.ds
+	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          string(fleet.MacOSPlatform),
+	})
+	_ = installerID1
+	require.NoError(t, err)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	var respListTitles listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &respListTitles,
+		"team_id", strconv.Itoa(int(team1.ID)),
+	)
+	require.Len(t, respListTitles.SoftwareTitles, 2)
+
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", strconv.Itoa(int(team1.ID)))
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 0)
+
+	var respPutSetupExperience putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
+	require.Nil(t, respPutSetupExperience.error())
+
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", strconv.Itoa(int(team1.ID)))
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
+}

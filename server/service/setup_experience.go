@@ -7,7 +7,7 @@ import (
 )
 
 type putSetupExperienceSoftwareRequest struct {
-	TeamID   uint   `query:"team_id"`
+	TeamID   uint   `json:"team_id"`
 	TitleIDs []uint `json:"title_ids"`
 }
 
