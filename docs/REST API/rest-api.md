@@ -5737,6 +5737,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
+- [List setup experience software](#list-setup-experience-software)
 
 
 
@@ -6180,6 +6181,96 @@ Content-Type: application/pdf
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+
+### List setup experience software
+
+_Available in Fleet Premium_
+
+List software that will be installed during setup.
+
+`GET /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use 0 to filter by hosts assigned to "No team". |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 1,
+      "name": "Software A",
+      "versions_count": 3,
+      "source": "App Store",
+      "browser": "Chrome",
+      "hosts_count": 10,
+      "installed_during_setup": true,
+      "versions": [
+        {
+          "id": 101,
+          "version": "1.0.0",
+          "vulnerabilities": ["CVE-2021-12345", "CVE-2021-67890"]
+        },
+        {
+          "id": 102,
+          "version": "1.1.0",
+          "vulnerabilities": []
+        }
+      ],
+      "software_package": {
+        "name": "Software A Package",
+        "version": "1.0.0",
+        "self_service": true
+      },
+      "app_store_app": {
+        "app_store_id": 201,
+        "version": "1.0.0"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Software B",
+      "versions_count": 2,
+      "source": "Direct Download",
+      "browser": "Firefox",
+      "hosts_count": 5,
+      "installed_during_setup": false,
+      "versions": [
+        {
+          "id": 201,
+          "version": "2.0.0",
+          "vulnerabilities": []
+        },
+        {
+          "id": 202,
+          "version": "2.1.0",
+          "vulnerabilities": ["CVE-2022-12345"]
+        }
+      ],
+      "software_package": null,
+      "app_store_app": null
+    }
+  ],
+  {
+    "count": 2,
+    "counts_updated_at": "2024-10-04T10:00:00Z",
+    "meta": {
+      "has_next_results": false,
+      "has_previous_results": false
+  },
+}
 ```
 
 ---
