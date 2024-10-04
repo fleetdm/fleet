@@ -12149,3 +12149,63 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "AI features are disabled")
 }
+
+func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Zoobar"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("foobar"),
+		UUID:            "foobar",
+		Hostname:        "com.foobar.local",
+		Platform:        "linux",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "Barfoo",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	distributedWriteResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedWriteResp)
+
+	listHostsResp := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+	require.Equal(t, uint64(1), listHostsResp.Hosts[0].FailingPoliciesCount)
+
+	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
+	require.NoError(t, err)
+
+	distributedWriteResp = submitDistributedQueryResultsResponse{}
+	results := make(map[string]json.RawMessage)
+	results[hostNoPoliciesWildcard] = json.RawMessage("{\"1\": \"1\"}")
+	statuses := make(map[string]interface{})
+	statuses[hostNoPoliciesWildcard] = 0
+	s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: statuses,
+		Stats:    map[string]*fleet.Stats{},
+	}, http.StatusOK, &distributedWriteResp)
+
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+	require.Equal(t, uint64(0), listHostsResp.Hosts[0].FailingPoliciesCount)
+}
