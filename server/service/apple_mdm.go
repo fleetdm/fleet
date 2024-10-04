@@ -70,6 +70,9 @@ var (
 		FleetVarHostEndUserEmailIDP))
 )
 
+// Functions that can be overwritten in tests
+var getNDESSCEPChallenge = eeservice.GetNDESSCEPChallenge
+
 type getMDMAppleCommandResultsRequest struct {
 	CommandUUID string `query:"command_uuid,optional"`
 }
@@ -3583,7 +3586,7 @@ func preprocessProfileContents(
 				switch fleetVar {
 				case FleetVarNDESSCEPChallenge:
 					// Insert the SCEP challenge into the profile contents
-					challenge, err := eeservice.GetNDESSCEPChallenge(ctx, appConfig.Integrations.NDESSCEPProxy.Value)
+					challenge, err := getNDESSCEPChallenge(ctx, appConfig.Integrations.NDESSCEPProxy.Value)
 					if err != nil {
 						detail := ""
 						switch {

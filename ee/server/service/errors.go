@@ -26,10 +26,18 @@ func (e NDESInvalidError) Error() string {
 	return e.msg
 }
 
+func NewNDESInvalidError(msg string) NDESInvalidError {
+	return NDESInvalidError{msg: msg}
+}
+
 type NDESPasswordCacheFullError struct {
 	msg string
 }
 
 func (e NDESPasswordCacheFullError) Error() string {
 	return e.msg
+}
+
+func NewNDESPasswordCacheFullError(msg string) NDESPasswordCacheFullError {
+	return NDESPasswordCacheFullError{msg: msg}
 }

@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -2725,6 +2726,234 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 		checkAndReset(t, true, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	})
+}
+
+func TestPreprocessProfileContents(t *testing.T) {
+	origGetNDESSCEPChallenge := getNDESSCEPChallenge
+	t.Cleanup(func() {
+		getNDESSCEPChallenge = origGetNDESSCEPChallenge
+	})
+
+	ctx := context.Background()
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	appCfg.Integrations.NDESSCEPProxy.Valid = true
+	ds := new(mock.Store)
+
+	// No-op
+	err := preprocessProfileContents(ctx, appCfg, ds, nil, nil)
+	require.NoError(t, err)
+
+	hostUUID := "host-1"
+	cmdUUID := "cmd-1"
+	var targets map[string]*cmdTarget
+	populateTargets := func() {
+		targets = map[string]*cmdTarget{
+			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID}},
+		}
+	}
+	populateTargets()
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPProxyURL),
+	}
+
+	var updatedProfile *fleet.HostMDMAppleProfile
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		updatedProfile = profile
+		require.NotNil(t, updatedProfile.Status)
+		assert.Equal(t, fleet.MDMDeliveryFailed, *updatedProfile.Status)
+		assert.Equal(t, cmdUUID, updatedProfile.CommandUUID)
+		assert.Equal(t, hostUUID, updatedProfile.HostUUID)
+		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedProfile.OperationType)
+		return nil
+	}
+
+	// Can't use NDES SCEP proxy with free tier
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "Premium license")
+	assert.Empty(t, targets)
+
+	// Can't use NDES SCEP proxy without it being configured
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	appCfg.Integrations.NDESSCEPProxy.Valid = false
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "not configured")
+	assert.Empty(t, targets)
+
+	// Unknown variable
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_BOZO"),
+	}
+	appCfg.Integrations.NDESSCEPProxy.Valid = true
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_BOZO")
+	assert.Empty(t, targets)
+
+	// Could not get NDES SCEP challenge
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPChallenge),
+	}
+	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		return "", eeservice.NewNDESInvalidError("NDES error")
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "update credentials")
+	assert.Empty(t, targets)
+
+	// Password cache full
+	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		return "", eeservice.NewNDESPasswordCacheFullError("NDES error")
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "cached passwords")
+	assert.Empty(t, targets)
+
+	// Other NDES challenge error
+	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		return "", errors.New("NDES error")
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
+	assert.NotContains(t, updatedProfile.Detail, "cached passwords")
+	assert.NotContains(t, updatedProfile.Detail, "update credentials")
+	assert.Empty(t, targets)
+
+	// NDES challenge
+	challenge := "ndes-challenge"
+	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		return challenge, nil
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	assert.Nil(t, updatedProfile)
+	require.NotEmpty(t, targets)
+	assert.Len(t, targets, 1)
+	for profUUID, target := range targets {
+		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
+		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, challenge, string(profileContents[profUUID]))
+	}
+
+	// NDES SCEP proxy URL
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPProxyURL),
+	}
+	expectedURL := "https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, "p1"))
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	assert.Nil(t, updatedProfile)
+	require.NotEmpty(t, targets)
+	assert.Len(t, targets, 1)
+	for profUUID, target := range targets {
+		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
+		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, expectedURL, string(profileContents[profUUID]))
+	}
+
+	// No IdP email found
+	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+		return nil, nil
+	}
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + FleetVarHostEndUserEmailIDP),
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarHostEndUserEmailIDP)
+	assert.Contains(t, updatedProfile.Detail, "no IdP email")
+	assert.Empty(t, targets)
+
+	// IdP email found
+	email := "user@example.com"
+	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+		return []string{email}, nil
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	assert.Nil(t, updatedProfile)
+	require.NotEmpty(t, targets)
+	assert.Len(t, targets, 1)
+	for profUUID, target := range targets {
+		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
+		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, email, string(profileContents[profUUID]))
+	}
+
+	// multiple profiles, multiple hosts
+	populateTargets = func() {
+		targets = map[string]*cmdTarget{
+			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID, "host-2"}},  // fails
+			"p2": {cmdUUID: cmdUUID, profIdent: "com.add.profile2", hostUUIDs: []string{hostUUID, "host-3"}}, // works
+			"p3": {cmdUUID: cmdUUID, profIdent: "com.add.profile2", hostUUIDs: []string{hostUUID, "host-4"}}, // no variables
+		}
+	}
+	populateTargets()
+	appCfg.Integrations.NDESSCEPProxy.Valid = false // NDES will fail
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPProxyURL),
+		"p2": []byte("$FLEET_VAR_" + FleetVarHostEndUserEmailIDP),
+		"p3": []byte("no variables"),
+	}
+	expectedHostsToFail := []string{hostUUID, "host-2", "host-3"}
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		updatedProfile = profile
+		require.NotNil(t, updatedProfile.Status)
+		assert.Equal(t, fleet.MDMDeliveryFailed, *updatedProfile.Status)
+		assert.Equal(t, cmdUUID, updatedProfile.CommandUUID)
+		assert.Contains(t, expectedHostsToFail, updatedProfile.HostUUID)
+		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedProfile.OperationType)
+		return nil
+	}
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	require.NoError(t, err)
+	require.NotEmpty(t, targets)
+	assert.Len(t, targets, 3)
+	assert.Nil(t, targets["p1"])    // error
+	assert.Nil(t, targets["p2"])    // renamed
+	assert.NotNil(t, targets["p3"]) // normal, no variables
+	for profUUID, target := range targets {
+		assert.Contains(t, [][]string{{hostUUID}, {"host-3"}, {hostUUID, "host-4"}}, target.hostUUIDs)
+		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.Contains(t, []string{email, "no variables"}, string(profileContents[profUUID]))
+	}
 }
 
 func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
