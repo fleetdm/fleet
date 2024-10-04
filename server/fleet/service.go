@@ -1121,7 +1121,7 @@ type Service interface {
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
-	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) ([]*SetupExperienceStatusResult, error)
+	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*SetupExperienceStatusPayload, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows

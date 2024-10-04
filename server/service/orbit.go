@@ -1090,8 +1090,8 @@ func (r *getOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
 }
 
 type getOrbitSetupExperienceStatusResponse struct {
-	Results []*fleet.SetupExperienceStatusResult `json:"results,omitempty"`
-	Err     error                                `json:"error,omitempty"`
+	Results *fleet.SetupExperienceStatusPayload `json:"results,omitempty"`
+	Err     error                               `json:"error,omitempty"`
 }
 
 func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
@@ -1105,7 +1105,7 @@ func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interfac
 	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) ([]*fleet.SetupExperienceStatusResult, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*fleet.SetupExperienceStatusPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
@@ -1117,5 +1117,17 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
-	return res, nil
+
+	payload := &fleet.SetupExperienceStatusPayload{Software: make([]*fleet.SetupExperienceStatusResult, 0)}
+	for _, r := range res {
+		if r.IsScript() {
+			payload.Script = r
+		}
+
+		if r.IsSoftware() {
+			payload.Software = append(payload.Software, r)
+		}
+	}
+
+	return payload, nil
 }
