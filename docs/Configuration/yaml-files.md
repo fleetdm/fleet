@@ -710,6 +710,20 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 
 Can only be configured for all teams (`org_settings`).
 
+##### client_url
+
+Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    client_url: https://instance.fleet.com
+```
+
+Can only be configured for all teams (`org_settings`).
+
 <meta name="title" value="YAML files">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
