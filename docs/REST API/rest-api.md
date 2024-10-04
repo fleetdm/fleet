@@ -5738,6 +5738,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
 - [List setup experience software](#list-setup-experience-software)
+- [Update setup experience software](#update-setup-experience-software)
 
 
 
@@ -6187,7 +6188,7 @@ Body: <blob>
 
 _Available in Fleet Premium_
 
-List software that will be automatically installed during macOS setup.
+List software that can or will be automatically installed during macOS setup. If `included_during_setup` is `true` it will be installed during setup.
 
 `GET /api/v1/fleet/setup_experience/software`
 
@@ -6247,6 +6248,33 @@ List software that will be automatically installed during macOS setup.
       "has_next_results": false,
       "has_previous_results": false
   },
+}
+```
+
+### Update setup experience software
+
+_Available in Fleet Premium_
+
+Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
+
+`PUT /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| software_title_ids | array | body | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_ids": [23,3411,5032]
 }
 ```
 
