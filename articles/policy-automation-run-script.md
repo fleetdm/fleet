@@ -1,79 +1,50 @@
-# Automatic policy-based installation of software on hosts
+# Automatic policy-based execution of scripts on hosts
 
-![Top Image](../website/assets/images/articles/automatic-software-install-top-image.png)
+Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to automatically execute scripts on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic execution of scripts on hosts using uploaded scripts and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
 
-Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
-
-Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
+Fleet allows its users to upload scripts to be executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. For more information on scripts, see [the Scripts guide](https://fleetdm.com/guides/scripts).
 
 ## Prerequisites
 
-* Fleet premium with Admin permissions.
-* Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or greater.
+* Fleet Premium with Admin permissions.
+* Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) or greater.
+* [Scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts) on all target hosts
 
 ## Step-by-step instructions
 
-1. **Adding software**: Add any software to be available for installation. Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) document with instructions how to do it. Note that all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
+1. **Add a script**: Navigate to **Controls > Scripts**, select the team you want the script and policy to run on, then upload the script you want to run.
+2. **Add a policy**: Navigate to **Policies**, select the team you want the policy to run on, and click **Add policy**. Follow the instructions to either set up a custom policy or use one that's baked into Fleet. You can also add a script automation to an existing policy.
+3. **Set the automation**: In the **Policies** list view you navigated to in the previous step, click **Manage automations**, then click **Run script**. Check the box beside the policy (or policies) you want to run scripts for, then select a script in the drop-down that appears next to the policy name. When you're done associating policies to scripts, click **Save**.
 
-
-![Add software](../website/assets/images/articles/automatic-software-install-add-software.png)
-
-Current supported software deployment formats:
-- macOS: .pkg
-- Windows: .msi, .exe
-- Linux: .deb
-
-Coming soon:
-- VPP for iOS and iPadOS
-
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
-
-```
-SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
-```
-
-Note: In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query SELECT * from apps;
-
-
-3. **Manage automation**: Open Manage Automations: Policies Tab --> top right "Manage automations" --> "Install software".
-
-![Manage policies](../website/assets/images/articles/automatic-software-install-policies-manage.png)
-
-4. **Select policy**: Select (click the check box of) your newly created policy. To the right of it select from the
-   drop-down list the software you would like to be installed upon failure of this policy.
-
-![Install software modal](../website/assets/images/articles/automatic-software-install-install-software.png)
-
-Upon failure of the selected policy, the selected software installation will be triggered.
+The next time a fleetd host with scripts enabled fails the policy you added an automation for, Fleet will queue up the script you selected and run it on the host as if you had requested a script run manually.
 
 ## How does it work?
 
-* After configuring Fleet to auto-install a specific software the rest will be done automatically.
-* The policy check mechanism runs on a typical 1 hour cadence on all online hosts. 
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send a install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* Online hosts report policy status when on a configurable cadence, with a default of hourly.
+* Fleet will send scripts to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Policies that stay failed ("No") for a host in consecutive reports will not be resent the script.
 
-![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
-*Detailed flowchart*
+> When a script automation on a policy is added or switched to a different script, the policy's status will reset for associated hosts. This allows the newly attached script to run on hosts that had already failed the policy previously.
 
-## Using the REST API for self-service software packages
+* Scripts are run once regardless of exit code.
+* When used in a policy automation, Fleet does not run shell scripts on Windows hosts, nor does it run PowerShell scripts on non-Windows hosts.
 
-Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
+## Via the API
 
-## Managing self-service software packages with GitOps
+Script policy automations can be managed by setting the `script_id` field on [Add team policy](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy) or [Edit team policy](https://fleetdm.com/docs/rest-api/rest-api#edit-team-policy) endpoints on the Fleet REST API.
 
-To manage self-service software packages using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
+## Via GitOps
+
+To configure script policy automation via GitOps, nest a `run_script` entry under the `policy` you want to automate, then make sure you have the same `path` field both there and in the same team's `controls > scripts` section. See the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for an example.
 
 ## Conclusion
 
-Software deployment can be time-consuming and risky. This guide presents Fleet's ability to mass deploy software to your fleet in a simple and safe way. Starting with uploading a trusted installer and ending with deploying it to the proper set of machines answering the exact policy defined by you.
+Fleet now supports running scripts on hosts that fail a policy check. We showed how to set up these automations via the Fleet admin UI, via our REST API, and via GitOps.
 
-Leveraging Fleet’s ability to install and upgrade software on your hosts, you can streamline the process of controlling your hosts, replacing old versions of software and having the up-to-date info on what's installed on your fleet.
+A number of host condition related issues can be resolved by running a script on those hosts. You can now automate those resolutions right inside Fleet, allowing zero-touch remediation of policy failures on hosts running fleetd.
 
-By automating software deployment, you can gain greater control over what's installed on your machines and have better oversight of version upgrades, ensuring old software with known issues is replaced.
-
-<meta name="articleTitle" value="Automatic installation of software on hosts">
-<meta name="authorFullName" value="Sharon Katz">
-<meta name="authorGitHubUsername" value="sharon-fdm">
+<meta name="articleTitle" value="Automatic policy-based execution of scripts on hosts">
+<meta name="authorFullName" value="Ian Littman">
+<meta name="authorGitHubUsername" value="iansltx">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-09-23">
-<meta name="description" value="A guide to workflows using automatic software installation in Fleet.">
+<meta name="publishedOn" value="2024-10-07">
+<meta name="description" value="A guide to workflows using automatic script execution in Fleet.">
