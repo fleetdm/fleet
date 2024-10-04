@@ -30,6 +30,7 @@ For example no tickets still in Ready / In Progress should be in the milestone w
 Example:
 ```
 # Build release candidate and changelogs and QA ticket
+# git pull main locally
 ./tools/release/publish_release.sh -m
 
 # Do QA until ready to release
