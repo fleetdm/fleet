@@ -148,7 +148,7 @@ const QueriesTable = ({
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Source of truth is state held within TableContainer. That state is initialized using URL
-  // params, then subsquent updates to that state are pushed to the URL.
+  // params, then subsequent updates to that state are pushed to the URL.
   const searchQuery = initialSearchQuery;
   const platform = initialPlatform;
   const page = initialPage;

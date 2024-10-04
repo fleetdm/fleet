@@ -372,7 +372,7 @@ const SoftwareTable = ({
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         // additionalQueries serves as a trigger for the useDeepEffect hook
-        // to fire onQueryChange for events happeing outside of
+        // to fire onQueryChange for events happening outside of
         // the TableContainer.
         // additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
