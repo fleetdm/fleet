@@ -4,10 +4,10 @@ type SetupExperienceStatusResultStatus string
 
 // Status values.
 const (
-	StatusPending SetupExperienceStatusResultStatus = "pending"
-	StatusRunning SetupExperienceStatusResultStatus = "running"
-	StatusSuccess SetupExperienceStatusResultStatus = "success"
-	StatusFailure SetupExperienceStatusResultStatus = "failure"
+	SetupExperienceStatusPending SetupExperienceStatusResultStatus = "pending"
+	SetupExperienceStatusRunning SetupExperienceStatusResultStatus = "running"
+	SetupExperienceStatusSuccess SetupExperienceStatusResultStatus = "success"
+	SetupExperienceStatusFailure SetupExperienceStatusResultStatus = "failure"
 )
 
 type SetupExperienceStatusResult struct {

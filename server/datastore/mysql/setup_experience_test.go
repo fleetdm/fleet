@@ -71,56 +71,48 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	// Software installer step
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, name, status, software_installer_id) VALUES (?, ?, ?, ?)`,
-			hostUUID, "software", fleet.StatusPending, installerID)
-		require.NoError(t, err)
-		return nil
-	})
+	insertSetupExperienceStatusResult := func(sesr *fleet.SetupExperienceStatusResult) {
+		stmt := `INSERT INTO setup_experience_status_results (id, host_uuid, name, status, software_installer_id, host_software_installs_id, vpp_app_team_id, nano_command_uuid, setup_experience_script_id, script_execution_id, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt,
+				sesr.ID, sesr.HostUUID, sesr.Name, sesr.Status, sesr.SoftwareInstallerID, sesr.HostSoftwareInstallsID, sesr.VPPAppTeamID, sesr.NanoCommandUUID, sesr.SetupExperienceScriptID, sesr.ScriptExecutionID, sesr.Error)
+			require.NoError(t, err)
+			return nil
+		})
+	}
 
-	// VPP app step
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, name, status, vpp_app_team_id) VALUES (?, ?, ?, ?)`,
-			hostUUID, "vpp", fleet.StatusPending, vppAppsTeamsID)
-		require.NoError(t, err)
-		return nil
-	})
-
-	// Setup script step
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results (host_uuid, name, status, setup_experience_script_id) VALUES (?, ?, ?, ?)`,
-			hostUUID, "script", fleet.StatusPending, scriptID)
-		require.NoError(t, err)
-		return nil
-	})
-
-	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
-	require.NoError(t, err)
-	require.Len(t, res, 3)
-	for i, s := range []*fleet.SetupExperienceStatusResult{
+	expRes := []*fleet.SetupExperienceStatusResult{
 		{
 			ID:                  1,
 			HostUUID:            hostUUID,
 			Name:                "software",
-			Status:              fleet.StatusPending,
+			Status:              fleet.SetupExperienceStatusPending,
 			SoftwareInstallerID: ptr.Uint(installerID),
 		},
 		{
 			ID:           2,
 			HostUUID:     hostUUID,
 			Name:         "vpp",
-			Status:       fleet.StatusPending,
+			Status:       fleet.SetupExperienceStatusPending,
 			VPPAppTeamID: ptr.Uint(vppAppsTeamsID),
 		},
 		{
 			ID:                      3,
 			HostUUID:                hostUUID,
 			Name:                    "script",
-			Status:                  fleet.StatusPending,
+			Status:                  fleet.SetupExperienceStatusPending,
 			SetupExperienceScriptID: ptr.Uint(scriptID),
 		},
-	} {
+	}
+
+	for _, r := range expRes {
+		insertSetupExperienceStatusResult(r)
+	}
+
+	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, res, 3)
+	for i, s := range expRes {
 		require.Equal(t, s, res[i])
 	}
 }
