@@ -17,7 +17,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   }
 
   if (teams.length === 0) {
-    return <TextCell value="All Teams" />;
+    return <TextCell value="All teams" />;
   }
 
   let text = "";
@@ -83,7 +83,7 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   }
 
   if (teams.length === 0) {
-    return <TextCell value="All Teams" />;
+    return <TextCell value="All teams" />;
   }
 
   if (teams.length === 1) {

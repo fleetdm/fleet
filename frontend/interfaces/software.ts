@@ -270,7 +270,7 @@ export interface ISoftwareInstallResults {
 
 // ISoftwareInstallerType defines the supported installer types for
 // software uploaded by the IT admin.
-export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
+export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "rpm" | "exe";
 
 export interface ISoftwareLastInstall {
   install_uuid: string;
@@ -389,3 +389,21 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
+
+export interface IFleetMaintainedApp {
+  id: number;
+  name: string;
+  version: string;
+  platform: string;
+}
+
+export interface IFleetMaintainedAppDetails {
+  id: number;
+  name: string;
+  version: string;
+  platform: string;
+  pre_install_script: string; // TODO: is this needed?
+  install_script: string;
+  post_install_script: string; // TODO: is this needed?
+  uninstall_script: string;
+}

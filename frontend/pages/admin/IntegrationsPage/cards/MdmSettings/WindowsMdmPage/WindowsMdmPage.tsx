@@ -98,7 +98,7 @@ const WindowsMdmOffContent = ({ router }: IWindowsMdmOffContentProps) => {
       <p>
         MDM will no longer be turned on for Windows hosts that enroll to Fleet.
       </p>
-      <p>Hosts with MDM already turned on MDM will not have MDM removed.</p>
+      <p>Hosts with MDM already turned on will not have MDM removed.</p>
       <Button onClick={turnOffWindowsMdm}>Turn off MDM</Button>
     </>
   );

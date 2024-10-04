@@ -6286,7 +6286,7 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
 
 	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusOK)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -8310,24 +8310,6 @@ func (s *integrationTestSuite) TestSSODisabled() {
 	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
 }
 
-func (s *integrationTestSuite) TestSandboxEndpoints() {
-	t := s.T()
-	validEmail := testUsers["user1"].Email
-	validPwd := testUsers["user1"].PlaintextPassword
-	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
-
-	// demo login endpoint always fails
-	formBody := make(url.Values)
-	formBody.Set("email", validEmail)
-	formBody.Set("password", validPwd)
-	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
-	require.NotEqual(t, http.StatusOK, res.StatusCode)
-
-	// installers endpoint is not enabled
-	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
-	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
-}
-
 func (s *integrationTestSuite) TestGetHostBatteries() {
 	t := s.T()
 
@@ -8345,8 +8327,8 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	require.NoError(t, err)
 
 	bats := []*fleet.HostBattery{
-		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
-		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Poor"},
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Normal"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Service recommended"},
 	}
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
 
@@ -8356,7 +8338,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
@@ -8365,7 +8347,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 }
 

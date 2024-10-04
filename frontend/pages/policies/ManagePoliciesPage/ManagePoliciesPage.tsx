@@ -21,7 +21,7 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
+import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -52,6 +52,8 @@ import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 import InstallSoftwareModal from "./components/InstallSoftwareModal";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
+import PolicyRunScriptModal from "./components/PolicyRunScriptModal";
+import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -74,6 +76,13 @@ interface IManagePoliciesPageProps {
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_SORT_COLUMN = "name";
+const [
+  DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG,
+  DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
+] = [
+  "Successfully updated policy automations.",
+  "Could not update policy automations. Please try again.",
+];
 
 const baseClass = "manage-policies-page";
 
@@ -127,21 +136,16 @@ const ManagePolicyPage = ({
     },
   });
 
+  // loading state used by various policy updates on this page
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
-  const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
-    false
-  );
-  const [
-    isUpdatingPolicySoftwareInstall,
-    setIsUpdatingPolicySoftwareInstall,
-  ] = useState(false);
-  const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
-    false
-  );
+
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
+    false
+  );
+  const [showPolicyRunScriptModal, setShowPolicyRunScriptModal] = useState(
     false
   );
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
@@ -472,6 +476,10 @@ const ManagePolicyPage = ({
     setShowInstallSoftwareModal(!showInstallSoftwareModal);
   };
 
+  const togglePolicyRunScriptModal = () => {
+    setShowPolicyRunScriptModal(!showPolicyRunScriptModal);
+  };
+
   const toggleCalendarEventsModal = () => {
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
@@ -484,6 +492,9 @@ const ManagePolicyPage = ({
       case "install_software":
         toggleInstallSoftwareModal();
         break;
+      case "run_script":
+        togglePolicyRunScriptModal();
+        break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
         break;
@@ -495,20 +506,17 @@ const ManagePolicyPage = ({
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IZendeskJiraIntegrations;
   }) => {
-    setIsUpdatingOtherWorkflows(true);
+    setIsUpdatingPolicies(true);
     try {
       await (!isAllTeamsSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
         : configAPI.update(requestBody));
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleOtherWorkflowsModal();
-      setIsUpdatingOtherWorkflows(false);
+      setIsUpdatingPolicies(false);
       !isAllTeamsSelected ? refetchTeamConfig() : refetchConfig();
     }
   };
@@ -517,7 +525,7 @@ const ManagePolicyPage = ({
     formData: IInstallSoftwareFormData
   ) => {
     try {
-      setIsUpdatingPolicySoftwareInstall(true);
+      setIsUpdatingPolicies(true);
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -548,7 +556,7 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id:" 0 will unset software install for the policy
+            // "software_title_id": 0 will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).
             software_title_id: changedPolicy.swIdToInstall || 0,
             team_id: teamIdForApi,
@@ -558,20 +566,70 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       await wait(100); // prevent race
       refetchTeamPolicies();
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleInstallSoftwareModal();
-      setIsUpdatingPolicySoftwareInstall(false);
+      setIsUpdatingPolicies(false);
+    }
+  };
+
+  const onUpdatePolicyRunScript = async (
+    formData: IPolicyRunScriptFormData
+  ) => {
+    try {
+      setIsUpdatingPolicies(true);
+      const changedPolicies = formData.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+
+        const turnedOff =
+          prevPolicyState?.run_script !== undefined &&
+          formPolicy.runScriptEnabled === false;
+
+        const turnedOn =
+          prevPolicyState?.run_script === undefined &&
+          formPolicy.runScriptEnabled === true;
+
+        const updatedRunScriptId =
+          prevPolicyState?.run_script?.id !== undefined &&
+          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
+
+        return turnedOff || turnedOn || updatedRunScriptId;
+      });
+      if (!changedPolicies.length) {
+        renderFlash("success", "No changes detected.");
+        return;
+      }
+      const responses: Promise<
+        ReturnType<typeof teamPoliciesAPI.update>
+      >[] = [];
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            // "script_id": 0 will unset running a script for the policy (a script never has ID 0)
+            // "script_id": X will sets script X to run when the policy fails
+            script_id: changedPolicy.scriptIdToRun || 0,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+      await Promise.all(responses);
+      await wait(100);
+      refetchTeamPolicies();
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
+    } catch {
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
+    } finally {
+      togglePolicyRunScriptModal();
+      setIsUpdatingPolicies(false);
     }
   };
 
   const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
-    setIsUpdatingCalendarEvents(true);
+    setIsUpdatingPolicies(true);
 
     try {
       // update team config if either field has been changed
@@ -624,15 +682,12 @@ const ManagePolicyPage = ({
       await refetchTeamPolicies();
       await refetchTeamConfig();
 
-      renderFlash("success", "Successfully updated policy automations.");
+      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleCalendarEventsModal();
-      setIsUpdatingCalendarEvents(false);
+      setIsUpdatingPolicies(false);
     }
   };
 
@@ -802,9 +857,11 @@ const ManagePolicyPage = ({
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: React.ReactNode;
     let disabledCalendarTooltipContent: React.ReactNode;
+    let disabledRunScriptTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
       disabledInstallTooltipContent = "Available in Fleet Premium.";
       disabledCalendarTooltipContent = "Available in Fleet Premium.";
+      disabledRunScriptTooltipContent = "Available in Fleet Premium.";
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
@@ -820,6 +877,13 @@ const ManagePolicyPage = ({
           calendar events.
         </>
       );
+      disabledRunScriptTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          run script automation.
+        </>
+      );
     }
     const installSWOption = {
       label: "Install software",
@@ -828,8 +892,16 @@ const ManagePolicyPage = ({
       helpText: "Install software to resolve failing policies.",
       tooltipContent: disabledInstallTooltipContent,
     };
+    const runScriptOption = {
+      label: "Run script",
+      value: "run_script",
+      disabled: !!disabledRunScriptTooltipContent,
+      helpText: "Run script to resolve failing policies.",
+      tooltipContent: disabledRunScriptTooltipContent,
+    };
+
     if (!configPresent) {
-      return [installSWOption];
+      return [installSWOption, runScriptOption];
     }
 
     return [
@@ -841,6 +913,7 @@ const ManagePolicyPage = ({
         tooltipContent: disabledCalendarTooltipContent,
       },
       installSWOption,
+      runScriptOption,
       {
         label: "Other workflows",
         value: "other_workflows",
@@ -857,6 +930,18 @@ const ManagePolicyPage = ({
 
   if (!isRouteOk) {
     return <Spinner />;
+  }
+
+  let teamsDropdownHelpText: string;
+  if (teamIdForApi === API_NO_TEAM_ID) {
+    teamsDropdownHelpText =
+      "Detect device health issues for hosts that are not on a team.";
+  } else if (teamIdForApi === API_ALL_TEAMS_ID) {
+    teamsDropdownHelpText = "Detect device health issues for all hosts.";
+  } else {
+    // a team is selected
+    teamsDropdownHelpText =
+      "Detect device health issues for all hosts assigned to this team.";
   }
   return (
     <MainContent className={baseClass}>
@@ -910,11 +995,7 @@ const ManagePolicyPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          <p>
-            {isAnyTeamSelected
-              ? "Detect device health issues for all hosts assigned to this team."
-              : "Detect device health issues for all hosts."}
-          </p>
+          <p>{teamsDropdownHelpText}</p>
         </div>
         {renderMainTable()}
         {config && automationsConfig && showOtherWorkflowsModal && (
@@ -922,7 +1003,7 @@ const ManagePolicyPage = ({
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={policiesAvailableToAutomate}
-            isUpdating={isUpdatingOtherWorkflows}
+            isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
           />
@@ -947,7 +1028,17 @@ const ManagePolicyPage = ({
           <InstallSoftwareModal
             onExit={toggleInstallSoftwareModal}
             onSubmit={onUpdatePolicySoftwareInstall}
-            isUpdating={isUpdatingPolicySoftwareInstall}
+            isUpdating={isUpdatingPolicies}
+            policies={policiesAvailableToAutomate}
+            // currentTeamId will at this point be present
+            teamId={currentTeamId ?? 0}
+          />
+        )}
+        {showPolicyRunScriptModal && (
+          <PolicyRunScriptModal
+            onExit={togglePolicyRunScriptModal}
+            onSubmit={onUpdatePolicyRunScript}
+            isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
@@ -964,7 +1055,7 @@ const ManagePolicyPage = ({
             }
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
-            isUpdating={isUpdatingCalendarEvents}
+            isUpdating={isUpdatingPolicies}
           />
         )}
       </div>

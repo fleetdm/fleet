@@ -63,8 +63,9 @@ As Mike McNeil, Fleet’s CEO, says: *“Our vision is to empower teams to manag
 
 To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](https://fleetdm.com/mdm).
 
-<meta name="category" value="security">
+<meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-09-26">
 <meta name="articleTitle" value="Fleet now supports iOS and iPadOS, software deployment, and automated patch management.">
+<meta name="description" value="Fleet announces support for iOS and iPadOS, software deployment, and automated patch management">
