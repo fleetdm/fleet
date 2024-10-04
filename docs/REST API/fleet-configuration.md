@@ -1611,7 +1611,5 @@ None.
 
 ---
 
----
-
 <meta name="description" value="Documentation for Fleet's configuration REST API endpoints.">
 <meta name="pageOrderInSection" value="60">

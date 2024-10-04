@@ -77,6 +77,3 @@ None.
 
 <meta name="description" value="Documentation for Fleet's debug REST API endpoints.">
 <meta name="pageOrderInSection" value="40">
-
-<meta name="description" value="Documentation for Fleet's debugging REST API endpoints.">
-<meta name="pageOrderInSection" value="40">

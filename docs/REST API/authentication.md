@@ -418,5 +418,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `Status: 200`
 
+---
+
 <meta name="description" value="Documentation for Fleet's authentication REST API endpoints.">
 <meta name="pageOrderInSection" value="20">

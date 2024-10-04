@@ -133,5 +133,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 }
 ```
 
+---
+
 <meta name="description" value="Documentation for Fleet's file carving REST API endpoints.">
 <meta name="pageOrderInSection" value="50">
