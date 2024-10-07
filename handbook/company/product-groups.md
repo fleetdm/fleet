@@ -222,11 +222,11 @@ Anyone in the product group can initiate an air guitar session.
 
 1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process. Air guitar issues are always intended to be designed right away. If they can't be, the requestor is notified via at-mention in the issue (that person is either the CSM or AE).
 
-> An air guitar session may be used to design features that won't be delivered in the next 6 weeks.
+> An air guitar session may be used to design features that won't be shipped.
 
 2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
-> An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story.
+> An air guitar session may be needed before the next feature fest. In this case, the Product Designer will prioritize the user story.
 
 3. Review: Conduct an air guitar meeting where the idea or feature is discussed. Involve roles like the product manager, designer, and a sampling of engineers to provide various perspectives.
 
@@ -381,7 +381,7 @@ Requests are weighed by:
 - How urgent the need is for the customer
 - How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
 - How well the request fits within Fleet's product vision and roadmap
-- Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
+- Whether the feature seems like it can be designed and estimated in 3 weeks and and later developed in 3 weeks, given its individual complexity and when combined with other work already accepted
 
 
 ### After the feature is accepted
@@ -390,12 +390,11 @@ After the "🎁🗣 Feature fest" meeting, the feature prioritization DRI will c
 **Prioritized features:** Remove the `~feature fest` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 **Put to the side features:** Remove `feature fest` label and notify the requestor.
 
-> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. De-prioritized features may be carried into the next design sprint.
+> The product team's commitment to the requester is that a prioritized feature will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the feature.
 
-Potential reasons for why a feature may be de-prioritized include:
-- The work was not designed or estimated in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. The perceived design complexity of proposed features will inevitably be different from the actual complexity.
-  - This may be because other higher-priority design work took longer than expected or the work itself was more complex than expected
-- The work was estimated but was not selected for the sprint. When a new sprint starts, it is populated with bugs, features, and technical tasks. Depending on the size and quantity of non-feature work, certain features may not be selected for the sprint.
+A feature may be de-prioritized when the relative importance of the feature falls below other requests and there is not enough room in the upcoming engineering sprint. 
+  - Since Fleet does not maintain a backlog, there is only enough room for features that can be shipped in the upcoming 3 week engineering sprint. The relative importance of a feature and room in the next engineering sprint may change over the course of a design sprint.
+  - This may be because other higher-priority work was prioritized (new bugs/feature requests) and/or the work in the current engineering sprint took longer than expected.
 
 Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
