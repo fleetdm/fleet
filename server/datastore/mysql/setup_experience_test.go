@@ -36,6 +36,13 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	hostUUID := uuid.NewString()
 
+	// Create a software installer
+	// We need a new user first
+	user, err := ds.NewUser(ctx, &fleet.User{Name: "Foo", Email: "foo@example.com", GlobalRole: ptr.String("admin"), Password: []byte("12characterslong!")})
+	require.NoError(t, err)
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID})
+	require.NoError(t, err)
+
 	// VPP setup: create a token so that we can insert a VPP app
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
 	require.NoError(t, err)
@@ -50,13 +57,6 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		&vppAppsTeamsID, `SELECT id FROM vpp_apps_teams WHERE adam_id = ?`,
 		vppApp.AdamID,
 	)
-	require.NoError(t, err)
-
-	// Create a software installer
-	// We need a new user first
-	user, err := ds.NewUser(ctx, &fleet.User{Name: "Foo", Email: "foo@example.com", GlobalRole: ptr.String("admin"), Password: []byte("12characterslong!")})
-	require.NoError(t, err)
-	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID})
 	require.NoError(t, err)
 
 	// TODO: use DS methods once those are written
@@ -88,13 +88,15 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Name:                "software",
 			Status:              fleet.SetupExperienceStatusPending,
 			SoftwareInstallerID: ptr.Uint(installerID),
+			SoftwareTitleID:     ptr.Uint(1),
 		},
 		{
-			ID:           2,
-			HostUUID:     hostUUID,
-			Name:         "vpp",
-			Status:       fleet.SetupExperienceStatusPending,
-			VPPAppTeamID: ptr.Uint(vppAppsTeamsID),
+			ID:              2,
+			HostUUID:        hostUUID,
+			Name:            "vpp",
+			Status:          fleet.SetupExperienceStatusPending,
+			VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
+			SoftwareTitleID: ptr.Uint(2),
 		},
 		{
 			ID:                      3,

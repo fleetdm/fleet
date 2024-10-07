@@ -1120,11 +1120,11 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 
 	payload := &fleet.SetupExperienceStatusPayload{Software: make([]*fleet.SetupExperienceStatusResult, 0)}
 	for _, r := range res {
-		if r.IsScript() {
+		if r.IsForScript() {
 			payload.Script = r
 		}
 
-		if r.IsSoftware() {
+		if r.IsForSoftware() {
 			payload.Software = append(payload.Software, r)
 		}
 	}
