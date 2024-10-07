@@ -1,17 +1,22 @@
 import React, { useContext, useState } from "react";
 import classnames from "classnames";
 
+import mdmAPI from "services/entities/mdm";
+
 import { NotificationContext } from "context/notification";
 import FileUploader from "components/FileUploader";
+import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "run-script-uploader";
 
 interface IRunScriptUploaderProps {
+  currentTeamId: number;
   onUpload: () => void;
   className?: string;
 }
 
 const RunScriptUploader = ({
+  currentTeamId,
   onUpload,
   className,
 }: IRunScriptUploaderProps) => {
@@ -20,7 +25,27 @@ const RunScriptUploader = ({
 
   const classNames = classnames(baseClass, className);
 
-  const onUploadFile = async (files: FileList | null) => {};
+  const onUploadFile = async (files: FileList | null) => {
+    setShowLoading(true);
+
+    if (!files || files.length === 0) {
+      setShowLoading(false);
+      return;
+    }
+
+    const file = files[0];
+
+    try {
+      await mdmAPI.uploadSetupExperienceScript(file, currentTeamId);
+      renderFlash("success", "Successfully uploaded!");
+      onUpload();
+    } catch (e) {
+      // TODO: what errors?
+      renderFlash("error", getErrorReason(e));
+    }
+
+    setShowLoading(false);
+  };
 
   return (
     <FileUploader

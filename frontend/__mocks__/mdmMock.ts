@@ -4,6 +4,7 @@ import {
   IMdmProfile,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
+import { IGetSetupExperienceScriptResponse } from "services/entities/mdm";
 
 const DEFAULT_MDM_SOLUTION_MOCK: IMdmSolution = {
   id: 1,
@@ -78,4 +79,18 @@ export const createMockHostMdmData = (
   overrides?: Partial<IHostMdmData>
 ): IHostMdmData => {
   return { ...DEFAULT_HOST_MDM_DATA, ...overrides };
+};
+
+const DEFAULT_SETUP_EXPIERENCE_SCRIPT: IGetSetupExperienceScriptResponse = {
+  id: 1,
+  team_id: 0,
+  name: "Test Script",
+  created_at: "2021-01-01T00:00:00Z",
+  updated_at: "2021-01-01T00:00:00Z",
+};
+
+export const createMockSetupExperienceScript = (
+  overrides?: Partial<IGetSetupExperienceScriptResponse>
+): IGetSetupExperienceScriptResponse => {
+  return { ...DEFAULT_SETUP_EXPIERENCE_SCRIPT, ...overrides };
 };

@@ -1,28 +1,39 @@
-import React from "react";
+import React, { useState } from "react";
+import { useQuery } from "react-query";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import mdmAPI from "services/entities/mdm";
 
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 
-import AddRunScript from "./components/AddRunScript";
-import RunScriptPreview from "./components/RunScriptPreview";
 import CustomLink from "components/CustomLink";
+
+import RunScriptPreview from "./components/RunScriptPreview";
 import RunScriptUploader from "./components/RunScriptUploader";
 import RunScriptCard from "./components/RunScriptCard";
 
 const baseClass = "run-script";
 
-interface IRunScriptProps {}
+interface IRunScriptProps {
+  currentTeamId: number;
+}
 
-const RunScript = ({}: IRunScriptProps) => {
-  const isLoading = false;
-  const isError = false;
+const RunScript = ({ currentTeamId }: IRunScriptProps) => {
+  const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
+
+  const { data: script, isLoading, isError } = useQuery(
+    ["setup-experience-script", currentTeamId],
+    () => mdmAPI.getSetupExperienceScript(currentTeamId),
+    { ...DEFAULT_USE_QUERY_OPTIONS }
+  );
 
   const onUpload = () => {
     // refetchEnrollmentProfile();
   };
 
-  const noPackageUploaded = true;
+  const scriptUploaded = true;
 
   const renderContent = () => {
     if (isLoading) {
@@ -39,19 +50,24 @@ const RunScript = ({}: IRunScriptProps) => {
           <p className={`${baseClass}__description`}>
             Upload a script to run on hosts that automatically enroll to Fleet.
           </p>
-          <CustomLink newTab url="" text="Learn how" />
-          {noPackageUploaded ? (
+          <CustomLink
+            className={`${baseClass}__learn-how-link`}
+            newTab
+            url=""
+            text="Learn how"
+          />
+          {!scriptUploaded || !script ? (
             <RunScriptUploader
-              className={`${baseClass}__file-uploader`}
+              currentTeamId={currentTeamId}
               onUpload={onUpload}
             />
           ) : (
-            <RunScriptCard />
+            <RunScriptCard
+              script={script}
+              onDelete={() => setShowDeleteScriptModal(true)}
+            />
           )}
         </div>
-        {/* currentTeamId={currentTeamId}
-          softwareTitles={softwareTitles}
-          onAddSoftware={() => setShowSelectSoftwareModal(true)} */}
         <RunScriptPreview />
       </div>
     );
