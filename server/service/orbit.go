@@ -733,7 +733,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
-			var policyName *string = nil
+			var policyName *string
 			if hsr.PolicyID != nil {
 				if policy, err := svc.ds.PolicyLite(ctx, *hsr.PolicyID); err == nil {
 					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
