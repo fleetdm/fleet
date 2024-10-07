@@ -253,7 +253,7 @@ controls:
         labels_include_all:
           - Label 2
   windows_settings:
-    custom_settings
+    custom_settings:
       - path: ../lib/windows-profile.xml
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
