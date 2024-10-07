@@ -15,6 +15,7 @@ set -e
 # ACTION
 # VERSION
 # KEYS_SOURCE_DIRECTORY
+# ROOT_PASSPHRASE_1PASSWORD_PATH
 # TARGETS_PASSPHRASE_1PASSWORD_PATH
 # SNAPSHOT_PASSPHRASE_1PASSWORD_PATH
 # TIMESTAMP_PASSPHRASE_1PASSWORD_PATH
@@ -332,7 +333,7 @@ print_reminder () {
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "Make sure to install fleetd with '--osqueryd-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         fi
-    elif [[ $ACTION == "pull-from-remote" || $ACTION == "push-to-remote" || $ACTION == "update-timestamp" ]]; then
+    elif [[ $ACTION == "pull-from-remote" || $ACTION == "push-to-remote" || $ACTION == "update-timestamp" || $ACTION == "rotate-root-key" ]]; then
         :
     elif [[ $ACTION != "update-timestamp" ]]; then
         echo "Unsupported action: $ACTION"

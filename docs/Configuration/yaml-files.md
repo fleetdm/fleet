@@ -84,6 +84,8 @@ policies:
   platform: darwin
   critical: false
   calendar_event_enabled: false
+  run_script:
+    path: "../lib/disable-guest-account.sh"
 - name: Firefox on Linux installed and up to date
   platform: linux
   description: "This policy checks that Firefox is installed and up to date."
@@ -93,7 +95,7 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
@@ -319,7 +321,7 @@ The `software` section allows you to configure packages and Apple App Store apps
 Software for hosts that belong to "No team" have to be defined in `teams/no-team.yml`.
 Software can also be specified in separate files in your `lib/` folder.
 
-- `packages` is a list of software packages (.pkg, .msi, .exe, or .deb) and software specific options.
+- `packages` is a list of software packages (.pkg, .msi, .exe, .rpm, or .deb) and software specific options.
 - `app_store_apps` is a list of Apple App Store apps.
 
 #### Example

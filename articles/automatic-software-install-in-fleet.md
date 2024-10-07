@@ -21,7 +21,7 @@ Fleet allows its users to upload trusted software installation files to be insta
 Current supported software deployment formats:
 - macOS: .pkg
 - Windows: .msi, .exe
-- Linux: .deb
+- Linux: .deb, .rpm
 
 Coming soon:
 - VPP for iOS and iPadOS
