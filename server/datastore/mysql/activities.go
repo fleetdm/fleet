@@ -15,6 +15,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var automationActivityAuthor string = "Fleet"
+
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(
 	ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -40,8 +42,8 @@ func (ds *Datastore) NewActivity(
 		userName = &user.Name
 		userEmail = &user.Email
 	} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-		if ranScriptActivity.PolicyName != nil {
-			userName = ranScriptActivity.PolicyName
+		if ranScriptActivity.PolicyID != nil {
+			userName = &automationActivityAuthor
 		}
 	}
 
@@ -297,7 +299,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending scripts
 		`SELECT
 			hsr.execution_id as uuid,
-			COALESCE(u.name, p.name) as name,
+			IF(hsr.policy_id IS NOT NULL, "Fleet", u.name) as name,
 			u.id as user_id,
 			u.gravatar_url as gravatar_url,
 			u.email as user_email,
@@ -314,8 +316,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_script_results hsr
 		LEFT OUTER JOIN
 			users u ON u.id = hsr.user_id
-		LEFT OUTER JOIN
-			policies p ON p.id = hsr.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = hsr.host_id
 		LEFT OUTER JOIN

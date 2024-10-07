@@ -14766,9 +14766,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host3Team2.ID), nil, http.StatusOK, &listResp)
 
 	require.Len(t, listResp.Activities, 1)
-	require.Nil(t, *listResp.Activities[0].ActorEmail)
-	require.Equal(t, policy4Team2.Name, *listResp.Activities[0].ActorFullName)
-	require.Nil(t, *listResp.Activities[0].ActorGravatar)
+	require.Equal(t, "", *listResp.Activities[0].ActorEmail)
+	require.Equal(t, "Fleet", *listResp.Activities[0].ActorFullName)
+	require.Nil(t, listResp.Activities[0].ActorGravatar)
 	require.Equal(t, "ran_script", *&listResp.Activities[0].Type)
 
 	// TODO maybe check webhooks

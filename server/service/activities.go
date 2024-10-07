@@ -67,6 +67,8 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
 
+var automationActivityAuthor string = "Fleet"
+
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -96,8 +98,8 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			userName = &user.Name
 			userEmail = &user.Email
 		} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-			if ranScriptActivity.PolicyName != nil {
-				userName = ranScriptActivity.PolicyName
+			if ranScriptActivity.PolicyID != nil {
+				userName = &automationActivityAuthor
 			}
 		}
 
