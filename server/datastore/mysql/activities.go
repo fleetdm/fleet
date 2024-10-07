@@ -15,7 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var automationActivityAuthor string = "Fleet"
+var automationActivityAuthor = "Fleet"
 
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(

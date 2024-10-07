@@ -67,7 +67,7 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
 
-var automationActivityAuthor string = "Fleet"
+var automationActivityAuthor = "Fleet"
 
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
