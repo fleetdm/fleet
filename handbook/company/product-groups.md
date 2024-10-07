@@ -390,11 +390,10 @@ After the "🎁🗣 Feature fest" meeting, the feature prioritization DRI will c
 **Prioritized features:** Remove the `~feature fest` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 **Put to the side features:** Remove `feature fest` label and notify the requestor.
 
-> The product team's commitment to the requester is that a prioritized feature will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the feature.
+> The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
 
-A feature may be de-prioritized when the relative importance of the feature falls below other requests and there is not enough room in the upcoming engineering sprint. 
-  - Since Fleet does not maintain a backlog, there is only enough room for features that can be shipped in the upcoming 3 week engineering sprint. The relative importance of a feature and room in the next engineering sprint may change over the course of a design sprint.
-  - This may be because other higher-priority work was prioritized (new bugs/feature requests) and/or the work in the current engineering sprint took longer than expected.
+A story may be de-prioritized when it's relative priority falls below new requests and there is not enough room in the upcoming engineering sprint. Since Fleet does not maintain a feature backlog, a story is only prioritized if it seems like they can be shipped in the upcoming 3 week engineering sprint. The relative priority of a story and engineering capacity may change over the course of a design sprint.
+  - This may be because new higher-priority work (bugs or stories) was prioritized and/or the work in the current engineering sprint took longer than expected.
 
 Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
