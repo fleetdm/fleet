@@ -52,6 +52,12 @@ Private/TUF SNAPSHOT/password
 Private/TUF TIMESTAMP/password
 ```
 
+If you need to run updates that require the "root" role (like rotating root keys) you will need to create a private "password" with the following name: `TUF ROOT`.
+The resulting credential will have the following "path" within 1Password (these paths will be provided to the `releaser.sh` script)
+```sh
+Private/TUF ROOT/password
+```
+
 ### AWS
 
 The following is required to be able to run `aws` cli commands.
