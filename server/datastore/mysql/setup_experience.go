@@ -10,20 +10,20 @@ import (
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
-WHERE host_uuid =`
+WHERE host_uuid = ?`
 
 	stmtSoftwareInstallers := `
 INSERT INTO setup_experience_status_results (
 	host_uuid,
 	name,
 	status,
-	host_software_installs_id
+	software_installer_id
 ) SELECT
 	?,
 	st.name,
 	'pending',
 	si.id
-FROM software_instellers si
+FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
 WHERE install_during_setup = true
@@ -34,12 +34,12 @@ INSERT INTO setup_experience_status_results (
 	host_uuid,
 	name,
 	status,
-	vpp_app_id
+	vpp_app_team_id
 ) SELECT
 	?,
 	st.name,
 	'pending',
-	va.id
+	vat.id
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
 	ON vat.adam_id = va.adam_id
