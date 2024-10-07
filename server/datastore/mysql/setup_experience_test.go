@@ -47,7 +47,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get the script for team1
-	gotScript1, err := ds.GetSetupExperienceScript(ctx, team1.ID)
+	gotScript1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.NotNil(t, gotScript1)
 	require.Equal(t, wantScript1.Name, gotScript1.Name)
@@ -69,7 +69,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get the script for team2
-	gotScript2, err := ds.GetSetupExperienceScript(ctx, team2.ID)
+	gotScript2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
 	require.NotNil(t, gotScript2)
 	require.Equal(t, wantScript2.Name, gotScript2.Name)
@@ -90,8 +90,8 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	err = ds.SetSetupExperienceScript(ctx, wantScriptNoTeam)
 	require.NoError(t, err)
 
-	// get the script no team id is equivalent to team id 0
-	gotScriptNoTeam, err := ds.GetSetupExperienceScript(ctx, 0)
+	// get the script nil team id is equivalent to team id 0
+	gotScriptNoTeam, err := ds.GetSetupExperienceScript(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, gotScriptNoTeam)
 	require.Equal(t, wantScriptNoTeam.Name, gotScriptNoTeam.Name)
@@ -120,20 +120,20 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &fkErr)
 
 	// delete the script for team1
-	err = ds.DeleteSetupExperienceScript(ctx, team1.ID)
+	err = ds.DeleteSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
 
 	// get the script for team1
-	_, err = ds.GetSetupExperienceScript(ctx, team1.ID)
+	_, err = ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.Error(t, err)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// try to delete script for team1 again
-	err = ds.DeleteSetupExperienceScript(ctx, team1.ID)
+	err = ds.DeleteSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
 
 	// try to delete script for team that doesn't exist
-	err = ds.DeleteSetupExperienceScript(ctx, 42)
+	err = ds.DeleteSetupExperienceScript(ctx, ptr.Uint(42))
 	require.NoError(t, err)
 
 	// add same script for team1 again
@@ -142,7 +142,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 
 	// get the script for team1
 	oldScript1 := gotScript1
-	newScript1, err := ds.GetSetupExperienceScript(ctx, team1.ID)
+	newScript1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.NotNil(t, newScript1)
 	require.Equal(t, wantScript1.Name, newScript1.Name)

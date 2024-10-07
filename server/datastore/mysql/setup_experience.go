@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID uint) (*fleet.Script, error) {
+func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 	query := `
 SELECT
   id,
@@ -24,11 +24,19 @@ FROM
 WHERE
   global_or_team_id = ?
 `
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
 	var script fleet.Script
 	// TODO: Add unique constraint on global_or_team_id to enforce only one SE script per team?
 	// If so, what to do if multiple scripts exist?
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, teamID); err != nil {
-		return nil, err
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, globalOrTeamID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience script")
 	}
 
 	return &script, nil
@@ -78,11 +86,10 @@ VALUES
 	res, err := tx.ExecContext(ctx, insertStmt,
 		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
 	if err != nil {
-		// TODO: Add unique constraint on global_or_team_id to enforce only one SE script per team?
-		// If so, how to detect/handle that error?
+
 		if IsDuplicate(err) {
-			// name already exists for this team/global
-			err = alreadyExists("Script", script.Name)
+			// already exists for this team/global
+			err = &existsError{ResourceType: "SetupExperienceScript", TeamID: &globalOrTeamID}
 		} else if isChildForeignKeyError(err) {
 			// team does not exist
 			err = foreignKey("setup_experience_scripts", fmt.Sprintf("team_id=%v", script.TeamID))
@@ -93,10 +100,13 @@ VALUES
 	return res, nil
 }
 
-func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID uint) error {
-	// TODO: Add unique constraint on global_or_team_id to enforce only one SE script per team?
-	// If not, this will delete all SE scripts for a team and may need further work.
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, teamID)
+func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}

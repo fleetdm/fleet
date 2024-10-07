@@ -22,8 +22,7 @@ CREATE TABLE setup_experience_scripts (
 
 	PRIMARY KEY (id),
 
-	UNIQUE KEY idx_setup_experience_scripts_global_or_team_id_name (global_or_team_id,name),
-	UNIQUE KEY idx_setup_experience_scripts_team_name (team_id,name),
+	UNIQUE KEY idx_setup_experience_scripts_global_or_team_id (global_or_team_id),
 
 	KEY idx_script_content_id (script_content_id),
 

@@ -12,10 +12,11 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type getSetupExperienceScriptRequest struct {
-	TeamID uint   `query:"team_id"`
+	TeamID *uint  `query:"team_id,optional"`
 	Alt    string `query:"alt,optional"`
 }
 
@@ -44,7 +45,7 @@ func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	return getSetupExperienceScriptResponse{Script: script}, nil
 }
 
-func (svc Service) GetSetupExperienceScript(ctx context.Context, teamID uint, withContent bool) (*fleet.Script, []byte, error) {
+func (svc Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, withContent bool) (*fleet.Script, []byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -53,7 +54,7 @@ func (svc Service) GetSetupExperienceScript(ctx context.Context, teamID uint, wi
 }
 
 type setSetupExperienceScriptRequest struct {
-	TeamID uint
+	TeamID *uint
 	Script *multipart.FileHeader
 }
 
@@ -74,7 +75,12 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = ptr.Uint(uint(teamID))
+		// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
+		// // use it in the auth layer where team_id=0 is not allowed?
+		// if teamID > 0 {
+		// 	decoded.TeamID = ptr.Uint(uint(teamID))
+		// }
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]
@@ -108,7 +114,7 @@ func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	return setSetupExperienceScriptResponse{}, nil
 }
 
-func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID uint, name string, r io.Reader) error {
+func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -117,7 +123,7 @@ func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID uint, na
 }
 
 type deleteSetupExperienceScriptRequest struct {
-	TeamID uint `query:"team_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type deleteSetupExperienceScriptResponse struct {
@@ -137,7 +143,7 @@ func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{
 	return deleteSetupExperienceScriptResponse{}, nil
 }
 
-func (svc Service) DeleteSetupExperienceScript(ctx context.Context, teamID uint) error {
+func (svc Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

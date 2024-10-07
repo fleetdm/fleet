@@ -11,9 +11,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID uint, withContent bool) (*fleet.Script, []byte, error) {
+func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, withContent bool) (*fleet.Script, []byte, error) {
 	// TODO: confirm auth entity
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: &teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
@@ -33,9 +33,9 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID uint, w
 	return script, content, nil
 }
 
-func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID uint, name string, r io.Reader) error {
+func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	// TODO: confirm auth entity
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID uint, na
 	}
 
 	script := &fleet.Script{
-		TeamID:         &teamID,
+		TeamID:         teamID,
 		Name:           name,
 		ScriptContents: string(b),
 	}
@@ -80,9 +80,9 @@ func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID uint, na
 	return nil
 }
 
-func (svc Service) DeleteSetupExperienceScript(ctx context.Context, teamID uint) error {
+func (svc Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
 	// TODO: confirm auth entity
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
