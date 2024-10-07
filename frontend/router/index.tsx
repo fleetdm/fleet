@@ -350,7 +350,6 @@ const routes = (
       </Route>
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
-
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />

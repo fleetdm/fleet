@@ -18,6 +18,9 @@
 
   &__policy-selection {
     overflow-y: auto;
+    .children-wrapper {
+      width: 680px;
+    }
   }
 
   .Select-multi-value-wrapper {
