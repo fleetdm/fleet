@@ -153,15 +153,13 @@ const InstallSoftwareModal = ({
     const splitName = title.software_package?.name.split(".") ?? "";
     const ext =
       splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
-    const platformDisplay = getPlatformDisplayFromPackageExtension(ext);
-    const platformString = platformDisplay ? `${platformDisplay} • ` : "";
-    const extString = ext ? ` • .${ext}` : "";
+    const platformString = ext
+      ? `${getPlatformDisplayFromPackageExtension(ext)} (.${ext}) • `
+      : "";
     return {
       label: title.name,
       value: title.id,
-      helpText: `${platformString}${
-        title.software_package?.version ?? ""
-      }${extString}`,
+      helpText: `${platformString}${title.software_package?.version ?? ""}`,
     };
   });
 
