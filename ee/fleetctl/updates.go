@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -415,6 +416,7 @@ func updatesRotateFunc(c *cli.Context) error {
 	// Delete old keys for role
 	for _, key := range keys {
 		id := key.PublicData().IDs()[0]
+		log.Println("rotate ", id)
 		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
 		if err != nil {
 			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
@@ -424,6 +426,11 @@ func updatesRotateFunc(c *cli.Context) error {
 				return fmt.Errorf("revoke key: %w", err)
 			}
 		}
+	}
+
+	if err := repo.RevokeKeyWithExpires(role, "5f42172605e1a317c6bdae3891b4312a952759185941490624e052889821c929", time.Now().Add(rootExpirationDuration)); err != nil {
+		log.Println(err)
+		return fmt.Errorf("failed")
 	}
 
 	// TODO change passphrase for new key:
