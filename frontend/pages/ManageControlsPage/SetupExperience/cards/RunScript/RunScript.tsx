@@ -5,6 +5,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 
 import AddRunScript from "./components/AddRunScript";
+import RunScriptPreview from "./components/RunScriptPreview";
 
 const baseClass = "run-script";
 
@@ -23,7 +24,15 @@ const RunScript = ({}: IRunScriptProps) => {
       return <DataError />;
     }
 
-    return <AddRunScript />;
+    return (
+      <div className={`${baseClass}__content`}>
+        <AddRunScript />
+        {/* currentTeamId={currentTeamId}
+          softwareTitles={softwareTitles}
+          onAddSoftware={() => setShowSelectSoftwareModal(true)} */}
+        <RunScriptPreview />
+      </div>
+    );
   };
 
   return (
