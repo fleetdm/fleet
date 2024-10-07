@@ -120,8 +120,11 @@ const EditSoftwareModal = ({
         data: formData,
         softwareId,
         teamId,
-        onUploadProgress: ({ progress }) => {
-          setUploadProgress(progress && progress < 1 ? progress : 0);
+        onUploadProgress: (progressEvent) => {
+          const progress = progressEvent.progress || 0;
+          // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
+          // progress bar at 97% until the server response is received
+          setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
       });
 
