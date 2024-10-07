@@ -1729,6 +1729,11 @@ type Datastore interface {
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Setup Experience
+	//
+
+	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+
 	// Fleet-maintained apps
 	//
 
