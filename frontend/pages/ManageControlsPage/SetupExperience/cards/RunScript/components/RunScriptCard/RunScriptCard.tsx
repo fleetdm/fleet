@@ -33,7 +33,7 @@ const RunScriptCard = ({ script, onDelete }: IRunScriptCardProps) => {
 
   return (
     <Card paddingSize="medium" className={baseClass}>
-      <Graphic name="file-configuration-profile" />
+      <Graphic name="file-sh" />
       <div className={`${baseClass}__info`}>
         <span className={`${baseClass}__profile-name`}>{script.name}</span>
         <span className={`${baseClass}__uploaded-at`}>
