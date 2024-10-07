@@ -1,0 +1,12 @@
+.software-app-store-vpp {
+
+  &__error {
+    margin-top: $pad-xxlarge;
+  }
+
+  &__content {
+    margin-top: $pad-xxlarge;
+    display: flex;
+    flex-direction: column;
+  }
+}

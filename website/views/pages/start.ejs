@@ -399,8 +399,8 @@
       <%//  ╔═╗╦═╗╔═╗╔═╗╔═╗  ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔╦╗╔╦╗╔╦╗
         //  ║  ╠╦╝║ ║╚═╗╚═╗  ╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║
         //  ╚═╝╩╚═╚═╝╚═╝╚═╝  ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩%>
-      <div v-if="currentStep === 'cross-platform-mdm'">
-        <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['cross-platform-mdm']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+      <div v-if="currentStep === 'message-about-cross-platform-mdm'">
+        <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['message-about-cross-platform-mdm']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
           <div purpose="progress-bar-container">
             <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 45%"></div></div>
             <img purpose="success-icon" alt="🚀" src="/images/icon-form-success-16x16@2x.png">

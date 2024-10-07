@@ -1,0 +1,1 @@
+- battery health definitions now defined as cycle counts greater than 1000 or max capacity falling under 80% of designed capacity for macOS and Windows

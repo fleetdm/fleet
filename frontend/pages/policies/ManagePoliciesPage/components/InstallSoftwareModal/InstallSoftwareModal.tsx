@@ -82,6 +82,7 @@ const InstallSoftwareModal = ({
   const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
     (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
   );
+
   const {
     data: titlesAFI,
     isLoading: isTitlesAFILoading,
@@ -215,9 +216,10 @@ const InstallSoftwareModal = ({
       return (
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
-          <span>
-            Go to <b>Software</b> to add software to this team.
-          </span>
+          <div>
+            Go to <a href={`/software/titles?team_id=${teamId}`}>Software</a> to
+            add software to this team.
+          </div>
         </div>
       );
     }
@@ -232,8 +234,10 @@ const InstallSoftwareModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected software will be installed when hosts fail the chosen
-            policy.{" "}
+            Selected software will be installed when hosts fail the policy. Host
+            counts will reset when a new software is
+            <br />
+            selected.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
               text="Learn more"

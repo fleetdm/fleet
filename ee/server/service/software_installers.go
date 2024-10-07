@@ -104,6 +104,8 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
 	var packageID string
 	switch payload.Extension {
+	case "dmg", "zip":
+		return
 	case "pkg":
 		var sb strings.Builder
 		_, _ = sb.WriteString("(\n")
@@ -1515,7 +1517,7 @@ func packageExtensionToPlatform(ext string) string {
 	switch ext {
 	case ".msi", ".exe":
 		requiredPlatform = "windows"
-	case ".pkg":
+	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"
 	case ".deb", ".rpm":
 		requiredPlatform = "linux"

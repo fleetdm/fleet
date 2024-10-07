@@ -99,16 +99,19 @@ const SaveQueryModal = ({
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid, errors: newErrors } = validateQueryName(name);
+    const trimmedName = name.trim();
+
+    const { valid, errors: newErrors } = validateQueryName(trimmedName);
     setErrors({
       ...errors,
       ...newErrors,
     });
+    setName(trimmedName);
 
     if (valid) {
       saveQuery({
         // from modal fields
-        name,
+        name: trimmedName,
         description,
         interval: selectedFrequency,
         observer_can_run: observerCanRun,
@@ -154,6 +157,9 @@ const SaveQueryModal = ({
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
+          onBlur={() => {
+            setName(name.trim());
+          }}
           value={name}
           error={errors.name}
           inputClassName={`${baseClass}__name`}

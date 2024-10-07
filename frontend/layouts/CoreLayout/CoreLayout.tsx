@@ -2,6 +2,8 @@ import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
@@ -11,8 +13,6 @@ import useDeepEffect from "hooks/useDeepEffect";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
 import { QueryParams } from "utilities/url";
-
-import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;
@@ -90,13 +90,7 @@ const CoreLayout = ({
 
   return (
     <div className="app-wrap">
-      <div className="overlay">
-        <img src={smallScreenImage} alt="Unsupported screen size" />
-        <div className="overlay__text">
-          <h1>This screen size is not supported yet.</h1>
-          <p>Please enlarge your browser or try again on a computer.</p>
-        </div>
-      </div>
+      <UnsupportedScreenSize />
       <nav className="site-nav-container">
         <SiteTopNav
           config={config}
