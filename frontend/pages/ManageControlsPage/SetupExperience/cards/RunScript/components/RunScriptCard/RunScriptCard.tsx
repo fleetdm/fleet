@@ -1,5 +1,9 @@
-import React from "react";
+import React, { useContext } from "react";
 import FileSaver from "file-saver";
+
+import mdmAPI, {
+  IGetSetupExperienceScriptResponse,
+} from "services/entities/mdm";
 
 import { uploadedFromNow } from "utilities/date_format";
 
@@ -7,7 +11,8 @@ import Button from "components/buttons/Button";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
-import { IGetSetupExperienceScriptResponse } from "services/entities/mdm";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "run-script-card";
 
@@ -17,11 +22,19 @@ interface IRunScriptCardProps {
 }
 
 const RunScriptCard = ({ script, onDelete }: IRunScriptCardProps) => {
-  const onDownload = () => {
-    const date = new Date();
-    const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
-      script.name
-    }`;
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onDownload = async () => {
+    try {
+      await mdmAPI.downloadSetupExperienceScript(script.team_id);
+    } catch (e) {
+      renderFlash("error", getErrorReason(e));
+    }
+
+    // const date = new Date();
+    // const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
+    //   script.name
+    // }`;
     // TODO: download script
     // const file = new global.window.File(
     //   [JSON.stringify(script.enrollment_profile)],

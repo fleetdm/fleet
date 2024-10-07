@@ -363,6 +363,17 @@ const mdmService = {
     // return sendRequest("GET", path);
   },
 
+  downloadSetupExperienceScript: (teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
+      team_id: teamId,
+      alt: "media",
+    })}`;
+
+    return sendRequest("GET", path);
+  },
+
   uploadSetupExperienceScript: (file: File, teamId: number) => {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
