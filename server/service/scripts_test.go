@@ -59,7 +59,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("echo"), nil
 	}
-	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) ([]*uint, error) { return nil, nil }
+	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) { return false, nil }
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {

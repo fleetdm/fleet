@@ -879,6 +879,26 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, tm.Name, tok.MacOSTeam.Name)
 	require.Equal(t, tm.Name, tok.IOSTeam.Name)
 	require.Equal(t, tm.Name, tok.IPadOSTeam.Name)
+
+	// Reset the teams via app config
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"apple_business_manager": []
+			}
+		}`), http.StatusOK, &acResp)
+
+	tokensResp = listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
+	require.NotNil(t, tok)
+	require.False(t, tok.TermsExpired)
+	require.Equal(t, "abc", tok.AppleID)
+	require.Equal(t, tmOrgName, tok.OrganizationName)
+	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
 }
 
 func (s *integrationMDMTestSuite) getABMTokenByName(orgName string, tokens []*fleet.ABMToken) *fleet.ABMToken {
@@ -10532,6 +10552,25 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
+	// Reset the token's teams by omitting the token from app config
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "volume_purchasing_program": null }
+  }`), http.StatusOK, &acResp)
+
+	resp = getVPPTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Len(t, resp.Tokens, 1)
+	require.Equal(t, orgName, resp.Tokens[0].OrgName)
+	require.Equal(t, location, resp.Tokens[0].Location)
+	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
+	require.Empty(t, resp.Tokens[0].Teams)
+
+	// Add the team back
+	resPatchVPP = patchVPPTokensTeamsResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+
 	// Get list of VPP apps from "Apple"
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
@@ -10800,14 +10839,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99}}, http.StatusUnprocessableEntity, &resPatchVPP)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
-
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	_, err := q.ExecContext(context.Background(), "UPDATE vpp_tokens SET renew_at = ? WHERE organization_name = ?", time.Now().Add(-1*time.Hour), "badtoken")
-	// 	return err
-	// })
-
-	// r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
-	// require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
 
 	// Disable the token
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)

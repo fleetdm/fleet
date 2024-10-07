@@ -291,7 +291,9 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, profileID, "")
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, profileID, "")
+	})
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
@@ -299,10 +301,20 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
 	}
-	return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, 0, profileUUID)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
+			return err
+		}
+
+		if err := deleteUnsentAppleHostMDMProfile(ctx, tx, profileUUID); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
-func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, id uint, uuid string) error {
+func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtContext, id uint, uuid string) error {
 	var arg any
 	stmt := `DELETE FROM mdm_apple_configuration_profiles WHERE `
 	if uuid != "" {
@@ -312,7 +324,7 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 		arg = id
 		stmt += `profile_id = ?`
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, arg)
+	res, err := tx.ExecContext(ctx, stmt, arg)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -323,6 +335,15 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 			return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(uuid))
 		}
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(id))
+	}
+
+	return nil
+}
+
+func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
+	const stmt = `DELETE FROM host_mdm_apple_profiles WHERE profile_uuid = ? AND status IS NULL AND operation_type = ? AND command_uuid = ''`
+	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host profile that has not been sent to host")
 	}
 
 	return nil

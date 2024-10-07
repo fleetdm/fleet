@@ -514,12 +514,12 @@ apiVersion: v1
 kind: policy
 spec:
   name: Full disk encryption enabled (Linux)
-  query: SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';
+  query: SELECT 1 FROM mounts m, disk_encryption d WHERE m.device_alias = d.name AND d.encrypted = 1 AND m.path = '/';
   description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
   resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
   platform: linux
   tags: compliance, hardening, built-in, critical
-  contributors: GuillaumeRoss
+  contributors: jbilling,GuillaumeRoss
 ---
 apiVersion: v1
 kind: policy
