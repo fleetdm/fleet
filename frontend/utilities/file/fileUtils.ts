@@ -36,3 +36,8 @@ export const getFileDetails = (file: File) => {
     platform: getPlatformDisplayName(file),
   };
 };
+
+export interface IFileDetails {
+  name: string;
+  platform?: string;
+}

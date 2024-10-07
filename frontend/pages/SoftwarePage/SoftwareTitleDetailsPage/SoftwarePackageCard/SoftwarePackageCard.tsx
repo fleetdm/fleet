@@ -15,7 +15,6 @@ import softwareAPI from "services/entities/software";
 import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
-import { noop } from "lodash";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -390,7 +389,6 @@ const SoftwarePackageCard = ({
           software={softwarePackage}
           onExit={() => setShowEditSoftwareModal(false)}
           router={router}
-          setAddedSoftwareToken={noop}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}

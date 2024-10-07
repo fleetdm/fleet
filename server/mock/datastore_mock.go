@@ -464,7 +464,7 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
-type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -499,6 +499,8 @@ type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[s
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
 type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
+
+type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error)
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
@@ -1008,7 +1010,7 @@ type GetScriptIDByNameFunc func(ctx context.Context, name string, teamID *uint) 
 
 type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
 
-type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error
+type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -1091,6 +1093,12 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
+
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+
+type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
+
+type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1812,6 +1820,9 @@ type DataStore struct {
 
 	GetPoliciesWithAssociatedInstallerFunc        GetPoliciesWithAssociatedInstallerFunc
 	GetPoliciesWithAssociatedInstallerFuncInvoked bool
+
+	GetPoliciesWithAssociatedScriptFunc        GetPoliciesWithAssociatedScriptFunc
+	GetPoliciesWithAssociatedScriptFuncInvoked bool
 
 	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
 	GetCalendarPoliciesFuncInvoked bool
@@ -2700,6 +2711,15 @@ type DataStore struct {
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
+
+	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
+	ListAvailableFleetMaintainedAppsFuncInvoked bool
+
+	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
+	GetMaintainedAppByIDFuncInvoked bool
+
+	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
+	UpsertMaintainedAppFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4258,7 +4278,7 @@ func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt
 	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
 }
 
-func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error) {
 	s.mu.Lock()
 	s.IsExecutionPendingForHostFuncInvoked = true
 	s.mu.Unlock()
@@ -4382,6 +4402,13 @@ func (s *DataStore) GetPoliciesWithAssociatedInstaller(ctx context.Context, team
 	s.GetPoliciesWithAssociatedInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPoliciesWithAssociatedInstallerFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error) {
+	s.mu.Lock()
+	s.GetPoliciesWithAssociatedScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPoliciesWithAssociatedScriptFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
@@ -6162,7 +6189,7 @@ func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamI
 	return s.GetHostScriptDetailsFunc(ctx, hostID, teamID, opts, hostPlatform)
 }
 
-func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 	s.mu.Lock()
 	s.BatchSetScriptsFuncInvoked = true
 	s.mu.Unlock()
@@ -6454,4 +6481,25 @@ func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, ho
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAvailableFleetMaintainedAppsFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetMaintainedAppByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMaintainedAppByIDFunc(ctx, appID)
+}
+
+func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.UpsertMaintainedAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMaintainedAppFunc(ctx, app)
 }

@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
+  BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
 
@@ -173,14 +174,21 @@ const About = ({
   const renderBattery = () => {
     if (
       aboutData.batteries === null ||
-      typeof aboutData.batteries !== "object"
+      typeof aboutData.batteries !== "object" ||
+      aboutData.batteries?.[0]?.health === "Unknown"
     ) {
       return null;
     }
     return (
       <DataSet
         title="Battery condition"
-        value={aboutData.batteries?.[0]?.health}
+        value={
+          <TooltipWrapper
+            tipContent={BATTERY_TOOLTIP[aboutData.batteries?.[0]?.health]}
+          >
+            {aboutData.batteries?.[0]?.health}
+          </TooltipWrapper>
+        }
       />
     );
   };
