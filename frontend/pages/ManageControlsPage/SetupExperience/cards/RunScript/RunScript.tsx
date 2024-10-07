@@ -13,6 +13,7 @@ import CustomLink from "components/CustomLink";
 import RunScriptPreview from "./components/RunScriptPreview";
 import RunScriptUploader from "./components/RunScriptUploader";
 import RunScriptCard from "./components/RunScriptCard";
+import DeleteRunScriptModal from "./components/DeleteRunScriptModal";
 
 const baseClass = "run-script";
 
@@ -30,6 +31,12 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
   );
 
   const onUpload = () => {
+    // refetchEnrollmentProfile();
+  };
+
+  const onDelete = () => {
+    setShowDeleteScriptModal(false);
+    // TODO: refetch
     // refetchEnrollmentProfile();
   };
 
@@ -77,6 +84,12 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
     <div className={baseClass}>
       <SectionHeader title="Run script" />
       <>{renderContent()}</>
+      {showDeleteScriptModal && (
+        <DeleteRunScriptModal
+          onDeleted={onDelete}
+          onExit={() => setShowDeleteScriptModal(false)}
+        />
+      )}
     </div>
   );
 };
