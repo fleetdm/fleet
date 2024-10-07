@@ -161,6 +161,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return err
 	})
 
+	// Clean scripts in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM scripts WHERE global_or_team_id = 0;`)
+		return err
+	})
+
 	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {

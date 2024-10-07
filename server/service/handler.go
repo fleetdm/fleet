@@ -390,6 +390,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
 
+	// Fleet-maintained apps
+	ue.POST("/api/_version_/fleet/software/fleet_maintained_apps", addFleetMaintainedAppEndpoint, addFleetMaintainedAppRequest{})
+	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedApps, listFleetMaintainedAppsRequest{})
+	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps/{app_id}", getFleetMaintainedApp, getFleetMaintainedAppRequest{})
+
 	// Vulnerabilities
 	ue.GET("/api/_version_/fleet/vulnerabilities", listVulnerabilitiesEndpoint, listVulnerabilitiesRequest{})
 	ue.GET("/api/_version_/fleet/vulnerabilities/{cve}", getVulnerabilityEndpoint, getVulnerabilityRequest{})
@@ -858,6 +863,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oe.POST("/api/fleet/orbit/software_install/details", getOrbitSoftwareInstallDetails, orbitGetSoftwareInstallRequest{})
 
 	oe.POST("/api/fleet/orbit/setup_experience/ready", postOrbitSetupExperienceReadyEndpoint, postOrbitSetupExperienceReadyRequest{})
+	oe.POST("/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusEndpoint, getOrbitSetupExperienceStatusRequest{})
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})

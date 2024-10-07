@@ -210,7 +210,7 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "iPadOS",
 ] as const;
 
-type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
+export type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
 
 export const isPlatformLabelNameFromAPI = (
   s: string
@@ -263,6 +263,16 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   iOS: "platform",
   iPadOS: "platform",
 } as const;
+
+// For some builtin labels, display different strings than what API returns
+export const LABEL_DISPLAY_MAP: Partial<
+  Record<PlatformLabelNameFromAPI, string>
+> = {
+  "All Hosts": "All hosts",
+  "All Linux": "Linux",
+  chrome: "ChromeOS",
+  "MS Windows": "Windows",
+};
 
 export const PLATFORM_TYPE_ICONS: Record<
   Extract<
@@ -332,6 +342,27 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
       Hosts ordered via Apple Business Manager <br /> (ABM). These will
       automatically enroll to Fleet <br /> and turn on MDM when they&apos;re
       unboxed.
+    </span>
+  ),
+};
+
+export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
+  Normal: (
+    <span>
+      Current maximum capacity is at least
+      <br />
+      80% of its designed capacity and the
+      <br />
+      cycle count is below 1000.
+    </span>
+  ),
+  "Service recommended": (
+    <span>
+      Current maximum capacity has fallen
+      <br />
+      below 80% of its designed capacity
+      <br />
+      or the cycle count has reached 1000.
     </span>
   ),
 };
