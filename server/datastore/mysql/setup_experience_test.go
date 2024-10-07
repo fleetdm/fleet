@@ -76,16 +76,18 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	insertSetupExperienceStatusResult := func(sesr *fleet.SetupExperienceStatusResult) {
 		stmt := `INSERT INTO setup_experience_status_results (id, host_uuid, name, status, software_installer_id, host_software_installs_id, vpp_app_team_id, nano_command_uuid, setup_experience_script_id, script_execution_id, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, stmt,
+			res, err := q.ExecContext(ctx, stmt,
 				sesr.ID, sesr.HostUUID, sesr.Name, sesr.Status, sesr.SoftwareInstallerID, sesr.HostSoftwareInstallsID, sesr.VPPAppTeamID, sesr.NanoCommandUUID, sesr.SetupExperienceScriptID, sesr.ScriptExecutionID, sesr.Error)
 			require.NoError(t, err)
+			id, err := res.LastInsertId()
+			require.NoError(t, err)
+			sesr.ID = uint(id)
 			return nil
 		})
 	}
 
 	expRes := []*fleet.SetupExperienceStatusResult{
 		{
-			ID:                  1,
 			HostUUID:            hostUUID,
 			Name:                "software",
 			Status:              fleet.SetupExperienceStatusPending,
@@ -93,7 +95,6 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			SoftwareTitleID:     installer.TitleID,
 		},
 		{
-			ID:              2,
 			HostUUID:        hostUUID,
 			Name:            "vpp",
 			Status:          fleet.SetupExperienceStatusPending,
@@ -101,7 +102,6 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			SoftwareTitleID: ptr.Uint(vppApp.TitleID),
 		},
 		{
-			ID:                      3,
 			HostUUID:                hostUUID,
 			Name:                    "script",
 			Status:                  fleet.SetupExperienceStatusPending,
