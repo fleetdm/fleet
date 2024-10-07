@@ -8,8 +8,8 @@ Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts
 
 ## Prerequisites
 
-* Fleet Premium with Admin permissions.
-* Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) or greater.
+* Fleet Premium with admin permissions
+* Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) or greater
 * [Scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts) on all target hosts
 
 ## Step-by-step instructions
