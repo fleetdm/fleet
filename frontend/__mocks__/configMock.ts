@@ -1,6 +1,7 @@
 import { IConfig, IMdmConfig } from "interfaces/config";
 
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
+  client_url: "",
   enable_disk_encryption: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",

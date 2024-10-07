@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 
+import validUrl from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -16,6 +17,7 @@ import { IAppConfigFormProps, IFormField } from "../constants";
 const baseClass = "app-config-form";
 
 interface IAdvancedConfigFormData {
+  mdmClientURL: string;
   domain: string;
   verifySSLCerts: boolean;
   enableStartTLS?: boolean;
@@ -30,8 +32,39 @@ interface IAdvancedConfigFormData {
 }
 
 interface IAdvancedConfigFormErrors {
-  host_expiry_window?: string | null;
+  mdmClientURL?: string | null;
+  domain?: string | null;
+  hostExpiryWindow?: string | null;
 }
+
+const validateFormData = ({
+  mdmClientURL,
+  domain,
+  hostExpiryWindow,
+  enableHostExpiry,
+}: IAdvancedConfigFormData) => {
+  const errors: Record<string, string> = {};
+
+  if (!mdmClientURL) {
+    delete errors.mdmClientURL;
+  } else if (!validUrl({ url: mdmClientURL })) {
+    errors.mdmClientURL = `${mdmClientURL} is not a valid URL`;
+  }
+
+  if (!domain) {
+    delete errors.domain;
+  } else if (!validUrl({ url: domain })) {
+    errors.domain = `${domain} is not a valid URL`;
+  }
+
+  if (
+    enableHostExpiry &&
+    (!hostExpiryWindow || parseInt(hostExpiryWindow, 10) <= 0)
+  ) {
+    errors.hostExpiryWindow = "Host expiry window must be a positive number";
+  }
+  return errors;
+};
 
 const Advanced = ({
   appConfig,
@@ -39,6 +72,7 @@ const Advanced = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
+    mdmClientURL: appConfig.mdm?.client_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
@@ -60,6 +94,7 @@ const Advanced = ({
   });
 
   const {
+    mdmClientURL,
     domain,
     verifySSLCerts,
     enableStartTLS,
@@ -89,23 +124,10 @@ const Advanced = ({
   );
 
   const onInputChange = ({ name, value }: IFormField) => {
-    setFormData({ ...formData, [name]: value });
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    setFormErrors(validateFormData(newFormData));
   };
-
-  useEffect(() => {
-    // validate desired form fields
-    const errors: IAdvancedConfigFormErrors = {};
-
-    if (
-      enableHostExpiry &&
-      (!hostExpiryWindow || parseInt(hostExpiryWindow, 10) <= 0)
-    ) {
-      errors.host_expiry_window =
-        "Host expiry window must be a positive number";
-    }
-
-    setFormErrors(errors);
-  }, [enableHostExpiry, hostExpiryWindow]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -132,6 +154,9 @@ const Advanced = ({
         activity_expiry_enabled: deleteActivities,
         activity_expiry_window: activityExpiryWindow || undefined,
       },
+      mdm: {
+        client_url: mdmClientURL,
+      },
     };
 
     handleSubmit(formDataToSubmit);
@@ -146,11 +171,21 @@ const Advanced = ({
             Most users do not need to modify these options.
           </p>
           <InputField
+            label="MDM client URL"
+            onChange={onInputChange}
+            name="mdmClientURL"
+            value={mdmClientURL}
+            parseTarget
+            error={formErrors.mdmClientURL}
+            tooltip="Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy."
+          />
+          <InputField
             label="Domain"
             onChange={onInputChange}
             name="domain"
             value={domain}
             parseTarget
+            error={formErrors.domain}
             tooltip={
               <>
                 If you need to specify a HELO domain, <br />
@@ -231,7 +266,7 @@ const Advanced = ({
               name="hostExpiryWindow"
               value={hostExpiryWindow}
               parseTarget
-              error={formErrors.host_expiry_window}
+              error={formErrors.hostExpiryWindow}
             />
           )}
           <Checkbox
