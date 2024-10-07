@@ -381,7 +381,7 @@ Requests are weighed by:
 - How urgent the need is for the customer
 - How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
 - How well the request fits within Fleet's product vision and roadmap
-- Whether all or a valuable piece of the request (user story) can be designed and estimated in ≤1 design sprint and and later developed in ≤1 engineering sprint, given its individual complexity and when combined with other work already accepted
+- Whether the request, or a valuable piece of the request (user story), can be designed and estimated in ≤1 design sprint and and later developed in ≤1 engineering sprint, given its individual complexity and when combined with other work already accepted
 
 
 ### After the feature is accepted
