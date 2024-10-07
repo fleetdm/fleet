@@ -59,7 +59,9 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -211,7 +213,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -327,7 +331,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -516,9 +522,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	)
 
 	var appliedScripts []*fleet.Script
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		appliedScripts = scripts
-		return nil
+		var scriptResponses []fleet.ScriptResponse
+		for _, script := range scripts {
+			scriptResponses = append(scriptResponses, fleet.ScriptResponse{
+				ID:     script.ID,
+				Name:   script.Name,
+				TeamID: script.TeamID,
+			})
+		}
+
+		return scriptResponses, nil
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -704,9 +719,18 @@ func TestGitOpsFullTeam(t *testing.T) {
 	}
 
 	var appliedScripts []*fleet.Script
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		appliedScripts = scripts
-		return nil
+		var scriptResponses []fleet.ScriptResponse
+		for _, script := range scripts {
+			scriptResponses = append(scriptResponses, fleet.ScriptResponse{
+				ID:     script.ID,
+				Name:   script.Name,
+				TeamID: script.TeamID,
+			})
+		}
+
+		return scriptResponses, nil
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1040,9 +1064,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		assert.Empty(t, winProfiles)
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		assert.Empty(t, scripts)
-		return nil
+		return []fleet.ScriptResponse{}, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
@@ -1318,9 +1342,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		assert.Empty(t, winProfiles)
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		assert.Empty(t, scripts)
-		return nil
+		return []fleet.ScriptResponse{}, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
@@ -2190,7 +2214,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
