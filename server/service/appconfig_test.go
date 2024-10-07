@@ -1451,8 +1451,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 
 	// SCEP proxy not configured for free users
 	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
+	assert.ErrorContains(t, err, ErrMissingLicense.Error())
+	assert.ErrorContains(t, err, "integrations.ndes_scep_proxy")
 
 	origValidateNDESSCEPURL := validateNDESSCEPURL
 	origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
@@ -1567,6 +1567,20 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	}
 }
 `
+	// First, dry run.
+	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{DryRun: true})
+	require.NoError(t, err)
+	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
+	// Also check what was saved.
+	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked, "DB write should not happen in dry run")
+
+	// Second, real run.
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
 	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
@@ -1574,4 +1588,5 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
 	assert.False(t, validateNDESSCEPURLCalled)
 	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
 }

@@ -5802,6 +5802,22 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, got.DeletionUUID)
 		require.NotEmpty(t, got.DeletedAt)
 	}
+
+	// Hard delete
+	err = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetCACert)
+	require.NoError(t, err)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
+
+	var result bool
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCACert)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	// other (non-hard deleted asset still present)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCAKey)
+	assert.NoError(t, err)
+	assert.True(t, result)
 }
 
 func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {

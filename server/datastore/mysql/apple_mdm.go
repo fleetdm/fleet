@@ -4833,6 +4833,15 @@ func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames
 	})
 }
 
+func (ds *Datastore) HardDeleteMDMConfigAsset(ctx context.Context, assetName fleet.MDMAssetName) error {
+	stmt := `
+DELETE FROM mdm_config_assets
+WHERE name = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, assetName)
+	// ctxerr.Wrap returns nil if err is nil
+	return ctxerr.Wrap(ctx, err, "hard delete mdm config asset")
+}
+
 func softDeleteMDMConfigAssetsByName(ctx context.Context, tx sqlx.ExtContext, assetNames []fleet.MDMAssetName) error {
 	stmt := `
 UPDATE

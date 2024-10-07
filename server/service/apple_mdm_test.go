@@ -2695,7 +2695,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			contents4 = originalContents4
 		})
 
-		profilesToInstall, err := ds.ListMDMAppleProfilesToInstallFunc(ctx)
+		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx)
 		hostUUIDs := make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
@@ -2716,7 +2716,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			return nil
 		}
 
-		err = ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 1, failedCount)

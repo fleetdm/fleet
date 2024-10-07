@@ -338,6 +338,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
 	switch {
 	case !license.IsPremium():
+		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
 		appConfig.Integrations.NDESSCEPProxy.Valid = false
 	case !newAppConfig.Integrations.NDESSCEPProxy.Set:
 		// Nothing is set -- keep the old value
@@ -345,6 +346,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
 		// User is explicitly clearing this setting
 		appConfig.Integrations.NDESSCEPProxy.Valid = false
+		// Delete stored password
+		if !applyOpts.DryRun {
+			if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
+			}
+		}
 	default:
 		// User is updating the setting
 		appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)

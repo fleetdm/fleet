@@ -882,6 +882,8 @@ type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []flee
 
 type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
 
+type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMAssetName) error
+
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
@@ -2385,6 +2387,9 @@ type DataStore struct {
 
 	DeleteMDMConfigAssetsByNameFunc        DeleteMDMConfigAssetsByNameFunc
 	DeleteMDMConfigAssetsByNameFuncInvoked bool
+
+	HardDeleteMDMConfigAssetFunc        HardDeleteMDMConfigAssetFunc
+	HardDeleteMDMConfigAssetFuncInvoked bool
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
@@ -5719,6 +5724,13 @@ func (s *DataStore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames 
 	s.DeleteMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMConfigAssetsByNameFunc(ctx, assetNames)
+}
+
+func (s *DataStore) HardDeleteMDMConfigAsset(ctx context.Context, assetName fleet.MDMAssetName) error {
+	s.mu.Lock()
+	s.HardDeleteMDMConfigAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.HardDeleteMDMConfigAssetFunc(ctx, assetName)
 }
 
 func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
