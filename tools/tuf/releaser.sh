@@ -350,7 +350,10 @@ rotate_root_keys () {
 trap clean_up EXIT
 print_reminder
 setup
-pull_from_remote
+
+if [[ $ACTION != "push-to-remote" ]]; then
+    pull_from_remote
+fi
 
 if [[ $ACTION == "release-to-edge" ]]; then
     release_to_edge
