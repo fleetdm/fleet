@@ -520,7 +520,7 @@ Use the following steps to schedule an interview between a candidate and the CEO
 1. Once you receive a [CEO interview request](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member), apply the "eyes" (👀) emoji to the Slack post to acknowledge you've seen the request.
 2. Reach out to the candidate via email to find a time when the CEO and candidate are both available.
    > This entire process takes an hour for the CEO: a 30-minute interview followed by a 30-minute "¶¶ Postgame" Be sure to offer times that accommodate this.
-3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc) and move it to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
+3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc) and move it to the "[¶¶ Interview feedback](https://drive.google.com/drive/folders/1v5Z1WB9S855hLZMUWgOiXA_ei2EpEGlA?usp=drive_link)" folder in Google Drive. 
 4. Prep the CEO interview doc:
    - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
