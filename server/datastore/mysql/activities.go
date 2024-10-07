@@ -39,12 +39,9 @@ func (ds *Datastore) NewActivity(
 		}
 		userName = &user.Name
 		userEmail = &user.Email
-	} else if castActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-		if castActivity.PolicyID != nil {
-			policy, err := ds.Policy(ctx, *castActivity.PolicyID)
-			if err == nil { // fall back to blank username if we can't pull the policy
-				userName = &policy.Name
-			}
+	} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
+		if ranScriptActivity.PolicyName != nil {
+			userName = ranScriptActivity.PolicyName
 		}
 	}
 

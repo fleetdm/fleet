@@ -271,6 +271,8 @@ type PolicyScriptData struct {
 // PolicyLite is a stripped down version of the policy.
 type PolicyLite struct {
 	ID uint `db:"id"`
+	// Name is the name of the policy.
+	Name string `db:"name"`
 	// Description describes the policy.
 	Description string `db:"description"`
 	// Resolution describes how to solve a failing policy.
