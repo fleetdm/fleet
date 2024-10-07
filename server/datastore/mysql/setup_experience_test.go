@@ -42,6 +42,8 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID})
 	require.NoError(t, err)
+	installer, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+	require.NoError(t, err)
 
 	// VPP setup: create a token so that we can insert a VPP app
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
@@ -88,7 +90,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Name:                "software",
 			Status:              fleet.SetupExperienceStatusPending,
 			SoftwareInstallerID: ptr.Uint(installerID),
-			SoftwareTitleID:     ptr.Uint(1),
+			SoftwareTitleID:     installer.TitleID,
 		},
 		{
 			ID:              2,
@@ -96,7 +98,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Name:            "vpp",
 			Status:          fleet.SetupExperienceStatusPending,
 			VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
-			SoftwareTitleID: ptr.Uint(2),
+			SoftwareTitleID: ptr.Uint(vppApp.TitleID),
 		},
 		{
 			ID:                      3,
