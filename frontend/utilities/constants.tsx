@@ -210,7 +210,7 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "iPadOS",
 ] as const;
 
-type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
+export type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
 
 export const isPlatformLabelNameFromAPI = (
   s: string
@@ -263,6 +263,16 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   iOS: "platform",
   iPadOS: "platform",
 } as const;
+
+// For some builtin labels, display different strings than what API returns
+export const LABEL_DISPLAY_MAP: Partial<
+  Record<PlatformLabelNameFromAPI, string>
+> = {
+  "All Hosts": "All hosts",
+  "All Linux": "Linux",
+  chrome: "ChromeOS",
+  "MS Windows": "Windows",
+};
 
 export const PLATFORM_TYPE_ICONS: Record<
   Extract<

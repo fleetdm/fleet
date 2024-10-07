@@ -2434,8 +2434,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [List host OS versions](#list-host-os-versions)
-- [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
