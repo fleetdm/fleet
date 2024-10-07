@@ -3516,6 +3516,9 @@ func preprocessProfileContents(
 		return appConfig.Integrations.NDESSCEPProxy.Valid, nil
 	}
 
+	// Copy of NDES SCEP config which will contain unencrypted password, if needed
+	var ndesConfig *fleet.NDESSCEPProxyIntegration
+
 	var addedTargets map[string]*cmdTarget
 	for profUUID, target := range targets {
 		contents, ok := profileContents[profUUID]
@@ -3585,8 +3588,20 @@ func preprocessProfileContents(
 			for fleetVar := range fleetVars {
 				switch fleetVar {
 				case FleetVarNDESSCEPChallenge:
+					if ndesConfig == nil {
+						// Retrieve the NDES admin password. This is done once per run.
+						configAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "getting NDES password")
+						}
+						// Copy config struct by value
+						configWithPassword := appConfig.Integrations.NDESSCEPProxy.Value
+						configWithPassword.Password = string(configAssets[fleet.MDMAssetNDESPassword].Value)
+						// Store the config with the password for later use
+						ndesConfig = &configWithPassword
+					}
 					// Insert the SCEP challenge into the profile contents
-					challenge, err := getNDESSCEPChallenge(ctx, appConfig.Integrations.NDESSCEPProxy.Value)
+					challenge, err := getNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
 						detail := ""
 						switch {

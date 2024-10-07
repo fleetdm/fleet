@@ -2801,11 +2801,20 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_BOZO")
 	assert.Empty(t, targets)
 
+	ndesPassword := "test-password"
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context,
+		assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetNDESPassword: {Value: []byte(ndesPassword)},
+		}, nil
+	}
+
 	// Could not get NDES SCEP challenge
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPChallenge),
 	}
 	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESInvalidError("NDES error")
 	}
 	updatedProfile = nil
@@ -2819,6 +2828,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// Password cache full
 	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESPasswordCacheFullError("NDES error")
 	}
 	updatedProfile = nil
@@ -2832,6 +2842,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// Other NDES challenge error
 	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", errors.New("NDES error")
 	}
 	updatedProfile = nil
@@ -2847,6 +2858,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	// NDES challenge
 	challenge := "ndes-challenge"
 	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		assert.Equal(t, ndesPassword, proxy.Password)
 		return challenge, nil
 	}
 	updatedProfile = nil
