@@ -293,7 +293,7 @@ will be disabled and/or hidden in the UI.
                 firstName: sanitizedUser.firstName,
                 lastName: sanitizedUser.lastName,
                 organization: sanitizedUser.organization,
-                pageUrlVisited: `https://fleetdm.com/${req.url}`,
+                pageUrlVisited: `https://fleetdm.com${req.url}`,
               }).exec((err)=>{
                 if(err){
                   sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
