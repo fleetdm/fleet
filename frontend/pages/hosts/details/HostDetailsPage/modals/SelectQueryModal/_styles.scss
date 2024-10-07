@@ -31,4 +31,10 @@
       font-weight: $bold;
     }
   }
+
+  &__query-selection {
+    .children-wrapper {
+      width: 680px;
+    }
+  }
 }
