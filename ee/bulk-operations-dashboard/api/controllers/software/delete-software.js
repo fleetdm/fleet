@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Delete software',
 
 
-  description: '',
+  description: 'Deletes deployed software for all teams on a Fleet instance, or undeployed software in the app\'s database',
 
   inputs: {
     software: {

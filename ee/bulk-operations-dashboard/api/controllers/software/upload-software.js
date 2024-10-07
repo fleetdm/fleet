@@ -53,8 +53,12 @@ module.exports = {
       await UndeployedSoftware.create(newSoftwareInfo);
     } else {
       for(let teamApid of teams) {
-        uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: 500000000});
-        console.log(uploadedSoftware);
+        uploadedSoftware = await sails.uploadOne(newSoftware,
+          {
+            adapter: require('skipper-disk'),
+            maxBytes: 300*1024*1024// 300 MB
+          }
+        );
         var WritableStream = require('stream').Writable;
         await sails.cp(uploadedSoftware.fd, {adapter: require('skipper-disk')}, {
           adapter: ()=>{
@@ -86,7 +90,7 @@ module.exports = {
                         },
                       });
                     } catch(error){
-                      throw new Error('Failed to upload file:'+ util.inspect(error));
+                      throw error;
                     }
                   })()
                   .then(()=>{
@@ -101,8 +105,9 @@ module.exports = {
               }
             };
           }
-        }).tolerate((unusedErr)=>{
-          throw 'softwareAlreadyExistsOnThisTeam';
+        })
+        .intercept({response: {status: 409}}, ()=>{
+          return 'softwareAlreadyExistsOnThisTeam';
         });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.

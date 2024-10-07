@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Edit software',
 
 
-  description: '',
+  description: 'Edits deployed software on a Fleet instance or undeployed software in the app\'s database',
 
   files: ['newSoftware'],
 
@@ -14,7 +14,7 @@ module.exports = {
       description: 'The optional streaming bytes of a new software version.'
     },
     newTeamIds: {
-      type: ['ref'],
+      type: ['string'],
       description: 'The new teams that this software will be deployed to.'
     },
     software: {

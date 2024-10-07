@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get software',
 
 
-  description: '',
+  description: 'Builds and returns an array of deployed software installers on the Fleet instance and undeployed software stored in the dashboard\'s datastore.',
 
 
   exits: {

@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Download software',
 
 
-  description: 'Download software file (returning a stream).',
+  description: 'Downloads a software installer for deployed or undeployed software.',
 
 
   inputs: {
@@ -48,7 +48,6 @@ module.exports = {
       downloading = await sails.startDownload(softwareToDownload.uploadFd);
       this.res.type(softwareToDownload.uploadMime);
       this.res.attachment(softwareToDownload.name);
-      return downloading;
     } else {
       // Get information about the installer package from the Fleet server.
       let packageInformation = await sails.helpers.http.get.with({
@@ -67,8 +66,8 @@ module.exports = {
         }
       });
       this.res.attachment(filename);
-      return downloading;
     }
+    return downloading;
   }
 
 
