@@ -80,13 +80,14 @@ module.exports = {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         });
-        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {adapter: require('skipper-disk'),  maxBytes: 500000000});
+        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {adapter: require('skipper-disk'),  maxBytes: 300*1024*1024});
         softwareFd = tempUploadedSoftware.fd;
         softwareName = software.name;
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
+        // If a new copy of the installer was uploaded, we'll
         // console.log('replacing software package!');
-        let uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: 500000000});
+        let uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: 300*1024*1024});
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
         softwareMime = uploadedSoftware.type;
@@ -102,6 +103,15 @@ module.exports = {
         softwareName = software.name;
         softwareMime = software.uploadMime;
       }
+      let adapterForUploadedFile = {};
+      if(!software.id) {
+        // If this software is not stored in the s3 bucket, we'll use the skipper-disk adapter to store a temporary copy in the app's local filesystem.
+        // Note: This file will be deleted after it is copied to its final home (either the S3 bucket we're storing )
+        adapterForUploadedFile = {
+          adapter: require('skipper-disk'),
+          maxBytes: 300*1024*1024// 300 MB
+        };
+      }
       // Now apply the edits.
       if(newTeamIds.length !== 0) {
         let currentSoftwareTeamIds = _.pluck(software.teams, 'fleetApid') || [];
@@ -110,10 +120,6 @@ module.exports = {
         let unchangedTeamIds = _.difference(currentSoftwareTeamIds, removedTeams);
         for(let team of addedTeams) {
           // Send an api request to send the file to the Fleet server for each added team.
-          let adapterForUploadedFile = {};
-          if(!software.id) {
-            adapterForUploadedFile = {adapter: require('skipper-disk'), maxBytes: 500000000};
-          }
           await sails.cp(softwareFd, adapterForUploadedFile,
             {
               adapter: ()=>{
@@ -263,11 +269,14 @@ module.exports = {
             platform: _.endsWith(softwareName, '.deb') ? 'Linux' : _.endsWith(softwareName, '.pkg') ? 'macOS' : 'Windows',
           });
         } else {
-          // console.log('undeploying ',softwareName);
+          // Copy the software installer from temporary file storage to the s3 bucket.
+          let newlyUndeployedSoftwareInfo = await sails.cp(softwareFd, adapterForUploadedFile, {});
+          // Delete the temporary file for the installer.
+          await sails.rm(softwareFd, adapterForUploadedFile)
           // Save the information about the undeployed software in the app's DB.
           await UndeployedSoftware.create({
-            uploadFd: softwareFd,
-            uploadMime: softwareMime,
+            uploadFd: newlyUndeployedSoftwareInfo.fd,
+            uploadMime: newlyUndeployedSoftwareInfo.type,
             name: software.name,
             platform: software.platform,
             postInstallScript,
