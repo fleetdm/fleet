@@ -1,5 +1,6 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
+import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -8,7 +9,6 @@ import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
-  UPLOAD_TIMEOUT,
 } from "services/entities/software";
 
 import { NotificationContext } from "context/notification";
@@ -43,8 +43,6 @@ const SoftwareCustomPackage = ({
   );
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Next line with e.returnValue is included for legacy support
@@ -55,9 +53,6 @@ const SoftwareCustomPackage = ({
     // set up event listener to prevent user from leaving page while uploading
     if (uploadDetails) {
       addEventListener("beforeunload", beforeUnloadHandler);
-      timeout = setTimeout(() => {
-        removeEventListener("beforeunload", beforeUnloadHandler);
-      }, UPLOAD_TIMEOUT);
     } else {
       removeEventListener("beforeunload", beforeUnloadHandler);
     }
@@ -65,7 +60,6 @@ const SoftwareCustomPackage = ({
     // clean up event listener and timeout on component unmount
     return () => {
       removeEventListener("beforeunload", beforeUnloadHandler);
-      clearTimeout(timeout);
     };
   }, [uploadDetails]);
 
@@ -103,9 +97,8 @@ const SoftwareCustomPackage = ({
       await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
-        timeout: UPLOAD_TIMEOUT,
-        onUploadProgress: (progressEvent) => {
-          setUploadProgress(progressEvent.progress || 0);
+        onUploadProgress: ({ progress }) => {
+          setUploadProgress(progress && progress < 1 ? progress : 0);
         },
       });
       renderFlash(
@@ -128,10 +121,17 @@ const SoftwareCustomPackage = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
+      const isTimeout =
+        isAxiosError(e) &&
+        (e.response?.status === 504 || e.response?.status === 408);
       const reason = getErrorReason(e);
-      if (
-        reason.includes("Couldn't add. Fleet couldn't read the version from")
-      ) {
+
+      if (isTimeout) {
+        renderFlash(
+          "error",
+          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+        );
+      } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
           "error",
           <>
