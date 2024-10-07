@@ -25,7 +25,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 ## Original requests
 
-<!-- Inser the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. -->
+<!-- Insert the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. For customer requestors, add the `customer-xyz` label(s). -->
 
 ## Context
 - Product designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
