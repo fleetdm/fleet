@@ -6,6 +6,8 @@ import uninstallMsi from "../../pkg/file/scripts/uninstall_msi.ps1";
 import uninstallExe from "../../pkg/file/scripts/uninstall_exe.ps1";
 // @ts-ignore
 import uninstallDeb from "../../pkg/file/scripts/uninstall_deb.sh";
+// @ts-ignore
+import uninstallRPM from "../../pkg/file/scripts/uninstall_rpm.sh";
 
 /*
  * getUninstallScript returns a string with a script to uninstall the
@@ -20,6 +22,8 @@ const getDefaultUninstallScript = (fileName: string): string => {
       return uninstallMsi;
     case "deb":
       return uninstallDeb;
+    case "rpm":
+      return uninstallRPM;
     case "exe":
       return uninstallExe;
     default:

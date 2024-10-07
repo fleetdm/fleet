@@ -38,6 +38,7 @@ func TestScripts(t *testing.T) {
 		{"TestInsertScriptContents", testInsertScriptContents},
 		{"TestCleanupUnusedScriptContents", testCleanupUnusedScriptContents},
 		{"TestGetAnyScriptContents", testGetAnyScriptContents},
+		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -651,7 +652,7 @@ VALUES
 		insertResults(t, 42, scripts[2], now.Add(-2*time.Minute), "execution-3-4", nil)
 		r, err := ds.IsExecutionPendingForHost(ctx, 42, scripts[2].ID)
 		require.NoError(t, err)
-		require.Len(t, r, 1)
+		require.True(t, r)
 	})
 }
 
@@ -659,7 +660,7 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	applyAndExpect := func(newSet []*fleet.Script, tmID *uint, want []*fleet.Script) map[string]uint {
-		err := ds.BatchSetScripts(ctx, tmID, newSet)
+		responseFromSet, err := ds.BatchSetScripts(ctx, tmID, newSet)
 		require.NoError(t, err)
 
 		if tmID == nil {
@@ -669,12 +670,18 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// compare only the fields we care about
-		m := make(map[string]uint)
+		fromGetByScriptName := make(map[string]uint)
+		fromSetByScriptName := make(map[string]uint)
+		for _, gotScript := range responseFromSet {
+			fromSetByScriptName[gotScript.Name] = gotScript.ID
+		}
 		for _, gotScript := range got {
-			m[gotScript.Name] = gotScript.ID
+			fromGetByScriptName[gotScript.Name] = gotScript.ID
 			if gotScript.TeamID != nil && *gotScript.TeamID == 0 {
 				gotScript.TeamID = nil
 			}
+
+			require.Equal(t, fromGetByScriptName[gotScript.Name], gotScript.ID)
 			gotScript.ID = 0
 			gotScript.CreatedAt = time.Time{}
 			gotScript.UpdatedAt = time.Time{}
@@ -682,7 +689,7 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		// order is not guaranteed
 		require.ElementsMatch(t, want, got)
 
-		return m
+		return fromGetByScriptName
 	}
 
 	// apply empty set for no-team
@@ -698,6 +705,15 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	}, ptr.Uint(tm1.ID), []*fleet.Script{
 		{Name: "N1", TeamID: ptr.Uint(tm1.ID)},
 	})
+	n1WithTeamID := sTm1["N1"]
+
+	teamPolicy, err := ds.NewTeamPolicy(ctx, tm1.ID, nil, fleet.PolicyPayload{
+		Name:     "Team One Policy",
+		Query:    "SELECT 1",
+		Platform: "darwin",
+		ScriptID: &n1WithTeamID,
+	})
+	require.NoError(t, err)
 
 	// apply single script set for no-team
 	sNoTm := applyAndExpect([]*fleet.Script{
@@ -705,6 +721,15 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	}, nil, []*fleet.Script{
 		{Name: "N1", TeamID: nil},
 	})
+	n1WithNoTeamId := sNoTm["N1"]
+
+	noTeamPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil, fleet.PolicyPayload{
+		Name:     "No Team Policy",
+		Query:    "SELECT 1",
+		Platform: "darwin",
+		ScriptID: &n1WithNoTeamId,
+	})
+	require.NoError(t, err)
 
 	// apply new script set for tm1
 	sTm1b := applyAndExpect([]*fleet.Script{
@@ -717,6 +742,11 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	// name for N1-I1 is unchanged
 	require.Equal(t, sTm1["I1"], sTm1b["I1"])
 
+	// policy still has script associated
+	teamPolicy, err = ds.Policy(ctx, teamPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, n1WithTeamID, *teamPolicy.ScriptID)
+
 	// apply edited (by contents only) script set for no-team
 	sNoTmb := applyAndExpect([]*fleet.Script{
 		{Name: "N1", ScriptContents: "C1-changed"},
@@ -724,6 +754,11 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		{Name: "N1", TeamID: nil},
 	})
 	require.Equal(t, sNoTm["I1"], sNoTmb["I1"])
+
+	// policy still has script associated
+	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, n1WithNoTeamId, *noTeamPolicy.ScriptID)
 
 	// apply edited script (by content only), unchanged script and new
 	// script for tm1
@@ -741,6 +776,24 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	// identifier for N2-I2 is unchanged
 	require.Equal(t, sTm1b["I2"], sTm1c["I2"])
 
+	// policy still has script associated
+	teamPolicy, err = ds.Policy(ctx, teamPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, n1WithTeamID, *teamPolicy.ScriptID)
+
+	// clear scripts for tm1
+	applyAndExpect(nil, ptr.Uint(1), nil)
+
+	// policy on team should not have script assigned
+	teamPolicy, err = ds.Policy(ctx, teamPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, teamPolicy.ScriptID)
+
+	// no-team policy still has script associated
+	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, n1WithNoTeamId, *noTeamPolicy.ScriptID)
+
 	// apply only new scripts to no-team
 	applyAndExpect([]*fleet.Script{
 		{Name: "N4", ScriptContents: "C4"},
@@ -750,8 +803,15 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		{Name: "N5", TeamID: nil},
 	})
 
-	// clear scripts for tm1
-	applyAndExpect(nil, ptr.Uint(1), nil)
+	// policy on team should not have script assigned
+	teamPolicy, err = ds.Policy(ctx, teamPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, teamPolicy.ScriptID)
+
+	// no-team policy should not have script associated
+	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, noTeamPolicy.ScriptID)
 }
 
 func testLockHostViaScript(t *testing.T, ds *Datastore) {
@@ -1267,4 +1327,35 @@ func testGetAnyScriptContents(t *testing.T, ds *Datastore) {
 	result, err := ds.GetAnyScriptContents(ctx, uint(id))
 	require.NoError(t, err)
 	require.Equal(t, contents, string(result))
+}
+
+func testDeleteScriptsAssignedToPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		TeamID:         &team1.ID,
+		ScriptContents: "hello world",
+	})
+	require.NoError(t, err)
+
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:     "p1",
+		Query:    "SELECT 1;",
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+
+	err = ds.DeleteScript(ctx, script.ID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteScriptWithAssociatedPolicy)
+
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+
+	err = ds.DeleteScript(ctx, script.ID)
+	require.NoError(t, err)
 }

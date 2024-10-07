@@ -46,11 +46,10 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      # Set the Node.js version
-      - name: Set up Node.js ${{ vars.NODE_VERSION }}
+      - name: Set up Node.js
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
-          node-version: ${{ vars.NODE_VERSION }}
+          node-version-file: package.json
 
       - name: Install JS Dependencies
         run: make deps-js

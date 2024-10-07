@@ -44,14 +44,14 @@ const CreateTeamModal = ({
     (evt: any) => {
       evt.preventDefault();
       onSubmit({
-        name,
+        name: name.trim(),
       });
     },
     [onSubmit, name]
   );
 
   return (
-    <Modal title={"Create team"} onExit={onCancel} className={baseClass}>
+    <Modal title="Create team" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -61,6 +61,9 @@ const CreateTeamModal = ({
           autofocus
           name="name"
           onChange={onInputChange}
+          onBlur={() => {
+            setName(name.trim());
+          }}
           label="Team name"
           placeholder="Workstations"
           value={name}
