@@ -24,20 +24,24 @@ interface IRunScriptProps {
 const RunScript = ({ currentTeamId }: IRunScriptProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
-  const { data: script, isLoading, isError } = useQuery(
+  const {
+    data: script,
+    isLoading,
+    isError,
+    refetch: refetchScript,
+  } = useQuery(
     ["setup-experience-script", currentTeamId],
     () => mdmAPI.getSetupExperienceScript(currentTeamId),
     { ...DEFAULT_USE_QUERY_OPTIONS }
   );
 
   const onUpload = () => {
-    // refetchEnrollmentProfile();
+    refetchScript();
   };
 
   const onDelete = () => {
     setShowDeleteScriptModal(false);
-    // TODO: refetch
-    // refetchEnrollmentProfile();
+    refetchScript();
   };
 
   const scriptUploaded = true;

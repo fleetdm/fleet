@@ -30,12 +30,12 @@ const RunScriptCard = ({ script, onDelete }: IRunScriptCardProps) => {
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
+    // TODO: download script integration
 
     // const date = new Date();
     // const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
     //   script.name
     // }`;
-    // TODO: download script
     // const file = new global.window.File(
     //   [JSON.stringify(script.enrollment_profile)],
     //   filename
