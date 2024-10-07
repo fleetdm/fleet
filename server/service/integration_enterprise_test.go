@@ -6284,7 +6284,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	s.lastActivityMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
 			host.ID, host.DisplayName(), savedNoTmScript.Name, scriptResultResp.ExecutionID,
 		),
 		0,
@@ -12196,7 +12196,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
 			host.ID, host.DisplayName(), scriptExecID), 0)
 
 	// create a saved script execution request
@@ -12218,7 +12218,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 		http.StatusOK)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true}`,
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
 			host.ID, host.DisplayName(), savedScriptExecID), 0)
 
 	// get the anoymous script result details
