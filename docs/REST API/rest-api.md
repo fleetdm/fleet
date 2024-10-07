@@ -491,7 +491,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "",
       "type": "installed_software",
-      "fleet_initiated": "true", // If Fleet installed software via policy automation
+      "fleet_initiated": "true",
       "details": {
         "host_id": 1,
         "host_display_name": "Marko's MacBook Pro",
