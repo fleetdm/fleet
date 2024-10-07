@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -20,35 +21,98 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var _ scepserver.Service = (*scepProxyService)(nil)
+var _ scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
 var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
 
 const fullPasswordCache = "The password cache is full."
 
 type scepProxyService struct {
+	ds fleet.Datastore
 	// info logging is implemented in the service middleware layer.
 	debugLogger log.Logger
 }
 
-func (svc *scepProxyService) GetCACaps(_ context.Context) ([]byte, error) {
-	return nil, errors.New("not implemented")
+// GetCACaps returns a list of SCEP options which are supported by the server.
+// It is a pass-through call to the SCEP server.
+func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if !appConfig.Integrations.NDESSCEPProxy.Valid {
+		// Return error that implements kithttp.StatusCoder interface
+		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "SCEP proxy is not configured"}, "getting app config")
+	}
+	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
+	}
+	return client.GetCACaps(ctx)
 }
 
-func (svc *scepProxyService) GetCACert(_ context.Context, _ string) ([]byte, int, error) {
-	return nil, 0, errors.New("not implemented")
+// GetCACert returns the CA certificate(s) from SCEP server.
+// It is a pass-through call to the SCEP server.
+func (svc *scepProxyService) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if !appConfig.Integrations.NDESSCEPProxy.Valid {
+		// Return error that implements kithttp.StatusCoder interface
+		return nil, 0, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "SCEP proxy is not configured"}, "getting app config")
+	}
+	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
+	}
+	return client.GetCACert(ctx, message)
 }
 
-func (svc *scepProxyService) PKIOperation(_ context.Context, data []byte) ([]byte, error) {
-	return nil, errors.New("not implemented")
+func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, identifier string) ([]byte, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if !appConfig.Integrations.NDESSCEPProxy.Valid {
+		// Return error that implements kithttp.StatusCoder interface
+		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "SCEP proxy is not configured"}, "getting app config")
+	}
+
+	// Validate the identifier. In the future, we will also use the identifier for tracking the certificate renewal.
+	parsedID, err := url.QueryUnescape(identifier)
+	if err != nil {
+		// Should never happen since the identifier comes in as a path variable
+		return nil, ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
+	}
+	parsedIDs := strings.Split(parsedID, ",")
+	if len(parsedIDs) != 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
+		// Return error that implements kithttp.StatusCoder interface
+		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "invalid identifier in URL path"}, "parsing identifier")
+	}
+	profile, err := svc.ds.GetHostMDMAppleProfile(ctx, parsedIDs[0], parsedIDs[1])
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host MDM profile")
+	}
+	if profile == nil {
+		// Return error that implements kithttp.StatusCoder interface
+		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "unknown identifier in URL path"}, "getting host MDM profile")
+	}
+
+	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
+	}
+	return client.PKIOperation(ctx, data)
 }
 
 func (svc *scepProxyService) GetNextCACert(ctx context.Context) ([]byte, error) {
-	return nil, errors.New("not implemented")
+	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
 }
 
 // NewSCEPProxyService creates a new scep proxy service
-func NewSCEPProxyService(logger log.Logger) scepserver.Service {
+func NewSCEPProxyService(ds fleet.Datastore, logger log.Logger) scepserver.ServiceWithIdentifier {
 	return &scepProxyService{
+		ds:          ds,
 		debugLogger: logger,
 	}
 }

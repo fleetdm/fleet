@@ -728,6 +728,8 @@ type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context
 
 type GetHostMDMAppleProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
+type GetHostMDMAppleProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error)
+
 type CleanupDiskEncryptionKeysOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
@@ -2156,6 +2158,9 @@ type DataStore struct {
 
 	GetHostMDMAppleProfilesFunc        GetHostMDMAppleProfilesFunc
 	GetHostMDMAppleProfilesFuncInvoked bool
+
+	GetHostMDMAppleProfileFunc        GetHostMDMAppleProfileFunc
+	GetHostMDMAppleProfileFuncInvoked bool
 
 	CleanupDiskEncryptionKeysOnTeamChangeFunc        CleanupDiskEncryptionKeysOnTeamChangeFunc
 	CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked bool
@@ -5185,6 +5190,13 @@ func (s *DataStore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string
 	s.GetHostMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMAppleProfilesFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMAppleProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error) {
+	s.mu.Lock()
+	s.GetHostMDMAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMAppleProfileFunc(ctx, hostUUID, profileUUID)
 }
 
 func (s *DataStore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {

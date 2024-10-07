@@ -101,7 +101,7 @@ func MakeServerEndpoints(svc Service) *Endpoints {
 	}
 }
 
-func MakeServerEndpointsWithIdentifier(svc Service) *Endpoints {
+func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 	e := MakeSCEPEndpointWithIdentifier(svc)
 	return &Endpoints{
 		GetEndpoint:  e,
@@ -165,7 +165,7 @@ type SCEPRequest struct {
 
 func (r SCEPRequest) scepOperation() string { return r.Operation }
 
-func MakeSCEPEndpointWithIdentifier(svc Service) endpoint.Endpoint {
+func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(SCEPRequestWithIdentifier)
 		resp := SCEPResponse{operation: req.Operation}
@@ -175,7 +175,7 @@ func MakeSCEPEndpointWithIdentifier(svc Service) endpoint.Endpoint {
 		case "GetCACert":
 			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
 		case "PKIOperation":
-			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message)
+			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
 		default:
 			return nil, &BadRequestError{Message: "operation not implemented"}
 		}

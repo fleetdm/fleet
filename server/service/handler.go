@@ -1126,9 +1126,11 @@ func registerSCEP(
 
 func RegisterSCEPProxy(
 	rootMux *http.ServeMux,
+	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
 	scepService := eeservice.NewSCEPProxyService(
+		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
 	)
 	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")

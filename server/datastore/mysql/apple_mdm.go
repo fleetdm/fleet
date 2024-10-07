@@ -455,6 +455,29 @@ WHERE
 	return profiles, nil
 }
 
+func (ds *Datastore) GetHostMDMAppleProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error) {
+	stmt := `
+	SELECT
+		profile_uuid,
+		profile_name AS name,
+		profile_identifier AS identifier,
+		status,
+		COALESCE(operation_type, '') AS operation_type,
+		COALESCE(detail, '') AS detail
+	FROM
+		host_mdm_apple_profiles
+	WHERE
+		host_uuid = ? AND profile_uuid = ?`
+	var profile fleet.HostMDMAppleProfile
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &profile, nil
+}
+
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	payload fleet.MDMAppleEnrollmentProfilePayload,

@@ -131,7 +131,6 @@ func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interf
 
 	operation := r.URL.Query().Get("operation")
 	identifier := mux.Vars(r)["identifier"]
-	// TODO: verify identifier
 	if len(operation) == 0 {
 		return nil, &BadRequestError{Message: "missing operation"}
 	}
