@@ -1090,7 +1090,7 @@ func (r *getOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
 }
 
 type getOrbitSetupExperienceStatusResponse struct {
-	Results *fleet.SetupExperienceStatusPayload `json:"results,omitempty"`
+	Results *fleet.SetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
 	Err     error                               `json:"error,omitempty"`
 }
 

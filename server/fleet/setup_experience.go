@@ -9,6 +9,9 @@ const (
 	SetupExperienceStatusFailure SetupExperienceStatusResultStatus = "failure"
 )
 
+// SetupExperienceStatusResult represents the status of a particular step in the macOS setup
+// experience process for a particular host. These steps can either be a software installer
+// installation, a VPP app installation, or a script execution.
 type SetupExperienceStatusResult struct {
 	ID                      uint                              `db:"id" json:"-" `
 	HostUUID                string                            `db:"host_uuid" json:"-" `
