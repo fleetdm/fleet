@@ -88,7 +88,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 }
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
-	if config.Notifications.RunSetupAssistantInstalls && !swiftdialog.CanRun(r.rootDirPath) {
+	if config.Notifications.RunSetupExperienceInstalls && !swiftdialog.CanRun(r.rootDirPath) {
 		log.Debug().Msg("JVE_LOG: in software installer Run. exiting early because we're in setup experience, but swiftDialog has not been installed yet.")
 		return nil
 	}

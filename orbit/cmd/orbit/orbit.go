@@ -30,7 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
+	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
@@ -425,10 +425,6 @@ func main() {
 
 		opt := update.DefaultOptions
 
-		// TODO(JVE): figure out how we'll indicate to orbit that it's running in a "setup
-		// experience situation" and that it should download swiftDialog right away
-		opt.Targets["swiftDialog"] = update.SwiftDialogMacOSTarget
-
 		if c.Bool("fleet-desktop") {
 			switch runtime.GOOS {
 			case "darwin":
@@ -504,7 +500,7 @@ func main() {
 				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
 
-			targets := []string{"orbit", "osqueryd", "swiftDialog"}
+			targets := []string{"orbit", "osqueryd"}
 
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
@@ -875,27 +871,9 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient)
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
-			log.Debug().Msg("JVE_LOG: going to launch swift dialog zzzzzz")
-			sdPath := "/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app/Contents/MacOS/Dialog"
-			if _, err := os.Stat(sdPath); err != nil {
-				log.Error().Msg("couldn't find swiftDialog on orbit startup")
-			} else {
-
-				sd, err := swiftdialog.Create(context.Background(), sdPath, &swiftdialog.SwiftDialogOptions{Title: "Fleet Setup Experience Test", Height: "650", Button1Action: "https://github.com/"})
-				if err != nil {
-					log.Error().Err(err).Msg("failed to create swiftDialog")
-				}
-				if _, err := sd.Wait(); err != nil {
-					log.Error().Err(err).Msg("failed to wait on swiftDialog")
-				}
-				log.Info().Msg("swiftDialog in setup assistant closed!")
-				if err := orbitClient.SetupExperienceReady(); err != nil {
-					log.Error().Err(err).Msg("failed to mark as ready for setup experience")
-				}
-
-				log.Info().Msg("DEP device released")
-			}
 
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
