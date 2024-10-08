@@ -2665,6 +2665,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	return newActivity(
 		r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 			HostSerial:       updatedInfo.HardwareSerial,
+			HostUUID:         m.UDID,
 			HostDisplayName:  updatedInfo.DisplayName,
 			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
