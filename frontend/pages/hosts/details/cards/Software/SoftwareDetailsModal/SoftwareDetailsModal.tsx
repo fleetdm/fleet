@@ -4,6 +4,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import {
   IHostSoftware,
   ISoftwareInstallVersion,
+  SoftwareSource,
   formatSoftwareType,
   hasHostSoftwareAppLastInstall,
   hasHostSoftwarePackageLastInstall,
@@ -37,7 +38,7 @@ const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
 
 interface ISoftwareDetailsInfoProps {
   installedVersion: ISoftwareInstallVersion;
-  source: string;
+  source: SoftwareSource;
   bundleIdentifier?: string;
 }
 

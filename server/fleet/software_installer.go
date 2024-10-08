@@ -116,6 +116,8 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -322,6 +324,7 @@ type UploadSoftwareInstallerPayload struct {
 	SelfService       bool
 	UserID            uint
 	URL               string
+	FleetLibraryAppID *uint
 	PackageIDs        []string
 	UninstallScript   string
 	Extension         string
@@ -363,6 +366,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 	switch ext {
 	case "deb":
 		return "deb_packages", nil
+	case "rpm":
+		return "rpm_packages", nil
 	case "exe", "msi":
 		return "programs", nil
 	case "pkg":
@@ -378,7 +383,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb":
+	case "deb", "rpm":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil

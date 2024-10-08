@@ -8,6 +8,7 @@ import {
   IHostSoftware,
   IHostSoftwarePackage,
   SoftwareInstallStatus,
+  SoftwareSource,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
@@ -201,7 +202,11 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell
           value={cellProps.cell.value}
-          formatter={() => formatSoftwareType({ source: cellProps.cell.value })}
+          formatter={() =>
+            formatSoftwareType({
+              source: cellProps.cell.value as SoftwareSource,
+            })
+          }
         />
       ),
     },

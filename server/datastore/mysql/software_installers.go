@@ -130,8 +130,9 @@ INSERT INTO software_installers (
     self_service,
 	user_id,
 	user_name,
-	user_email
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?))`
+	user_email,
+	fleet_library_app_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
 
 	args := []interface{}{
 		tid,
@@ -151,6 +152,7 @@ INSERT INTO software_installers (
 		payload.UserID,
 		payload.UserID,
 		payload.UserID,
+		payload.FleetLibraryAppID,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
@@ -334,7 +336,8 @@ SELECT
 	si.uninstall_script_content_id,
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
-	si.platform
+	si.platform,
+	si.fleet_library_app_id
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
@@ -405,7 +408,7 @@ WHERE
 	return &dest, nil
 }
 
-var errDeleteInstallerWithAssociatedPolicy = errors.New("Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.")
+var errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
@@ -417,7 +420,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
 			}
 			if count > 0 {
-				return ctxerr.Wrap(ctx, errDeleteInstallerWithAssociatedPolicy, "delete software installer")
+				return errDeleteInstallerWithAssociatedPolicy
 			}
 		}
 		return ctxerr.Wrap(ctx, err, "delete software installer")
@@ -557,6 +560,7 @@ SELECT
 	hsi.self_service,
 	hsi.host_deleted_at,
 	hsi.created_at as created_at,
+	hsi.updated_at as updated_at,
 	si.user_id AS software_installer_user_id,
 	si.user_name AS software_installer_user_name,
 	si.user_email AS software_installer_user_email

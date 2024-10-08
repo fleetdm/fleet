@@ -137,6 +137,8 @@ Next, the API design DRI reviews all user stories and bugs with the release mile
 
 To signal that the reference docs branch is ready for release, the API design DRI opens a PR to `main`, adds the DRI for what goes in a release as the reviewer, and adds the release milestone.
 
+> Anytime there is a missing or incorrect configuration option or REST API endpoint in the docs, it is treated as a released bug to be filed and fixed ASAP.
+
 ### Interview a Product Designer candidate
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications).

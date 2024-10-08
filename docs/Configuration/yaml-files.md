@@ -84,6 +84,8 @@ policies:
   platform: darwin
   critical: false
   calendar_event_enabled: false
+  run_script:
+    path: "../lib/disable-guest-account.sh"
 - name: Firefox on Linux installed and up to date
   platform: linux
   description: "This policy checks that Firefox is installed and up to date."
@@ -93,7 +95,7 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
@@ -251,7 +253,7 @@ controls:
         labels_include_all:
           - Label 2
   windows_settings:
-    custom_settings
+    custom_settings:
       - path: ../lib/windows-profile.xml
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
@@ -354,7 +356,9 @@ software:
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
 
-> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string. 
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+
+`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
 ##### Separate file
 

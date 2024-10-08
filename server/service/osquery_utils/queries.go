@@ -556,12 +556,14 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
 	"battery": {
-		Query:            `SELECT serial_number, cycle_count, health FROM battery;`,
-		Platforms:        []string{"darwin"},
+		// This query is used to determine battery health of macOS and Windows hosts
+		// based on the cycle count, designed capacity, and max capacity of the battery.
+		// The `health` column is ommitted due to a known osquery issue with M1 Macs
+		// (https://github.com/fleetdm/fleet/issues/6763) and its absence on Windows.
+		Query:            `SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery`,
+		Platforms:        []string{"windows", "darwin"},
 		DirectIngestFunc: directIngestBattery,
-		// the "battery" table doesn't need a Discovery query as it is an official
-		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
-		// always present.
+		Discovery:        discoveryTable("battery"), // added to Windows in v5.12.1 (https://github.com/osquery/osquery/releases/tag/5.12.1)
 	},
 	"os_windows": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
@@ -1294,24 +1296,79 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingGoogleChromeProfiles)
 }
 
+// directIngestBattery ingests battery data from a host on a Windows or macOS platform
+// and calculates the battery health based on cycle count and capacity.
+// Due to a known osquery issue with M1 Macs (https://github.com/fleetdm/fleet/issues/6763)
+// and the ommission of the `health` column on Windows, we are not leveraging the `health`
+// column in the query and instead aligning the definition of battery health between
+// macOS and Windows.
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostBattery, 0, len(rows))
+
 	for _, row := range rows {
-		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		health, cycleCount, err := generateBatteryHealth(row, logger)
 		if err != nil {
-			return err
+			level.Error(logger).Log("op", "directIngestBattery", "hostID", host.ID, "err", err)
 		}
+
 		mapping = append(mapping, &fleet.HostBattery{
 			HostID:       host.ID,
 			SerialNumber: row["serial_number"],
-			CycleCount:   int(cycleCount),
-			// database type is VARCHAR(40) and since there isn't a
-			// canonical list of strings we can get for health, we
-			// truncate the value just in case.
-			Health: fmt.Sprintf("%.40s", row["health"]),
+			CycleCount:   cycleCount,
+			Health:       health,
 		})
 	}
+
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
+}
+
+const (
+	batteryStatusUnknown      = "Unknown"
+	batteryStatusDegraded     = "Service recommended"
+	batteryStatusGood         = "Normal"
+	batteryDegradedThreshold  = 80
+	batteryDegradedCycleCount = 1000
+)
+
+// generateBatteryHealth calculates the battery health based on the cycle count and capacity.
+func generateBatteryHealth(row map[string]string, logger log.Logger) (string, int, error) {
+	designedCapacity := row["designed_capacity"]
+	maxCapacity := row["max_capacity"]
+	cycleCount := row["cycle_count"]
+
+	count, err := strconv.Atoi(EmptyToZero(cycleCount))
+	if err != nil {
+		level.Error(logger).Log("op", "generateBatteryHealth", "err", err)
+		// If we can't parse the cycle count, we'll assume it's 0
+		// and continue with the rest of the battery health check.
+		count = 0
+	}
+
+	if count >= batteryDegradedCycleCount {
+		return batteryStatusDegraded, count, nil
+	}
+
+	if designedCapacity == "" || maxCapacity == "" {
+		return batteryStatusUnknown, count, fmt.Errorf("missing battery capacity values, designed: %s, max: %s", designedCapacity, maxCapacity)
+	}
+
+	designed, err := strconv.ParseInt(designedCapacity, 10, 64)
+	if err != nil {
+		return batteryStatusUnknown, count, fmt.Errorf("failed to parse designed capacity: %s", designedCapacity)
+	}
+
+	max, err := strconv.ParseInt(maxCapacity, 10, 64)
+	if err != nil {
+		return batteryStatusUnknown, count, fmt.Errorf("failed to parse max capacity: %s", maxCapacity)
+	}
+
+	health := float64(max) / float64(designed) * 100
+
+	if health < batteryDegradedThreshold {
+		return batteryStatusDegraded, count, nil
+	}
+
+	return batteryStatusGood, count, nil
 }
 
 func directIngestWindowsUpdateHistory(

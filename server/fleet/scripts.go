@@ -43,7 +43,7 @@ func (s *Script) ValidateNewScript() error {
 		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
-	// validate the script contents as if it were alreay a saved script
+	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
 	}
@@ -138,6 +138,7 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 type HostScriptRequestPayload struct {
 	HostID          uint   `json:"host_id"`
 	ScriptID        *uint  `json:"script_id"`
+	PolicyID        *uint  `json:"policy_id"`
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
@@ -217,6 +218,9 @@ type HostScriptResult struct {
 	// ScriptID is the id of the saved script to execute, or nil if this was an
 	// anonymous script execution.
 	ScriptID *uint `json:"script_id" db:"script_id"`
+	// PolicyID is the id of the policy that triggered the script execution, or
+	// nil if the execution was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 	// UserID is the id of the user that requested execution. It is not part of
 	// the rendered JSON as it is only returned by the
 	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
@@ -375,6 +379,8 @@ type SoftwareInstallerPayload struct {
 	UninstallScript   string `json:"uninstall_script"`
 	PostInstallScript string `json:"post_install_script"`
 	SelfService       bool   `json:"self_service"`
+	FleetMaintained   bool   `json:"-"`
+	Filename          string `json:"-"`
 }
 
 type HostLockWipeStatus struct {
@@ -404,6 +410,17 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+}
+
+// ScriptResponse is the response type used when applying scripts by batch.
+type ScriptResponse struct {
+	// TeamID is the id of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// ID is the id of the script
+	ID uint `json:"id" db:"id"`
+	// Name is the name of the script
+	Name string `json:"name" db:"name"`
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {

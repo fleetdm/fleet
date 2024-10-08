@@ -29,9 +29,12 @@
       justify-content: center;
       font-size: $small;
       
-      span {
+      div {
         color: $ui-fleet-black-75;
         font-size: $xx-small;
+        a {
+          font-size: inherit;
+        }
       }
     }
     .data-error {

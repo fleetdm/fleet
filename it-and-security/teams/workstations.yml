@@ -35,9 +35,9 @@ controls:
       - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
       - path: ../lib/configuration-profiles/macos-misc.mobileconfig
-      - path: ../lib/configuration-profiles/macos-password.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
+      - path: ../lib/configuration-profiles/macos-passcode-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true

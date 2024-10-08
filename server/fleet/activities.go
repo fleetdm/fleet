@@ -1166,11 +1166,13 @@ func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, deta
 }
 
 type ActivityTypeRanScript struct {
-	HostID            uint   `json:"host_id"`
-	HostDisplayName   string `json:"host_display_name"`
-	ScriptExecutionID string `json:"script_execution_id"`
-	ScriptName        string `json:"script_name"`
-	Async             bool   `json:"async"`
+	HostID            uint    `json:"host_id"`
+	HostDisplayName   string  `json:"host_display_name"`
+	ScriptExecutionID string  `json:"script_execution_id"`
+	ScriptName        string  `json:"script_name"`
+	Async             bool    `json:"async"`
+	PolicyID          *uint   `json:"policy_id"`
+	PolicyName        *string `json:"policy_name"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -1188,12 +1190,16 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
-- "async": Whether the script was executed asynchronously.`, `{
+- "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "async": false
+  "async": false,
+  "policy_id": 123,
+  "policy_name": "Ensure photon torpedoes are primed"
 }`
 }
 

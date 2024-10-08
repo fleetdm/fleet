@@ -49,7 +49,7 @@ type uploadSoftwareInstallerResponse struct {
 
 // MaxSoftwareInstallerSize is the maximum size allowed for software
 // installers. This is enforced by the endpoints that upload installers.
-const MaxSoftwareInstallerSize = 500 * units.MiB
+const MaxSoftwareInstallerSize = 3000 * units.MiB
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
 // An authenticated but unauthorized user could abuse this.
@@ -68,7 +68,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 500 MB.",
+				Message:     "The maximum file size is 3 GB.",
 				InternalErr: err,
 			}
 		}
@@ -91,7 +91,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		if decoded.File.Size > MaxSoftwareInstallerSize {
 			// Should never happen here since the request's body is limited to the maximum size.
 			return nil, &fleet.BadRequestError{
-				Message: "The maximum file size is 500 MB.",
+				Message: "The maximum file size is 3 GB.",
 			}
 		}
 	}
