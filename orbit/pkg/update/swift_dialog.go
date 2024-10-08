@@ -36,7 +36,7 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 
 	// TODO: we probably want to ensure that swiftDialog is always installed if we're going to be
 	// using it offline.
-	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile && !cfg.Notifications.RunSetupExperienceInstalls {
+	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile && !cfg.Notifications.RunSetupExperience {
 		log.Debug().Msg("skipping swiftDialog update")
 		return nil
 	}
@@ -57,7 +57,7 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 			return err
 		}
 
-		if cfg.Notifications.RunSetupExperienceInstalls {
+		if cfg.Notifications.RunSetupExperience {
 			// Then update immediately, since we need to get swiftDialog quickly to show the setup
 			// experience
 			_, err := s.UpdateRunner.UpdateAction()

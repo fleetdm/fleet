@@ -88,9 +88,11 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 }
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
-	if config.Notifications.RunSetupExperienceInstalls && !swiftdialog.CanRun(r.rootDirPath) {
-		log.Debug().Msg("JVE_LOG: in software installer Run. exiting early because we're in setup experience, but swiftDialog has not been installed yet.")
-		return nil
+	if runtime.GOOS == "darwin" {
+		if config.Notifications.RunSetupExperience && !swiftdialog.CanRun(r.rootDirPath) {
+			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
+			return nil
+		}
 	}
 
 	connectOsqueryFn := r.connectOsquery

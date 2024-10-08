@@ -37,9 +37,9 @@ type OrbitConfigNotifications struct {
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
-	// RunSetupExperienceInstalls indicates whether or not there are steps to execute on the host as part
-	// of Setup Experience on macOS.
-	RunSetupExperienceInstalls bool `json:"run_setup_experience_installs,omitempty"`
+	// RunSetupExperience indicates whether or not Orbit should run the Fleet setup experience
+	// during macOS Setup Assistant.
+	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 }
 
 type OrbitConfig struct {
