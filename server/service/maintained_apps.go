@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -62,6 +63,8 @@ type listFleetMaintainedAppsRequest struct {
 }
 
 type listFleetMaintainedAppsResponse struct {
+	Count               int                       `json:"count"`
+	CountsUpdatedAt     *time.Time                `json:"counts_updated_at"`
 	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
@@ -74,20 +77,20 @@ func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service
 
 	req.IncludeMetadata = true
 
-	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
+	apps, count, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return listFleetMaintainedAppsResponse{Err: err}, nil
 	}
 
-	return listFleetMaintainedAppsResponse{FleetMaintainedApps: apps, Meta: meta}, nil
+	return listFleetMaintainedAppsResponse{FleetMaintainedApps: apps, Count: count, Meta: meta}, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, int, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, nil, fleet.ErrMissingLicense
+	return nil, 0, nil, fleet.ErrMissingLicense
 }
 
 type getFleetMaintainedAppRequest struct {

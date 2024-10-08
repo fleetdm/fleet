@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -96,7 +97,7 @@ WHERE
 	return &app, nil
 }
 
-func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, int, *fleet.PaginationMetadata, error) {
 	stmt := `
 SELECT
 	fla.id,
@@ -128,6 +129,10 @@ WHERE NOT EXISTS (
 	)
 )`
 
+	// build the count statement before adding the pagination constraints to `getTitlesStmt`
+	dbReader := ds.reader(ctx)
+	getAppsCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
+
 	args := []any{teamID, teamID}
 
 	if match := opt.MatchQuery; match != "" {
@@ -140,7 +145,13 @@ WHERE NOT EXISTS (
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+	}
+
+	// perform a second query to grab the counts
+	var counts int
+	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
@@ -149,5 +160,5 @@ WHERE NOT EXISTS (
 		avail = avail[:len(avail)-1]
 	}
 
-	return avail, meta, nil
+	return avail, counts, meta, nil
 }
