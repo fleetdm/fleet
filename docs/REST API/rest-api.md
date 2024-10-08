@@ -6187,7 +6187,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### List setup experience software
+### List software (setup experience)
 
 _Available in Fleet Premium_
 
