@@ -336,7 +336,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
-	if newAppConfig.Integrations.NDESSCEPProxy.Set && !license.IsPremium() {
+	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !license.IsPremium() {
 		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
 		appConfig.Integrations.NDESSCEPProxy.Valid = false
 	} else {
