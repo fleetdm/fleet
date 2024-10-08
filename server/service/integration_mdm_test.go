@@ -1172,13 +1172,13 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
+		fmt.Sprintf(`{"host_serial": "%s", "host_uuid": %q, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.UUID, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 
 	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
+		fmt.Sprintf(`{"host_serial": "%s", "host_uuid": %q, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.UUID, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
@@ -6520,12 +6520,13 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	// Checking if an activity was created for the enrollment
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		`{
+		fmt.Sprintf(`{
 			"mdm_platform": "microsoft",
 			"host_serial": "",
+			"host_uuid": %q,
 			"installed_from_dep": false,
 			"host_display_name": "DESKTOP-0C89RC0"
-		 }`,
+		 }`, windowsHost.UUID),
 		0)
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
@@ -6567,12 +6568,13 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
 
-	// Checking if an activity was created for the enrollment
+	// Checking if an activity was created for the enrollment (host uuid is empty for azure-enrolled hosts)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		`{
 			"mdm_platform": "microsoft",
 			"host_serial": "",
+			"host_uuid": "",
 			"installed_from_dep": false,
 			"host_display_name": "DESKTOP-0C89RC0"
 		 }`,
