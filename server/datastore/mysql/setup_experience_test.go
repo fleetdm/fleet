@@ -59,23 +59,6 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript:     "world",
-		PreInstallQuery:   "SELECT 2",
-		PostInstallScript: "hello",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
-		StorageID:         "storage2",
-		Filename:          "file2",
-		Title:             "file2",
-		Version:           "2.0",
-		Source:            "apps",
-		UserID:            user1.ID,
-		TeamID:            &team1.ID,
-		Platform:          string(fleet.MacOSPlatform),
-	})
-	_ = installerID2
-	require.NoError(t, err)
-
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
