@@ -114,14 +114,17 @@ func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileNa
 	}
 
 	results := make(map[MetadataFileName]string)
-	for _, e := range releases[0].Assets {
-		name := e.GetName()
-		if strings.HasPrefix(name, prefix) {
-			metadataFileName, err := ctor(name)
-			if err != nil {
-				return nil, err
+
+	if len(releases) > 0 {
+		for _, e := range releases[0].Assets {
+			name := e.GetName()
+			if strings.HasPrefix(name, prefix) {
+				metadataFileName, err := ctor(name)
+				if err != nil {
+					return nil, err
+				}
+				results[metadataFileName] = e.GetBrowserDownloadURL()
 			}
-			results[metadataFileName] = e.GetBrowserDownloadURL()
 		}
 	}
 	return results, nil

@@ -545,11 +545,51 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		for _, tok := range abmAssignments {
-			fmt.Println(tok.EncryptedToken)
+	// Reset teams for ABM tokens that exist in Fleet but aren't present in the config being passed
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
+		tokensInCfg[t.OrganizationName] = struct{}{}
+	}
+
+	toks, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+	for _, tok := range toks {
+		if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+			tok.MacOSDefaultTeamID = nil
+			tok.IOSDefaultTeamID = nil
+			tok.IPadOSDefaultTeamID = nil
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	// Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+	clear(tokensInCfg)
+
+	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+		tokensInCfg[t.Location] = struct{}{}
+	}
+
+	vppToks, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
+	}
+	for _, tok := range vppToks {
+		if _, ok := tokensInCfg[tok.Location]; !ok {
+			tok.Teams = nil
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
 			}
 		}
 	}
@@ -557,6 +597,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if appConfig.MDM.VolumePurchasingProgram.Set && appConfig.MDM.VolumePurchasingProgram.Valid {
 		for tokenID, tokenTeams := range vppAssignments {
 			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
+				if errors.As(err, &errTokConstraint) {
+					return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+				}
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 			}
 		}
@@ -836,7 +880,7 @@ func (svc *Service) validateMDM(
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
 	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)

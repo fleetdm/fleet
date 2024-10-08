@@ -31,6 +31,8 @@ import {
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
 
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
+
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
@@ -415,7 +417,7 @@ const DeviceUserPage = ({
                     <SoftwareCard
                       id={deviceAuthToken}
                       softwareUpdatedAt={host.software_updated_at}
-                      hostCanInstallSoftware={!!host.orbit_version}
+                      hostCanWriteSoftware={!!host.orbit_version}
                       router={router}
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -474,6 +476,7 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
+      <UnsupportedScreenSize />
       <nav className="site-nav-container">
         <div className="site-nav-content">
           <ul className="site-nav-list">

@@ -485,6 +485,22 @@ for pagination. For a comprehensive list of activity types and detailed informat
 {
   "activities": [
     {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 25,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko's MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
+        "status": "failed"
+      }
+    },
+    {
       "created_at": "2021-07-30T13:41:07Z",
       "id": 24,
       "actor_full_name": "name",
@@ -878,9 +894,6 @@ None.
     "additional_queries": null
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -1170,9 +1183,6 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
@@ -1694,7 +1704,6 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -1811,7 +1820,6 @@ _Available in Fleet Premium._
 ```json
 {
   "mdm": {
-    "apple_bm_default_team": "",
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -2419,8 +2427,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [List host OS versions](#list-host-os-versions)
-- [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
@@ -4249,7 +4255,7 @@ Resends a configuration profile for the specified host.
         "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
-        },
+        }
       },
       "app_store_app": null
       "source": "apps",
@@ -4270,10 +4276,16 @@ Resends a configuration profile for the specified host.
         "name": "FalconSensor-6.44.pkg"
         "self_service": false,
         "last_install": null
+        "last_install": null,
+        "last_uninstall": {
+          "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
+          "uninstalled_at": "2024-05-15T15:23:57Z"
+        }
       },
       "app_store_app": null    
       "source": "",
       "status": null,
+      "status": "pending_uninstall",
       "installed_versions": [],
     },
     {
@@ -4281,8 +4293,10 @@ Resends a configuration profile for the specified host.
       "name": "Logic Pro",
       "software_package": null
       "app_store_app": {
-        "app_store_id": "1091189122"
+        "app_store_id": "1091189122",
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
         "version": "2.04",
+        "self_service": false,
         "last_install": {
           "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
           "installed_at": "2024-05-15T15:23:57Z"
@@ -4556,6 +4570,38 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "id": 4,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko’s MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "failed"
+      }
+    }, 
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "id": 3,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko’s MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "uninstalled"
+      }
+    },
+    {
+      "created_at": "2023-07-27T14:35:08Z",
       "id": 2,
       "actor_full_name": "Anna",
       "actor_id": 1,
@@ -4618,6 +4664,23 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 {
   "count": 3,
   "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "uuid": "cc081637-fdf9-4d44-929f-96dfaec00f67",
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "uninstalled_software",
+      "fleet_initiated_activity": false,
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Marko's MacBook Pro",
+        "software_title": "Adobe Acrobat.app",
+        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
+        "status": "pending_uninstall",
+      }
+    },
     {
       "created_at": "2023-07-27T14:35:08Z",
       "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
@@ -5510,6 +5573,7 @@ solely on the response status code returned by this endpoint.
 ```
 
 ###### Example response body
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -5657,6 +5721,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
 - [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
 - [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
+- [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) 
 - [Get manual enrollment profile](#get-manual-enrollment-profile)
 - [Upload a bootstrap package](#upload-a-bootstrap-package)
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
@@ -5764,9 +5829,82 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 `Status: 204`
 
 
+### Get Over-the-Air (OTA) enrollment profile
+
+`GET /api/v1/fleet/enrollment_profiles/ota`
+
+The returned value is a signed `.mobileconfig` OTA enrollment profile. Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
+
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), install the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+
+Learn more about OTA profiles [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html).
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                                      |
+|-------------------|---------|-------|----------------------------------------------------------------------------------|
+| enroll_secret     | string  | query | **Required**. The enroll secret of the team this host will be assigned to.       |
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/ota?enroll_secret=foobar`
+
+##### Default response
+
+`Status: 200`
+
+> **Note:** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+  Content-Length: 542
+  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+  X-Content-Type-Options: nosniff
+```
+
+###### Example response body
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foobar</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	      <string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>Acme Inc.</string>
+    <key>PayloadDisplayName</key>
+    <string>Acme Inc. enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>
+```
+
+
 ### Get manual enrollment profile
 
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
+
+To add [human-device mapping](#get-human-device-mapping), add the end user's email to the enrollment profle. Learn how [here](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#basic-article).
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -6261,8 +6399,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 ## Integrations
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
-- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
+- [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
+- [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6289,11 +6427,11 @@ None.
 }
 ```
 
-### Get Apple Business Manager (ABM)
+### List Apple Business Manager (ABM) tokens
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -6301,23 +6439,86 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/abm_tokens`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-{
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "default_team": ""
-}
+"abm_tokens": [
+  {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "terms_expired": false,
+    "macos_team": {
+      "name": "💻 Workstations",
+      "id" 1
+    },
+    "ios_team": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
+    "ipados_team": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
+    }
+  }
+]
 ```
 
-Get Volume Purchasing Program (VPP)
+### List Volume Purchasing Program (VPP) tokens
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/vpp_tokens`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_tokens": [
+  {
+    "id": 1,
+    "org_name": "Fleet Device Management Inc.",
+    "location": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "teams": [
+      {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      {
+        "name": "💻🐣 Workstations (canary)",
+        "id": 2
+      },
+      {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 3
+      },
+      {
+        "name": "🔳🏢 Company-owned iPads",
+        "id" 4
+      }
+    ],
+  }
+]
+```
+
+### Get Volume Purchasing Program (VPP)
+
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -6758,6 +6959,29 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false
+    },
+    {
+      "id": 3,
+      "name": "macOS - install/update Adobe Acrobat",
+      "query": "SELECT 1 FROM apps WHERE name = \"Adobe Acrobat.app\" AND bundle_short_version != \"24.002.21005\";",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": false,
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
+      "team_id": 1,
+      "resolution": "Resolution steps",
+      "platform": "darwin",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
+      "passing_host_count": 2300,
+      "failing_host_count": 3,
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "install_software": {
+        "name": "Adobe Acrobat.app",
+        "software_title_id": 1234
+      }
     }
   ],
   "inherited_policies": [
@@ -6939,6 +7163,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
 
 Either `query` or `query_id` must be provided.
 
@@ -6982,7 +7207,11 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": false
+    "calendar_events_enabled": false,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    }
   }
 }
 ```
@@ -7037,6 +7266,7 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
+| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
 
 #### Example
 
@@ -7078,7 +7308,11 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": true
+    "calendar_events_enabled": true,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    }
   }
 }
 ```
@@ -8246,11 +8480,14 @@ Gets the result of a script that was executed.
   "host_timeout": false,
   "host_id": 1,
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "runtime": 20
+  "runtime": 20,
+  "created_at": "2024-09-11T20:30:24Z"
 }
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+> Note: `created_at` is the creation timestamp of the script execution request.
 
 ### Add script
 
@@ -8483,8 +8720,10 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
+- [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Add Fleet library app](#add-fleet-library-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -8511,6 +8750,10 @@ Get a list of all software.
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
+| packages_only           | boolean | query | If `true` or `1`, only lists packages available for install (without App Store apps).  |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
 #### Example
 
@@ -8630,6 +8873,9 @@ Get a list of all software versions.
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                             |
 | vulnerable              | boolean    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
 #### Example
 
@@ -8794,14 +9040,17 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
-      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+      "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+      "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
       "status": {
         "installed": 3,
-        "pending": 1,
-        "failed": 2,
+        "pending_install": 1,
+        "failed_install": 0,
+        "pending_uninstall": 2,
+        "failed_uninstall": 1
       }
     },
     "app_store_app": null,
@@ -8849,9 +9098,10 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
-      "app_store_id": "1091189122",
+      "app_store_id": 1091189122,
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "self_service": true,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -8930,6 +9180,7 @@ Returns information about the specified software version.
 }
 ```
 
+
 ### Get operating system version
 
 Retrieves information about the specified operating system (OS) version.
@@ -9007,7 +9258,7 @@ Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (U
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
+| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
@@ -9051,6 +9302,89 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 200`
+
+### Modify package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
+
+`PATCH /api/v1/fleet/software/titles/:title_id/package`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
+| team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
+
+> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1/package`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="self_service"
+true
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="install_script"
+sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="pre_install_query"
+SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="post_install_script"
+sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_package": {
+    "name": "FalconSensor-6.44.pkg",
+    "version": "6.44",
+    "installer_id": 23,
+    "team_id": 3,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+    "self_service": true,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
+```
 
 ### List App Store apps
 
@@ -9119,6 +9453,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
@@ -9131,12 +9466,101 @@ Add App Store (VPP) app purchased in Apple Business Manager.
   "app_store_id": "497799835",
   "team_id": 2,
   "platform": "ipados"
+  "self_service": true
 }
 ```
 
 ##### Default response
 
 `Status: 200`
+
+### Install package or App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
+
+`POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| id                | integer    | path | **Required**. The host's ID.                     |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/3435/install`
+
+##### Default response
+
+`Status: 202`
+
+### Uninstall package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` added to be uninstalled.
+
+`POST /api/v1/fleet/hosts/:id/software/:software_title_id/uninstall`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| id                | integer    | path | **Required**. The host's ID.                     |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/3435/uninstall`
+
+##### Default response
+
+`Status: 202`
+
+### Get package install result
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/install/:install_uuid/results`
+
+Get the results of a software package install.
+
+To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API enpoints. Fleet uses an MDM command to install App Store apps.
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| install_uuid | string | path | **Required**. The software installation UUID.|
+
+#### Example
+
+`GET /api/v1/fleet/software/install/b15ce221-e22e-4c6a-afe7-5b3400a017da/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+ {
+   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+   "software_title": "Falcon.app",
+   "software_title_id": 8353,
+   "software_package": "FalconSensor-6.44.pkg",
+   "host_id": 123,
+   "host_display_name": "Marko's MacBook Pro",
+   "status": "failed",
+   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "pre_install_query_output": "Query returned result\nSuccess",
+   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+ }
+```
 
 ### Download package
 
@@ -9168,72 +9592,6 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
-```
-
-### Install package or App Store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-_Available in Fleet Premium._
-
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
-
-> Note: Fleet's agent (fleetd) only installs software it has been asked to install, but technically has access to all installer executables.
-
-`POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
-
-#### Parameters
-
-| Name              | Type       | In   | Description                                      |
-| ---------         | ---------- | ---- | --------------------------------------------     |
-| id                | integer    | path | **Required**. The host's ID.                     |
-| software_title_id | integer    | path | **Required**. The software title's ID.           |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/123/software/install/3435`
-
-##### Default response
-
-`Status: 202`
-
-### Get package install result
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/install/results/:install_uuid`
-
-Get the results of a software package install. 
-
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API enpoints. Fleet uses an MDM command to install App Store apps.
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| install_uuid | string | path | **Required**. The software installation UUID.|
-
-#### Example
-
-`GET /api/v1/fleet/software/install/results/b15ce221-e22e-4c6a-afe7-5b3400a017da`
-
-##### Default response
-
-`Status: 200`
-
-```json
- {
-   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
-   "software_title": "Falcon.app",
-   "software_title_id": 8353,
-   "software_package": "FalconSensor-6.44.pkg",
-   "host_id": 123,
-   "host_display_name": "Marko's MacBook Pro",
-   "status": "failed",
-   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
-   "pre_install_query_output": "Query returned result\nSuccess",
-   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
- }
 ```
 
 ### Delete package or App Store app
@@ -9285,7 +9643,6 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 
 
-
 ##### Default response
 
 `Status: 200`
@@ -9320,12 +9677,14 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 Retrieve details about a vulnerability and its affected software and OS versions.
 
+If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a 204 status code is returned.
+
 #### Parameters
 
-| Name     | Type     | In    | Description                                                                                     |
-| ---      | ---      | ---   | ---                                                                                             |
-| cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
+| team_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team". |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 

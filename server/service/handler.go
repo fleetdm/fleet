@@ -367,20 +367,33 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/software/titles", listSoftwareTitlesEndpoint, listSoftwareTitlesRequest{})
 	ue.GET("/api/_version_/fleet/software/titles/{id:[0-9]+}", getSoftwareTitleEndpoint, getSoftwareTitleRequest{})
-	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/install/{software_title_id:[0-9]+}", installSoftwareTitleEndpoint, installSoftwareRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/{software_title_id:[0-9]+}/install", installSoftwareTitleEndpoint,
+		installSoftwareRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/{software_title_id:[0-9]+}/uninstall", uninstallSoftwareTitleEndpoint,
+		uninstallSoftwareRequest{})
 
-	// Sofware installers
+	// Software installers
 	ue.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package", getSoftwareInstallerEndpoint, getSoftwareInstallerRequest{})
 	ue.POST("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token", getSoftwareInstallerTokenEndpoint,
 		getSoftwareInstallerRequest{})
 	ue.POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
 	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
-	ue.GET("/api/_version_/fleet/software/install/results/{install_uuid}", getSoftwareInstallResultsEndpoint, getSoftwareInstallResultsRequest{})
+	ue.GET("/api/_version_/fleet/software/install/{install_uuid}/results", getSoftwareInstallResultsEndpoint,
+		getSoftwareInstallResultsRequest{})
+	// POST /api/_version_/fleet/software/batch is asynchronous, meaning it will start the process of software download+upload in the background
+	// and will return a request UUID to be used in GET /api/_version_/fleet/software/batch/{request_uuid} to query for the status of the operation.
 	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
+	ue.GET("/api/_version_/fleet/software/batch/{request_uuid}", batchSetSoftwareInstallersResultEndpoint, batchSetSoftwareInstallersResultRequest{})
 
 	// App store software
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
+
+	// Fleet-maintained apps
+	ue.POST("/api/_version_/fleet/software/fleet_maintained_apps", addFleetMaintainedAppEndpoint, addFleetMaintainedAppRequest{})
+	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedApps, listFleetMaintainedAppsRequest{})
+	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps/{app_id}", getFleetMaintainedApp, getFleetMaintainedAppRequest{})
 
 	// Vulnerabilities
 	ue.GET("/api/_version_/fleet/vulnerabilities", listVulnerabilitiesEndpoint, listVulnerabilitiesRequest{})
@@ -870,6 +883,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 	neAppleMDM.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
 	neAppleMDM.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
+	neAppleMDM.POST("/api/_version_/fleet/ota_enrollment", mdmAppleOTAEndpoint, mdmAppleOTARequest{})
 
 	// Deprecated: GET /mdm/bootstrap is now deprecated, replaced by the
 	// GET /bootstrap endpoint.
@@ -1087,18 +1101,18 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
 ) error {
-	var signer scepserver.CSRSigner = scep_depot.NewSigner(
+	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
 		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
-	)
+	))
 	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 	if err != nil {
 		return fmt.Errorf("retrieving SCEP challenge: %w", err)
 	}
 
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
+	signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,

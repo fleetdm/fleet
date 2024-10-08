@@ -63,7 +63,7 @@
     &__platform-dropdown {
       .Select-menu-outer {
         width: 364px;
-        max-height: 380px;
+        max-height: min-content;
 
         .Select-menu {
           max-height: none;

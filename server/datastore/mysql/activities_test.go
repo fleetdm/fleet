@@ -508,7 +508,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h2A := hsr.ExecutionID
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
 	require.NoError(t, err)
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
+	_, _, err = ds.SetHostScriptExecutionResult(ctx,
+		&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
 	require.NoError(t, err)
 	h2F := hsr.ExecutionID
 	// add a pending software install request for h2
@@ -990,7 +991,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
-	require.Equal(t, 1000, queriesLen)
+	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
 
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
@@ -1001,7 +1002,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
-	require.Equal(t, 500, queriesLen)
+	require.Equal(t, 250, queriesLen)
 
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)

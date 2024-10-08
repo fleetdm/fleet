@@ -1,0 +1,1 @@
+* Fixed software uninstaller script for `pkg`s to only remove '.app' directories installed by the package.

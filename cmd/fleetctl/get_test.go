@@ -2306,8 +2306,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
-		return nil
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
@@ -2320,8 +2320,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]fleet.SoftwareInstaller, error) {
-		return nil, nil
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

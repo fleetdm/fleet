@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -100,9 +101,9 @@ WHERE
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_installed": fleet.SoftwareInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: named query")
@@ -190,9 +191,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
-	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+	var vppToken *fleet.VPPTokenDB
+	if len(appFleets) > 0 {
+		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
+		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -367,17 +371,26 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	insertArgs := []any{app.Name, source}
 
 	if app.BundleIdentifier != "" {
-		// NOTE: The index `idx_sw_titles` doesn't include the bundle
-		// identifier. It's possible for the select to return nothing
-		// but for the insert to fail if an app with the same name but
-		// no bundle identifier exists in the DB.
+		// match by bundle identifier first, or standard matching if we
+		// don't have a bundle identifier match
 		switch source {
 		case "ios_apps", "ipados_apps":
-			selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`
-			selectArgs = []any{app.BundleIdentifier, source}
+			selectStmt = `
+				    SELECT id
+				    FROM software_titles
+				    WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND browser = '')
+				    ORDER BY bundle_identifier = ? DESC
+				    LIMIT 1`
+			selectArgs = []any{app.BundleIdentifier, source, app.Name, source, app.BundleIdentifier}
 		default:
-			selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source NOT IN ('ios_apps', 'ipados_apps')`
-			selectArgs = []any{app.BundleIdentifier}
+			selectStmt = `
+				    SELECT id
+				    FROM software_titles
+				    WHERE (bundle_identifier = ? OR (name = ? AND browser = ''))
+				      AND source NOT IN ('ios_apps', 'ipados_apps')
+				    ORDER BY bundle_identifier = ? DESC
+				    LIMIT 1`
+			selectArgs = []any{app.BundleIdentifier, app.Name, app.BundleIdentifier}
 		}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
@@ -518,8 +531,8 @@ WHERE
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
 		"command_uuid":              commandResults.CommandUUID,
-		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
-		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
+		"software_status_failed":    string(fleet.SoftwareInstallFailed),
+		"software_status_installed": string(fleet.SoftwareInstalled),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
@@ -546,14 +559,14 @@ WHERE
 	var status string
 	switch commandResults.Status {
 	case fleet.MDMAppleStatusAcknowledged:
-		status = string(fleet.SoftwareInstallerInstalled)
+		status = string(fleet.SoftwareInstalled)
 	case fleet.MDMAppleStatusCommandFormatError:
 	case fleet.MDMAppleStatusError:
-		status = string(fleet.SoftwareInstallerFailed)
+		status = string(fleet.SoftwareInstallFailed)
 	default:
 		// This case shouldn't happen (we should only be doing this check if the command is in a
 		// "terminal" state, but adding it so we have a default
-		status = string(fleet.SoftwareInstallerPending)
+		status = string(fleet.SoftwareInstallPending)
 	}
 
 	act := &fleet.ActivityInstalledAppStoreApp{
@@ -780,6 +793,7 @@ TEAMLOOP:
 }
 
 func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+	stmtTeamName := `SELECT name FROM teams WHERE id = ?`
 	stmtRemove := `DELETE FROM vpp_token_teams WHERE vpp_token_id = ?`
 	stmtInsert := `
 	INSERT INTO
@@ -856,8 +870,18 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 		return nil
 	})
-
 	if err != nil {
+		var mysqlErr *mysql.MySQLError
+		// https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_dup_entry
+		if errors.As(err, &mysqlErr) && IsDuplicate(err) {
+			var dupeTeamID uint
+			var dupeTeamName string
+			fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
+			if err := sqlx.GetContext(ctx, ds.reader(ctx), &dupeTeamName, stmtTeamName, dupeTeamID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting team name for vpp token conflict error")
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: dupeTeamName, ID: &dupeTeamID})
+		}
 		return nil, ctxerr.Wrap(ctx, err, "modifying vpp token team associations")
 	}
 
@@ -1127,7 +1151,7 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 	}
 
 	if allTeamsFound && currentID != nil && *currentID != id {
-		return ctxerr.Wrap(ctx, errors.New("All teams token already exists"))
+		return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: fleet.ReservedNameAllTeams})
 	}
 
 	if nullTeam != fleet.NullTeamNone {
@@ -1139,7 +1163,7 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 		}
 		if currentID == nil || *currentID != id {
-			return ctxerr.Errorf(ctx, "vpp token for team %s already exists", nullTeam)
+			return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: nullTeam.PrettyName()})
 		}
 	}
 

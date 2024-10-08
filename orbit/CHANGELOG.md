@@ -1,3 +1,13 @@
+## Orbit 1.34.0 (Oct 02, 2024)
+
+* Added a timeout to all script executions during software installs to prevent having install requests stuck in pending state forever.
+
+## Orbit 1.33.0 (Sep 20, 2024)
+
+* Added support to run the configured uninstall script when installer's post-install script fails.
+
+* Updated Go to go1.23.1
+
 ## Orbit 1.32.0 (Aug 29, 2024)
 
 * Bumped macadmins extension to use SOFA feed sofafeed.macadmins.io

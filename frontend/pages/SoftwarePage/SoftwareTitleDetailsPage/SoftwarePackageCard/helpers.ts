@@ -1,15 +1,15 @@
-export const SOFTWARE_PACAKGE_DROPDOWN_OPTIONS = [
+export const SOFTWARE_PACKAGE_DROPDOWN_OPTIONS = [
   {
     label: "Download",
     value: "download",
   },
   {
-    label: "Delete",
-    value: "delete",
+    label: "Edit",
+    value: "edit",
   },
   {
-    label: "Advanced options",
-    value: "advanced",
+    label: "Delete",
+    value: "delete",
   },
 ] as const;
 

@@ -21,41 +21,6 @@
       margin: 0 0 $pad-medium 0;
     }
 
-    .info-grid {
-      display: grid;
-      grid-auto-flow: column;
-      grid-template-columns: repeat(
-        3,
-        max-content
-      ); // Prevents overflow off screen
-      grid-template-rows: repeat(4, 1fr);
-      column-gap: $pad-xxlarge;
-      row-gap: $pad-medium;
-
-      @media (min-width: $break-md) {
-        grid-template-columns: repeat(4, max-content);
-        grid-template-rows: repeat(3, 1fr);
-      }
-
-      &__block {
-        font-size: $x-small;
-        display: flex;
-        flex-direction: column;
-        white-space: nowrap;
-      }
-
-      &__data {
-        .device-mapping {
-          &__source {
-            color: $ui-fleet-black-75;
-          }
-          &__more {
-            color: $ui-fleet-black-50;
-          }
-        }
-      }
-    }
-
     .list {
       list-style: none;
       padding: 0;

@@ -30,6 +30,7 @@ type teamPolicyRequest struct {
 	Critical              bool   `json:"critical" premium:"true"`
 	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
 	SoftwareTitleID       *uint  `json:"software_title_id"`
+	ScriptID              *uint  `json:"script_id"`
 }
 
 type teamPolicyResponse struct {
@@ -51,6 +52,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Critical:              req.Critical,
 		CalendarEventsEnabled: req.CalendarEventsEnabled,
 		SoftwareTitleID:       req.SoftwareTitleID,
+		ScriptID:              req.ScriptID,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -90,6 +92,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
+	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
 
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
@@ -121,6 +126,18 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 	return nil
 }
 
+func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy) error {
+	if p.ScriptID == nil {
+		return nil
+	}
+	scriptMetadata, err := svc.ds.Script(ctx, *p.ScriptID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get script metadata by id")
+	}
+	p.RunScript = &fleet.PolicyScript{ID: *p.ScriptID, Name: scriptMetadata.Name}
+	return nil
+}
+
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
 	softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
@@ -136,6 +153,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		Platform:              p.Platform,
 		CalendarEventsEnabled: p.CalendarEventsEnabled,
 		SoftwareInstallerID:   softwareInstallerID,
+		ScriptID:              p.ScriptID,
 	}, nil
 }
 
@@ -187,8 +205,10 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return nil, nil, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if mergeInherited {
@@ -196,6 +216,9 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		for i := range policies {
 			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
 				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
+			}
+			if err := svc.populatePolicyRunScript(ctx, policies[i]); err != nil {
+				return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", policies[i].ID)
 			}
 		}
 		return policies, nil, err
@@ -209,6 +232,9 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	for i := range teamPolicies {
 		if err := svc.populatePolicyInstallSoftware(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", teamPolicies[i].ID)
+		}
+		if err := svc.populatePolicyRunScript(ctx, teamPolicies[i]); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", teamPolicies[i].ID)
 		}
 	}
 
@@ -250,8 +276,10 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 		return 0, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if mergeInherited {
@@ -303,6 +331,9 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 	if err := svc.populatePolicyInstallSoftware(ctx, teamPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
+	if err := svc.populatePolicyRunScript(ctx, teamPolicy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
 
 	return teamPolicy, nil
 }
@@ -341,8 +372,10 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 
-	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	if teamID > 0 {
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
 	}
 
 	if len(ids) == 0 {
@@ -487,7 +520,29 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		if err != nil {
 			return nil, err
 		}
+		// If the associated installer is changed (or it's set and the policy didn't have an associated installer)
+		// then we clear the results of the policy so that automation can be triggered upon failure
+		// (automation is currently triggered on the first failure or when it goes from passing to failure).
+		if softwareInstallerID != nil && (policy.SoftwareInstallerID == nil || *policy.SoftwareInstallerID != *softwareInstallerID) {
+			removeAllMemberships = true
+			removeStats = true
+		}
 		policy.SoftwareInstallerID = softwareInstallerID
+	}
+	if p.ScriptID != nil { // indicates that script ID is changing, but might be to 0 to remove
+		// If the associated script is changed (or it's set and the policy didn't have an associated script)
+		// then we clear the results of the policy so that automation can be triggered upon failure
+		// (automation is currently triggered on the first failure or when it goes from passing to failure).
+		if *p.ScriptID != 0 && (policy.ScriptID == nil || *policy.ScriptID != *p.ScriptID) {
+			removeAllMemberships = true
+			removeStats = true
+		}
+
+		if *p.ScriptID == 0 {
+			policy.ScriptID = nil
+		} else {
+			policy.ScriptID = p.ScriptID
+		}
 	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
@@ -499,6 +554,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
+	}
+	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
@@ -552,10 +610,6 @@ func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, te
 			Message: fmt.Sprintf("software_title_id %d on team_id %d does not have associated package", *softwareTitleID, *teamID),
 		})
 	}
-
-	//
-	// TODO(lucas): Support "No team" (softwareTitle.SoftwarePackage.TeamID == nil).
-	//
 
 	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.

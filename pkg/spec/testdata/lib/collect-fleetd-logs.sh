@@ -1,0 +1,1 @@
+# collect fleetd logs

@@ -7,6 +7,8 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IAppStoreApp,
+  IFleetMaintainedApp,
+  IFleetMaintainedAppDetails,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -204,8 +206,10 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   icon_url: null,
   status: {
     installed: 1,
-    pending: 2,
-    failed: 3,
+    pending_install: 2,
+    failed_install: 1,
+    pending_uninstall: 1,
+    failed_uninstall: 1,
   },
 };
 
@@ -250,4 +254,38 @@ export const createMockSoftwareTitlesResponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
+  id: 1,
+  name: "test app",
+  version: "1.2.3",
+  platform: "darwin",
+};
+
+export const createMockFleetMaintainedApp = (
+  overrides?: Partial<IFleetMaintainedApp>
+): IFleetMaintainedApp => {
+  return {
+    ...DEFAULT_FLEET_MAINTAINED_APPS_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
+  id: 1,
+  name: "Test app",
+  version: "1.2.3",
+  platform: "darwin",
+  pre_install_script: "SELECT * FROM osquery_info WHERE start_time > 1",
+  install_script: '#!/bin/sh\n\ninstaller -pkg "$INSTALLER" -target /',
+  post_install_script: 'echo "Installed"',
+  uninstall_script:
+    "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+};
+
+export const createMockFleetMaintainedAppDetails = (
+  overrides?: Partial<IFleetMaintainedAppDetails>
+) => {
+  return { ...DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK, ...overrides };
 };

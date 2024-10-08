@@ -69,17 +69,6 @@ const DeleteHostModal = ({
         <p>
           This will remove the record of <b>{hostText()}</b>.{largeVolumeText()}
         </p>
-        <p>
-          The {pluralizeHost()} will re-appear unless fleet&apos;s agent is
-          uninstalled.
-        </p>
-        <p>
-          <CustomLink
-            url={"https://fleetdm.com/learn-more-about/uninstall-fleetd"}
-            text="Uninstall Fleet's agent"
-            newTab
-          />
-        </p>
         <div className="modal-cta-wrap">
           <Button
             type="button"
