@@ -47,7 +47,7 @@ func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	return getSetupExperienceScriptResponse{Script: script}, nil
 }
 
-func (svc Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, withContent bool) (*fleet.Script, []byte, error) {
+func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, withContent bool) (*fleet.Script, []byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -113,7 +113,7 @@ func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	return setSetupExperienceScriptResponse{}, nil
 }
 
-func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -144,7 +144,7 @@ func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{
 	return deleteSetupExperienceScriptResponse{}, nil
 }
 
-func (svc Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
