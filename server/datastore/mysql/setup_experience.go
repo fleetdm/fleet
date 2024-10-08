@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -180,17 +181,17 @@ func questionMarks(number int) string {
 
 func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
 	const stmt = `
-SELECT 
-	sesr.id, 
-	sesr.host_uuid, 
-	sesr.name, 
-	sesr.status, 
-	sesr.software_installer_id, 
-	sesr.host_software_installs_id, 
-	sesr.vpp_app_team_id, 
-	sesr.nano_command_uuid, 
-	sesr.setup_experience_script_id, 
-	sesr.script_execution_id, 
+SELECT
+	sesr.id,
+	sesr.host_uuid,
+	sesr.name,
+	sesr.status,
+	sesr.software_installer_id,
+	sesr.host_software_installs_id,
+	sesr.vpp_app_team_id,
+	sesr.nano_command_uuid,
+	sesr.setup_experience_script_id,
+	sesr.script_execution_id,
 	sesr.error,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
 FROM setup_experience_status_results sesr
