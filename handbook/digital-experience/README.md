@@ -57,7 +57,7 @@ Once notified, Digital Experience takes the following steps:
 
 ### Inform managers about hours worked
 
-Every Friday at 2:00 PM CT, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location.
+Every Friday, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location.
 
 Here's how:
 
@@ -130,12 +130,13 @@ When Digital Experience receives notification of a Fleetie's manager changing, f
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
 
+
 ### Recognize employee workiversaries
 
 At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
 
-1. Bimonthly, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the following two months.
-2. Post in the #help-classifed Slack channel and cc the Head of Digital Experience. Use the following template:
+1. On the 15th of every month, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the next month.
+2. At-mention the Head of Digital Experience. Use the following template:
 
    
     ```
@@ -143,7 +144,6 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
     [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
     ```
 
-    
    The Head of Digital Experience will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
 3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
 
@@ -190,6 +190,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 3. Complete the survey questions, aiming for minimal changes.
 4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+
 
 ### Grant equity
 
