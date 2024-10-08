@@ -5,10 +5,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -18,6 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
+
+// noCheckHash is used by homebrew to signal that a hash shouldn't be checked.
+const noCheckHash = "no_check"
 
 func (svc *Service) AddFleetMaintainedApp(
 	ctx context.Context,
@@ -52,21 +53,36 @@ func (svc *Service) AddFleetMaintainedApp(
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
 
-	// Validate the bytes we got are what we expected
-	h := sha256.New()
-	_, err = h.Write(installerBytes)
+	extension, err := maintainedapps.ExtensionForBundleIdentifier(app.BundleIdentifier)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating SHA256 of maintained app installer")
+		return ctxerr.Errorf(ctx, "getting extension from bundle identifier %q", app.BundleIdentifier)
 	}
-	gotHash := hex.EncodeToString(h.Sum(nil))
 
-	if gotHash != app.SHA256 {
-		return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+	// Validate the bytes we got are what we expected, if homebrew supports
+	// it, the string "no_check" is a special token used to signal that the
+	// hash shouldn't be checked.
+	if app.SHA256 != noCheckHash {
+		h := sha256.New()
+		_, err = h.Write(installerBytes)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating SHA256 of maintained app installer")
+		}
+		gotHash := hex.EncodeToString(h.Sum(nil))
+
+		if gotHash != app.SHA256 {
+			return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+		}
 	}
 
 	// Fall back to the filename if we weren't able to extract a filename from the installer response
 	if filename == "" {
 		filename = app.Name
+	}
+
+	// The UI requires all filenames to have extensions. If we couldn't get
+	// one, use the extension we extracted prior
+	if filepath.Ext(filename) == "" {
+		filename = filename + "." + extension
 	}
 
 	installScript = file.Dos2UnixNewlines(installScript)
@@ -79,11 +95,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
-	installerURL, err := url.Parse(app.InstallerURL)
-	if err != nil {
-		return err
-	}
-
 	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:     installerReader,
@@ -94,7 +105,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Filename:          filename,
 		Platform:          string(app.Platform),
 		Source:            "apps",
-		Extension:         strings.TrimPrefix(filepath.Ext(installerURL.Path), "."),
+		Extension:         extension,
 		BundleIdentifier:  app.BundleIdentifier,
 		StorageID:         app.SHA256,
 		FleetLibraryAppID: &app.ID,

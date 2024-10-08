@@ -54,6 +54,24 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 	return i.ingest(ctx, apps)
 }
 
+func ExtensionForBundleIdentifier(identifier string) (string, error) {
+	var apps []maintainedApp
+	if err := json.Unmarshal(appsJSON, &apps); err != nil {
+		return "", fmt.Errorf("unmarshal embedded apps.json: %w", err)
+	}
+
+	for _, app := range apps {
+		if app.BundleIdentifier == identifier {
+			formats := strings.Split(app.InstallerFormat, ":")
+			if len(formats) > 0 {
+				return formats[0], nil
+			}
+		}
+	}
+
+	return "", nil
+}
+
 type ingester struct {
 	baseURL string
 	ds      fleet.Datastore
