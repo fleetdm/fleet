@@ -627,6 +627,18 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	ds.SyncHostsSoftwareTitlesFunc = func(ctx context.Context, updatedAt time.Time) error {
+		return nil
+	}
+
+	ds.UpdateHostIssuesVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
 	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
