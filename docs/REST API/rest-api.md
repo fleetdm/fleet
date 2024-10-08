@@ -6326,7 +6326,7 @@ echo "hello"
 
 ```
 
-### Get setup experience script
+### Get script (setup experience)
 
 _Available in Fleet Premium_
 
