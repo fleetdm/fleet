@@ -3,6 +3,7 @@ import React from "react";
 import Card from "components/Card";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import classnames from "classnames";
 
 const baseClass = "section-card";
 
@@ -11,7 +12,7 @@ interface ISectionCardProps {
   header?: string;
   iconName?: IconNames;
   cta?: JSX.Element;
-  // className?: string; TODO: If we want custom classNames
+  className?: string;
 }
 
 const SectionCard = ({
@@ -19,9 +20,12 @@ const SectionCard = ({
   header,
   iconName,
   cta,
+  className,
 }: ISectionCardProps) => {
+  const cardClasses = classnames(baseClass, className);
+
   return (
-    <Card className={baseClass} color="gray">
+    <Card className={cardClasses} color="gray">
       <div className={`${baseClass}__content-wrapper`}>
         {iconName && <Icon name={iconName} />}
         <div className={`${baseClass}__content`}>

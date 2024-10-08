@@ -30,6 +30,16 @@ export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
 
+export interface IScepInfo {
+  url: string;
+  admin_url: string;
+  username: string;
+  password: string | null;
+}
+export interface IGetScepInfoResponse {
+  ndes_scep_proxy: IScepInfo;
+}
+
 export interface IGetVppTokensResponse {
   vpp_tokens: IMdmVppToken[];
 }

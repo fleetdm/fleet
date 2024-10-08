@@ -414,6 +414,33 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedNdesScepProxy: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added Microsoft&apos;s Network Device Enrollment Service (NDES) as your
+        SCEP server.
+      </>
+    );
+  },
+  deletedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        added Microsoft&apos;s Network Device Enrollment Service (NDES) as your
+        SCEP server.
+      </>
+    );
+  },
+  editedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        edited configurations for Microsoft&apos;s Network Device Enrollment
+        Service (NDES) as your SCEP server.
+      </>
+    );
+  },
   createdWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (

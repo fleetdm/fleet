@@ -1,5 +1,10 @@
 import { IMdmApple } from "interfaces/mdm";
-import { IGetVppInfoResponse, IVppApp } from "services/entities/mdm_apple";
+import {
+  IGetVppInfoResponse,
+  IVppApp,
+  IGetScepInfoResponse,
+  IScepInfo,
+} from "services/entities/mdm_apple";
 
 const DEFAULT_MDM_APPLE_MOCK: IMdmApple = {
   common_name: "APSP:12345",
@@ -38,6 +43,19 @@ const DEFAULT_MDM_APPLE_VPP_APP_MOCK: IVppApp = {
 
 export const createMockVppApp = (overrides?: Partial<IVppApp>): IVppApp => {
   return { ...DEFAULT_MDM_APPLE_VPP_APP_MOCK, ...overrides };
+};
+
+const DEFAULT_MDM_APPLE_SCEP_INFO_MOCK: IScepInfo = {
+  url: "https://example.com/scep",
+  admin_url: "https://example.com/mscep_admin/",
+  username: "Administrator@example.com",
+  password: "insecure",
+};
+
+export const createMockScepInfo = (
+  overrides?: Partial<IGetScepInfoResponse>
+): IScepInfo => {
+  return { ...DEFAULT_MDM_APPLE_SCEP_INFO_MOCK, ...overrides };
 };
 
 export default createMockMdmApple;
