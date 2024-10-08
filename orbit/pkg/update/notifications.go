@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 	fleetscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -357,7 +356,7 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	}
 
 	if runtime.GOOS == "darwin" {
-		if cfg.Notifications.RunSetupExperience == true && !swiftdialog.CanRun(h.rootDirPath) {
+		if cfg.Notifications.RunSetupExperience == true && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
 			log.Debug().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}

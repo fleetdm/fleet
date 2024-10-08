@@ -14,7 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -89,7 +89,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
 	if runtime.GOOS == "darwin" {
-		if config.Notifications.RunSetupExperience && !swiftdialog.CanRun(r.rootDirPath) {
+		if config.Notifications.RunSetupExperience && update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
 			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}

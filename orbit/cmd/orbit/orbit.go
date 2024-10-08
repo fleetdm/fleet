@@ -859,7 +859,7 @@ func main() {
 		)
 
 		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			c.Bool("enable-scripts"), orbitClient,
+			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
