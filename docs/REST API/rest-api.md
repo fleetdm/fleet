@@ -6297,7 +6297,7 @@ Add a script that will automatically run during macOS setup.
 
 #### Example
 
-`POST /api/v1/fleet/setup_experience/script?team_id=3`
+`POST /api/v1/fleet/setup_experience/script`
 
 ##### Default response
 
