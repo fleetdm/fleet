@@ -1728,6 +1728,11 @@ type Datastore interface {
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
+	////////////////////////////////////////////////////////////////////////////////////
+	// Setup Experience
+	SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error
+	ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//
