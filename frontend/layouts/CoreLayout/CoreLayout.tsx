@@ -51,6 +51,10 @@ const CoreLayout = ({
     }
   }, [notification]);
 
+  useEffect(() => {
+    hideFlash();
+  }, [hideFlash, location.pathname]);
+
   const onLogoutUser = async () => {
     const { LOGOUT } = paths;
     router.push(LOGOUT);
