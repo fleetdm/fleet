@@ -12,6 +12,7 @@ import (
 
 func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 	query := `
+SELECT
   id,
   team_id,
   name,
@@ -116,6 +117,7 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 
 func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
 	const stmt = `
+SELECT
 	sesr.id, 
 	sesr.host_uuid, 
 	sesr.name, 
