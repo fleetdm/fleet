@@ -310,12 +310,16 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'script_name', COALESCE(scr.name, ''),
 				'script_execution_id', hsr.execution_id,
-				'async', NOT hsr.sync_request
+				'async', NOT hsr.sync_request,
+			    'policy_id', hsr.policy_id,
+			    'policy_name', p.name
 			) as details
 		FROM
 			host_script_results hsr
 		LEFT OUTER JOIN
 			users u ON u.id = hsr.user_id
+		LEFT OUTER JOIN
+			policies p ON p.id = hsr.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = hsr.host_id
 		LEFT OUTER JOIN

@@ -14752,7 +14752,19 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.NoError(t, err)
 	require.Len(t, hostPendingScripts, 0)
 
-	// TODO activity feed should show script run as pending, with policy name as author and blank user ID and email
+	// activity feed should show script run as pending, with "Fleet" as author, policy ID and name set in body
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host3Team2.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Nil(t, listResp.Activities[0].ActorEmail)
+	require.Equal(t, "Fleet", *listResp.Activities[0].ActorFullName)
+	require.Nil(t, listResp.Activities[0].ActorGravatar)
+	require.Equal(t, "ran_script", listResp.Activities[0].Type)
+	var activityJson map[string]interface{}
+	err = json.Unmarshal(*listResp.Activities[0].Details, &activityJson)
+	require.NoError(t, err)
+	require.Equal(t, float64(policy4Team2.ID), activityJson["policy_id"])
+	require.Equal(t, "policy4Team2", activityJson["policy_name"])
 
 	// post script result response
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -14760,18 +14772,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host3Team2.OrbitNodeKey, host3executionID)),
 		http.StatusOK, &orbitPostScriptResp)
 
-	// activity feed should show script run as completed, with policy name as author and blank user ID and email
-
-	var listResp listActivitiesResponse
+	// activity feed should show script run as completed
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host3Team2.ID), nil, http.StatusOK, &listResp)
-
 	require.Len(t, listResp.Activities, 1)
-	require.Equal(t, "", *listResp.Activities[0].ActorEmail)
+	require.Equal(t, "", *listResp.Activities[0].ActorEmail) // actor email is blank rather than nil here 👀
 	require.Equal(t, "Fleet", *listResp.Activities[0].ActorFullName)
 	require.Nil(t, listResp.Activities[0].ActorGravatar)
-	require.Equal(t, "ran_script", *&listResp.Activities[0].Type)
-
-	// TODO maybe check webhooks
+	require.Equal(t, "ran_script", listResp.Activities[0].Type)
+	err = json.Unmarshal(*listResp.Activities[0].Details, &activityJson)
+	require.NoError(t, err)
+	require.Equal(t, float64(policy4Team2.ID), activityJson["policy_id"])
+	require.Equal(t, "policy4Team2", activityJson["policy_name"])
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {
