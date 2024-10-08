@@ -123,7 +123,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	var policy fleet.PolicyLite
 	err := sqlx.GetContext(
 		ctx, ds.reader(ctx), &policy,
-		`SELECT id, description, resolution FROM policies WHERE id=?`, id,
+		`SELECT id, name, description, resolution FROM policies WHERE id=?`, id,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
