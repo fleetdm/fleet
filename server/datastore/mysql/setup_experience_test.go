@@ -128,23 +128,25 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	hostTeam2 := "456"
 	hostTeam3 := "789"
 
-	anything, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
-	require.True(t, anything)
+	require.True(t, anythingEnqueued)
 
-	anything, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
 	require.NoError(t, err)
-	require.True(t, anything)
+	require.True(t, anythingEnqueued)
 
-	anything, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
-	require.False(t, anything)
+	require.False(t, anythingEnqueued)
 
 	seRows := []setupExperienceInsertTestRows{}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
+		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
 	})
+
+	require.Len(t, seRows, 6)
 
 	for _, row := range seRows {
 		fmt.Printf("row: %#v\n", row)
@@ -154,31 +156,37 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		{
 			HostUUID:            hostTeam1,
 			Name:                "Software1",
+			Status:              "pending",
 			SoftwareInstallerID: nullableUint(installerID1),
 		},
 		{
 			HostUUID:            hostTeam2,
 			Name:                "Software2",
+			Status:              "pending",
 			SoftwareInstallerID: nullableUint(installerID2),
 		},
 		{
 			HostUUID:     hostTeam1,
 			Name:         app1.Name,
+			Status:       "pending",
 			VPPAppTeamID: nullableUint(1),
 		},
 		{
 			HostUUID:     hostTeam2,
 			Name:         app2.Name,
+			Status:       "pending",
 			VPPAppTeamID: nullableUint(2),
 		},
 		{
 			HostUUID: hostTeam1,
 			Name:     "script1",
+			Status:   "pending",
 			ScriptID: nullableUint(uint(script1ID)),
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
+			Status:   "pending",
 			ScriptID: nullableUint(uint(script2ID)),
 		},
 	} {
@@ -193,11 +201,98 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			t.Errorf("Couldn't find entry in setup_experience_status_results table: %#v", tc)
 		}
 	}
+
+	for _, row := range seRows {
+		if row.HostUUID == hostTeam3 {
+			t.Error("team 3 shouldn't have any any entries")
+		}
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?", team2.ID)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = false WHERE global_or_team_id = ?", team2.ID)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = false WHERE global_or_team_id = ?", team2.ID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	require.NoError(t, err)
+	require.False(t, anythingEnqueued)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	require.NoError(t, err)
+	require.False(t, anythingEnqueued)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
+	})
+
+	require.Len(t, seRows, 3)
+
+	for _, tc := range []setupExperienceInsertTestRows{
+		{
+			HostUUID:            hostTeam1,
+			Name:                "Software1",
+			Status:              "pending",
+			SoftwareInstallerID: nullableUint(installerID1),
+		},
+		{
+			HostUUID:     hostTeam1,
+			Name:         app1.Name,
+			Status:       "pending",
+			VPPAppTeamID: nullableUint(1),
+		},
+		{
+			HostUUID: hostTeam1,
+			Name:     "script1",
+			Status:   "pending",
+			ScriptID: nullableUint(uint(script1ID)),
+		},
+	} {
+		var found bool
+		for _, row := range seRows {
+			if row == tc {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Couldn't find entry in setup_experience_status_results table: %#v", tc)
+		}
+	}
+
+	for _, row := range seRows {
+		if row.HostUUID == hostTeam3 || row.HostUUID == hostTeam2 {
+			team := 2
+			if row.HostUUID == hostTeam3 {
+				team = 3
+			}
+			t.Errorf("team %d shouldn't have any any entries", team)
+		}
+	}
+
 }
 
 type setupExperienceInsertTestRows struct {
 	HostUUID            string        `db:"host_uuid"`
 	Name                string        `db:"name"`
+	Status              string        `db:"status"`
 	SoftwareInstallerID sql.NullInt64 `db:"software_installer_id"`
 	ScriptID            sql.NullInt64 `db:"setup_experience_script_id"`
 	VPPAppTeamID        sql.NullInt64 `db:"vpp_app_team_id"`
