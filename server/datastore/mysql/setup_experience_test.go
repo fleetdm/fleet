@@ -3,6 +3,8 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -50,7 +52,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		InstallerFile:     bytes.NewReader([]byte("hello")),
 		StorageID:         "storage1",
 		Filename:          "file1",
-		Title:             "file1",
+		Title:             "Software1",
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
@@ -66,7 +68,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		InstallerFile:     bytes.NewReader([]byte("hello")),
 		StorageID:         "storage3",
 		Filename:          "file3",
-		Title:             "file3",
+		Title:             "Software2",
 		Version:           "3.0",
 		Source:            "apps",
 		SelfService:       true,
@@ -82,17 +84,11 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
-	require.NoError(t, err)
-
-	app2 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team2.ID)
-	require.NoError(t, err)
-
 	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
 
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team2.ID)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -100,7 +96,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// var script1ID, script2ID int64
+	var script1ID, script2ID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		res, err := insertScriptContents(ctx, q, "SCRIPT 1")
 		if err != nil {
@@ -113,17 +109,17 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		}
 		id2, _ := res.LastInsertId()
 
-		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, name, script_content_id) VALUES (?, ?, ?)", team1.ID, "script1", id1)
+		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, ?, ?)", team1.ID, team1.ID, "script1", id1)
 		if err != nil {
 			return err
 		}
-		// script1ID, _ = res.LastInsertId()
+		script1ID, _ = res.LastInsertId()
 
-		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, name, script_content_id) VALUES (?, ?, ?)", team1.ID, "script2", id2)
+		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, ?, ?)", team2.ID, team2.ID, "script2", id2)
 		if err != nil {
 			return err
 		}
-		// script2ID, _ = res.LastInsertId()
+		script2ID, _ = res.LastInsertId()
 
 		return nil
 	})
@@ -144,7 +140,69 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, anything)
 
+	seRows := []setupExperienceInsertTestRows{}
+
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return nil
+		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
 	})
+
+	for _, row := range seRows {
+		fmt.Printf("row: %#v\n", row)
+	}
+
+	for _, tc := range []setupExperienceInsertTestRows{
+		{
+			HostUUID:            hostTeam1,
+			Name:                "Software1",
+			SoftwareInstallerID: nullableUint(installerID1),
+		},
+		{
+			HostUUID:            hostTeam2,
+			Name:                "Software2",
+			SoftwareInstallerID: nullableUint(installerID2),
+		},
+		{
+			HostUUID:     hostTeam1,
+			Name:         app1.Name,
+			VPPAppTeamID: nullableUint(1),
+		},
+		{
+			HostUUID:     hostTeam2,
+			Name:         app2.Name,
+			VPPAppTeamID: nullableUint(2),
+		},
+		{
+			HostUUID: hostTeam1,
+			Name:     "script1",
+			ScriptID: nullableUint(uint(script1ID)),
+		},
+		{
+			HostUUID: hostTeam2,
+			Name:     "script2",
+			ScriptID: nullableUint(uint(script2ID)),
+		},
+	} {
+		var found bool
+		for _, row := range seRows {
+			if row == tc {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Couldn't find entry in setup_experience_status_results table: %#v", tc)
+		}
+	}
+}
+
+type setupExperienceInsertTestRows struct {
+	HostUUID            string        `db:"host_uuid"`
+	Name                string        `db:"name"`
+	SoftwareInstallerID sql.NullInt64 `db:"software_installer_id"`
+	ScriptID            sql.NullInt64 `db:"setup_experience_script_id"`
+	VPPAppTeamID        sql.NullInt64 `db:"vpp_app_team_id"`
+}
+
+func nullableUint(val uint) sql.NullInt64 {
+	return sql.NullInt64{Int64: int64(val), Valid: true}
 }

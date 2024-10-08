@@ -50,7 +50,12 @@ WHERE vat.install_during_setup = true
 AND vat.global_or_team_id = ?`
 
 	stmtSetupScripts := `
-SELECT
+INSERT INTO setup_experience_status_results (
+	host_uuid,
+	name,
+	status,
+	setup_experience_script_id
+) SELECT
 	?,
 	name,
 	'pending',
@@ -60,10 +65,12 @@ WHERE global_or_team_id = ?`
 
 	var totalInsertions uint
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Clean out old statuses for the host
 		if _, err := tx.ExecContext(ctx, stmtClearSetupStatus, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
 		}
 
+		// Software installers
 		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
@@ -74,6 +81,7 @@ WHERE global_or_team_id = ?`
 		}
 		totalInsertions += uint(inserts)
 
+		// VPP apps
 		res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
@@ -84,6 +92,7 @@ WHERE global_or_team_id = ?`
 		}
 		totalInsertions += uint(inserts)
 
+		// Scripts
 		res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
