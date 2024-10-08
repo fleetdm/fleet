@@ -1062,6 +1062,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
+		var policyName *string
+		if hsi.PolicyID != nil {
+			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil {
+				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
+			}
+		}
+
 		if err := svc.NewActivity(
 			ctx,
 			user,
@@ -1073,6 +1080,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				InstallUUID:     result.InstallUUID,
 				Status:          string(status),
 				SelfService:     hsi.SelfService,
+				PolicyID:        hsi.PolicyID,
+				PolicyName:      policyName,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
