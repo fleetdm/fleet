@@ -2781,7 +2781,6 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger FileVault key escrow](#trigger-filevault-key-escrow)
 - [Report an agent error](#report-an-agent-error)
-- [Register a device with the setup experience](#register-a-device-with-the-setup-experience)
 
 #### Refetch device's host
 
