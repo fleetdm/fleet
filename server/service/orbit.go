@@ -215,11 +215,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	}
 
-	r, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, "foo")
-	if len(r) > 0 {
-		notifs.RunSetupExperience = true
-	}
-
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
 		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
