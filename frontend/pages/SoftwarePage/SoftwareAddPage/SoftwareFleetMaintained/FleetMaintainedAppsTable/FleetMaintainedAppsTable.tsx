@@ -25,7 +25,11 @@ const EmptyFleetAppsTable = () => (
     info={
       <>
         Can&apos; find app?{" "}
-        <CustomLink newTab url="" text="File and issue on GitHub" />
+        <CustomLink
+          newTab
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="File an issue on GitHub"
+        />
       </>
     }
   />
