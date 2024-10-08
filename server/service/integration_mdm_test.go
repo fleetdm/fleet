@@ -11485,10 +11485,11 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 
 	// Configure a bad SCEP URL
 	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 	appConf.Integrations.NDESSCEPProxy.Valid = true
 	appConf.Integrations.NDESSCEPProxy.Value.URL = "https://httpstat.us/410"
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
 
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation", "GetCACaps")
 	errBody, err = io.ReadAll(res.Body)
@@ -11545,7 +11546,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 
 	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// GetCACaps
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")

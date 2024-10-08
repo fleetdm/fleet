@@ -1450,7 +1450,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	// SCEP proxy not configured for free users
-	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	_, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	assert.ErrorContains(t, err, ErrMissingLicense.Error())
 	assert.ErrorContains(t, err, "integrations.ndes_scep_proxy")
 

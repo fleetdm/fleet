@@ -336,54 +336,56 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
-	switch {
-	case !license.IsPremium():
+	if newAppConfig.Integrations.NDESSCEPProxy.Set && !license.IsPremium() {
 		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
 		appConfig.Integrations.NDESSCEPProxy.Valid = false
-	case !newAppConfig.Integrations.NDESSCEPProxy.Set:
-		// Nothing is set -- keep the old value
-		appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
-	case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
-		// User is explicitly clearing this setting
-		appConfig.Integrations.NDESSCEPProxy.Valid = false
-		// Delete stored password
-		if !applyOpts.DryRun {
-			if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
+	} else {
+		switch {
+		case !newAppConfig.Integrations.NDESSCEPProxy.Set:
+			// Nothing is set -- keep the old value
+			appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
+		case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
+			// User is explicitly clearing this setting
+			appConfig.Integrations.NDESSCEPProxy.Valid = false
+			// Delete stored password
+			if !applyOpts.DryRun {
+				if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
+				}
 			}
-		}
-	default:
-		// User is updating the setting
-		appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
-		appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
-		appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
-		// do not preprocess password
+		default:
+			// User is updating the setting
+			appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+			appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
+			appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
+			// do not preprocess password
 
-		validateAdminURL, validateSCEPURL := false, false
-		newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
-		if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
-			validateAdminURL, validateSCEPURL = true, true
-		} else {
-			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
-			if newSCEPProxy.URL != oldSCEPProxy.URL {
-				validateSCEPURL = true
+			validateAdminURL, validateSCEPURL := false, false
+			newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
+			if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+				validateAdminURL, validateSCEPURL = true, true
+			} else {
+				oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
+				if newSCEPProxy.URL != oldSCEPProxy.URL {
+					validateSCEPURL = true
+				}
+				if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
+					newSCEPProxy.Username != oldSCEPProxy.Username ||
+					(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
+					validateAdminURL = true
+				}
 			}
-			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
-				newSCEPProxy.Username != oldSCEPProxy.Username ||
-				(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
-				validateAdminURL = true
-			}
-		}
 
-		if validateAdminURL {
-			if err = validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
-				invalid.Append("integrations.ndes_scep_proxy", err.Error())
+			if validateAdminURL {
+				if err = validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
+					invalid.Append("integrations.ndes_scep_proxy", err.Error())
+				}
 			}
-		}
 
-		if validateSCEPURL {
-			if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
-				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+			if validateSCEPURL {
+				if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
+					invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+				}
 			}
 		}
 	}
