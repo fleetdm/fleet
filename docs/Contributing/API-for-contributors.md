@@ -3205,7 +3205,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ### Get the status of a device in the setup experience
 
-`GET /api/v1/fleet/device/{token}/setup_experience/status`
+`GET /api/v1/fleet/device/:token/setup_experience/status`
 
 ##### Parameters
 
