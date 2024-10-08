@@ -578,6 +578,7 @@ module.exports.routes = {
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#add-a-software-package-to-a-team',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
+  'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
 
 
   // Sitemap
