@@ -1,27 +1,26 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
-import deepDifference from "utilities/deep_difference";
 
 import { getErrorReason } from "interfaces/errors";
 
-import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
-import softwareAPI from "services/entities/software";
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import softwareAPI, {
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_MB,
+  UPLOAD_TIMEOUT,
+} from "services/entities/software";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import deepDifference from "utilities/deep_difference";
+import { getFileDetails } from "utilities/file/fileUtils";
 
 import CustomLink from "components/CustomLink";
+import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import {
-  UPLOAD_TIMEOUT,
-  MAX_FILE_SIZE_MB,
-  MAX_FILE_SIZE_BYTES,
-} from "pages/SoftwarePage/components/AddPackage/AddPackage";
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
@@ -33,18 +32,14 @@ interface IEditSoftwareModalProps {
   router: InjectedRouter;
   software?: any; // TODO
   refetchSoftwareTitle: () => void;
-
   onExit: () => void;
-  setAddedSoftwareToken: (token: string) => void;
 }
 
 const EditSoftwareModal = ({
   softwareId,
   teamId,
-  router,
   software,
   onExit,
-  setAddedSoftwareToken,
   refetchSoftwareTitle,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -62,16 +57,23 @@ const EditSoftwareModal = ({
     installScript: "",
     selfService: false,
   });
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
   useEffect(() => {
     setEditSoftwareModalClasses(
       classnames(baseClass, {
-        [`${baseClass}--hidden`]: showConfirmSaveChangesModal,
+        [`${baseClass}--hidden`]:
+          showConfirmSaveChangesModal ||
+          (!!pendingUpdates.software && isUpdatingSoftware),
       })
     );
-  }, [showConfirmSaveChangesModal]);
+  }, [
+    showConfirmSaveChangesModal,
+    pendingUpdates.software,
+    isUpdatingSoftware,
+  ]);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -120,12 +122,15 @@ const EditSoftwareModal = ({
     // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.editSoftwarePackage(
-        formData,
+      await softwareAPI.editSoftwarePackage({
+        data: formData,
         softwareId,
         teamId,
-        UPLOAD_TIMEOUT
-      );
+        timeout: UPLOAD_TIMEOUT,
+        onUploadProgress: (progressEvent) => {
+          setUploadProgress(progressEvent.progress || 0);
+        },
+      });
 
       renderFlash(
         "success",
@@ -182,7 +187,6 @@ const EditSoftwareModal = ({
     const onlySelfServiceUpdated =
       Object.keys(updates).length === 1 && "selfService" in updates;
     if (!onlySelfServiceUpdated) {
-      console.log("non-self-service updates: ", updates);
       // Open the confirm save changes modal
       setShowConfirmSaveChangesModal(true);
     } else {
@@ -205,8 +209,8 @@ const EditSoftwareModal = ({
         width="large"
       >
         <PackageForm
+          className={`${baseClass}__package-form`}
           isEditingSoftware
-          isUploading={isUpdatingSoftware}
           onCancel={onExit}
           onSubmit={onEditSoftware}
           defaultSoftware={software}
@@ -222,6 +226,12 @@ const EditSoftwareModal = ({
           onClose={toggleConfirmSaveChangesModal}
           softwarePackageName={software?.name}
           onSaveChanges={onConfirmSoftwareChanges}
+        />
+      )}
+      {!!pendingUpdates.software && isUpdatingSoftware && (
+        <FileProgressModal
+          fileDetails={getFileDetails(pendingUpdates.software)}
+          fileProgress={uploadProgress}
         />
       )}
     </>

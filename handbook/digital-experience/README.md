@@ -75,6 +75,7 @@ Here's how:
 
 
 ### Update personnel details
+
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
 1. Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
     - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
@@ -89,8 +90,9 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 > Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
 
 
-### Change a Fleetie's job title
-When Digital Experience receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
+### Change a Fleetie's role
+
+When Digital Experience receives [notification of a Fleetie's role changing](https://fleetdm.com/handbook/company/leadership#request-a-role-change-for-a-fleetie), The Head of Digital Experience will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Head of Digital Experience will inform the requesting manager as to why. If approved, use the following steps to change a Fleetie's role:  
 1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search the spreadsheet for the Fleetie in need of a job title change.
     - Input the new job title in the Fleetie's row in the "Job title" cell.
@@ -111,6 +113,7 @@ When Digital Experience receives notification of a Fleetie's job title changing,
 
 
 ### Change a Fleetie's manager
+
 When Digital Experience receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
@@ -518,7 +521,7 @@ Use the following steps to schedule an interview between a candidate and the CEO
 1. Once you receive a [CEO interview request](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member), apply the "eyes" (👀) emoji to the Slack post to acknowledge you've seen the request.
 2. Reach out to the candidate via email to find a time when the CEO and candidate are both available.
    > This entire process takes an hour for the CEO: a 30-minute interview followed by a 30-minute "¶¶ Postgame" Be sure to offer times that accommodate this.
-3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc) and move it to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
+3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc) and move it to the "[¶¶ Interview feedback](https://drive.google.com/drive/folders/1v5Z1WB9S855hLZMUWgOiXA_ei2EpEGlA?usp=drive_link)" folder in Google Drive. 
 4. Prep the CEO interview doc:
    - Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
@@ -788,6 +791,14 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 8. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+
+
+### Cancel a Fleet Premium subscription
+
+Use the following steps to cancel a Fleet Premium subscription:
+1. Log into [Stripe](https://dashboard.stripe.com/dashboard) (login in 1Password) and paste the customer's email they used to sign up in the search bar at the top of the page.
+2. Select the subscription related to the email and use the "Actions" drop-down to "Cancel immediately".
+3. Reach out to the community member (using the [correct email template](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit#heading=h.vw9mkh5e9msx)) and let them know their subscription was canceled.
 
 
 ## Rituals

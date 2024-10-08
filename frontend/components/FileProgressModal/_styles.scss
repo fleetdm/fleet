@@ -1,0 +1,7 @@
+.file-progress-modal {
+  // TODO: should we update the card component with this padding option?
+  &__card {
+    padding-top: $pad-medium;
+    padding-bottom: $pad-medium;
+  }
+}

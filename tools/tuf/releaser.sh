@@ -15,6 +15,7 @@ set -e
 # ACTION
 # VERSION
 # KEYS_SOURCE_DIRECTORY
+# ROOT_PASSPHRASE_1PASSWORD_PATH
 # TARGETS_PASSPHRASE_1PASSWORD_PATH
 # SNAPSHOT_PASSPHRASE_1PASSWORD_PATH
 # TIMESTAMP_PASSPHRASE_1PASSWORD_PATH
@@ -55,7 +56,10 @@ setup () {
 
     mkdir -p "$REPOSITORY_DIRECTORY"
     mkdir -p "$STAGED_DIRECTORY"
-    cp -r "$KEYS_SOURCE_DIRECTORY" "$KEYS_DIRECTORY"
+
+    if [[ $ACTION != "push-to-remote" && $ACTION != "pull-from-remote" ]]; then
+        cp -r "$KEYS_SOURCE_DIRECTORY" "$KEYS_DIRECTORY"
+    fi
 
     if ! aws sts get-caller-identity &> /dev/null; then
         prompt "You need to login to AWS using the cli."
@@ -81,14 +85,22 @@ setup () {
     # Passphrases need to be exported for use by `fleetctl updates` commands.
     #
 
-    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
+    if [[ $ACTION == "rotate-root-key" ]]; then
+        FLEET_ROOT_PASSPHRASE=$(op read "op://$ROOT_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_ROOT_PASSPHRASE
+    elif [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
         FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
         export FLEET_TARGETS_PASSPHRASE
         FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
         export FLEET_SNAPSHOT_PASSPHRASE
+        FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TIMESTAMP_PASSPHRASE
+    elif [[ $ACTION == "update-timestamp" ]]; then
+        FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TIMESTAMP_PASSPHRASE
+    elif [[ $ACTION == "push-to-remote" || $ACTION == "pull-from-remote" ]]; then
+        : # nothing to do key-wise when pull from or pushing to remote
     fi
-    FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_TIMESTAMP_PASSPHRASE
 
     go build -o "$GO_TOOLS_DIRECTORY/replace" "$SCRIPT_DIR/../../tools/tuf/replace"
     go build -o "$GO_TOOLS_DIRECTORY/download-artifacts" "$SCRIPT_DIR/../../tools/tuf/download-artifacts"
@@ -321,26 +333,44 @@ print_reminder () {
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "Make sure to install fleetd with '--osqueryd-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         fi
+    elif [[ $ACTION == "pull-from-remote" || $ACTION == "push-to-remote" || $ACTION == "update-timestamp" || $ACTION == "rotate-root-key" ]]; then
+        :
     elif [[ $ACTION != "update-timestamp" ]]; then
         echo "Unsupported action: $ACTION"
         exit 1
     fi
 }
 
+rotate_root_keys () {
+    pushd "$TUF_DIRECTORY"
+    fleetctl updates rotate root
+    popd
+}
+
 trap clean_up EXIT
 print_reminder
 setup
-pull_from_remote
+
+if [[ $ACTION != "push-to-remote" ]]; then
+    pull_from_remote
+fi
 
 if [[ $ACTION == "release-to-edge" ]]; then
     release_to_edge
+    push_to_remote
 elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     promote_edge_to_stable
+    push_to_remote
 elif [[ $ACTION == "update-timestamp" ]]; then
     update_timestamp
+    push_to_remote
+elif [[ $ACTION == "rotate-root-key" ]]; then
+    rotate_root_keys
+elif [[ $ACTION == "push-to-remote" ]]; then
+    push_to_remote
+elif [[ $ACTION == "pull-from-remote" ]]; then
+    : # nothing to do
 else
     echo "Unsupported action: $ACTION"
     exit 1
 fi
-
-push_to_remote

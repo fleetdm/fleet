@@ -38,7 +38,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
-		{HostID: hosts[0].ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+		{HostID: hosts[0].ID, SerialNumber: "a", CycleCount: 1, Health: "Normal"},
 	}))
 
 	// create an auth token for hosts[0]
