@@ -54,7 +54,6 @@ ALTER TABLE host_script_results
 CREATE TABLE setup_experience_status_results (
 	id		INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 	host_uuid	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-	type		ENUM('bootstrap-package', 'software-install', 'post-install-script') NOT NULL,
 	name		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	status		ENUM('pending', 'running', 'success', 'failure') NOT NULL,
 	
