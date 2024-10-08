@@ -32,7 +32,6 @@
     - Tools to debug the ABM APIs
     - Tools to import/export certificates and keys from the DB
 
-
 ## Fleet specific features
 
 ### Profiles and Declarations
@@ -102,14 +101,23 @@ It's important to note that when sending a new enrollment profile, certain field
 
 The implementation of the Puppet module is described in detail at: `ee/tools/puppet/fleetdm/CONTRIBUTING.md`
 
+### MDM migrations
+
+Windows MDM is more flexible when it comes to switching MDM servers, so MDM migrations are generally not a big deal.
+
+Apple MDM is more strict, and we have built two different flows:
+
+1. The "regular" flow is what most customers will use, involve `fleetd` guiding the user through the migration to perform manual steps. The user documentation for this flow is https://fleetdm.com/guides/mdm-migration
+2. The "seamless" flow allows customers with access to their MDM database and ownership of the domain used as the `ServerURL` in the enrollment profile to migrate the devices without user action. The user documentation for this flow is https://fleetdm.com/guides/seamless-mdm-migration
+
+### Disk encryption
+
+**FileVault**
+
+**BitLocker**
+
+### ABM/ADE
+
 - ABM integration and custom behaviors
 - Automatic enrollment additions
-
-- MDM migrations
-    - Regular
-    - Touchless
-
-- FileVault / BitLocker
-
-- TODO: link/aggregate MDM development docs in 
 
