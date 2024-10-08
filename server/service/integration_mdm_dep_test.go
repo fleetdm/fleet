@@ -1244,55 +1244,70 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script42.sh"), res.Header.Get("Content-Disposition"))
 
-	// script already exists with this name for this team
+	// try to create script with same name, should fail because already exists with this name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusConflict, headers)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "A script with this name already exists")
+	require.Contains(t, errMsg, "already exists") // TODO: confirm expected error message with product/frontend
 
-	// create with a different name for this team
+	// try to create with a different name for this team, should fail because another script already exists
+	// for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
-	// TODO: update this to fail once we add the unique constraint
+		"different.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusConflict, headers)
-	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
-	require.NoError(t, err)
-
-	// // delete the no-team script
-	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNoContent)
-	// s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null}`, "script1.sh"), 0)
-
-	// // delete the initial team script
-	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusNoContent)
-	// s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
-
-	// // delete a non-existing script
-	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "already exists") // TODO: confirm expected error message with product/frontend
 
 	// create no-team script
-	noTeamID := uint(0)
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script42.sh", []byte(`echo "hello"`), s.token, nil) // TODO: confirm how we want to handle this, should we invalidate requests with nil team id and force requestor to specify zero?
+		"script42.sh", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
+	// // TODO: confirm if we will allow team_id=0 requests
+	// noTeamID := uint(0) // TODO: confirm if we will allow team_id=0 requests
+	// body, headers = generateNewScriptMultipartRequest(t,
+	// 	"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", noTeamID)}})
 
 	// get no-team script metadata
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", noTeamID), nil, http.StatusOK, &getScriptResp)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, &getScriptResp)
 	require.Equal(t, "script42.sh", getScriptResp.Name)
 	require.Nil(t, getScriptResp.TeamID)
-	// require.Equal(t, noTeamID, *getScriptResp.TeamID)
 	require.NotZero(t, getScriptResp.ID)
 	require.NotZero(t, getScriptResp.CreatedAt)
 	require.NotZero(t, getScriptResp.UpdatedAt)
+	// // TODO: confirm if we will allow team_id=0 requests
+	// s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", noTeamID), nil, http.StatusOK, &getScriptResp)
 
 	// get no-team script contents
-	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d&alt=media", noTeamID), nil, http.StatusOK)
+	res = s.Do("GET", "/api/latest/fleet/setup_experience/script?alt=media", nil, http.StatusOK)
 	b, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Equal(t, `echo "hello"`, string(b))
 	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script42.sh"), res.Header.Get("Content-Disposition"))
+	// // TODO: confirm if we will allow team_id=0 requests
+	// res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d&alt=media", noTeamID), nil, http.StatusOK)
+
+	// delete the no-team script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script"), nil, http.StatusOK)
+
+	// try get the no-team script
+	s.Do("GET", "/api/latest/fleet/setup_experience/script", nil, http.StatusNotFound)
+
+	// try deleting the no-team script again
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script"), nil, http.StatusOK) // TODO: confirm if we want to return not found
+
+	// // TODO: confirm if we will allow team_id=0 requests
+	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script/?team_id=%d", noTeamID), nil, http.StatusOK)
+
+	// delete the team script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK)
+
+	// try get the team script
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusNotFound)
+
+	// try deleting the team script again
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK) // TODO: confirm if we want to return not found
 }

@@ -111,7 +111,8 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 
 	// try to create another script with no team id and a different name
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
-	require.NoError(t, err) // TODO: update this when we add unique constraint
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
 
 	// try to add a script for a team that doesn't exist
 	var fkErr fleet.ForeignKeyError
@@ -130,11 +131,11 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 
 	// try to delete script for team1 again
 	err = ds.DeleteSetupExperienceScript(ctx, &team1.ID)
-	require.NoError(t, err)
+	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
 
 	// try to delete script for team that doesn't exist
 	err = ds.DeleteSetupExperienceScript(ctx, ptr.Uint(42))
-	require.NoError(t, err)
+	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
 
 	// add same script for team1 again
 	err = ds.SetSetupExperienceScript(ctx, wantScript1)

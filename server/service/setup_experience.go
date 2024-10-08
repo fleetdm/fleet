@@ -30,6 +30,8 @@ func (r getSetupExperienceScriptResponse) error() error { return r.Err }
 func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSetupExperienceScriptRequest)
 	downloadRequested := req.Alt == "media"
+	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
+	// // use it in the auth layer where team_id=0 is not allowed?
 	script, content, err := svc.GetSetupExperienceScript(ctx, req.TeamID, downloadRequested)
 	if err != nil {
 		return getSetupExperienceScriptResponse{Err: err}, nil
@@ -75,12 +77,9 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = ptr.Uint(uint(teamID))
-		// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
+		// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need to convert it to nil here so that we can
 		// // use it in the auth layer where team_id=0 is not allowed?
-		// if teamID > 0 {
-		// 	decoded.TeamID = ptr.Uint(uint(teamID))
-		// }
+		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]
@@ -136,6 +135,8 @@ func (r deleteSetupExperienceScriptResponse) error() error { return r.Err }
 
 func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteSetupExperienceScriptRequest)
+	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
+	// // use it in the auth layer where team_id=0 is not allowed?
 	if err := svc.DeleteSetupExperienceScript(ctx, req.TeamID); err != nil {
 		return deleteSetupExperienceScriptResponse{Err: err}, nil
 	}

@@ -61,14 +61,12 @@ func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, n
 	}
 
 	if err := svc.ds.SetSetupExperienceScript(ctx, script); err != nil {
-		// TODO: Add unique constraint on global_or_team_id to enforce only one SE script per team?
-		// If so, how to detect/handle that error? (existsErr below is for name uniqueness)
 		var (
 			existsErr fleet.AlreadyExistsError
 			fkErr     fleet.ForeignKeyError
 		)
 		if errors.As(err, &existsErr) {
-			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
+			err = fleet.NewInvalidArgumentError("script", err.Error()).WithStatus(http.StatusConflict) // TODO: confirm error message with product/frontend
 		} else if errors.As(err, &fkErr) {
 			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
 		}
