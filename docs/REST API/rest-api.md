@@ -5737,11 +5737,11 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
-- [List setup experience software](#list-setup-experience-software)
-- [Update setup experience software](#update-setup-experience-software)
-- [Add setup experience script](#add-setup-experience-script)
-- [Get setup experience script](#get-setup-experience-script)
-- [Delete setup experience script](#delete-setup-experience-script)
+- [List software (setup experience)](#list-software-setup-experience)
+- [Update software (setup experience)](#update-software-setup-experience)
+- [Add script (setup experience)](#add-script-setup-experience)
+- [Get script (setup experience)](#get-script-setup-experience)
+- [Delete script (setup experience)](#delete-script-setup-experience)
 
 
 
