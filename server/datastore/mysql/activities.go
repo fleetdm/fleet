@@ -299,7 +299,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		// list pending scripts
 		`SELECT
 			hsr.execution_id as uuid,
-			IF(hsr.policy_id IS NOT NULL, "Fleet", u.name) as name,
+			IF(hsr.policy_id IS NOT NULL, 'Fleet', u.name) as name,
 			u.id as user_id,
 			u.gravatar_url as gravatar_url,
 			u.email as user_email,
