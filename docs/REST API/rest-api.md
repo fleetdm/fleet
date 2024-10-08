@@ -6255,7 +6255,7 @@ List software that can or will be automatically installed during macOS setup. If
 }
 ```
 
-### Update setup experience software
+### Update software (setup experience)
 
 _Available in Fleet Premium_
 
