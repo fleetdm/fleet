@@ -74,8 +74,10 @@ type service struct {
 	debugLogger log.Logger
 }
 
+const DefaultCACaps = "Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation"
+
 func (svc *service) GetCACaps(ctx context.Context) ([]byte, error) {
-	defaultCaps := []byte("Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation")
+	defaultCaps := []byte(DefaultCACaps)
 	return defaultCaps, nil
 }
 

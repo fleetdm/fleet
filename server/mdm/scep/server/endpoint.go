@@ -179,7 +179,7 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 		default:
 			return nil, &BadRequestError{Message: "operation not implemented"}
 		}
-		return resp, nil
+		return resp, resp.Err
 	}
 }
 

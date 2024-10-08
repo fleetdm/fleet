@@ -24,7 +24,10 @@ import (
 var _ scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
 var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
 
-const fullPasswordCache = "The password cache is full."
+const (
+	fullPasswordCache             = "The password cache is full."
+	MessageSCEPProxyNotConfigured = "SCEP proxy is not configured"
+)
 
 type scepProxyService struct {
 	ds fleet.Datastore
@@ -41,13 +44,18 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
 	}
 	if !appConfig.Integrations.NDESSCEPProxy.Valid {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "SCEP proxy is not configured"}, "getting app config")
+		return nil, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
 	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
-	return client.GetCACaps(ctx)
+	res, err := client.GetCACaps(ctx)
+	if err != nil {
+		return res, ctxerr.Wrap(ctx, err,
+			fmt.Sprintf("Could not GetCACaps from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL))
+	}
+	return res, nil
 }
 
 // GetCACert returns the CA certificate(s) from SCEP server.
@@ -59,13 +67,18 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string) ([]b
 	}
 	if !appConfig.Integrations.NDESSCEPProxy.Valid {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, 0, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "SCEP proxy is not configured"}, "getting app config")
+		return nil, 0, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
 	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
-	return client.GetCACert(ctx, message)
+	res, num, err := client.GetCACert(ctx, message)
+	if err != nil {
+		return res, num, ctxerr.Wrap(ctx, err,
+			fmt.Sprintf("Could not GetCACert from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL))
+	}
+	return res, num, nil
 }
 
 func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, identifier string) ([]byte, error) {
@@ -75,7 +88,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 	if !appConfig.Integrations.NDESSCEPProxy.Valid {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "SCEP proxy is not configured"}, "getting app config")
+		return nil, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
 
 	// Validate the identifier. In the future, we will also use the identifier for tracking the certificate renewal.
@@ -87,7 +100,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	parsedIDs := strings.Split(parsedID, ",")
 	if len(parsedIDs) != 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "invalid identifier in URL path"}, "parsing identifier")
+		return nil, &scepserver.BadRequestError{Message: "invalid identifier in URL path"}
 	}
 	profile, err := svc.ds.GetHostMDMAppleProfile(ctx, parsedIDs[0], parsedIDs[1])
 	if err != nil {
@@ -95,17 +108,23 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 	if profile == nil {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, ctxerr.Wrap(ctx, &scepserver.BadRequestError{Message: "unknown identifier in URL path"}, "getting host MDM profile")
+		return nil, &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
 
 	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
-	return client.PKIOperation(ctx, data)
+	res, err := client.PKIOperation(ctx, data)
+	if err != nil {
+		return res, ctxerr.Wrap(ctx, err,
+			fmt.Sprintf("Could not do PKIOperation on SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL))
+	}
+	return res, nil
 }
 
 func (svc *scepProxyService) GetNextCACert(ctx context.Context) ([]byte, error) {
+	// NDES on Windows Server 2022 does not support this, as advertised via GetCACaps
 	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
 }
 
