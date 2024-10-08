@@ -3205,6 +3205,22 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ```json
 {
+  "configuration_profiles": [
+    {
+      "profile_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "name": "macOS restrictions",
+      "status": "acknowledged"
+    },
+    {
+      "profile_uuid": "42bcf55b-f374-46b0-b484-5ffffafaf3f6",
+      "name": "Certificates profile",
+      "status": "pending"
+    },
+  ],
+  "bootstrap_package": {
+      "name": "mac-bootstrap-package.pkg",
+      "status": "acknowledged"
+  },
   "script": {
     "execution_id": "02e4abba-7d96-4f5b-8c18-ffc5de71bd45",
     "name": "setup-macos.sh",
