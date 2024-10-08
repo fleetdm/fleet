@@ -100,11 +100,51 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	anything, err := ds.EnqueueSetupExperienceItems(ctx, "123213", team1.ID)
+	// var script1ID, script2ID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := insertScriptContents(ctx, q, "SCRIPT 1")
+		if err != nil {
+			return err
+		}
+		id1, _ := res.LastInsertId()
+		res, err = insertScriptContents(ctx, q, "SCRIPT 2")
+		if err != nil {
+			return err
+		}
+		id2, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, name, script_content_id) VALUES (?, ?, ?)", team1.ID, "script1", id1)
+		if err != nil {
+			return err
+		}
+		// script1ID, _ = res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, name, script_content_id) VALUES (?, ?, ?)", team1.ID, "script2", id2)
+		if err != nil {
+			return err
+		}
+		// script2ID, _ = res.LastInsertId()
+
+		return nil
+	})
+
+	hostTeam1 := "123"
+	hostTeam2 := "456"
+	hostTeam3 := "789"
+
+	anything, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anything)
 
-	anything, err = ds.EnqueueSetupExperienceItems(ctx, "213321", team3.ID)
+	anything, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	require.NoError(t, err)
+	require.True(t, anything)
+
+	anything, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anything)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return nil
+	})
 }
