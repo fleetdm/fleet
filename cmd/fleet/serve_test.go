@@ -240,6 +240,14 @@ func TestAutomationsSchedule(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
