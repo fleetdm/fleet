@@ -21,17 +21,14 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
 
-const getPlatformDisplayFromPackageSuffix = (packageName: string) => {
-  const split = packageName.split(".");
-  const suff = split[split.length - 1];
-  switch (suff) {
+const getPlatformDisplayFromPackageExtension = (ext: string | undefined) => {
+  switch (ext) {
     case "pkg":
       return "macOS";
     case "deb":
     case "rpm":
       return "Linux";
     case "exe":
-      return "Windows";
     case "msi":
       return "Windows";
     default:
@@ -153,10 +150,12 @@ const InstallSoftwareModal = ({
   );
 
   const availableSoftwareOptions = titlesAFI?.map((title) => {
-    const platformDisplay = getPlatformDisplayFromPackageSuffix(
-      title.software_package?.name ?? ""
-    );
-    const platformString = platformDisplay ? `${platformDisplay} • ` : "";
+    const splitName = title.software_package?.name.split(".") ?? "";
+    const ext =
+      splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
+    const platformString = ext
+      ? `${getPlatformDisplayFromPackageExtension(ext)} (.${ext}) • `
+      : "";
     return {
       label: title.name,
       value: title.id,
