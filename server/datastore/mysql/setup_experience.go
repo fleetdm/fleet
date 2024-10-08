@@ -29,8 +29,6 @@ WHERE
 	}
 
 	var script fleet.Script
-	// TODO: Add unique constraint on global_or_team_id to enforce only one SE script per team?
-	// If so, what to do if multiple scripts exist?
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, globalOrTeamID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script")
@@ -87,7 +85,7 @@ VALUES
 	if err != nil {
 
 		if IsDuplicate(err) {
-			// already exists for this team/global
+			// already exists for this team/no team
 			err = &existsError{ResourceType: "SetupExperienceScript", TeamID: &globalOrTeamID}
 		} else if isChildForeignKeyError(err) {
 			// team does not exist
