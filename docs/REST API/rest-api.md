@@ -6282,7 +6282,7 @@ Set software that will be automatically installed during macOS setup. Software t
 }
 ```
 
-### Add setup experience script
+### Add script (setup experience)
 
 _Available in Fleet Premium_
 
