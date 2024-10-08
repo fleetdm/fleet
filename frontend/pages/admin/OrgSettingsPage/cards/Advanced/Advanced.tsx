@@ -170,15 +170,17 @@ const Advanced = ({
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.
           </p>
-          <InputField
-            label="MDM client URL"
-            onChange={onInputChange}
-            name="mdmClientURL"
-            value={mdmClientURL}
-            parseTarget
-            error={formErrors.mdmClientURL}
-            tooltip="Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy."
-          />
+          {appConfig.mdm.enabled_and_configured && (
+            <InputField
+              label="MDM client URL"
+              onChange={onInputChange}
+              name="mdmClientURL"
+              value={mdmClientURL}
+              parseTarget
+              error={formErrors.mdmClientURL}
+              tooltip="Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy."
+            />
+          )}
           <InputField
             label="Domain"
             onChange={onInputChange}
