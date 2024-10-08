@@ -1120,8 +1120,6 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
-	// TODO(JVE): comment here
-	OrbitSetupExperienceReady(ctx context.Context, hostNodeKey string) error
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
 	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*SetupExperienceStatusPayload, error)
 

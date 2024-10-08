@@ -19,7 +19,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
-	"github.com/google/uuid"
 )
 
 type setOrbitNodeKeyer interface {
@@ -1075,48 +1074,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 	}
-	return nil
-}
-
-// TODO(JVE): probably remove this
-type postOrbitSetupExperienceReadyRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-}
-
-// interface implementation required by the OrbitClient
-func (r *postOrbitSetupExperienceReadyRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-// interface implementation required by orbit authentication
-func (r *postOrbitSetupExperienceReadyRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type postOrbitSetupExperienceReadyResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r postOrbitSetupExperienceReadyResponse) error() error { return r.Err }
-
-func postOrbitSetupExperienceReadyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*postOrbitSetupExperienceReadyRequest)
-	if err := svc.OrbitSetupExperienceReady(ctx, req.OrbitNodeKey); err != nil {
-		return &postOrbitSetupExperienceReadyResponse{Err: err}, nil
-	}
-	return &postOrbitSetupExperienceReadyResponse{}, nil
-}
-
-func (svc *Service) OrbitSetupExperienceReady(ctx context.Context, hostNodeKey string) error {
-	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, hostNodeKey)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading host by orbit node key")
-	}
-
-	if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
-		return ctxerr.Wrap(ctx, err, "releasing device into fleet setup experience")
-	}
-
 	return nil
 }
 
