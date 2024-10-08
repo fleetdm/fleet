@@ -1096,6 +1096,8 @@ type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint,
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
+type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
+
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
@@ -2716,6 +2718,9 @@ type DataStore struct {
 
 	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
 	ListSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
+	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
 
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
@@ -6493,6 +6498,13 @@ func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamI
 	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	s.mu.Lock()
+	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

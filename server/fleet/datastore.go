@@ -1734,6 +1734,11 @@ type Datastore interface {
 	ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Setup Experience
+	//
+
+	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+
 	// Fleet-maintained apps
 	//
 
