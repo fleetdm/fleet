@@ -876,7 +876,7 @@ func main() {
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
-			log.Debug().Msg("going to launch swift dialog zzzzzz")
+			log.Debug().Msg("JVE_LOG: going to launch swift dialog zzzzzz")
 			sdPath := "/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app/Contents/MacOS/Dialog"
 			if _, err := os.Stat(sdPath); err != nil {
 				log.Error().Msg("couldn't find swiftDialog on orbit startup")
@@ -1242,7 +1242,7 @@ func main() {
 			}
 		}
 
-		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn, c.String("root-dir"))
 		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		if runtime.GOOS == "darwin" {
