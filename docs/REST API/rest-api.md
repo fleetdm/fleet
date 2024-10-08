@@ -498,6 +498,10 @@ for pagination. For a comprehensive list of activity types and detailed informat
         "software_title": "Adobe Acrobat.app",
         "install_uuid": "eeeddb94-52d3-4071-8b18-7322cd382abb",
         "status": "installed"
+        "policy": {
+          "name": "Install Adobe Acrobat",
+          "id": 324
+        }
       }
     },
     {
