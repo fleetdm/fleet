@@ -53,14 +53,9 @@ module.exports = {
       await UndeployedSoftware.create(newSoftwareInfo);
     } else {
       for(let teamApid of teams) {
-        uploadedSoftware = await sails.uploadOne(newSoftware,
-          {
-            adapter: require('skipper-disk'),
-            maxBytes: 300*1024*1024// 300 MB
-          }
-        );
+        uploadedSoftware = await sails.uploadOne(newSoftware);
         var WritableStream = require('stream').Writable;
-        await sails.cp(uploadedSoftware.fd, {adapter: require('skipper-disk')}, {
+        await sails.cp(uploadedSoftware.fd, {}, {
           adapter: ()=>{
             return {
               ls: undefined,
@@ -111,7 +106,7 @@ module.exports = {
         });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
-      await sails.rm(uploadedSoftware.fd, {adapter: require('skipper-disk')});
+      await sails.rm(uploadedSoftware.fd);
     }
     return;
 

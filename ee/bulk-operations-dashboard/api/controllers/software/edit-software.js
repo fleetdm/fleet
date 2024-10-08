@@ -80,14 +80,14 @@ module.exports = {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         });
-        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {adapter: require('skipper-disk'),  maxBytes: 300*1024*1024});
+        let tempUploadedSoftware = await sails.uploadOne(softwareStream);
         softwareFd = tempUploadedSoftware.fd;
         softwareName = software.name;
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
         // If a new copy of the installer was uploaded, we'll
         // console.log('replacing software package!');
-        let uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: 300*1024*1024});
+        let uploadedSoftware = await sails.uploadOne(newSoftware);
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
         softwareMime = uploadedSoftware.type;
@@ -107,10 +107,7 @@ module.exports = {
       if(!software.id) {
         // If this software is not stored in the s3 bucket, we'll use the skipper-disk adapter to store a temporary copy in the app's local filesystem.
         // Note: This file will be deleted after it is copied to its final home (either the S3 bucket we're storing )
-        adapterForUploadedFile = {
-          adapter: require('skipper-disk'),
-          maxBytes: 300*1024*1024// 300 MB
-        };
+        adapterForUploadedFile = {};
       }
       // Now apply the edits.
       if(newTeamIds.length !== 0) {
@@ -118,9 +115,11 @@ module.exports = {
         let addedTeams = _.difference(newTeamIds, currentSoftwareTeamIds);
         let removedTeams = _.difference(currentSoftwareTeamIds, newTeamIds);
         let unchangedTeamIds = _.difference(currentSoftwareTeamIds, removedTeams);
-        for(let team of addedTeams) {
+        // for(let team of addedTeams) {
+        await sails.helpers.flow.simultaneouslyForEach(addedTeams, async (team)=>{
+
           // Send an api request to send the file to the Fleet server for each added team.
-          await sails.cp(softwareFd, adapterForUploadedFile,
+          await sails.cp(softwareFd, {},
             {
               adapter: ()=>{
                 return {
@@ -163,6 +162,7 @@ module.exports = {
                         doneWithThisFile();
                       })
                       .catch((err)=>{
+                        console.log(err);
                         doneWithThisFile(err);
                       });
                     };//ƒ
@@ -174,10 +174,12 @@ module.exports = {
           .intercept((unusedErr)=>{
             return 'softwareUploadFailed';
           });
-        }// After every new team this is deployed to.
+          // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${team}`);
+        });
+        // }// After every new team this is deployed to.
         if(newSoftware) {
           // If a new installer package was provided, send patch requests to update the installer package on teams that it is already deployed to.
-          for(let teamApid of unchangedTeamIds) {
+          await sails.helpers.flow.simultaneouslyForEach(unchangedTeamIds, async (teamApid)=>{
             // console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
             await sails.helpers.http.sendHttpRequest.with({
               method: 'DELETE',
@@ -187,7 +189,9 @@ module.exports = {
                 Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
               }
             });
-            await sails.cp(softwareFd, adapterForUploadedFile,
+            // console.log(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
+            // console.time(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
+            await sails.cp(softwareFd, {},
             {
               adapter: ()=>{
                 return {
@@ -238,7 +242,8 @@ module.exports = {
                 };
               },
             });
-          }// After every team the software is currently deployed to.
+            // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
+          });// After every team the software is currently deployed to.
         }
         // Now delete the software from teams it was removed from.
         for(let team of removedTeams) {
@@ -269,14 +274,10 @@ module.exports = {
             platform: _.endsWith(softwareName, '.deb') ? 'Linux' : _.endsWith(softwareName, '.pkg') ? 'macOS' : 'Windows',
           });
         } else {
-          // Copy the software installer from temporary file storage to the s3 bucket.
-          let newlyUndeployedSoftwareInfo = await sails.cp(softwareFd, adapterForUploadedFile, {});
-          // Delete the temporary file for the installer.
-          await sails.rm(softwareFd, adapterForUploadedFile)
           // Save the information about the undeployed software in the app's DB.
           await UndeployedSoftware.create({
-            uploadFd: newlyUndeployedSoftwareInfo.fd,
-            uploadMime: newlyUndeployedSoftwareInfo.type,
+            uploadFd: softwareFd,
+            uploadMime: softwareMime,
             name: software.name,
             platform: software.platform,
             postInstallScript,
