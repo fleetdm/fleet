@@ -1,0 +1,2 @@
+* Allow clicking in the horizontal dimension of a flash message, outside of the message itself, and
+always hide flash messages when changing routes.
