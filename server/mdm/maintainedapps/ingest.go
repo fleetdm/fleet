@@ -54,6 +54,11 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 	return i.ingest(ctx, apps)
 }
 
+// ExtensionForBundleIdentifier returns an extension for the given FMA
+// identifier. If one can't be found it returns an empty string.
+//
+// This function is used because we can't always extract the extension based on
+// the installer URL.
 func ExtensionForBundleIdentifier(identifier string) (string, error) {
 	var apps []maintainedApp
 	if err := json.Unmarshal(appsJSON, &apps); err != nil {
