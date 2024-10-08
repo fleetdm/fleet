@@ -6326,7 +6326,7 @@ echo "hello"
 
 ```
 
-### Get script (setup experience)
+### Get or download script (setup experience)
 
 _Available in Fleet Premium_
 
@@ -6337,8 +6337,10 @@ Get a script that will automatically run during macOS setup.
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+| alt  | string | query | If specified and set to "media", downloads the script's contents. |
 
-#### Example
+
+#### Example (get script)
 
 `GET /api/v1/fleet/setup_experience/script?team_id=3`
 
@@ -6354,6 +6356,26 @@ Get a script that will automatically run during macOS setup.
   "created_at": "2023-07-30T13:41:07Z",
   "updated_at": "2023-07-30T13:41:07Z"
 }
+```
+
+#### Example (download script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
 ```
 
 ### Delete script (setup experience)
