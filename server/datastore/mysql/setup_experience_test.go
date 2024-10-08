@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -147,10 +146,6 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 
 	require.Len(t, seRows, 6)
-
-	for _, row := range seRows {
-		fmt.Printf("row: %#v\n", row)
-	}
 
 	for _, tc := range []setupExperienceInsertTestRows{
 		{
