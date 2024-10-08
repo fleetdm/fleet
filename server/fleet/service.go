@@ -1099,7 +1099,7 @@ type Service interface {
 
 	// BatchSetScripts replaces the scripts for a specified team or for
 	// hosts with no team.
-	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
+	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) ([]ScriptResponse, error)
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
@@ -1120,9 +1120,27 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Setup experience
+
+	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
+	// SetSetupExperienceScript sets the setup experience script for the given team.
 	SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
+	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
+	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*SetupExperienceStatusPayload, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Fleet-maintained apps
+
+	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) error
+	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
+	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
+	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows

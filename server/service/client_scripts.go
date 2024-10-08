@@ -132,7 +132,10 @@ func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
 
 // ApplyNoTeamScripts sends the list of scripts to be applied for the hosts in
 // no team.
-func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/batch"
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, opts.RawQuery())
+	var resp batchSetScriptsResponse
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, opts.RawQuery())
+
+	return resp.Scripts, err
 }

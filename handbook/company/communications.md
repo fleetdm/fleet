@@ -749,7 +749,7 @@ When attending a conference for Fleet, treat it [like other travel for the compa
 
 ## SOC 2
 
-You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
+You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1mUwmCUdggONULr6OjDO--QtKfDWLcrI4/view?usp=sharing).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
