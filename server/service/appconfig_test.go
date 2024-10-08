@@ -1473,7 +1473,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 
 	svc, ctx = newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	checkSCEPProxy := func() {
 		require.NotNil(t, ac.Integrations.NDESSCEPProxy)
