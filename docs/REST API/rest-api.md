@@ -6356,7 +6356,7 @@ Get a script that will automatically run during macOS setup.
 }
 ```
 
-### Delete setup experience script
+### Delete script (setup experience)
 
 _Available in Fleet Premium_
 
