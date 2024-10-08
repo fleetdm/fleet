@@ -17,7 +17,7 @@ import VppSection from "./components/VppSection";
 import IdpSection from "./components/IdpSection";
 import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
-import ScepSection from "./components/CertificatesSection/CertificatesSection";
+import ScepSection from "./components/ScepSection/ScepSection";
 
 const baseClass = "mdm-settings";
 

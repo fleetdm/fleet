@@ -26,6 +26,10 @@
 
     form {
       gap: $pad-small;
+
+      button {
+        align-self: flex-end;
+      }
     }
 
     li {

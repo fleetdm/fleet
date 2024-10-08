@@ -9,9 +9,11 @@ import Icon from "components/Icon";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import TooltipWrapper from "components/TooltipWrapper";
+
 import SectionCard from "../SectionCard";
 
-const baseClass = "certificates-section";
+const baseClass = "scep-section";
 
 interface IScepCardProps {
   isAppleMdmOn: boolean;
@@ -19,27 +21,32 @@ interface IScepCardProps {
   router: InjectedRouter;
 }
 
+export const SCEP_SERVER_TIP_CONTENT =
+  "Fleet currently supports Microsoft's Network Device Enrollment Service (NDES) as a SCEP server.";
+
 const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
   const navigateToScepSetup = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_SCEP);
   };
 
   const appleMdmDiabledCard = (
-    <SectionCard header="Simple Certificate Enrollment Protocol (SCEP)">
+    <SectionCard
+      className={baseClass}
+      header="Simple Certificate Enrollment Protocol (SCEP)"
+    >
       <p>
-        To enable Fleet to get SCEP certificates from your custom SCEP server
-        and install them on macOS hosts, first turn on Apple (macOS, iOS,
-        iPadOS) MDM.
-      </p>
-      <p>
-        Fleet currently supports Microsoft&apos;s Network Device Enrollment
-        Service (NDES) as a custom SCEP server.
+        To help your end users connect to Wi-Fi by adding your{" "}
+        <TooltipWrapper tipContent={SCEP_SERVER_TIP_CONTENT}>
+          SCEP server
+        </TooltipWrapper>
+        , first turn on Apple (macOS, iOS, iPadOS) MDM.
       </p>
     </SectionCard>
   );
 
   const isScepOnCard = (
     <SectionCard
+      className={baseClass}
       iconName="success"
       cta={
         <Button onClick={navigateToScepSetup} variant="text-icon">
@@ -48,12 +55,14 @@ const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
         </Button>
       }
     >
-      TODO: Need Figma design for this
+      Microsoft&apos;s Network Device Enrollment Service (NDES) added as your
+      SCEP server. Your end users can connect to Wi-Fi.
     </SectionCard>
   );
 
   const isScepOffCard = (
     <SectionCard
+      className={baseClass}
       header="Simple Certificate Enrollment Protocol (SCEP)"
       cta={
         <Button
@@ -66,12 +75,11 @@ const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
       }
     >
       <p>
-        Add a SCEP connection to enable Fleet to get SCEP certificates from your
-        custom SCEP server and install them on macOS hosts.{" "}
-      </p>
-      <p>
-        Fleet currently supports Microsoft&apos;s Network Device Enrollment
-        Service (NDES) as a custom SCEP server.
+        To help your end users connect to Wi-Fi, you can add your{" "}
+        <TooltipWrapper tipContent={SCEP_SERVER_TIP_CONTENT}>
+          SCEP server
+        </TooltipWrapper>
+        .
       </p>
     </SectionCard>
   );
@@ -80,7 +88,7 @@ const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
     return appleMdmDiabledCard;
   }
 
-  return !isScepOn ? isScepOnCard : isScepOffCard;
+  return isScepOn ? isScepOnCard : isScepOffCard;
 };
 
 interface IScepSectionProps {
@@ -111,7 +119,10 @@ const ScepSection = ({
   };
 
   return (
-    <SettingsSection title="Certificates" className={baseClass}>
+    <SettingsSection
+      title="Simple Certificate Enrollment Protocol (SCEP)"
+      className={baseClass}
+    >
       <>{renderContent()}</>
     </SettingsSection>
   );

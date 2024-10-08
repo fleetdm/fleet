@@ -1,3 +1,5 @@
+import { IScepInfo } from "services/entities/mdm_apple";
+
 export type IIntegrationType = "jira" | "zendesk";
 export interface IJiraIntegration {
   url: string;
@@ -84,6 +86,7 @@ export interface IZendeskJiraIntegrations {
 // Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
+  ndes_scep_proxy?: IScepInfo | null;
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {
