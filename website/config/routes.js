@@ -579,7 +579,7 @@ module.exports.routes = {
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#add-a-software-package-to-a-team',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
   'GET /feature-request': 'https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=',
-
+  'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
 
 
   // Sitemap

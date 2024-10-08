@@ -770,9 +770,12 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		}
 	}
 
+	// This call will also delete host_mdm_apple_profiles references IFF the profile has not been sent to
+	// the host yet.
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
+
 	// cannot use the profile ID as it is now deleted
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")

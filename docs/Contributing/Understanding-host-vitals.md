@@ -5,11 +5,16 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 
 ## battery
 
-- Platforms: darwin
+- Platforms: windows, darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'battery'
+```
 
 - Query:
 ```sql
-SELECT serial_number, cycle_count, health FROM battery;
+SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery
 ```
 
 ## chromeos_profile_user_info
