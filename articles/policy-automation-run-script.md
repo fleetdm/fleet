@@ -23,7 +23,7 @@ The next time a fleetd host fails the policy you added automation for, Fleet wil
 ## How does it work?
 
 * Online hosts report policy status when on a configurable cadence, with hourly default.
-* Fleet will send scripts to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Policies that stay failed ("No") for a host in consecutive reports will not be resent the script.
+* Fleet will send scripts to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Policies that remain failed ("No") for a host in consecutive reports will not be resent to the script.
 
 > When script automation on a policy is added or switched to a different script, the policy's status will reset for associated hosts. This allows the newly attached script to run on hosts that had previously failed the policy.
 
