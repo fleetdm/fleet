@@ -1492,13 +1492,15 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
 }
 
 type ActivityTypeInstalledSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwarePackage string `json:"software_package"`
-	SelfService     bool   `json:"self_service"`
-	InstallUUID     string `json:"install_uuid"`
-	Status          string `json:"status"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	SoftwarePackage string  `json:"software_package"`
+	SelfService     bool    `json:"self_service"`
+	InstallUUID     string  `json:"install_uuid"`
+	Status          string  `json:"status"`
+	PolicyID        *uint   `json:"policy_id"`
+	PolicyName      *string `json:"policy_name"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1518,14 +1520,19 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
-- "status": Status of the software installation.`, `{
+- "status": Status of the software installation.
+- "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "status": "pending"
+  "status": "pending",
+  "policy_id": 1337,
+  "policy_name": "Ensure 1Password is installed and up to date"
 }`
 }
 

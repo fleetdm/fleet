@@ -246,6 +246,9 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
 	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
 	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
+	// PolicyID is the id of the policy that triggered the install, or
+	// nil if the install was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 }
 
 const (
