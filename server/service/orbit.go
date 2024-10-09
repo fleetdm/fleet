@@ -1045,7 +1045,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 		var policyName *string
 		if hsi.PolicyID != nil {
-			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil {
+			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil && policy != nil {
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 		}
