@@ -11479,7 +11479,6 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	desktopToken := uuid.New().String()
 	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
-	orbitNodeKey := "hotlineTNT"
 	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -11491,7 +11490,6 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		Platform:        "darwin",
 		HardwareModel:   "MacBookPro16,1",
 		TeamID:          &team1.ID,
-		OrbitNodeKey:    &orbitNodeKey,
 
 		UUID:           mdmDevice.UUID,
 		HardwareSerial: mdmDevice.SerialNumber,
@@ -11501,16 +11499,27 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
 	require.NoError(t, err)
 
+	orbitNodeKey := setOrbitEnrollment(t, fleetHost, ds)
+
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, fleetHost.UUID)
-	require.NoError(t, err)
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
 
-	s.DoJSON("POST", "/", params interface{}, expectedStatusCode int, v interface{}, queryParams ...string)
+	require.Len(t, orbitRes.Results.Software, 2)
 
-	fmt.Printf("results: %#v\n", results)
-	for _, res := range results {
-		fmt.Printf("res: %#v\n", res)
+	var vppFound, softwareFound bool
+	for _, res := range orbitRes.Results.Software {
+
+		if res.Name == "file1" {
+			softwareFound = true
+		}
+		if res.Name == "vpp_app_1" {
+			vppFound = true
+		}
 	}
+
+	require.True(t, vppFound, "vpp app not found in status results")
+	require.True(t, softwareFound, "software installer app not found in status results")
 }
