@@ -77,7 +77,7 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 
 	req.IncludeMetadata = true
 
-	apps, count, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
+	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return listFleetMaintainedAppsResponse{Err: err}, nil
 	}
@@ -91,7 +91,7 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 
 	listResp := listFleetMaintainedAppsResponse{
 		FleetMaintainedApps: apps,
-		Count:               count,
+		Count:               int(meta.TotalResults),
 		Meta:                meta,
 	}
 	if !latest.IsZero() {
@@ -101,12 +101,12 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 	return listResp, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, 0, nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 type getFleetMaintainedAppRequest struct {

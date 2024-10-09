@@ -97,7 +97,7 @@ WHERE
 	return &app, nil
 }
 
-func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, int, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	stmt := `
 SELECT
 	fla.id,
@@ -147,20 +147,20 @@ WHERE NOT EXISTS (
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}
 
 	// perform a second query to grab the counts
 	var counts int
 	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 
-	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(counts)}
 	if len(avail) > int(opt.PerPage) {
 		meta.HasNextResults = true
 		avail = avail[:len(avail)-1]
 	}
 
-	return avail, counts, meta, nil
+	return avail, meta, nil
 }

@@ -130,7 +130,6 @@ const FleetMaintainedAppsTable = ({
   }, [data, router, teamId]);
 
   const renderCount = () => {
-    console.log(data);
     if (!data) return null;
 
     return (
