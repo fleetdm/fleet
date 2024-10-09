@@ -98,7 +98,7 @@ const SelectQueryModal = ({
     );
   };
 
-  const renderResults = (): JSX.Element => {
+  const renderQueries = (): JSX.Element => {
     if (queryErrors) {
       return <DataError />;
     }
@@ -145,7 +145,7 @@ const SelectQueryModal = ({
             iconSvg="search"
             iconPosition="start"
           />
-          <div>{queryList}</div>
+          <div className={`${baseClass}__query-selection`}>{queryList}</div>
         </>
       );
     }
@@ -188,7 +188,7 @@ const SelectQueryModal = ({
     >
       <>
         {renderDescription()}
-        {renderResults()}
+        {renderQueries()}
       </>
     </Modal>
   );

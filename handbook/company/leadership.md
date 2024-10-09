@@ -320,7 +320,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 3. **Compile feedback into a single doc:** In the "interview packet", include feedback from interviews, reference checks, and challenge submissions. Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - Name the doc with a short, formulaic name that's easy to understand in an instant from just an email subject line (e.g. "_Why hire Jane Doe ("Train Conductor") - 2023-03-21_").
-   - _Share_ this single document with the CEO.
+   - _Share_ this single document with the [CEO and Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
 4. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
 
      ```
