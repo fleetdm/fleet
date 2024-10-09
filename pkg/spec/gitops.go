@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -455,7 +454,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				)
 			}
 
-			pathControls.Scripts = resolvePaths(pathControls.Scripts, path.Dir(controlsFilePath))
+			pathControls.Scripts = resolvePaths(pathControls.Scripts, filepath.Dir(controlsFilePath))
 			result.Controls = pathControls
 		}
 	}
