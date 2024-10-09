@@ -221,7 +221,7 @@ func TestAppleMDM(t *testing.T) {
 		// the post-DEP release device job is pending
 		require.Len(t, jobs, 1)
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Contains(t, string(*jobs[0].Args), DeprecatedAppleMDMPostDEPReleaseDeviceTask)
 		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
@@ -301,7 +301,7 @@ func TestAppleMDM(t *testing.T) {
 		// the post-DEP release device job is pending
 		require.Len(t, jobs, 1)
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Contains(t, string(*jobs[0].Args), DeprecatedAppleMDMPostDEPReleaseDeviceTask)
 		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
@@ -353,7 +353,7 @@ func TestAppleMDM(t *testing.T) {
 		// the post-DEP release device job is pending
 		require.Len(t, jobs, 1)
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Contains(t, string(*jobs[0].Args), DeprecatedAppleMDMPostDEPReleaseDeviceTask)
 		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
@@ -487,7 +487,7 @@ func TestAppleMDM(t *testing.T) {
 		// the post-DEP release device job is pending, having failed its first attempt
 		require.Len(t, jobs, 1)
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Contains(t, string(*jobs[0].Args), DeprecatedAppleMDMPostDEPReleaseDeviceTask)
 		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
 
 		// confirm that AccountConfiguration command was not enqueued
@@ -543,7 +543,7 @@ func TestAppleMDM(t *testing.T) {
 		// the post-DEP release device job is pending
 		require.Len(t, jobs, 1)
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Contains(t, string(*jobs[0].Args), DeprecatedAppleMDMPostDEPReleaseDeviceTask)
 		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))

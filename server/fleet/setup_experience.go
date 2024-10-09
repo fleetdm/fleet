@@ -25,7 +25,7 @@ type SetupExperienceStatusResult struct {
 	ScriptExecutionID       *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
 	Error                   *string                           `db:"error" json:"-" `
 	// SoftwareTitleID must be filled through a JOIN
-	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
+	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
 }
 
 // IsForScript indicates if this result is for a setup experience script step.
@@ -39,9 +39,28 @@ func (s *SetupExperienceStatusResult) IsForSoftware() bool {
 	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil
 }
 
+type SetupExperienceBootstrapPackageResult struct {
+	Name   string                    `json:"name"`
+	Status MDMBootstrapPackageStatus `json:"status"`
+}
+
+type SetupExperienceConfigurationProfileResult struct {
+	ProfileUUID string            `json:"profile_uuid"`
+	Name        string            `json:"name"`
+	Status      MDMDeliveryStatus `json:"status"`
+}
+
+type SetupExperienceAccountConfigurationResult struct {
+	CommandUUID string `json:"command_uuid"`
+	Status      string `json:"status"`
+}
+
 // SetupExperienceStatusPayload is the payload we send to Orbit to tell it what the current status
 // of the setup experience is for that host.
 type SetupExperienceStatusPayload struct {
-	Script   *SetupExperienceStatusResult   `json:"script,omitempty"`
-	Software []*SetupExperienceStatusResult `json:"software,omitempty"`
+	Script                *SetupExperienceStatusResult                 `json:"script,omitempty"`
+	Software              []*SetupExperienceStatusResult               `json:"software,omitempty"`
+	BootstrapPackage      *SetupExperienceBootstrapPackageResult       `json:"bootstrap_package,omitempty"`
+	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
+	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
 }

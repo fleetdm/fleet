@@ -402,7 +402,7 @@ func (s *integrationMDMTestSuite) expectAndScheduleReleaseDeviceJob(t *testing.T
 	require.Len(t, pending, 1)
 	releaseJob := pending[0]
 	require.Equal(t, 0, releaseJob.Retries)
-	require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+	require.Contains(t, string(*releaseJob.Args), worker.DeprecatedAppleMDMPostDEPReleaseDeviceTask)
 
 	// update the job so that it can run immediately
 	releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
