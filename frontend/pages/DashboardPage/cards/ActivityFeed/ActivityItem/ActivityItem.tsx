@@ -427,8 +427,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        added Microsoft&apos;s Network Device Enrollment Service (NDES) as your
-        SCEP server.
+        removed Microsoft&apos;s Network Device Enrollment Service (NDES) as
+        your SCEP server.
       </>
     );
   },

@@ -10,7 +10,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable";
 
 import SETUP_EXPERIENCE_NAV_ITEMS from "./SetupExperienceNavItems";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage";
 
 const baseClass = "setup-experience";
 

@@ -15,7 +15,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 
 import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";

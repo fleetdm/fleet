@@ -21,6 +21,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import { SCEP_SERVER_TIP_CONTENT } from "../components/ScepSection/ScepSection";
 
@@ -33,28 +34,6 @@ const CACHE_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
 const DEFAULT_ERROR =
   "Something went wrong updating your SCEP server. Please try again.";
-
-interface ITurnOnMdmMessageProps {
-  router: InjectedRouter;
-}
-
-const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
-  return (
-    <div className={`${baseClass}__turn-on-mdm-message`}>
-      <h2>Turn on Apple MDM</h2>
-      {/* TODO: Confirm wording missed Figma spec */}
-      <p>To help your end users connect to Wi-Fi, first turn on Apple MDM.</p>
-      <Button
-        variant="brand"
-        onClick={() => {
-          router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-        }}
-      >
-        Turn on
-      </Button>
-    </div>
-  );
-};
 
 interface IScepCertificateContentProps {
   router: InjectedRouter;
@@ -84,7 +63,15 @@ const ScepCertificateContent = ({
   }
 
   if (!config?.mdm.enabled_and_configured) {
-    return <TurnOnMdmMessage router={router} />;
+    return (
+      <>
+        <TurnOnMdmMessage
+          router={router}
+          header="Turn on Apple MDM"
+          info="To help your end users connect to Wi-Fi, first turn on Apple MDM."
+        />
+      </>
+    );
   }
 
   if (isLoading) {
