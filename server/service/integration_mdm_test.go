@@ -11476,4 +11476,41 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", strconv.Itoa(int(team1.ID)))
 	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
+
+	desktopToken := uuid.New().String()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	orbitNodeKey := "hotlineTNT"
+	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+		HardwareModel:   "MacBookPro16,1",
+		TeamID:          &team1.ID,
+		OrbitNodeKey:    &orbitNodeKey,
+
+		UUID:           mdmDevice.UUID,
+		HardwareSerial: mdmDevice.SerialNumber,
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
+	require.NoError(t, err)
+
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, fleetHost.UUID)
+	require.NoError(t, err)
+
+	s.DoJSON("POST", "/", params interface{}, expectedStatusCode int, v interface{}, queryParams ...string)
+
+	fmt.Printf("results: %#v\n", results)
+	for _, res := range results {
+		fmt.Printf("res: %#v\n", res)
+	}
 }
