@@ -6754,7 +6754,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		UserID:          user1.ID,
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
