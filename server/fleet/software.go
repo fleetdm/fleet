@@ -228,6 +228,8 @@ type SoftwareTitleListOptions struct {
 	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
+	Platform            string  `query:"platform,optional"`
+	SetupExperienceOnly bool    `query:"setup_experience,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {

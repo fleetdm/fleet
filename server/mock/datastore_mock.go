@@ -1092,6 +1092,10 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
+type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
+
+type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
+
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
@@ -2714,6 +2718,12 @@ type DataStore struct {
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
+
+	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
+	SetSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
+	ListSetupExperienceSoftwareTitlesFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -6489,6 +6499,20 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
+}
+
+func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
+	s.mu.Lock()
+	s.SetSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceSoftwareTitlesFunc(ctx, teamID, titleIDs)
+}
+
+func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
