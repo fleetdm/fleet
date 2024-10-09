@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
+import { noop } from "lodash";
 
 import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
@@ -102,6 +103,8 @@ interface ITableContainerProps<T = any> {
    * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
+  /** handler called when the  `clear selection` button is called */
+  onClearSelection?: () => void;
 }
 
 const baseClass = "table-container";
@@ -157,6 +160,7 @@ const TableContainer = <T,>({
   setExportRows,
   resetPageIndex,
   disableTableHeader,
+  onClearSelection = noop,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -513,6 +517,7 @@ const TableContainer = <T,>({
                   isClientSidePagination ? undefined : renderPagination
                 }
                 setExportRows={setExportRows}
+                onClearSelection={onClearSelection}
               />
             </div>
           </>

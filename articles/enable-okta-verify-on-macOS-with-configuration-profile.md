@@ -97,6 +97,8 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
 
 ```
 
+> Make sure to use `.mobileconfig` as the file extension
+
 * Enforce the configuration profile on your hosts. You can follow [this guide on enforcing custom OS settings in Fleet](https://fleetdm.com/guides/custom-os-settings).
 * You can optionally verify the issued certificate by opening Keychain Access on the device or by running a [live query](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries):
 

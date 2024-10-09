@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
@@ -264,7 +265,6 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, team
 		IncludeObserver: true,
 		TeamID:          &teamID,
 	})
-
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "calling list software titles")
 	}
@@ -309,4 +309,100 @@ WHERE host_uuid = ?
 		return nil, ctxerr.Wrap(ctx, err, "select setup experience status results by host uuid")
 	}
 	return results, nil
+}
+
+func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+	query := `
+SELECT
+  id,
+  team_id,
+  name,
+  script_content_id,
+  created_at,
+  updated_at
+FROM
+  setup_experience_scripts
+WHERE
+  global_or_team_id = ?
+`
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	var script fleet.Script
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, globalOrTeamID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience script")
+	}
+
+	return &script, nil
+}
+
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+
+		// first insert script contents
+		scRes, err := insertScriptContents(ctx, tx, script.ScriptContents)
+		if err != nil {
+			return err
+		}
+		id, _ := scRes.LastInsertId()
+
+		// then create the script entity
+		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id))
+		return err
+	})
+
+	return err
+}
+
+func insertSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
+	const insertStmt = `
+INSERT INTO
+  setup_experience_scripts (
+    team_id, global_or_team_id, name, script_content_id
+  )
+VALUES
+  (?, ?, ?, ?)
+`
+	var globalOrTeamID uint
+	if script.TeamID != nil {
+		globalOrTeamID = *script.TeamID
+	}
+	res, err := tx.ExecContext(ctx, insertStmt,
+		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
+	if err != nil {
+
+		if IsDuplicate(err) {
+			// already exists for this team/no team
+			err = &existsError{ResourceType: "SetupExperienceScript", TeamID: &globalOrTeamID}
+		} else if isChildForeignKeyError(err) {
+			// team does not exist
+			err = foreignKey("setup_experience_scripts", fmt.Sprintf("team_id=%v", script.TeamID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "insert setup experience script")
+	}
+
+	return res, nil
+}
+
+func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?`, globalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete setup experience script")
+	}
+
+	// NOTE: CleanupUnusedScriptContents is responsible for removing any orphaned script_contents
+	// for setup experience scripts.
+
+	return nil
 }

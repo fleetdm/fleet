@@ -1,0 +1,17 @@
+.add-install-software {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  &__description {
+    margin: 0;
+  }
+
+  &__added-text {
+    font-size: $x-small;
+  }
+
+  &__added-text {
+    font-weight: $bold;
+  }
+}

@@ -63,6 +63,7 @@ interface IDataTableProps {
   renderTableHelpText?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  onClearSelection?: () => void;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -105,6 +106,7 @@ const DataTable = ({
   renderTableHelpText,
   renderPagination,
   setExportRows,
+  onClearSelection = noop,
 }: IDataTableProps): JSX.Element => {
   const { isOnlyObserver } = useContext(AppContext);
 
@@ -314,9 +316,10 @@ const DataTable = ({
   }, [toggleAllPagesSelected]);
 
   const onClearSelectionClick = useCallback(() => {
-    toggleAllRowsSelected(false);
-    toggleAllPagesSelected(false);
-  }, [toggleAllPagesSelected, toggleAllRowsSelected]);
+    onClearSelection();
+    toggleAllRowsSelected?.(false);
+    toggleAllPagesSelected?.(false);
+  }, [onClearSelection, toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSelectRowClick = useCallback(
     (row: any) => {

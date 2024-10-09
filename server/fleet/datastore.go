@@ -1739,6 +1739,9 @@ type Datastore interface {
 
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
 	EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
+	SetSetupExperienceScript(ctx context.Context, script *Script) error
+	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
 
 	// Fleet-maintained apps
 	//
