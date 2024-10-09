@@ -160,6 +160,8 @@ export default {
   SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
+  EDIT_SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
@@ -172,6 +174,9 @@ export default {
     `/${API_VERSION}/fleet/software/packages/${id}`,
   SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
+  SOFTWARE_FLEET_MAINTAINED_APPS: `/${API_VERSION}/fleet/software/fleet_maintained_apps`,
+  SOFTWARE_FLEET_MAINTAINED_APP: (id: number) =>
+    `/${API_VERSION}/fleet/software/fleet_maintained_apps/${id}`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,

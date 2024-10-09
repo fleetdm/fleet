@@ -56,10 +56,18 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
+	RunScript       *PolicyRunScript       `json:"run_script"`
 	InstallSoftware *PolicyInstallSoftware `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
+	// RunScriptName is populated after confirming the script exists on both the file system
+	// and in the controls scripts list for the same team
+	RunScriptName *string `json:"-"`
+}
+
+type PolicyRunScript struct {
+	Path string `json:"path"`
 }
 
 type PolicyInstallSoftware struct {
@@ -168,7 +176,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseSoftware(top, result, baseDir, multiError)
 	}
 
-	// Policies can reference software installers, thus we parse them after parseSoftware.
+	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
 	multiError = parsePolicies(top, result, baseDir, multiError)
 
 	return result, multiError.ErrorOrNil()
@@ -358,7 +366,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.")
+			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -465,6 +473,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
 				continue
 			}
+			if err := parsePolicyRunScript(baseDir, result.TeamName, &item, result.Controls.Scripts); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
+				continue
+			}
 			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
@@ -496,6 +508,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
 								continue
 							}
+							if err := parsePolicyRunScript(baseDir, result.TeamName, pp, result.Controls.Scripts); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
+								continue
+							}
 							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
 						}
 					}
@@ -518,6 +534,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Team = ""
 		}
+		if item.CalendarEventsEnabled && result.IsNoTeam() {
+			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on \"No team\" policies: %q", item.Name))
+		}
 	}
 	duplicates := getDuplicateNames(
 		result.Policies, func(p *GitOpsPolicySpec) string {
@@ -528,6 +547,41 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
 	}
 	return multiError
+}
+
+func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scripts []BaseItem) error {
+	if policy.RunScript == nil {
+		policy.ScriptID = ptr.Uint(0) // unset the script
+		return nil
+	}
+	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
+		return errors.New("run_script can only be set on team policies")
+	}
+
+	if policy.RunScript.Path == "" {
+		return errors.New("empty run_script path")
+	}
+
+	_, err := os.Stat(resolveApplyRelativePath(baseDir, policy.RunScript.Path))
+	if err != nil {
+		return fmt.Errorf("script file does not exist %q: %v", policy.RunScript.Path, err)
+	}
+
+	scriptOnTeamFound := false
+	for _, script := range scripts {
+		if policy.RunScript.Path == *script.Path {
+			scriptOnTeamFound = true
+			break
+		}
+	}
+	if !scriptOnTeamFound {
+		return fmt.Errorf("policy script not found on team: %s", policy.RunScript.Path)
+	}
+
+	scriptName := filepath.Base(policy.RunScript.Path)
+	policy.RunScriptName = &scriptName
+
+	return nil
 }
 
 func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec) error {
@@ -567,7 +621,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	queriesRaw, ok := top["queries"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.")
+			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -657,7 +711,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
 			var typeErr *json.UnmarshalTypeError
 			if errors.As(err, &typeErr) {
-				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErr.Field, typeErr.Type.String(), typeErr.Value))
+				typeErrField := typeErr.Field
+				if typeErrField == "" {
+					// UnmarshalTypeError.Field is empty when trying to set an invalid type on the root node.
+					typeErrField = "software"
+				}
+				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErrField, typeErr.Type.String(), typeErr.Value))
 			}
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}

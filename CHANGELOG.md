@@ -1,3 +1,71 @@
+## Fleet 4.57.2 (Oct 03, 2024)
+
+### Bug fixes
+
+* Fixed software uninstaller script for `pkg`s to only remove '.app' directories installed by the package.
+
+## Fleet 4.57.1 (Oct 01, 2024)
+
+### Bug fixes
+
+* Improved performance of SQL queries used to determine MDM profile status for Apple hosts.
+* Ensured request timeouts for software installer edits were just as high as for initial software installer uploads.
+* Fixed an issue with the migration that added support for multiple VPP tokens, which would happen if a token was removed prior to upgrading Fleet.
+* Fixed a "no rows" error when adding a software installer that matched an existing title's name and source but not its bundle ID.
+
+## Fleet 4.57.0 (Sep 23, 2024)
+
+**Endpoint Operations**
+
+- Added support for configuring policy installers via GitOps.
+- Added support for policies in "No team" that run on hosts that belong to "No team".
+- Added reserved team names: "All teams" and "No team".
+- Added support the software status filter for 'No teams' on the hosts page.
+- Enable 'No teams' funcitonality for the policies page and associated workflows.
+- Added reset install counts and cancel pending installs/uninstalls when GitOps installer updates change package contents.
+- Added support for software installer packages, self-service flag, scripts, pre-install query, and self-service availability to be edited in-place rather than deleted and re-added.
+
+**Device Management (MDM)**
+
+- Added feature allowing automatic installation of software on hosts that fail policies.
+- Added feature for end users to enroll BYOD devices into Fleet MDM.
+- Added the ability to use Fleet to uninstall packages from hosts.
+- Added an endpoint for getting an OTA MDM profile for enrolling iOS and iPadOS hosts.
+- Added protocol support for OTA enrollment and automatic team assignment for hosts.
+- Added validation of Setup Assistant profiles on profile upload.
+- Added validation to prevent installing software on a host with a pending installation.
+- Allowed custom SCEP CA certificates with any kind of extendedKeyUsage attributes.
+- Modified `POST /api/latest/fleet/software/batch` endpoint to be asynchronous and added a new endpoint `GET /api/latest/fleet/software/batch/{request_uuid}` to retrieve the result of the batch upload.
+
+**Vulnerability Management**
+
+- Fixed a false negative vulnerability for git.
+- Fixed false positive vulnerabilities for minio.
+- Fixed an issue where virtual box for macOS wasn't matching against the NVD product name.
+- Fixed Ubuntu python package false positive vulnerabilities by removing duplicate entries for ubuntu python packages installed by dpkg and renaming remaining pip installed packages to match OVAL definitions.
+
+**Bug fixes and improvements**
+
+- Updated Go to go1.23.1.
+- Removed validation of APNS certificate from server startup.
+- Removed invalid node keys from server logs.
+- Improved the UX of turning off MDM on an offline host.
+- Improved clarity of GitOps VPP app ID type errors.
+- Improved gitops error message about enabling windows MDM.
+- Improved messaging for VPP token constraint errors.
+- Improved loading state for UI tables when no data is present yet.
+- Improved permissions so that hosts can no longer access installers that aren't directly assigned to them.
+- Improved verification of premium license before uploading VPP tokens.
+- Added "0 items" description on empty software tables for UI consistency.
+- Updated the macos target minimum version tooltip.
+- Fixed logic to properly catch and log APNs errors.
+- Fixed UI overflow issues with OS settings table data.
+- Fixed regression for checking email used to get a signed CSR.
+- Fixed bugs on enrollment profiles when the organization name contains invalid XML characters.
+- Fixed an issue with cron profiles delivery failing if a Windows VM is enrolled twice.
+- Fixed issue where Fleet server could start when an expired ABM certificate was provided as server config.
+- Fixed self-service checkbox appearing when iOS or iPadOS app is selected.
+
 ## Fleet 4.56.0 (Sep 7, 2024)
 
 ### Endpoint operations

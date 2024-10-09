@@ -887,6 +887,8 @@ This activity contains the following fields:
 - "script_execution_id": Execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
 
 #### Example
 
@@ -896,7 +898,9 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "async": false
+  "async": false,
+  "policy_id": 123,
+  "policy_name": "Ensure photon torpedoes are primed"
 }
 ```
 
@@ -1202,6 +1206,29 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}
+```
+
+## edited_software
+
+Generated when a software installer is updated in Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer as of this update (including if unchanged).
+- "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
+- "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
 
 #### Example

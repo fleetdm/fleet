@@ -5,8 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // EscrowBuddyRunner sets up [Escrow Buddy][1] to rotate FileVault keys on
@@ -86,6 +87,13 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 		}
 	}
 
+	// Some macOS updates and upgrades reset the authorization database to its default state
+	// which will deactivate Escrow Buddy and prevent FileVault key generation upon next login.
+	log.Debug().Msg("EscrowBuddyRunner: re-enable Escrow Buddy in the authorization database")
+	if err := e.setAuthDBSetup(); err != nil {
+		return fmt.Errorf("failed to re-enable Escrow Buddy in the authorization database, err: %w", err)
+	}
+
 	log.Debug().Msg("EscrowBuddyRunner: enabling disk encryption rotation")
 	if err := e.setGenerateNewKeyTo(true); err != nil {
 		return fmt.Errorf("enabling disk encryption rotation: %w", err)
@@ -112,6 +120,16 @@ func (e *EscrowBuddyRunner) setTargetsAndHashes() error {
 func (e *EscrowBuddyRunner) setGenerateNewKeyTo(enabled bool) error {
 	log.Debug().Msgf("running defaults write to configure Escrow Buddy with value %t", enabled)
 	cmd := fmt.Sprintf("defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool %t", enabled)
+	fn := e.runCmdFunc
+	if fn == nil {
+		fn = runCmdCollectErr
+	}
+	return fn("sh", "-c", cmd)
+}
+
+func (e *EscrowBuddyRunner) setAuthDBSetup() error {
+	log.Debug().Msg("ready to re-enable Escrow Buddy in the authorization database")
+	cmd := "/Library/Security/SecurityAgentPlugins/Escrow\\ Buddy.bundle/Contents/Resources/AuthDBSetup.sh"
 	fn := e.runCmdFunc
 	if fn == nil {
 		fn = runCmdCollectErr

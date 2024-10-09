@@ -41,10 +41,6 @@ module.exports = {
 
   exits: {
 
-    invalidEmailDomain: {
-      description: 'This email address is on a denylist of domains and was not delivered.',
-      responseType: 'badRequest'
-    },
     success: {
       description: 'The message was sent successfully.'
     }
@@ -61,31 +57,9 @@ module.exports = {
       );
     }
 
-    let emailDomain = emailAddress.split('@')[1];
-    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
-      throw 'invalidEmailDomain';
-    }
-
-    // await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-    //   text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
-    //   `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
-    // });
-
-    await sails.helpers.sendTemplateEmail.with({
-      to: sails.config.custom.fromEmailAddress,
-      replyTo: {
-        name: firstName + ' '+ lastName,
-        emailAddress: emailAddress,
-      },
-      subject: 'New contact form message',
-      layout: false,
-      template: 'email-contact-form',
-      templateData: {
-        emailAddress,
-        firstName,
-        lastName,
-        message,
-      },
+    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+      text: `New contact form message: (cc: <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
+      `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with({

@@ -58,7 +58,6 @@
   usualDepartment: IT
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
-  comingSoonOn: 2024-08-26 #customer-deebradel 
 #  
 #  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗
 #   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║    ║ ║ ║║ ║║  ╚═╗
@@ -131,7 +130,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://github.com/fleetdm/fleet-gitops
-  description: Fork the best practices GitHub repo and use the included GitHub Actions to quickly automate Fleet console and configuration workflow management.
+  description: Fork the best practices GitHub repo and use the included GitHub Actions or GitLab CI/CD pipelines to quickly automate Fleet console and configuration workflow management.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
@@ -215,8 +214,8 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Cross-platform MDM support
-  description: macOS, Windows, and Linux.
-  documentationUrl: https://fleetdm.com/announcements/fleet-introduces-windows-mdm
+  description: Apple, Windows, and Linux.
+  documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -261,7 +260,7 @@
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
 #  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Bring your own device (BYOD) enrollment
-  description: BYOD enrollment for macOS, iOS/iPadOS (coming soon), Windows, and Android (coming soon) devices.
+  description: BYOD enrollment for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices.
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-device-enrollment#byod-enrollment
   tier: Free
   jamfProHasFeature: yes
@@ -270,7 +269,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2024-12-31) #customer-rosner
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31) #customer-rosner
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
@@ -379,7 +378,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
 - industryName: Enforce disk encryption
-  description: Encrypt system drives on macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
+  description: Encrypt system drives on macOS, Windows, and Linux (coming soon) computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]

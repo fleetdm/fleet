@@ -6,14 +6,16 @@ To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://git
 
 ## File structure
 
-- `default.yml`- File where you define the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team."
-- `teams/` - Folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, and agent options for hosts assigned to the specified team. Teams are available in Fleet Premium.
+- `default.yml` - File where you define the queries, policies and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). 
+- `teams/no-team.yml` - File where you define the policies, controls, and software for hosts on "No team". Available in Fleet Premium. 
+- `teams/` - Folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, software, and agent options for hosts assigned to the specified team. Available in Fleet Premium.
 - `lib/` - Folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
 - `.github/workflows/workflow.yml` - The GitHub workflow file where you can add [environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow).
 
-The following files are responsible for running the GitHub action. Most users don't need to edit these files.
+The following files are responsible for running the GitHub action or GitLab CI/CD. Most users don't need to edit these files.
 - `gitops.sh` - The bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
 - `.github/gitops-action/action.yml` - The GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
+- `.gitlab-ci.yml` - The GitLab CI/CD file that applies the latest configuration to Fleet.
 
 ## Configuration options
 
@@ -24,8 +26,7 @@ name: # Only teams/team-name.yml. To edit a team's name, change `name` but don't
 policies:
 queries:
 agent_options:
-controls:
-software:
+controls: # Can be defined in teams/no-team.yml too.
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
@@ -40,6 +41,8 @@ team_settings: # Only teams/team-name.yml
 ### policies
 
 Polcies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+Policies defined in `default.yml` run on **all** hosts.
+Policies defined in `teams/no-team.yml` run on hosts that belong to "No team".
 
 #### Options
 
@@ -81,9 +84,16 @@ policies:
   platform: darwin
   critical: false
   calendar_event_enabled: false
+- name: Firefox on Linux installed and up to date
+  platform: linux
+  description: "This policy checks that Firefox is installed and up to date."
+  resolution: "Install Firefox version 129.0.2 or higher."
+  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
+  install_software:
+    package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml` or `teams/team-name.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
@@ -210,6 +220,8 @@ queries:
 
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
+Controls for hosts that are in "No team" can be defined in `default.yml` or in `teams/no-team.yml` (but not in both files).
+
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
@@ -239,7 +251,7 @@ controls:
         labels_include_all:
           - Label 2
   windows_settings:
-    custom_settings
+    custom_settings:
       - path: ../lib/windows-profile.xml
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
@@ -304,11 +316,15 @@ Can only be configure for all teams (`default.yml`).
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
+Software for hosts that belong to "No team" have to be defined in `teams/no-team.yml`.
+Software can also be specified in separate files in your `lib/` folder.
 
 - `packages` is a list of software packages (.pkg, .msi, .exe, or .deb) and software specific options.
 - `app_store_apps` is a list of Apple App Store apps.
 
-##### Example
+#### Example
+
+##### Inline
 
 ```yaml
 software:
@@ -326,7 +342,7 @@ software:
    - app_store_id: '1091189122'
 ```
 
-#### packages
+##### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -334,11 +350,42 @@ software:
 - `post_install_script.path` is the script Fleet will run on hosts after intalling software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
-#### app_store_apps
+##### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
 
-> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string. 
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
+
+`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+
+##### Separate file
+
+`lib/software-name.package.yml`:
+
+```yaml
+url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
+install_script:
+  path: ../lib/software/tailscale-install-script.ps1
+self_service: true
+```
+
+`lib/software/tailscale-install-script.ps1`
+
+```yaml
+$exeFilePath = "${env:INSTALLER_PATH}"
+$installProcess = Start-Process $exeFilePath `
+  -ArgumentList "/quiet /norestart" `
+    -PassThru -Verb RunAs -Wait
+```
+
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+
+```yaml
+software:
+  packages:
+    - path: ../lib/software-name.package.yml
+# path is relative to default.yml or teams/team-name.yml
+```
 
 ### org_settings and team_settings
 
@@ -585,17 +632,58 @@ Can only be configured for all teams (`org_settings`).
 
 #### mdm
 
-The `mdm` section lets you enable MDM features in Fleet.
+##### apple_business_manager
 
-- `apple_bm_default_team` - is name of the team that macOS hosts in Apple Business Manager automatically enroll to when they're first set up. If empty, hosts will enroll to "No team" (default: `""`).
+- `organization_name` is the organization name associated with the Apple Business Manager account.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
 
 ##### Example
 
 ```yaml
 org_settings:
   mdm:
-    apple_bm_default_team: "Workstations" # Available in Fleet Premium
+    apple_business_manager: # Available in Fleet Premium
+    - organization_name: Fleet Device Management Inc.
+      macos_team: "💻 Workstations" 
+      ios_team: "📱🏢 Company-owned iPhones"
+      ipados_team: "🔳🏢 Company-owned iPads"
 ```
+
+> Apple Business Manager settings can only be configured for all teams (`org_settings`).
+
+##### volume_purchasing_program
+
+- `location` is the name of the location in the Apple Business Manager account.
+- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    volume_purchasing_program: # Available in Fleet Premium
+    - location: Fleet Device Management Inc.
+      teams: 
+      - "💻 Workstations" 
+      - "💻🐣 Workstations (canary)"
+      - "📱🏢 Company-owned iPhones"
+      - "🔳🏢 Company-owned iPads"
+```
+
+Can only be configured for all teams (`org_settings`).
+
+##### end_user_authentication
+
+The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
+
+Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
+
+- `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
+- `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
+- `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
+- `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
 Can only be configured for all teams (`org_settings`).
 

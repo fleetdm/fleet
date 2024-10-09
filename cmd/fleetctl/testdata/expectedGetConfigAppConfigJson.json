@@ -90,7 +90,8 @@
 		"integrations": {
 			"jira": null,
 			"zendesk": null,
-			"google_calendar": null
+			"google_calendar": null,
+			"ndes_scep_proxy": null
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,

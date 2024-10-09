@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1011,7 +1013,6 @@ func verifyDiskEncryptionKeys(
 	logger kitlog.Logger,
 	ds fleet.Datastore,
 ) error {
-
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		logger.Log("err", "unable to get app config", "details", err)
@@ -1218,17 +1219,16 @@ func newMDMAPNsPusher(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
-
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
-	var interval = 1 * time.Minute
+	interval := 1 * time.Minute
 	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "invalid duration provided in env var FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL")
+			level.Warn(logger).Log("msg", "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
+			interval = 1 * time.Minute
 		}
-
 	}
 
 	logger = kitlog.With(logger, "cron", name)
@@ -1389,6 +1389,57 @@ func newIPhoneIPadRefetcher(
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
 			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+// cronUninstallSoftwareMigration will update uninstall scripts for software.
+// Once all customers are using on Fleet 4.57 or later, this job can be removed.
+func cronUninstallSoftwareMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUninstallSoftwareMigration)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger)
+		}),
+	)
+	return s, nil
+}
+
+func newMaintainedAppSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedApps)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
+			return maintainedapps.Refresh(ctx, ds, logger)
 		}),
 	)
 

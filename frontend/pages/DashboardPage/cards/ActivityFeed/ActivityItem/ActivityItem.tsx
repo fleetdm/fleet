@@ -841,8 +841,25 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        added <b>{activity.details?.software_title}</b> (
+        added software <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  editedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited software <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -858,7 +875,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted <b>{activity.details?.software_title}</b> (
+        deleted software <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
@@ -1195,6 +1212,9 @@ const getDetail = (
     }
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
+    }
+    case ActivityType.EditedSoftware: {
+      return TAGGED_TEMPLATES.editedSoftware(activity);
     }
     case ActivityType.DeletedSoftware: {
       return TAGGED_TEMPLATES.deletedSoftware(activity);

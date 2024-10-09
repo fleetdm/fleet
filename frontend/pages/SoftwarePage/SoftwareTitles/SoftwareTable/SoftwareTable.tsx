@@ -251,19 +251,17 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = showVersions
-      ? {
+    const queryParams = showVersions
+      ? buildQueryStringFromParams({
           software_version_id: row.original.id,
           team_id: teamId,
-        }
-      : {
+        })
+      : buildQueryStringFromParams({
           software_title_id: row.original.id,
           team_id: teamId,
-        };
+        });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
-    )}`;
+    const path = `${PATHS.MANAGE_HOSTS}?${queryParams}`;
 
     router.push(path);
   };
@@ -300,7 +298,7 @@ const SoftwareTable = ({
             options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
             searchable={false}
             onChange={handleCustomFilterDropdownChange}
-            tableFilterDropdown
+            iconName="filter"
           />
         )}
         <Slider

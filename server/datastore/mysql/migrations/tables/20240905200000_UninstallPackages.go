@@ -19,7 +19,9 @@ func Up_20240905200000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 ALTER TABLE software_installers 
 ADD COLUMN package_ids TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+ADD COLUMN extension VARCHAR(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 ADD COLUMN uninstall_script_content_id int unsigned NOT NULL,
+ADD COLUMN updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 		`); err != nil {
 		return fmt.Errorf("failed to alter software_installers: %w", err)
@@ -57,6 +59,12 @@ MODIFY COLUMN uploaded_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 			windowsScriptID); err != nil {
 			return fmt.Errorf("failed to update windows software installers: %w", err)
 		}
+	}
+
+	// Add best-guess installer extensions if needed -- these will be updated later by a cron job to file contents based types
+	// Also set existing updated_at timestamps to uploaded_at since installers were previously immutable
+	if _, err := tx.Exec(`UPDATE software_installers SET extension = SUBSTRING_INDEX(filename,'.',-1), updated_at = uploaded_at`); err != nil {
+		return fmt.Errorf("failed to backfill best-guess installer extensions: %w", err)
 	}
 
 	// Add foreign key

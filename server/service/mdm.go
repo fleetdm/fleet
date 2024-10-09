@@ -2286,7 +2286,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		fleet.MDMAssetCACert,
 		fleet.MDMAssetCAKey,
 		fleet.MDMAssetAPNSKey,
-	})
+	}, nil)
 	if err != nil {
 		// allow not found errors as it means we're generating the assets for
 		// the first time.
@@ -2321,7 +2321,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			})
 		}
 
-		if err := svc.ds.InsertMDMConfigAssets(ctx, assets); err != nil {
+		if err := svc.ds.InsertMDMConfigAssets(ctx, assets, nil); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "inserting mdm config assets")
 		}
 	} else {
@@ -2351,6 +2351,16 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		var fwe apple_mdm.FleetWebsiteError
 		if errors.As(err, &fwe) {
+			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
+			if fwe.Status >= 400 && fwe.Status <= 499 {
+				return nil, ctxerr.Wrap(
+					ctx,
+					fleet.NewInvalidArgumentError(
+						"email_address",
+						fmt.Sprintf("this email address is not valid: %v", err),
+					),
+				)
+			}
 			return nil, ctxerr.Wrap(
 				ctx,
 				fleet.NewUserMessageError(
@@ -2455,7 +2465,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return err
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey}, nil)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -2479,7 +2489,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
-	})
+	}, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing apns cert to db")
 	}

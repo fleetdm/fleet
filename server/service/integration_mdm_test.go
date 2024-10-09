@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -55,6 +56,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -63,10 +67,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/smallstep/pkcs7"
+	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -197,7 +203,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 
-	config := TestServerOpts{
+	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
@@ -283,16 +289,17 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				}
 			},
 		},
-		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		APNSTopic:       "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		EnableSCEPProxy: true,
 	}
 
 	// ensure all our tests support challenges with invalid XML characters
 	s.scepChallenge = "scepcha/><llenge"
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
-	})
+	}, nil)
 	require.NoError(s.T(), err)
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -555,6 +562,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	// enable MDM flows
 	s.appleCoreCertsSetup()
+
+	// create a global enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: "global-secret"}},
+		},
+	}, http.StatusOK, &applyResp)
 
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
@@ -871,6 +886,26 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, tm.Name, tok.MacOSTeam.Name)
 	require.Equal(t, tm.Name, tok.IOSTeam.Name)
 	require.Equal(t, tm.Name, tok.IPadOSTeam.Name)
+
+	// Reset the teams via app config
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"apple_business_manager": []
+			}
+		}`), http.StatusOK, &acResp)
+
+	tokensResp = listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
+	require.NotNil(t, tok)
+	require.False(t, tok.TermsExpired)
+	require.Equal(t, "abc", tok.AppleID)
+	require.Equal(t, tmOrgName, tok.OrganizationName)
+	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
 }
 
 func (s *integrationMDMTestSuite) getABMTokenByName(orgName string, tokens []*fleet.ABMToken) *fleet.ABMToken {
@@ -999,7 +1034,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 func setupExpectedCAProfile(t *testing.T, ds *mysql.Datastore) []byte {
 	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
@@ -1045,6 +1080,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
+		HardwareModel:   "MacBookPro16,1",
 
 		UUID:           mdmDevice.UUID,
 		HardwareSerial: mdmDevice.SerialNumber,
@@ -1127,7 +1163,7 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
 
 	// valid token downloads the profile
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -1314,7 +1350,8 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	// Delete APNS cert, should soft delete all certs and keys created in this test
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
 
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert}, nil)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, assets)
@@ -1328,6 +1365,14 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusBadGateway, &errResp)
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
+
+	// Check that we return bad request if the website API does (it will do this in case of an
+	// invalid email address
+	s.FailNextCSRRequestWith(http.StatusUnprocessableEntity)
+	errResp = validationErrResp{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "this email address is not valid")
 
 	// Invalid APNS cert upload attempt
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", []byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.", nil)
@@ -1868,7 +1913,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	// add an encryption key for the host
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
@@ -5489,6 +5534,45 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	return s.verifyEnrollmentProfile(body, "")
 }
 
+func (s *integrationMDMTestSuite) downloadAndVerifyOTAEnrollmentProfile(path string) {
+	t := s.T()
+
+	resp := s.DoRaw("GET", path, nil, http.StatusOK)
+	rawProfile, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	require.Contains(t, resp.Header, "Content-Disposition")
+	require.Contains(t, resp.Header, "Content-Type")
+	require.Contains(t, resp.Header, "X-Content-Type-Options")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
+	require.NoError(t, err)
+	require.Equal(t, len(rawProfile), headerLen)
+
+	p7, err := pkcs7.Parse(rawProfile)
+	require.NoError(t, err)
+	rootCA := x509.NewCertPool()
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	}, nil)
+	require.NoError(t, err)
+
+	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
+	require.NoError(t, p7.VerifyWithChain(rootCA))
+
+	var otaEnrollmentProfile struct {
+		PayloadContent struct {
+			URL string `plist:"URL"`
+		} `plist:"PayloadContent"`
+	}
+	err = plist.Unmarshal(p7.Content, &otaEnrollmentProfile)
+	require.NoError(t, err)
+	require.Contains(t, otaEnrollmentProfile.PayloadContent.URL, s.getConfig().ServerSettings.ServerURL+"/api/v1/fleet/ota_enrollment")
+}
+
 func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
 	t := s.T()
 	var profile enrollmentProfile
@@ -5500,7 +5584,7 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 
 		assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 			fleet.MDMAssetCACert,
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -9327,32 +9411,34 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 	ident := uuid.NewString()
 
+	mdmDeviceRespond := func(device *mdmtest.TestAppleMDMClient) {
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+				if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
+					var errChain []mdm.ErrorChain
+					errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
+					cmd, err = device.Err(cmd.CommandUUID, errChain)
+					require.NoError(t, err)
+					continue
+				}
+			}
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", ident),
 		mobileconfigForTest("N2", "I2"),
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
-
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		if cmd.Command.RequestType == "InstallProfile" {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
-				var errChain []mdm.ErrorChain
-				errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
-				cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
-				require.NoError(t, err)
-				continue
-			}
-		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-
+	mdmDeviceRespond(mdmDevice)
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
@@ -9360,24 +9446,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 	// Do another trigger + command fetching cycle, since we retry when a profile fails on install.
 	s.awaitTriggerProfileSchedule(t)
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		if cmd.Command.RequestType == "InstallProfile" {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
-				var errChain []mdm.ErrorChain
-				errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
-				cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
-				require.NoError(t, err)
-				continue
-			}
-		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
+	mdmDeviceRespond(mdmDevice)
 
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
@@ -9411,6 +9480,40 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 3) // This would be 4 if we hadn't deleted the profile that failed to install.
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		require.NotEqual(t, "N1", hm.Name)
+	}
+
+	// Test case where the profile never makes it to the host at all
+	host, _ = createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	ident = uuid.NewString()
+
+	globalProfiles = [][]byte{
+		mobileconfigForTest("N3", ident),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
+	var profUUID string
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
+		if hm.Name == "N3" {
+			profUUID = hm.ProfileUUID
+		}
+	}
+
+	// delete the custom profile
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", profUUID), &deleteMDMAppleConfigProfileRequest{}, http.StatusOK)
+	s.awaitTriggerProfileSchedule(t)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
 	}
 }
 
@@ -9529,7 +9632,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) {
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 2)
 	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
@@ -9570,7 +9673,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that we created the right assets
-	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey}, nil)
 	require.NoError(t, err)
 	require.Len(t, originalAssets, 3)
 
@@ -9583,7 +9687,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that the assets stayed the same in the subsequent call
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey}, nil)
 	require.NoError(t, err)
 	require.Equal(t, originalAssets, assets)
 
@@ -9616,7 +9721,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", certPEM, http.StatusAccepted, "", nil)
 
-	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert}, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 4)
 }
@@ -9820,7 +9926,10 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
 	var recordedPushes []*mdm.Push
+	var mu sync.Mutex
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
 		recordedPushes = pushes
 		return mockSuccessfulPush(pushes)
 	}
@@ -10454,6 +10563,25 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
+	// Reset the token's teams by omitting the token from app config
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "volume_purchasing_program": null }
+  }`), http.StatusOK, &acResp)
+
+	resp = getVPPTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Len(t, resp.Tokens, 1)
+	require.Equal(t, orgName, resp.Tokens[0].OrgName)
+	require.Equal(t, location, resp.Tokens[0].Location)
+	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
+	require.Empty(t, resp.Tokens[0].Teams)
+
+	// Add the team back
+	resPatchVPP = patchVPPTokensTeamsResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+
 	// Get list of VPP apps from "Apple"
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
@@ -10722,14 +10850,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99}}, http.StatusUnprocessableEntity, &resPatchVPP)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
-
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	_, err := q.ExecContext(context.Background(), "UPDATE vpp_tokens SET renew_at = ? WHERE organization_name = ?", time.Now().Add(-1*time.Hour), "badtoken")
-	// 	return err
-	// })
-
-	// r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
-	// require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
 
 	// Disable the token
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
@@ -11141,7 +11261,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
 	createHostAndDeviceToken(t, s.ds, token)
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
+	s.downloadAndVerifyOTAEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
 
 	// automatic enrollment by token
 	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
@@ -11201,9 +11321,9 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 </plist>`)
 
 	// request with no enroll secret
-	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusBadRequest)
+	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusForbidden)
 	errMsg := extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "enroll_secret query parameter is required")
+	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 	require.NoError(t, httpResp.Body.Close())
 
 	// request with no body
@@ -11229,14 +11349,14 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	// request with invalid apple signature
 	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "forbidden")
+	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 	require.NoError(t, httpResp.Body.Close())
 
 	// request with invalid device signature
 	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "forbidden")
+	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 	require.NoError(t, httpResp.Body.Close())
 
 	// request without serial number
@@ -11313,4 +11433,165 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
+}
+
+func (s *integrationMDMTestSuite) TestSCEPProxy() {
+	t := s.T()
+	ctx := context.Background()
+
+	data, err := os.ReadFile("./testdata/PKCSReq.der")
+	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(data)
+
+	// NDES not configured
+	res := s.DoRawNoAuth("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest)
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "missing operation")
+	// Provide SCEP operation (GetCACaps)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetCACerts)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (PKIOperation)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
+		"message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetNextCACert)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "not implemented")
+
+	// Add an MDM profile
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}
+	// add global profile
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	profiles, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	profileUUID := profiles[0].ProfileUUID
+	identifier := url.PathEscape(host.UUID + "," + profileUUID)
+
+	// Configure a bad SCEP URL
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConf.Integrations.NDESSCEPProxy.Valid = true
+	appConf.Integrations.NDESSCEPProxy.Value.URL = "https://httpstat.us/410"
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation", "GetCACaps")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "Could not GetCACaps from SCEP server")
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation", "GetCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "Could not GetCACert from SCEP server")
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "Could not do PKIOperation on SCEP server")
+
+	// Spin up an "external" SCEP server, which Fleet server will proxy
+	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {
+		var server *httptest.Server
+		teardown := func() {
+			if server != nil {
+				server.Close()
+			}
+			os.Remove("./testdata/externalCA/serial")
+			os.Remove("./testdata/externalCA/index.txt")
+		}
+		t.Cleanup(teardown)
+
+		var err error
+		var certDepot depot.Depot // cert storage
+		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
+		if err != nil {
+			t.Fatal(err)
+		}
+		certDepot = &noopCertDepot{certDepot}
+		crt, key, err := certDepot.CA([]byte{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var svc scepserver.Service // scep service
+		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
+		if err != nil {
+			t.Fatal(err)
+		}
+		logger := kitlog.NewNopLogger()
+		e := scepserver.MakeServerEndpoints(svc)
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+		r := mux.NewRouter()
+		r.Handle("/scep", scepHandler)
+		server = httptest.NewServer(r)
+		return server
+	}
+	scepServer := newSCEPServer(t)
+
+	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	// GetCACaps
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+
+	// GetCACert
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACert")
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	certs, err := x509.ParseCertificates(body)
+	require.NoError(t, err)
+	assert.Len(t, certs, 1)
+
+	// PKIOperation
+	// Invalid identifier format
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"%2Cbozo", nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "invalid identifier")
+	// Unknown host/profile
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile", nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "unknown identifier")
+	// "Good" request. Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
+	// and this request is sufficient for testing our proxy functionality.
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	pkiMessage, err := scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+}
+
+type noopCertDepot struct{ depot.Depot }
+
+func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {
+	return nil
 }

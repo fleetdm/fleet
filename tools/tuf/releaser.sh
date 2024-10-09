@@ -55,6 +55,7 @@ setup () {
 
     mkdir -p "$REPOSITORY_DIRECTORY"
     mkdir -p "$STAGED_DIRECTORY"
+
     cp -r "$KEYS_SOURCE_DIRECTORY" "$KEYS_DIRECTORY"
 
     if ! aws sts get-caller-identity &> /dev/null; then
@@ -86,9 +87,12 @@ setup () {
         export FLEET_TARGETS_PASSPHRASE
         FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
         export FLEET_SNAPSHOT_PASSPHRASE
+        FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TIMESTAMP_PASSPHRASE
+    elif [[ $ACTION == "update-timestamp" ]]; then
+        FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TIMESTAMP_PASSPHRASE
     fi
-    FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_TIMESTAMP_PASSPHRASE
 
     go build -o "$GO_TOOLS_DIRECTORY/replace" "$SCRIPT_DIR/../../tools/tuf/replace"
     go build -o "$GO_TOOLS_DIRECTORY/download-artifacts" "$SCRIPT_DIR/../../tools/tuf/download-artifacts"
@@ -321,14 +325,18 @@ print_reminder () {
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "Make sure to install fleetd with '--osqueryd-channel=stable' on a Linux, Windows and macOS VM. (To smoke test the release.)"
         fi
-    else
+    elif [[ $ACTION == "update-timestamp" ]]; then
+        :
+    elif [[ $ACTION != "update-timestamp" ]]; then
         echo "Unsupported action: $ACTION"
+        exit 1
     fi
 }
 
 trap clean_up EXIT
 print_reminder
 setup
+
 pull_from_remote
 
 if [[ $ACTION == "release-to-edge" ]]; then

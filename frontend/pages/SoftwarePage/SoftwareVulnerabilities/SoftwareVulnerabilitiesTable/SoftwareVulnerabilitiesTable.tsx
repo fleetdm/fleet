@@ -242,7 +242,7 @@ const SoftwareVulnerabilitiesTable = ({
         options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
-        tableFilterDropdown
+        iconName="filter"
       />
     );
   };

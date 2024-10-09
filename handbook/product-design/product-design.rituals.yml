@@ -2,7 +2,7 @@
   task: "Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Clear out the drafting board of all issues that are not estimated but leave the items we want to take in the next sprint on the drafting board. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline)." 
+  description: "1. Add all stories that are not estimated to the feature fest board. Remove the stories from the drafting board that we're not actively working on and notify stakeholders. 2. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline). 3. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -16,14 +16,14 @@
   task: "Design sprint kickoff" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Add stories prioritized during Feature fest to Drafting board, assign stories to product designers, and align on priorities." 
+  description: "Add stories prioritized during Feature fest to Drafting board, assign stories to product designers, create upcoming reference docs release branch, and align on priorities." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
   task: "Sprint kickoff review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Identify stories that did not make it into this sprint and remove them from the board. Notify relevant requesters/stakeholders. Ensure bugs have been effectively prioritized across teams. Recommend highlights for next release notes. Record the number of drops for KPI reporting. Consider product group staffing. Are we scheduling what we prioritized?  Did we finish what we scheduled in the sprint?  (Look at org chart.)" 
+  description: "Review stories that made it into this sprint and recommend highlights for next release notes. Then, review stories that did not make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -52,7 +52,7 @@
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
   description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #g-mdm and #g-endpoint-ops Slack channel." 
-  moreInfoUrl: 
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -
   task: "Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
@@ -65,5 +65,5 @@
   task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
   frequency: "Triweekly"
-  description: "Discuss what stories weren't completed in the previous sprint. Record the number of stories in KPIs. Align on priorities for upcoming sprint."
+  description: "Align on priorities for upcoming sprint."
   dri: "noahtalerman"

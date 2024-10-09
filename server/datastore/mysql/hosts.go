@@ -403,13 +403,17 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 	return ps, nil
 }
 
+// loadHostScheduledQueryStatsDB will load all the scheduled query stats for the given host.
+// The filter is split into two statements joined by a UNION ALL to take advantage of indexes.
+// Using an OR in the WHERE clause causes a full table scan which causes issues with a large
+// queries table due to the high volume of live queries (created by zero trust workflows)
 func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string, teamID *uint) ([]fleet.QueryStats, error) {
 	var teamID_ uint
 	if teamID != nil {
 		teamID_ = *teamID
 	}
 
-	sqlQuery := `
+	baseQuery := `
 		SELECT
 			q.id,
 			q.name,
@@ -442,18 +446,27 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			SUM(stats.wall_time) AS wall_time
 		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs ON (q.id = sqs.scheduled_query_id)
 		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
+	`
+
+	filter1 := `
 		WHERE
 			(q.platform = '' OR q.platform IS NULL OR FIND_IN_SET(?, q.platform) != 0)
-			AND q.schedule_interval > 0
+			AND q.is_scheduled = 1
 			AND (q.automations_enabled IS TRUE OR (q.discard_data IS FALSE AND q.logging_type = ?))
 			AND (q.team_id IS NULL OR q.team_id = ?)
-			OR EXISTS (
+		GROUP BY q.id
+	`
+
+	filter2 := `
+		WHERE EXISTS (
 				SELECT 1 FROM query_results
 				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
 			)
 		GROUP BY q.id
 	`
+
+	sqlQuery := baseQuery + filter1 + " UNION ALL " + baseQuery + filter2
 
 	args := []interface{}{
 		pastDate,
@@ -462,8 +475,12 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		fleet.PlatformFromHost(hostPlatform),
 		fleet.LoggingSnapshot,
 		teamID_,
+		pastDate,
+		hid,
+		hid,
 		hid,
 	}
+
 	var stats []fleet.QueryStats
 	if err := sqlx.SelectContext(ctx, db, &stats, sqlQuery, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load query stats")
@@ -1114,12 +1131,22 @@ func (ds *Datastore) applyHostFilters(
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
+	mdmAppleProfilesStatusJoin := ""
+	mdmAppleDeclarationsStatusJoin := ""
+	if opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() {
+		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
+		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+	}
+
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
+    %s
+    %s
     %s
     %s
     %s
@@ -1142,6 +1169,8 @@ func (ds *Datastore) applyHostFilters(
 		munkiJoin,
 		displayNameJoin,
 		connectedToFleetJoin,
+		mdmAppleProfilesStatusJoin,
+		mdmAppleDeclarationsStatusJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
@@ -1304,15 +1333,9 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		whereStatus += ` AND h.team_id IS NULL`
 	}
 
-	subqueryStatus, paramsStatus, err := subqueryOSSettingsStatusMac()
-	if err != nil {
-		return "", nil, err
-	}
+	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus())
 
-	whereStatus += fmt.Sprintf(` AND %s = ?`, subqueryStatus)
-	paramsStatus = append(paramsStatus, opt.MacOSSettingsFilter)
-
-	return sql + whereStatus, append(params, paramsStatus...), nil
+	return sql + whereStatus, append(params, opt.MacOSSettingsFilter), nil
 }
 
 func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -1364,13 +1387,9 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 AND ((h.platform = 'windows' AND (%s))
 OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s)))`
 
-	whereMacOS, paramsMacOS, err := subqueryOSSettingsStatusMac()
-	if err != nil {
-		return "", nil, err
-	}
-	whereMacOS += ` = ?`
-	// ensure the host has MDM turned on
-	paramsMacOS = append(paramsMacOS, opt.OSSettingsFilter)
+	// construct the WHERE for macOS
+	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus())
+	paramsMacOS := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
@@ -3687,6 +3706,20 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
 	)
+}
+
+func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
+	stmt := `
+	SELECT email
+	FROM host_emails he
+	JOIN hosts h ON h.id = he.host_id
+	WHERE h.uuid = ? AND he.source = ?
+	`
+	var emails []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &emails, stmt, hostUUID, source); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host emails")
+	}
+	return emails, nil
 }
 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the

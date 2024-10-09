@@ -638,6 +638,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
+	if opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() {
+		query += sqlJoinMDMAppleProfilesStatus()
+		query += sqlJoinMDMAppleDeclarationsStatus()
+	}
+
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	whereParams = append(whereParams, lid)
 

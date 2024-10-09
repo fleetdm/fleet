@@ -205,7 +205,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   },
   {
     key: 16,
-    query: "SELECT 1 FROM os_version WHERE version >= '12.5.1';",
+    query: "SELECT 1 FROM os_version WHERE version >= '14.6.1' OR version >= '15.0';",
     name: "Operating system up to date (macOS)",
     description: "Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.",
     resolution:

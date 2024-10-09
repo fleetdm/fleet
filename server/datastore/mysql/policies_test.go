@@ -67,6 +67,8 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
+		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
+		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 	}
 	for _, c := range cases {
@@ -1241,6 +1243,7 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		TeamID:            &team1.ID,
 	})
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installerID)
@@ -3948,6 +3951,16 @@ func testNewGlobalPolicyWithInstaller(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, errSoftwareTitleIDOnGlobalPolicy)
 }
 
+func testNewGlobalPolicyWithScript(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	_, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		Query:    "SELECT 1;",
+		ScriptID: ptr.Uint(1),
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errScriptIDOnGlobalPolicy)
+}
+
 func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3976,6 +3989,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		TeamID:            &team1.ID,
 	})
 	require.NoError(t, err)
 	require.Nil(t, p1.SoftwareInstallerID)
@@ -4000,12 +4014,33 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
 	// Policy p4 in "No team" with associated installer.
+	noTeamInstallerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            ptr.Uint(fleet.PolicyNoTeamID),
+	})
+	require.NoError(t, err)
 	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p4",
+		Query:               "SELECT 4;",
+		SoftwareInstallerID: ptr.Uint(noTeamInstallerID),
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
 		Name:                "p4",
 		Query:               "SELECT 4;",
 		SoftwareInstallerID: ptr.Uint(installerID),
 	})
-	require.NoError(t, err)
+	require.Error(t, err, "software installer is associated with a different team")
+
 	policiesWithInstallers, err := ds.GetPoliciesWithAssociatedInstaller(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
 	require.NoError(t, err)
 	require.Len(t, policiesWithInstallers, 1)
@@ -4035,6 +4070,10 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	err = ds.SavePolicy(ctx, p1, false, false)
 	require.NoError(t, err)
 
+	p1.SoftwareInstallerID = ptr.Uint(noTeamInstallerID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.Error(t, err, "software installer is associated with a different team")
+
 	p2, err = ds.Policy(ctx, p2.ID)
 	require.NoError(t, err)
 	require.NotNil(t, p2.SoftwareInstallerID)
@@ -4053,6 +4092,120 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Empty(t, policiesWithInstallers)
 }
 
+func testTeamPoliciesWithScript(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Sierra", "sierra@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"}) // team2 has no policies
+	require.NoError(t, err)
+
+	// Policy p1 has no associated script.
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p1",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: nil,
+	})
+	require.NoError(t, err)
+	// Create and associate a script to p2.
+	script, err := ds.NewScript(context.Background(), &fleet.Script{
+		TeamID:         &team1.ID,
+		Name:           "hello-world.sh",
+		ScriptContents: "echo 'Hello World'",
+	})
+	require.NoError(t, err)
+	require.Nil(t, p1.ScriptID)
+	p2, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p2",
+		Query:    "SELECT 1;",
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, p2.ScriptID)
+	require.Equal(t, script.ID, *p2.ScriptID)
+	// Create p3 as global policy.
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "p3",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.ScriptID)
+	require.Equal(t, script.ID, *p2.ScriptID)
+
+	// Policy p4 in "No team" with associated script.
+	noTeamScript, err := ds.NewScript(context.Background(), &fleet.Script{
+		Name:           "hello-world.sh",
+		ScriptContents: "echo 'Hello NoTeam'",
+	})
+	require.NoError(t, err)
+	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p4",
+		Query:    "SELECT 4;",
+		ScriptID: &noTeamScript.ID,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p4",
+		Query:    "SELECT 4;",
+		ScriptID: &script.ID,
+	})
+	require.Error(t, err, "script is associated with a different team")
+
+	policiesWithScripts, err := ds.GetPoliciesWithAssociatedScript(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithScripts, 1)
+	require.Equal(t, p4.ID, policiesWithScripts[0].ID)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+
+	// p1 has no associated scripts.
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithScripts, 1)
+	require.Equal(t, p2.ID, policiesWithScripts[0].ID)
+	require.Equal(t, script.ID, policiesWithScripts[0].ScriptID)
+
+	// p2 has associated script but belongs to team1.
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team2.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+
+	p1.ScriptID = ptr.Uint(script.ID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.NoError(t, err)
+
+	p1.ScriptID = ptr.Uint(noTeamScript.ID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.Error(t, err, "script is associated with a different team")
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.ScriptID)
+	require.Equal(t, script.ID, *p2.ScriptID)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team1.ID, []uint{p1.ID, p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithScripts, 2)
+	require.Equal(t, p1.ID, policiesWithScripts[0].ID)
+	require.Equal(t, script.ID, policiesWithScripts[0].ScriptID)
+	require.Equal(t, p2.ID, policiesWithScripts[1].ID)
+	require.Equal(t, script.ID, policiesWithScripts[1].ScriptID)
+
+	policiesWithScripts, err = ds.GetPoliciesWithAssociatedScript(ctx, team2.ID, []uint{p1.ID, p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithScripts)
+}
+
 func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -4061,6 +4214,24 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   ptr.String(uuid.New().String()),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(uuid.New().String()),
+			UUID:            uuid.New().String(),
+			Hostname:        name,
+			TeamID:          teamID,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1Team1", &team1.ID, "darwin")
 
 	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
@@ -4113,6 +4284,24 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer3.TitleID)
+	// Another installer on team1 to test changing installers.
+	installer5ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello5",
+		PreInstallQuery:   "SELECT 5;",
+		PostInstallScript: "world5",
+		InstallerFile:     bytes.NewReader([]byte("hello5")),
+		StorageID:         "storage5",
+		Filename:          "file5",
+		Title:             "file5",
+		Version:           "1.0",
+		Source:            "programs",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+	})
+	require.NoError(t, err)
+	installer5, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer5ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer5.TitleID)
 
 	// Installers cannot be assigned to global policies.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4164,6 +4353,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 1)
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
+	policy1Team1 := team1Policies[0]
 	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
 	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -4175,6 +4365,14 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, noTeamPolicies, 1)
 	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
 	require.Equal(t, installer3.InstallerID, *noTeamPolicies[0].SoftwareInstallerID)
+
+	// Record policy execution on policy1Team1.
+	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
+		policy1Team1.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
 
 	// Unset software installer from "Team policy 1".
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4193,6 +4391,8 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 1)
 	require.Nil(t, team1Policies[0].SoftwareInstallerID)
+	// Should not clear results because we've cleared not changed/set-new installer.
+	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
 
 	// Set "Team policy 1" to a software installer on team2.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4317,11 +4517,82 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, team1Policies, 1)
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
+	// Should clear results because we've are setting an installer.
+	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
+	countBiggerThanZero := true
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[0].ID,
+		)
+	})
+	require.False(t, countBiggerThanZero)
 	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer4.InstallerID, *team2Policies[0].SoftwareInstallerID)
+
+	// Record policy execution on policy1Team1 to test that setting the same installer won't clear results.
+	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
+		policy1Team1.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer1.TitleID,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
+	countBiggerThanZero = false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[0].ID,
+		)
+	})
+	require.True(t, countBiggerThanZero)
+
+	// Now change the installer, should clear results.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: installer5.TitleID,
+		},
+	})
+	require.NoError(t, err)
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
+	countBiggerThanZero = true
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[0].ID,
+		)
+	})
+	require.False(t, countBiggerThanZero)
 }
 
 func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {

@@ -5694,10 +5694,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	for _, a := range assets {
 		wantAssets[a.Name] = a
 	}
-	err := ds.InsertMDMConfigAssets(ctx, assets)
+	err := ds.InsertMDMConfigAssets(ctx, assets, nil)
 	require.NoError(t, err)
 
-	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
 	require.NoError(t, err)
 	require.Equal(t, wantAssets, a)
 
@@ -5709,7 +5709,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	// try to fetch an asset that doesn't exist
 	var nfe fleet.NotFoundError
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert}, ds.writer(ctx))
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
@@ -5718,7 +5718,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.Nil(t, h)
 
 	// try to fetch a mix of assets that exist and doesn't exist
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert}, nil)
 	require.ErrorIs(t, err, ErrPartialResult)
 	require.Len(t, a, 1)
 
@@ -5745,10 +5745,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 		wantNewAssets[a.Name] = a
 	}
 
-	err = ds.ReplaceMDMConfigAssets(ctx, newAssets)
+	err = ds.ReplaceMDMConfigAssets(ctx, newAssets, nil)
 	require.NoError(t, err)
 
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, ds.reader(ctx))
 	require.NoError(t, err)
 	require.Equal(t, wantNewAssets, a)
 
@@ -5763,7 +5763,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
 
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
@@ -5802,6 +5802,22 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, got.DeletionUUID)
 		require.NotEmpty(t, got.DeletedAt)
 	}
+
+	// Hard delete
+	err = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetCACert)
+	require.NoError(t, err)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
+
+	var result bool
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCACert)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	// other (non-hard deleted asset still present)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCAKey)
+	assert.NoError(t, err)
+	assert.True(t, result)
 }
 
 func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {

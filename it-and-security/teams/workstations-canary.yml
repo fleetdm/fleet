@@ -82,11 +82,11 @@ controls:
       - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
       - path: ../lib/configuration-profiles/macos-misc.mobileconfig
-      - path: ../lib/configuration-profiles/macos-password.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
-      - path: ../lib/configuration-profiles/passcode-settings-ddm.json
+      - path: ../lib/configuration-profiles/macos-ensure-show-status-bar-is-enabled.mobileconfig
+      - path: ../lib/configuration-profiles/macos-passcode-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -137,6 +137,20 @@ policies:
     resolution: We will perform system maintenance on your device.
     platform: darwin
     calendar_events_enabled: true
+  - name: macOS - Upgrade Firefox
+    query: SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '130.0.1') >= 0;
+    critical: false
+    description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
+    resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
+    platform: darwin
+    calendar_events_enabled: false
+  - name: macOS - Upgrade Slack
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
+    critical: false
+    description: The host may be running an outdated version of Slack, which could pose security vulnerabilities or compatibility issues.
+    resolution: The host's Slack application will likely be updated to a version that is greater than or equal to '4.40.126'.
+    platform: darwin
+    calendar_events_enabled: false
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-fleetd-information.yml

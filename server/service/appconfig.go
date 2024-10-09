@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -27,6 +28,10 @@ import (
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
 )
+
+// Functions that can be overwritten in tests
+var validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
+var validateNDESSCEPURL = eeservice.ValidateNDESSCEPURL
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
@@ -330,6 +335,61 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
+	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !license.IsPremium() {
+		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+	} else {
+		switch {
+		case !newAppConfig.Integrations.NDESSCEPProxy.Set:
+			// Nothing is set -- keep the old value
+			appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
+		case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
+			// User is explicitly clearing this setting
+			appConfig.Integrations.NDESSCEPProxy.Valid = false
+			// Delete stored password
+			if !applyOpts.DryRun {
+				if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
+				}
+			}
+		default:
+			// User is updating the setting
+			appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+			appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
+			appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
+			// do not preprocess password
+
+			validateAdminURL, validateSCEPURL := false, false
+			newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
+			if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+				validateAdminURL, validateSCEPURL = true, true
+			} else {
+				oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
+				if newSCEPProxy.URL != oldSCEPProxy.URL {
+					validateSCEPURL = true
+				}
+				if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
+					newSCEPProxy.Username != oldSCEPProxy.Username ||
+					(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
+					validateAdminURL = true
+				}
+			}
+
+			if validateAdminURL {
+				if err = validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
+					invalid.Append("integrations.ndes_scep_proxy", err.Error())
+				}
+			}
+
+			if validateSCEPURL {
+				if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
+					invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+				}
+			}
+		}
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
@@ -545,11 +605,51 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		for _, tok := range abmAssignments {
-			fmt.Println(tok.EncryptedToken)
+	// Reset teams for ABM tokens that exist in Fleet but aren't present in the config being passed
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
+		tokensInCfg[t.OrganizationName] = struct{}{}
+	}
+
+	toks, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+	for _, tok := range toks {
+		if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+			tok.MacOSDefaultTeamID = nil
+			tok.IOSDefaultTeamID = nil
+			tok.IPadOSDefaultTeamID = nil
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	// Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+	clear(tokensInCfg)
+
+	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+		tokensInCfg[t.Location] = struct{}{}
+	}
+
+	vppToks, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
+	}
+	for _, tok := range vppToks {
+		if _, ok := tokensInCfg[tok.Location]; !ok {
+			tok.Teams = nil
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
 			}
 		}
 	}

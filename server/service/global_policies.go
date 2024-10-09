@@ -158,6 +158,9 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}
+	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
 
 	return policy, nil
 }

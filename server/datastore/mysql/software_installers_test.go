@@ -34,6 +34,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallersAssignedToPolicy", testDeleteSoftwareInstallersAssignedToPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
+		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 	}
 
 	for _, c := range cases {
@@ -55,6 +56,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
 		InstallerFile:     bytes.NewReader([]byte("hello")),
 		StorageID:         "storage1",
 		Filename:          "file1",
@@ -146,6 +148,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID1, exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 	require.False(t, exec1.SelfService)
+	assert.Equal(t, "goodbye", exec1.UninstallScript)
 
 	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, true)
 	require.NoError(t, err)
@@ -508,8 +511,18 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			beforeInstallRequest := time.Now()
 			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, false)
 			require.NoError(t, err)
+
+			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+			require.NoError(t, err)
+			require.NotNil(t, res.UpdatedAt)
+			require.Less(t, beforeInstallRequest, res.CreatedAt)
+			createdAt := res.CreatedAt
+			require.Less(t, beforeInstallRequest, *res.UpdatedAt)
+
+			beforeInstallResult := time.Now()
 			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 				HostID:                    host.ID,
 				InstallUUID:               installUUID,
@@ -521,7 +534,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 
 			require.Equal(t, installUUID, res.InstallUUID)
@@ -531,6 +544,10 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
 			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)
 			require.Equal(t, tc.installScriptOutput, res.Output)
+			require.NotNil(t, res.CreatedAt)
+			require.Equal(t, createdAt, res.CreatedAt)
+			require.NotNil(t, res.UpdatedAt)
+			require.Less(t, beforeInstallResult, *res.UpdatedAt)
 		})
 	}
 }
@@ -608,7 +625,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	// TODO(roberto): perform better assertions, we should have evertything
+	// TODO(roberto): perform better assertions, we should have everything
 	// to check that the actual values of everything match.
 	assertSoftware := func(wantTitles []fleet.SoftwareTitle) {
 		tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
@@ -628,11 +645,15 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	// batch set with everything empty
-	softwareInstallers, err := ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
+	require.NoError(t, err)
+	softwareInstallers, err := ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware(nil)
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware(nil)
@@ -640,7 +661,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// add a single installer
 	ins0 := "installer0"
 	ins0File := bytes.NewReader([]byte("installer0"))
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
 		InstallScript:   "install",
 		InstallerFile:   ins0File,
 		StorageID:       ins0,
@@ -651,12 +672,16 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		PreInstallQuery: "foo",
 		UserID:          user1.ID,
 		Platform:        "darwin",
+		URL:             "https://example.com",
 	}})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
-	require.Equal(t, ins0, softwareInstallers[0].Name)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
 	require.NotNil(t, softwareInstallers[0].TitleID)
-	require.Equal(t, "darwin", softwareInstallers[0].Platform)
+	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 	})
@@ -664,7 +689,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// add a new installer + ins0 installer
 	ins1 := "installer1"
 	ins1File := bytes.NewReader([]byte("installer1"))
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:   "install",
 			InstallerFile:   ins0File,
@@ -676,6 +701,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			PreInstallQuery: "select 0 from foo;",
 			UserID:          user1.ID,
 			Platform:        "darwin",
+			URL:             "https://example.com",
 		},
 		{
 			InstallScript:     "install",
@@ -689,23 +715,28 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
 			Platform:          "darwin",
+			URL:               "https://example2.com",
 		},
 	})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 2)
-	require.Equal(t, ins0, softwareInstallers[0].Name)
 	require.NotNil(t, softwareInstallers[0].TitleID)
-	require.Equal(t, "darwin", softwareInstallers[0].Platform)
-	require.Equal(t, ins1, softwareInstallers[1].Name)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
+	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
 	require.NotNil(t, softwareInstallers[1].TitleID)
-	require.Equal(t, "darwin", softwareInstallers[1].Platform)
+	require.NotNil(t, softwareInstallers[1].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
+	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
 	// remove ins0
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:     "install",
 			PostInstallScript: "post-install",
@@ -720,15 +751,20 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
-	require.Equal(t, ins1, softwareInstallers[0].Name)
 	require.NotNil(t, softwareInstallers[0].TitleID)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Empty(t, softwareInstallers[0].URL)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
 	// remove everything
-	softwareInstallers, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware([]fleet.SoftwareTitle{})
@@ -1076,4 +1112,87 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	host2LastInstall, err = ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.Nil(t, host2LastInstall)
+}
+
+func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "Existing Title", Version: "0.0.1", Source: "apps", BundleIdentifier: "existing.title"},
+	}
+	software2 := []fleet.Software{
+		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	tests := []struct {
+		name    string
+		payload *fleet.UploadSoftwareInstallerPayload
+	}{
+		{
+			name: "title that already exists, no bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Existing Title",
+				Source: "apps",
+			},
+		},
+		{
+			name: "title that already exists, mismatched bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title",
+				Source:           "apps",
+				BundleIdentifier: "com.existing.bundle",
+			},
+		},
+		{
+			name: "title that already exists but doesn't have a bundle identifier",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Existing Title Without Bundle",
+				Source: "apps",
+			},
+		},
+		{
+			name: "title that already exists, no bundle identifier in DB, bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title Without Bundle",
+				Source:           "apps",
+				BundleIdentifier: "com.new.bundleid",
+			},
+		},
+		{
+			name: "title that doesn't exist, no bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "New Title",
+				Source: "some_source",
+			},
+		},
+		{
+			name: "title that doesn't exist, with bundle identifier in payload",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "New Title With Bundle",
+				Source:           "some_source",
+				BundleIdentifier: "com.new.bundle",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
+			require.NoError(t, err)
+			require.NotEmpty(t, id)
+		})
+	}
 }

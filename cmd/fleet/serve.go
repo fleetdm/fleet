@@ -49,6 +49,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -75,8 +76,7 @@ import (
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const (
-	softwareInstallerUploadTimeout = 4 * time.Minute
-	liveQueryMemCacheDuration      = 1 * time.Second
+	liveQueryMemCacheDuration = 1 * time.Second
 )
 
 type initializer interface {
@@ -500,7 +500,7 @@ the way that the Fleet server works.
 			}
 
 			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
-				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names, nil)
 				if err != nil {
 					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
 						return false, nil
@@ -512,29 +512,13 @@ the way that the Fleet server works.
 
 			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
-				if !config.MDM.IsAppleAPNsSet() {
-					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
-				} else if !config.MDM.IsAppleSCEPSet() {
-					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
-				}
-
 				if len(config.Server.PrivateKey) == 0 {
 					initFatal(errors.New("inserting MDM APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
-				// parse the APNs and SCEP assets from the config
-				_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
-				if err != nil {
-					initFatal(err, "parse Apple APNs certificate and key from config")
-				}
-				_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
-				if err != nil {
-					initFatal(err, "load Apple SCEP certificate and key from config")
-				}
-
 				// first we'll check if the APNs and SCEP assets are already in the database and
 				// only insert config values if they're not already present in the database
-				toInsert := make([]fleet.MDMConfigAsset, 0, 4)
+				toInsert := make(map[fleet.MDMAssetName]struct{}, 4)
 
 				// check DB for APNs assets
 				found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey})
@@ -542,7 +526,8 @@ the way that the Fleet server works.
 				case err != nil:
 					initFatal(err, "reading APNs assets from database")
 				case !found:
-					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSKey, Value: apnsKeyPEM})
+					toInsert[fleet.MDMAssetAPNSCert] = struct{}{}
+					toInsert[fleet.MDMAssetAPNSKey] = struct{}{}
 				default:
 					level.Warn(logger).Log("msg", "Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
@@ -553,16 +538,44 @@ the way that the Fleet server works.
 				case err != nil:
 					initFatal(err, "reading SCEP assets from database")
 				case !found:
-					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetCACert, Value: appleSCEPCertPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetCAKey, Value: appleSCEPKeyPEM})
+					toInsert[fleet.MDMAssetCACert] = struct{}{}
+					toInsert[fleet.MDMAssetCAKey] = struct{}{}
 				default:
 					level.Warn(logger).Log("msg", "Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
 				if len(toInsert) > 0 {
-					if len(config.Server.PrivateKey) == 0 {
-						initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+					if !config.MDM.IsAppleAPNsSet() {
+						initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
+					} else if !config.MDM.IsAppleSCEPSet() {
+						initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 					}
-					if err := ds.InsertMDMConfigAssets(context.Background(), toInsert); err != nil {
+
+					// parse the APNs and SCEP assets from the config
+					_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
+					if err != nil {
+						initFatal(err, "parse Apple APNs certificate and key from config")
+					}
+					_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
+					if err != nil {
+						initFatal(err, "load Apple SCEP certificate and key from config")
+					}
+
+					var args []fleet.MDMConfigAsset
+					for name := range toInsert {
+						switch name {
+						case fleet.MDMAssetAPNSCert:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: apnsCertPEM})
+						case fleet.MDMAssetAPNSKey:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: apnsKeyPEM})
+						case fleet.MDMAssetCACert:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: appleSCEPCertPEM})
+						case fleet.MDMAssetCAKey:
+							args = append(args, fleet.MDMConfigAsset{Name: name, Value: appleSCEPKeyPEM})
+						}
+					}
+
+					if err := ds.InsertMDMConfigAssets(context.Background(), args, nil); err != nil {
 						if mysql.IsDuplicate(err) {
 							// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
 							level.Debug(logger).Log("msg", "unexpected duplicate key error inserting MDM APNs and SCEP assets")
@@ -575,11 +588,6 @@ the way that the Fleet server works.
 
 			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleBMSet() {
-				// TODO: Confirm whether we should have any fatal license errors
-				if !license.IsPremium() {
-					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
-				}
-
 				if len(config.Server.PrivateKey) == 0 {
 					initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
@@ -589,7 +597,7 @@ the way that the Fleet server works.
 					initFatal(err, "parse Apple BM token, certificate and key from config")
 				}
 
-				toInsert := make([]fleet.MDMConfigAsset, 0, 4)
+				toInsert := make([]fleet.MDMConfigAsset, 0, 2)
 
 				found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetABMKey, fleet.MDMAssetABMCert})
 				switch {
@@ -602,7 +610,7 @@ the way that the Fleet server works.
 				}
 
 				if len(toInsert) > 0 {
-					err := ds.InsertMDMConfigAssets(context.Background(), toInsert)
+					err := ds.InsertMDMConfigAssets(context.Background(), toInsert, nil)
 					switch {
 					case err != nil && mysql.IsDuplicate(err):
 						// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
@@ -790,6 +798,7 @@ the way that the Fleet server works.
 					softwareInstallStore,
 					bootstrapPackageStore,
 					distributedLock,
+					redis_key_value.New(redisPool),
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -828,6 +837,16 @@ the way that the Fleet server works.
 					}
 				}
 			}()
+
+			if softwareInstallStore != nil {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cronUninstallSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
+					},
+				); err != nil {
+					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
+				}
+			}
 
 			if config.Server.FrequentCleanupsEnabled {
 				if err := cronSchedules.StartCronSchedule(
@@ -923,6 +942,12 @@ the way that the Fleet server works.
 					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
+				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+					initFatal(err, "failed to register maintained apps schedule")
 				}
 			}
 
@@ -1062,7 +1087,7 @@ the way that the Fleet server works.
 
 					err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 						{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(scepChallenge)},
-					})
+					}, nil)
 					if err != nil {
 						// duplicate key errors mean that we already
 						// have a value for those keys in the
@@ -1085,6 +1110,13 @@ the way that the Fleet server works.
 					ddmService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
+				}
+			}
+
+			// SCEP proxy (for NDES, etc.)
+			if license.IsPremium() {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+					initFatal(err, "setup SCEP proxy")
 				}
 			}
 
@@ -1125,23 +1157,25 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package") {
-					// when uploading a software installer, the file might be large so
-					// the read timeout (to read the full request body) must be extended.
+				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
+					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path, "/fleet/software/titles/")) {
+					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
-					// the frontend times out waiting for the upload after 4 minutes,
-					// use that same timeout:
-					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
-					if err := rc.SetReadDeadline(time.Now().Add(softwareInstallerUploadTimeout)); err != nil {
+					// For large software installers, the server time needs time to read the full
+					// request body so we use the zero value to remove the deadline and override the
+					// default read timeout.
+					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
+					// timeout be better?
+					if err := rc.SetReadDeadline(zeroTime); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
 					}
-					// the write timeout should be extended to give the server time to
-					// store the installer to S3 (or the configured storage location) and
-					// write a response body, otherwise the connection is terminated
-					// abruptly. Give it twice the read timeout, so that if it takes
-					// 3m59s to upload an installer, we don't fail because of a lack of
-					// time to store to S3.
-					if err := rc.SetWriteDeadline(time.Now().Add(2 * softwareInstallerUploadTimeout)); err != nil {
+					// For large software installers, the server time needs time to store the
+					// installer to S3 (or the configured storage location) and write the response
+					// body so we use the zero value to remove the deadline and override the
+					// default write timeout.
+					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
+					// timeout be better?
+					if err := rc.SetWriteDeadline(zeroTime); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
@@ -1190,7 +1224,11 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
-			liveQueryRestPeriod := 90 * time.Second // default (see #1798)
+			// NOTE(lucas): It seems we missed updating this value from 90s (see #1798) to 25s after we
+			// decided to make the synchronous live query API to take up to 25 seconds.
+			// Not changing this to not break any long running requests (like when uploading software
+			// packages via GitOps).
+			liveQueryRestPeriod := 90 * time.Second
 			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
 				duration, err := time.ParseDuration(v)
 				if err != nil {

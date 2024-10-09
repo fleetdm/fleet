@@ -101,6 +101,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeUninstalledSoftware{},
 	ActivityTypeAddedSoftware{},
+	ActivityTypeEditedSoftware{},
 	ActivityTypeDeletedSoftware{},
 	ActivityEnabledVPP{},
 	ActivityDisabledVPP{},
@@ -1165,11 +1166,13 @@ func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, deta
 }
 
 type ActivityTypeRanScript struct {
-	HostID            uint   `json:"host_id"`
-	HostDisplayName   string `json:"host_display_name"`
-	ScriptExecutionID string `json:"script_execution_id"`
-	ScriptName        string `json:"script_name"`
-	Async             bool   `json:"async"`
+	HostID            uint    `json:"host_id"`
+	HostDisplayName   string  `json:"host_display_name"`
+	ScriptExecutionID string  `json:"script_execution_id"`
+	ScriptName        string  `json:"script_name"`
+	Async             bool    `json:"async"`
+	PolicyID          *uint   `json:"policy_id"`
+	PolicyName        *string `json:"policy_name"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -1187,12 +1190,16 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
-- "async": Whether the script was executed asynchronously.`, `{
+- "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "async": false
+  "async": false,
+  "policy_id": 123,
+  "policy_name": "Ensure photon torpedoes are primed"
 }`
 }
 
@@ -1572,6 +1579,33 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.`, `{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}`
+}
+
+type ActivityTypeEditedSoftware struct {
+	SoftwareTitle   string  `json:"software_title"`
+	SoftwarePackage *string `json:"software_package"`
+	TeamName        *string `json:"team_name"`
+	TeamID          *uint   `json:"team_id"`
+	SelfService     bool    `json:"self_service"`
+}
+
+func (a ActivityTypeEditedSoftware) ActivityName() string {
+	return "edited_software"
+}
+
+func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
+	return `Generated when a software installer is updated in Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer as of this update (including if unchanged).
+- "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
+- "team_id": The ID of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",

@@ -1,0 +1,108 @@
+.add-software-vpp-form {
+  position: relative;
+
+  &__overlay {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    z-index: 1000;
+  }
+
+  &__content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__content-disabled {
+    transition: opacity 150ms ease-in-out;
+    opacity: 0.5; // this adds a disabled effect to the modal content
+  }
+
+  &__form-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
+  }
+
+  &__form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+
+
+  // enable and no software message styles
+  &__enable-vpp-card, &__no-software-card {
+    padding: $pad-xxxlarge auto;
+  }
+
+  &__enable-vpp-message, &__no-software-message {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
+  }
+
+  &__enable-vpp-title, &__no-software-title {
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__enable-vpp-description, &__no-software-description {
+    margin: 0;
+    color: $ui-fleet-black-75;
+  }
+
+  // list styles
+  &__list-container {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-medium;
+  }
+
+  &__list {
+    max-height: 280px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__list-item {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    .app-platform {
+      font-size: $x-small;
+      color: $ui-fleet-black-50;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__app-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__help-text {
+    @include help-text;
+
+    .custom-link {
+      font-size: $xx-small;
+    }
+  }
+
+  // button styles
+  &__action-buttons {
+    display: flex;
+    gap: $pad-medium;
+  }
+}

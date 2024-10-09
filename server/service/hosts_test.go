@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,7 +66,7 @@ func TestHostDetails(t *testing.T) {
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
-	dsBats := []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a", CycleCount: 999, Health: "Check Battery"}, {HostID: host.ID, SerialNumber: "b", CycleCount: 1001, Health: "Good"}}
+	dsBats := []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a", CycleCount: 999, Health: "Normal"}, {HostID: host.ID, SerialNumber: "b", CycleCount: 1001, Health: "Service recommended"}}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return dsBats, nil
 	}
@@ -75,8 +76,6 @@ func TestHostDetails(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
-	// Health should be replaced at the service layer with custom values determined by the cycle count. See https://github.com/fleetdm/fleet/issues/6763.
-	expectedBats := []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a", CycleCount: 999, Health: "Normal"}, {HostID: host.ID, SerialNumber: "b", CycleCount: 1001, Health: "Replacement recommended"}}
 
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -87,7 +86,7 @@ func TestHostDetails(t *testing.T) {
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
 	require.NotNil(t, hostDetail.Batteries)
-	assert.Equal(t, expectedBats, *hostDetail.Batteries)
+	assert.Equal(t, dsBats, *hostDetail.Batteries)
 	require.Nil(t, hostDetail.MDM.MacOSSettings)
 }
 
@@ -1283,7 +1282,8 @@ func TestHostEncryptionKey(t *testing.T) {
 				return nil
 			}
 
-			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 					fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1335,7 +1335,8 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
 		}
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1395,7 +1396,8 @@ func TestHostEncryptionKey(t *testing.T) {
 				) error {
 					return nil
 				}
-				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+					_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
