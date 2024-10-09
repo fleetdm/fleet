@@ -105,21 +105,15 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
-	var awaitCmdUUIDs []string
-
 	if isMacOS(args.Platform) {
-		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
+		_, err := a.installFleetd(ctx, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 		}
-		awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 
-		bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
+		_, err = a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-		}
-		if bootstrapCmdUUID != "" {
-			awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
 		}
 	}
 
@@ -156,7 +150,6 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 			}
-			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
 		}
 	}
 
