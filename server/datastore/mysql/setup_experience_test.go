@@ -1,7 +1,9 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -21,7 +23,10 @@ func TestSetupExperience(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"GetSetupExperienceTitles", testGetSetupExperienceTitles},
+		{"SetSetupExperienceTitles", testSetSetupExperienceTitles},
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
+		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
 	}
 
 	for _, c := range cases {
@@ -30,6 +35,335 @@ func TestSetupExperience(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          string(fleet.MacOSPlatform),
+	})
+	require.NoError(t, err)
+
+	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "banana",
+		PreInstallQuery:   "SELECT 3",
+		PostInstallScript: "apple",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "3.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+		Platform:          string(fleet.MacOSPlatform),
+	})
+	require.NoError(t, err)
+
+	installerID4, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "pear",
+		PreInstallQuery:   "SELECT 4",
+		PostInstallScript: "apple",
+		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		StorageID:         "storage3",
+		Filename:          "file4",
+		Title:             "file4",
+		Version:           "4.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+		Platform:          string(fleet.IOSPlatform),
+	})
+	require.NoError(t, err)
+
+	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 0)
+	assert.Equal(t, 0, count)
+	assert.NotNil(t, meta)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?, ?)", installerID1, installerID3, installerID4)
+		return err
+	})
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, installerID1, titles[0].ID)
+	assert.Equal(t, 1, count)
+	assert.NotNil(t, meta)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, installerID3, titles[0].ID)
+	assert.Equal(t, 1, count)
+	assert.NotNil(t, meta)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	require.NoError(t, err)
+
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	require.NoError(t, err)
+
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	require.NoError(t, err)
+
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE adam_id IN (?, ?, ?)", vpp1.AdamID, vpp2.AdamID, vpp3.AdamID)
+		return err
+	})
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, vpp1.AdamID, titles[1].AppStoreApp.AppStoreID)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, vpp3.AdamID, titles[1].AppStoreApp.AppStoreID)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
+}
+
+func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          string(fleet.MacOSPlatform),
+	})
+	_ = installerID1
+	require.NoError(t, err)
+
+	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "world",
+		PreInstallQuery:   "SELECT 2",
+		PostInstallScript: "hello",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage2",
+		Filename:          "file2",
+		Title:             "file2",
+		Version:           "2.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          string(fleet.MacOSPlatform),
+	})
+	_ = installerID2
+	require.NoError(t, err)
+
+	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "banana",
+		PreInstallQuery:   "SELECT 3",
+		PostInstallScript: "apple",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "3.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+		Platform:          string(fleet.MacOSPlatform),
+	})
+	_ = installerID3
+	require.NoError(t, err)
+
+	installerID4, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "pear",
+		PreInstallQuery:   "SELECT 4",
+		PostInstallScript: "apple",
+		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		StorageID:         "storage3",
+		Filename:          "file4",
+		Title:             "file4",
+		Version:           "4.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+		Platform:          string(fleet.IOSPlatform),
+	})
+	_ = installerID4
+	require.NoError(t, err)
+
+	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 0)
+	assert.Equal(t, 0, count)
+	assert.NotNil(t, meta)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	require.NoError(t, err)
+
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	require.NoError(t, err)
+
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_ = vpp1
+	require.NoError(t, err)
+
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	_ = vpp2
+	require.NoError(t, err)
+
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	_ = vpp3
+	require.NoError(t, err)
+
+	titleSoftware := make(map[string]uint)
+	titleVPP := make(map[string]uint)
+
+	softwareTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team1.ID}, fleet.TeamFilter{TeamID: &team1.ID})
+	require.NoError(t, err)
+
+	for _, title := range softwareTitles {
+		if title.AppStoreApp != nil {
+			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+		} else if title.SoftwarePackage != nil {
+			titleSoftware[title.SoftwarePackage.Name] = title.ID
+		}
+	}
+
+	softwareTitles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team2.ID}, fleet.TeamFilter{TeamID: &team2.ID})
+	require.NoError(t, err)
+
+	for _, title := range softwareTitles {
+		if title.AppStoreApp != nil {
+			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+		} else if title.SoftwarePackage != nil {
+			titleSoftware[title.SoftwarePackage.Name] = title.ID
+		}
+	}
+
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleSoftware["file1"]})
+	require.NoError(t, err)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
+	assert.NotNil(t, meta)
+
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
+	require.NoError(t, err)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	assert.Equal(t, "1", titles[0].AppStoreApp.AppStoreID)
+	assert.NotNil(t, meta)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 0)
+	require.Equal(t, 0, count)
+	require.NotNil(t, meta)
+
+	// Assign one vpp and one installer app
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"], titleSoftware["file1"]})
+	require.NoError(t, err)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
+
+	// iOS software
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
+	require.ErrorContains(t, err, "unsupported")
+
+	// ios vpp app
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["2"]})
+	require.ErrorContains(t, err, "unsupported")
+
+	// wrong team
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["3"]})
+	require.ErrorContains(t, err, "not available")
+
+	// good other team assignment
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleVPP["3"]})
+	require.NoError(t, err)
+
+	// non-existent title ID
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{999})
+	require.ErrorContains(t, err, "not available")
+
+	// Failures and other team assignments didn't affected the number of apps on team 1
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, 2, count)
+	assert.NotNil(t, meta)
 }
 
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
@@ -119,4 +453,130 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	for i, s := range expRes {
 		require.Equal(t, s, res[i])
 	}
+}
+
+func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// create a script for team1
+	wantScript1 := &fleet.Script{
+		Name:           "script",
+		TeamID:         &team1.ID,
+		ScriptContents: "echo foo",
+	}
+
+	err = ds.SetSetupExperienceScript(ctx, wantScript1)
+	require.NoError(t, err)
+
+	// get the script for team1
+	gotScript1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, gotScript1)
+	require.Equal(t, wantScript1.Name, gotScript1.Name)
+	require.Equal(t, wantScript1.TeamID, gotScript1.TeamID)
+	require.NotZero(t, gotScript1.ScriptContentID)
+
+	b, err := ds.GetAnyScriptContents(ctx, gotScript1.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, wantScript1.ScriptContents, string(b))
+
+	// create a script for team2
+	wantScript2 := &fleet.Script{
+		Name:           "script",
+		TeamID:         &team2.ID,
+		ScriptContents: "echo bar",
+	}
+
+	err = ds.SetSetupExperienceScript(ctx, wantScript2)
+	require.NoError(t, err)
+
+	// get the script for team2
+	gotScript2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, gotScript2)
+	require.Equal(t, wantScript2.Name, gotScript2.Name)
+	require.Equal(t, wantScript2.TeamID, gotScript2.TeamID)
+	require.NotZero(t, gotScript2.ScriptContentID)
+	require.NotEqual(t, gotScript1.ScriptContentID, gotScript2.ScriptContentID)
+
+	b, err = ds.GetAnyScriptContents(ctx, gotScript2.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, wantScript2.ScriptContents, string(b))
+
+	// create a script with no team id
+	wantScriptNoTeam := &fleet.Script{
+		Name:           "script",
+		ScriptContents: "echo bar",
+	}
+
+	err = ds.SetSetupExperienceScript(ctx, wantScriptNoTeam)
+	require.NoError(t, err)
+
+	// get the script nil team id is equivalent to team id 0
+	gotScriptNoTeam, err := ds.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, gotScriptNoTeam)
+	require.Equal(t, wantScriptNoTeam.Name, gotScriptNoTeam.Name)
+	require.Nil(t, gotScriptNoTeam.TeamID)
+	require.NotZero(t, gotScriptNoTeam.ScriptContentID)
+	require.Equal(t, gotScript2.ScriptContentID, gotScriptNoTeam.ScriptContentID) // should be the same as team2
+
+	b, err = ds.GetAnyScriptContents(ctx, gotScriptNoTeam.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, wantScriptNoTeam.ScriptContents, string(b))
+
+	// try to create another with name "script" and no team id
+	var existsErr fleet.AlreadyExistsError
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+
+	// try to create another script with no team id and a different name
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+
+	// try to add a script for a team that doesn't exist
+	var fkErr fleet.ForeignKeyError
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{TeamID: ptr.Uint(42), Name: "script", ScriptContents: "echo baz"})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &fkErr)
+
+	// delete the script for team1
+	err = ds.DeleteSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+
+	// get the script for team1
+	_, err = ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// try to delete script for team1 again
+	err = ds.DeleteSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
+
+	// try to delete script for team that doesn't exist
+	err = ds.DeleteSetupExperienceScript(ctx, ptr.Uint(42))
+	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
+
+	// add same script for team1 again
+	err = ds.SetSetupExperienceScript(ctx, wantScript1)
+	require.NoError(t, err)
+
+	// get the script for team1
+	oldScript1 := gotScript1
+	newScript1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, newScript1)
+	require.Equal(t, wantScript1.Name, newScript1.Name)
+	require.Equal(t, wantScript1.TeamID, newScript1.TeamID)
+	require.NotZero(t, newScript1.ScriptContentID)
+	// script contents are deleted by CleanupUnusedScriptContents not by DeleteSetupExperienceScript
+	// so the content id should be the same as the old
+	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
 }

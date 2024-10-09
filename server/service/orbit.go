@@ -733,6 +733,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
+			var policyName *string
+			if hsr.PolicyID != nil {
+				if policy, err := svc.ds.PolicyLite(ctx, *hsr.PolicyID); err == nil {
+					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
+				}
+			}
+
 			if err := svc.NewActivity(
 				ctx,
 				user,
@@ -742,6 +749,8 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					ScriptExecutionID: hsr.ExecutionID,
 					ScriptName:        scriptName,
 					Async:             !hsr.SyncRequest,
+					PolicyID:          hsr.PolicyID,
+					PolicyName:        policyName,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")

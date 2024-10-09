@@ -1,0 +1,13 @@
+.install-software-preview {
+  h3 {
+    margin: 0;
+    font-size: $small;
+    font-weight: normal;
+  }
+
+  &__preview-img {
+    margin-top: $pad-xxlarge;
+    width: 100%;
+    display: block;
+  }
+}

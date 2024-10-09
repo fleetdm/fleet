@@ -359,6 +359,15 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		args = append(args, match, match)
 	}
 
+	if opt.SetupExperienceOnly {
+		additionalWhere += ` AND ( si.install_during_setup = 1 OR vat.install_during_setup = 1 )`
+	}
+
+	if opt.Platform != "" {
+		additionalWhere += ` AND ( si.platform = ? OR vap.platform = ? )`
+		args = append(args, opt.Platform, opt.Platform)
+	}
+
 	// default to "a software installer or VPP app exists", and see next condition.
 	defaultFilter := fmt.Sprintf(`
 		((si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s)

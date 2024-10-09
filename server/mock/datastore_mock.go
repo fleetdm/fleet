@@ -1092,7 +1092,17 @@ type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandRe
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
+type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
+
+type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
+
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
+
+type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
+
+type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
+
+type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
@@ -2709,8 +2719,23 @@ type DataStore struct {
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
 
+	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
+	SetSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
+	ListSetupExperienceSoftwareTitlesFuncInvoked bool
+
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
+
+	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
+	GetSetupExperienceScriptFuncInvoked bool
+
+	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
+	SetSetupExperienceScriptFuncInvoked bool
+
+	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
+	DeleteSetupExperienceScriptFuncInvoked bool
 
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
@@ -6476,11 +6501,46 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
 }
 
+func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
+	s.mu.Lock()
+	s.SetSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceSoftwareTitlesFunc(ctx, teamID, titleIDs)
+}
+
+func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
+}
+
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
 	s.mu.Lock()
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.GetSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+	s.mu.Lock()
+	s.SetSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceScriptFunc(ctx, script)
+}
+
+func (s *DataStore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.DeleteSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSetupExperienceScriptFunc(ctx, teamID)
 }
 
 func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

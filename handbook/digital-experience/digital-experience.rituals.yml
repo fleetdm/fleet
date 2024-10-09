@@ -210,10 +210,13 @@
 -
   task: "Recognize and benchmark workiversaries"
   startedOn: "2024-07-15"
-  frequency: "Bimonthly"
+  frequency: "Monthly"
   description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#recognize-employee-workiversaries"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Quarterly grants"
   startedOn: "2024-02-01"
