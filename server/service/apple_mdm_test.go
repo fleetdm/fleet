@@ -50,6 +50,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
+	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -214,7 +215,8 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	require.NoError(t, err)
 	certPEM := tokenpki.PEMCertificate(crt.Raw)
 	keyPEM := tokenpki.PEMRSAPrivateKey(key)
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetAPNSCert: {Value: apnsCert},
 			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
@@ -2199,7 +2201,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		AppleSCEPCert: "./testdata/server.pem",
 		AppleSCEPKey:  "./testdata/server.key",
 	}
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
 		require.NoError(t, err)
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
