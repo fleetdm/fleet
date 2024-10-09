@@ -6532,6 +6532,7 @@ func (s *DataStore) EnqueueSetupExperienceItems(ctx context.Context, hostUUID st
 	s.EnqueueSetupExperienceItemsFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnqueueSetupExperienceItemsFunc(ctx, hostUUID, teamID)
+}
 
 func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 	s.mu.Lock()
