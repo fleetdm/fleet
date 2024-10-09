@@ -59,7 +59,9 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -81,6 +83,18 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -199,7 +213,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -236,6 +252,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -303,7 +331,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -492,9 +522,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	)
 
 	var appliedScripts []*fleet.Script
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		appliedScripts = scripts
-		return nil
+		var scriptResponses []fleet.ScriptResponse
+		for _, script := range scripts {
+			scriptResponses = append(scriptResponses, fleet.ScriptResponse{
+				ID:     script.ID,
+				Name:   script.Name,
+				TeamID: script.TeamID,
+			})
+		}
+
+		return scriptResponses, nil
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -591,6 +630,17 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return nil
 	}
 
+	// Needed for checking tokens
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	const (
 		fleetServerURL = "https://fleet.example.com"
 		orgName        = "GitOps Test"
@@ -669,9 +719,18 @@ func TestGitOpsFullTeam(t *testing.T) {
 	}
 
 	var appliedScripts []*fleet.Script
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		appliedScripts = scripts
-		return nil
+		var scriptResponses []fleet.ScriptResponse
+		for _, script := range scripts {
+			scriptResponses = append(scriptResponses, fleet.ScriptResponse{
+				ID:     script.ID,
+				Name:   script.Name,
+				TeamID: script.TeamID,
+			})
+		}
+
+		return scriptResponses, nil
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1005,9 +1064,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		assert.Empty(t, winProfiles)
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		assert.Empty(t, scripts)
-		return nil
+		return []fleet.ScriptResponse{}, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
@@ -1077,6 +1136,18 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1271,9 +1342,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		assert.Empty(t, winProfiles)
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		assert.Empty(t, scripts)
-		return nil
+		return []fleet.ScriptResponse{}, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
@@ -1343,6 +1414,18 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	globalFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1604,6 +1687,18 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
@@ -1656,7 +1751,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		wantErr string
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
-		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
+		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb or .rpm."},
 		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MiB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
@@ -1711,7 +1806,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
-		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
+		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb or .rpm."},
 		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 500 MiB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
@@ -2119,7 +2214,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -2233,6 +2330,15 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

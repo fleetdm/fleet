@@ -1013,6 +1013,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1827,6 +1831,184 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			"install_uuid", installUUID,
 		)
 	}
+	return nil
+}
+
+func (svc *Service) processScriptsForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	hostScriptsEnabled *bool,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		return nil // vanilla osquery hosts can't run scripts
+	}
+	// not logging here to avoid spamming logs on every policy failure for every no-scripts host even if the policy
+	// doesn't have a script attached
+	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+		return nil
+	}
+
+	// Bail if scripts are disabled globally
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.ServerSettings.ScriptsDisabled {
+		return nil
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated scripts for the team.
+	policiesWithScript, err := svc.ds.GetPoliciesWithAssociatedScript(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with script")
+	}
+	if len(policiesWithScript) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to scripts.
+	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
+	for _, policyWithScript := range policiesWithScript {
+		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
+	}
+	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithScriptsMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithScripts[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithScripts) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with scripts that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithScripts,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
+		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with scripts that are not newly failing.
+	var failingPoliciesWithScript []fleet.PolicyScriptData
+	for _, policyWithScript := range policiesWithScript {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
+		}
+	}
+
+	for _, failingPolicyWithScript := range failingPoliciesWithScript {
+		policyID := failingPolicyWithScript.ID
+
+		scriptMetadata, err := svc.ds.Script(ctx, failingPolicyWithScript.ScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"script_id", failingPolicyWithScript.ScriptID,
+			"script_name", scriptMetadata.Name,
+		)
+
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host pending script executions")
+		}
+		if len(allScriptsExecutionPending) > maxPendingScripts {
+			level.Warn(logger).Log("msg", "too many scripts pending for host")
+			return nil
+		}
+
+		// skip incompatible scripts
+		hostPlatform := fleet.PlatformFromHost(hostPlatform)
+		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
+			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
+			level.Info(logger).Log("msg", "script type does not match host platform")
+			continue
+		}
+
+		// skip different-team scripts
+		var scriptTeamID uint
+		if scriptMetadata.TeamID != nil {
+			scriptTeamID = *scriptMetadata.TeamID
+		}
+		if policyTeamID != scriptTeamID { // this should not happen
+			level.Error(logger).Log("msg", "script team does not match host team")
+			continue
+		}
+
+		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
+		}
+		if scriptIsAlreadyPending {
+			level.Debug(logger).Log("msg", "script is already pending on host")
+			continue
+		}
+
+		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script contents")
+		}
+		runScriptRequest := fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  string(contents),
+			ScriptContentID: scriptMetadata.ScriptContentID,
+			ScriptID:        &scriptMetadata.ID,
+			TeamID:          policyTeamID,
+			PolicyID:        &policyID,
+			// no user ID as scripts are executed by Fleet
+		}
+
+		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert script run request; host_id=%d, script_id=%d",
+				hostID, scriptMetadata.ID,
+			)
+		}
+
+		level.Debug(logger).Log(
+			"msg", "script run request sent",
+			"execution_id", scriptResult.ExecutionID,
+		)
+	}
+
 	return nil
 }
 

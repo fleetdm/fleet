@@ -14,7 +14,14 @@
       box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
       border-radius: 0px 0px 8px 8px;
       .data-table__wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
         overflow: auto;
+      }
+
+      &__data-table-block > div {
+        display: flex;
       }
 
       // Properly vertically aligns host issue icon
@@ -27,10 +34,6 @@
           margin-left: $pad-xsmall;
           display: inline-flex;
         }
-      }
-
-      .data-table-block {
-        display: initial;
       }
     }
 
@@ -84,8 +87,7 @@
     margin-top: 8px;
 
     .data-table__wrapper {
-      width: 100%;
-      overflow: auto;
+      position: relative;
     }
 
     .delete__cell {
@@ -93,15 +95,28 @@
     }
   }
 
-  .data-table-block .data-table__no-rows {
-    min-height: 225px; // Match empty and error state
+  // Empty loading height matches height of empty and error state
+  .loading-overlay + .data-table__wrapper {
+    .data-table__no-rows {
+      min-height: 225px;
+
+      tbody {
+        min-height: 173px;
+      }
+    }
   }
+  // End
 
   .loading-overlay {
-    height: 100%; // Match container height
-  }
-
-  .loading-spinner.centered {
-    margin: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
   }
 }

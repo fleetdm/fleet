@@ -54,16 +54,25 @@ ALTER TABLE host_script_results
 CREATE TABLE setup_experience_status_results (
 	id		INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 	host_uuid	VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-	type		ENUM('bootstrap-package', 'software-install', 'post-install-script') NOT NULL,
 	name		VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	status		ENUM('pending', 'running', 'success', 'failure') NOT NULL,
+	
+	-- Software installer reference
+	software_installer_id INT(10) UNSIGNED,
 	-- Software installs reference
 	host_software_installs_id INT(10) UNSIGNED,
+
+	-- VPP app reference
+	vpp_app_team_id INT(10) UNSIGNED,
 	-- VPP app install reference
 	nano_command_uuid VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+
+	-- Setup script reference
+	setup_experience_script_id INT(10) UNSIGNED,
 	-- Script execution reference
 	script_execution_id	VARCHAR(255) COLLATE utf8mb4_unicode_ci,
 	error 		VARCHAR(255) COLLATE utf8mb4_unicode_ci,
+	
 
 	PRIMARY KEY (id),
 
@@ -72,7 +81,10 @@ CREATE TABLE setup_experience_status_results (
 	KEY idx_setup_experience_scripts_nano_command_uuid (nano_command_uuid),
 	KEY idx_setup_experience_scripts_script_execution_id (script_execution_id),
 
-	CONSTRAINT fk_setup_experience_status_results_hsi_id FOREIGN KEY (host_software_installs_id) REFERENCES host_software_installs(id) ON DELETE CASCADE
+	CONSTRAINT fk_setup_experience_status_results_hsi_id FOREIGN KEY (host_software_installs_id) REFERENCES host_software_installs(id) ON DELETE CASCADE,
+	CONSTRAINT fk_setup_experience_status_results_si_id FOREIGN KEY (software_installer_id) REFERENCES software_installers(id) ON DELETE CASCADE,
+	CONSTRAINT fk_setup_experience_status_results_va_id FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams(id) ON DELETE CASCADE,
+	CONSTRAINT fk_setup_experience_status_results_ses_id FOREIGN KEY (setup_experience_script_id) REFERENCES setup_experience_scripts(id) ON DELETE CASCADE
 )
 `)
 	// Service layer state machine like SetupExperienceNestStep()?

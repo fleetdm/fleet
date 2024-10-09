@@ -1,0 +1,1 @@
+- Adds the `POST /software/fleet_maintained` endpoint for adding Fleet-maintained apps.

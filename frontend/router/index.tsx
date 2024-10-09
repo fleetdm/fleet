@@ -77,6 +77,11 @@ import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetail
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
+import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
+import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
+import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
+import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -271,6 +276,21 @@ const routes = (
           </Route>
           <Route path="software">
             <IndexRedirect to="titles" />
+            {/* we check the add route first otherwise a route like 'software/add' will be caught
+             * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
+            <Route path="add" component={SoftwareAddPage}>
+              <IndexRedirect to="fleet-maintained" />
+              <Route
+                path="fleet-maintained"
+                component={SoftwareFleetMaintained}
+              />
+              <Route path="package" component={SoftwareCustomPackage} />
+              <Route path="app-store" component={SoftwareAppStore} />
+            </Route>
+            <Route
+              path="add/fleet-maintained/:id"
+              component={FleetMaintainedAppDetailsPage}
+            />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
@@ -330,7 +350,6 @@ const routes = (
       </Route>
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
-
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />

@@ -104,6 +104,8 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
 	var packageID string
 	switch payload.Extension {
+	case "dmg", "zip":
+		return
 	case "pkg":
 		var sb strings.Builder
 		_, _ = sb.WriteString("(\n")
@@ -1054,7 +1056,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe or .deb.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb or .rpm.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -1284,7 +1286,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
-	g.SetLimit(3)
+	g.SetLimit(3) // TODO: consider lowering this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 	// critical to avoid data race, the slice is pre-allocated and each
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
@@ -1515,9 +1517,9 @@ func packageExtensionToPlatform(ext string) string {
 	switch ext {
 	case ".msi", ".exe":
 		requiredPlatform = "windows"
-	case ".pkg":
+	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"
-	case ".deb":
+	case ".deb", ".rpm":
 		requiredPlatform = "linux"
 	default:
 		return ""

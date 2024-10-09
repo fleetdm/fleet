@@ -733,6 +733,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
+			var policyName *string
+			if hsr.PolicyID != nil {
+				if policy, err := svc.ds.PolicyLite(ctx, *hsr.PolicyID); err == nil {
+					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
+				}
+			}
+
 			if err := svc.NewActivity(
 				ctx,
 				user,
@@ -742,6 +749,8 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					ScriptExecutionID: hsr.ExecutionID,
 					ScriptName:        scriptName,
 					Async:             !hsr.SyncRequest,
+					PolicyID:          hsr.PolicyID,
+					PolicyName:        policyName,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
@@ -1070,4 +1079,64 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit setup experience status
+/////////////////////////////////////////////////////////////////////////////////
+
+type getOrbitSetupExperienceStatusRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *getOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type getOrbitSetupExperienceStatusResponse struct {
+	Results *fleet.SetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                               `json:"error,omitempty"`
+}
+
+func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
+
+func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOrbitSetupExperienceStatusRequest)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey)
+	if err != nil {
+		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
+	}
+	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
+}
+
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*fleet.SetupExperienceStatusPayload, error) {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading host by orbit node key")
+	}
+
+	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+	}
+
+	payload := &fleet.SetupExperienceStatusPayload{Software: make([]*fleet.SetupExperienceStatusResult, 0)}
+	for _, r := range res {
+		if r.IsForScript() {
+			payload.Script = r
+		}
+
+		if r.IsForSoftware() {
+			payload.Software = append(payload.Software, r)
+		}
+	}
+
+	return payload, nil
 }

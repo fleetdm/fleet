@@ -545,11 +545,51 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		for _, tok := range abmAssignments {
-			fmt.Println(tok.EncryptedToken)
+	// Reset teams for ABM tokens that exist in Fleet but aren't present in the config being passed
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
+		tokensInCfg[t.OrganizationName] = struct{}{}
+	}
+
+	toks, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+	for _, tok := range toks {
+		if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+			tok.MacOSDefaultTeamID = nil
+			tok.IOSDefaultTeamID = nil
+			tok.IPadOSDefaultTeamID = nil
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	// Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+	clear(tokensInCfg)
+
+	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+		tokensInCfg[t.Location] = struct{}{}
+	}
+
+	vppToks, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
+	}
+	for _, tok := range vppToks {
+		if _, ok := tokensInCfg[tok.Location]; !ok {
+			tok.Teams = nil
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
 			}
 		}
 	}

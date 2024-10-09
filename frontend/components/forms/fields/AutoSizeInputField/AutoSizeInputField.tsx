@@ -1,10 +1,4 @@
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 
 interface IAutoSizeInputFieldProps {
@@ -38,8 +32,6 @@ const AutoSizeInputField = ({
   onChange,
   onKeyPress,
 }: IAutoSizeInputFieldProps): JSX.Element => {
-  const [inputValue, setInputValue] = useState(value);
-
   const inputClasses = classnames(baseClass, inputClassName, "no-hover", {
     [`${baseClass}--disabled`]: isDisabled,
     [`${baseClass}--error`]: hasError,
@@ -49,20 +41,12 @@ const AutoSizeInputField = ({
   const inputElement = useRef<any>(null);
 
   useEffect(() => {
-    onChange(inputValue);
-  }, [inputValue]);
-
-  useEffect(() => {
     if (isFocused && inputElement.current) {
       inputElement.current.focus();
-      inputElement.current.selectionStart = inputValue.length;
-      inputElement.current.selectionEnd = inputValue.length;
+      inputElement.current.selectionStart = value.length;
+      inputElement.current.selectionEnd = value.length;
     }
   }, [isFocused]);
-
-  const onInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(event.currentTarget.value);
-  };
 
   const onInputFocus = () => {
     isFocused = true;
@@ -78,15 +62,19 @@ const AutoSizeInputField = ({
     onKeyPress(event);
   };
 
+  const onInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(event.target.value);
+  };
+
   return (
     <div className={baseClass}>
-      <label className="input-sizer" data-value={inputValue} htmlFor={name}>
+      <label className="input-sizer" data-value={value} htmlFor={name}>
         <textarea
           name={name}
           id={name}
           onChange={onInputChange}
           placeholder={placeholder}
-          value={inputValue}
+          value={value}
           maxLength={maxLength}
           className={inputClasses}
           cols={1}
