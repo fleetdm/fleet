@@ -527,6 +527,7 @@ Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_uuid": The unique UUID of the host. May be empty for Azure-enrolled Windows hosts.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
@@ -536,6 +537,7 @@ This activity contains the following fields:
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
+  "host_uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple"
