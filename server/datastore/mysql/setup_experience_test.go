@@ -45,11 +45,10 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-  
- 	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
-  
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -60,24 +59,24 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		InstallerFile:     bytes.NewReader([]byte("hello")),
 		StorageID:         "storage1",
 		Filename:          "file1",
- 		Title:             "Software1",
-  	Version:           "1.0",
+		Title:             "Software1",
+		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
 	})
 	require.NoError(t, err)
- 
- 	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+
+	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
 		InstallerFile:     bytes.NewReader([]byte("hello")),
 		StorageID:         "storage3",
 		Filename:          "file3",
- 		Title:             "Software2",
- 		Version:           "3.0",
+		Title:             "Software2",
+		Version:           "3.0",
 		Source:            "apps",
 		SelfService:       true,
 		UserID:            user1.ID,
@@ -85,7 +84,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		Platform:          string(fleet.MacOSPlatform),
 	})
 	require.NoError(t, err)
-  
+
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?)", installerID1, installerID2)
 		return err
@@ -314,7 +313,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-  
+
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
