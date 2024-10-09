@@ -107,8 +107,16 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	}
 
 	if forceRelease || isDeviceReadyForRelease(payload) {
-		// TODO(mna): check if manual release was configured, if so do nothing
+		manual, err := isDeviceReleasedManually(ctx, svc.ds, host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check if device is released manually")
+		}
+		if manual {
+			return payload, nil
+		}
 
+		// otherwise the device is not released manually, proceed with automatic
+		// release
 		if forceRelease {
 			level.Warn(svc.logger).Log("msg", "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
 		} else {
@@ -120,6 +128,24 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	}
 
 	return payload, nil
+}
+
+func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {
+	var manualRelease bool
+	if host.TeamID == nil {
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+		}
+		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	} else {
+		tm, err := ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+		}
+		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	}
+	return manualRelease, nil
 }
 
 func isDeviceReadyForRelease(payload *fleet.SetupExperienceStatusPayload) bool {
