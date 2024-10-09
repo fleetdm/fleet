@@ -135,9 +135,9 @@ const FleetMaintainedAppsTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {data?.counts_updated_at && (
+        {data?.apps_updated_at && (
           <LastUpdatedText
-            lastUpdatedAt={data.counts_updated_at}
+            lastUpdatedAt={data.apps_updated_at}
             customTooltipText={
               <>
                 The last time Fleet-maintained <br />
