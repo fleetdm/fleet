@@ -94,6 +94,8 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
   const noVppTokenUploaded = !vppData || !vppData.vpp_tokens.length;
   const hasVppError = isVppError && !noVppTokenUploaded;
 
+  const noScepCredentials = !config?.integrations.ndes_scep_proxy;
+
   // We are relying on the API to give us a 404 to
   // tell use the user has not uploaded a eula.
   const noEulaUploaded = eulaError && eulaError.status === 404;
@@ -133,7 +135,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           />
           <ScepSection
             router={router}
-            isScepOn={!noVppTokenUploaded} // TODO
+            isScepOn={!noScepCredentials}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
