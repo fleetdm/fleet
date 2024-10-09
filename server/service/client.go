@@ -498,9 +498,8 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
-			files := resolveApplyRelativePaths(baseDir, scripts)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
+			for i, f := range scripts {
 				b, err := os.ReadFile(f)
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
