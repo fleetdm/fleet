@@ -65,6 +65,8 @@ fleet:
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
+  # Add extra annotations to the migration Job
+  migrationJobAnnotations:
   tls:
     enabled: true
     # Set to true if you need a separate secret for just TLS data.
