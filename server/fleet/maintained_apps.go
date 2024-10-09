@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 // MaintainedApp represets an app in the Fleet library of maintained apps,
 // as stored in the fleet_library_apps table.
 type MaintainedApp struct {
@@ -17,4 +19,6 @@ type MaintainedApp struct {
 	// fields are used to provide the content of those scripts.
 	InstallScript   string `json:"install_script" db:"install_script"`
 	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
+	// UpdatedAt is the timestamp when the fleet maintained app data was last updated.
+	UpdatedAt *time.Time `json:"-" db:"updated_at"`
 }
