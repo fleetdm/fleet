@@ -1090,7 +1090,6 @@ type getOrbitSetupExperienceStatusRequest struct {
 	ForceRelease bool   `json:"force_release"`
 }
 
-// interface implementation required by the OrbitClient
 func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
