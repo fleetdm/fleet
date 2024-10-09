@@ -406,3 +406,35 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 
 	return nil
 }
+
+func (ds *Datastore) SetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string, inSetupAssistant bool) error {
+	const stmt = `
+INSERT INTO hosts_in_setup_assistant (host_uuid, in_setup_assistant)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE 
+	in_setup_assistant = VALUES(in_setup_assistant)
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, inSetupAssistant)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting host in setup assistant state")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string) (bool, error) {
+	const stmt = `
+SELECT
+	in_setup_assistant
+FROM hosts_in_setup_assistant
+WHERE host_uuid = ?
+	`
+	var inSetupAssistant bool
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &inSetupAssistant, stmt, hostUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "")
+	}
+
+	return inSetupAssistant, nil
+}

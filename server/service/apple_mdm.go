@@ -2690,9 +2690,15 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	if m.AwaitingConfiguration {
+		// Enqueue setup experience items
 		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
+		}
+
+		// Mark the host as being in Setup Assistant
+		if err := svc.ds.SetHostInMacOSSetupAssistant(r.Context, r.ID, true); err != nil {
+			ctxerr.Wrap(r.Context, err, "setting host in setup experience state")
 		}
 	}
 
