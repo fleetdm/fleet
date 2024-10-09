@@ -2,13 +2,8 @@ name: GoReleaser Orbit
 
 on:
   push:
-   tags:
-     - 'orbit-*' # For testing, use a pre-release tag like 'orbit-1.24.0-1'
-
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
-  cancel-in-progress: true
+    tags:
+      - "orbit-*" # For testing, use a pre-release tag like 'orbit-1.24.0-1'
 
 defaults:
   run:
@@ -56,7 +51,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml # v1.20.0
@@ -95,7 +90,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml # v1.20.0
@@ -128,7 +123,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux-arm64.yml # v1.20.0
@@ -137,7 +132,7 @@ jobs:
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: orbit-linux-arm64
-          path: dist/orbit_linux_arm64_v1/orbit
+          path: dist/orbit_linux_arm64/orbit
 
   goreleaser-windows:
     runs-on: windows-2022
@@ -161,7 +156,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml # v1.20.0

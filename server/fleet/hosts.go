@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/semver"
 )
 
 type HostStatus string
@@ -321,10 +323,6 @@ type Host struct {
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
-	// DiskEncryptionResetRequested is only fetched when loading a host by
-	// orbit_node_key, and so it's not used in the UI.
-	DiskEncryptionResetRequested *bool `json:"disk_encryption_reset_requested,omitempty" db:"disk_encryption_reset_requested" csv:"-"`
-
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly
@@ -574,11 +572,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					// but either we didn't get an encryption key or we're not able to
 					// decrypt the key we've got
 					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
-					if *d.rawDecryptable == 0 {
-						settings.ActionRequired = ActionRequiredRotateKey.addrOf()
-					} else {
-						settings.ActionRequired = ActionRequiredLogOut.addrOf()
-					}
+					settings.ActionRequired = ActionRequiredRotateKey.addrOf()
 				} else {
 					// if [a FileVault profile is pending to be installed or] the
 					// matching row in host_disk_encryption_keys has a field decryptable
@@ -1231,18 +1225,45 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
 
-// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
-// encryption using Fleet MDM features.
-func IsEligibleForBitLockerEncryption(h *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
-	isServer := mdmInfo != nil && mdmInfo.IsServer
-	isWindows := h.FleetPlatform() == "windows"
-	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
-	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
+var macOSADEMigrationOnlyLastVersion = semver.MustParse("14")
 
-	return isWindows &&
-		h.IsOsqueryEnrolled() &&
-		isConnectedToFleetMDM &&
-		!isServer &&
+// IsEligibleForManualMigration returns true if the host is manually enrolled into a 3rd party MDM
+// and is able to migrate to Fleet.
+func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) (bool, error) {
+	goodVersion, err := IsMacOSMajorVersionOK(host)
+	if err != nil {
+		return false, fmt.Errorf("checking macOS version for manual migration eligibility: %w", err)
+	}
+
+	return goodVersion &&
+		host.IsOsqueryEnrolled() &&
+		!host.IsDEPAssignedToFleet() &&
 		mdmInfo != nil &&
-		(needsEncryption || encryptedWithoutKey)
+		!mdmInfo.InstalledFromDep &&
+		!mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet), nil
+}
+
+func IsMacOSMajorVersionOK(host *Host) (bool, error) {
+	if host == nil {
+		return false, nil
+	}
+
+	parts := strings.Split(host.OSVersion, " ")
+
+	if len(parts) < 2 || parts[0] != "macOS" {
+		return false, nil
+	}
+
+	version, err := semver.NewVersion(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
+	}
+
+	if version.GreaterThan(macOSADEMigrationOnlyLastVersion) {
+		return true, nil
+	}
+
+	return false, nil
 }

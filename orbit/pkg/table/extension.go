@@ -25,10 +25,12 @@ import (
 type Runner struct {
 	socket          string
 	tableExtensions []Extension
+	executeDone     chan struct{}
 
-	// mu protects access to srv and cancel in Execute and Interrupt.
+	// mu protects access to srv, ctx and cancel in Execute and Interrupt.
 	mu     sync.Mutex
 	srv    *osquery.ExtensionManagerServer
+	ctx    context.Context
 	cancel func()
 }
 
@@ -59,7 +61,10 @@ func WithExtension(t Extension) Opt {
 
 // NewRunner creates an extension runner.
 func NewRunner(socket string, opts ...Opt) *Runner {
-	r := &Runner{socket: socket}
+	r := &Runner{
+		socket:      socket,
+		executeDone: make(chan struct{}),
+	}
 	for _, fn := range opts {
 		fn(r)
 	}
@@ -68,14 +73,13 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
-	log.Debug().Msg("start osquery extension")
+	defer close(r.executeDone)
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	r.setCancel(cancel)
+	ctx, _ := r.getContextAndCancel()
 
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
@@ -159,10 +163,10 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
-	log.Error().Err(err).Msg("interrupt osquery extension")
-	if cancel := r.getCancel(); cancel != nil {
+	if _, cancel := r.getContextAndCancel(); cancel != nil {
 		cancel()
 	}
+	<-r.executeDone
 	if srv := r.getSrv(); srv != nil {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Debug().Err(err).Msg("shutdown extension")
@@ -250,13 +254,6 @@ func (r *Runner) setSrv(s *osquery.ExtensionManagerServer) {
 	r.srv = s
 }
 
-func (r *Runner) setCancel(c func()) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.cancel = c
-}
-
 func (r *Runner) getSrv() *osquery.ExtensionManagerServer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -264,9 +261,15 @@ func (r *Runner) getSrv() *osquery.ExtensionManagerServer {
 	return r.srv
 }
 
-func (r *Runner) getCancel() func() {
+func (r *Runner) getContextAndCancel() (context.Context, func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.cancel
+	if r.ctx != nil {
+		return r.ctx, r.cancel
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r.ctx = ctx
+	r.cancel = cancel
+	return r.ctx, r.cancel
 }

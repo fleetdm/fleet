@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -93,7 +94,7 @@ func (i *SoftwareInstallerStore) Exists(ctx context.Context, installerID string)
 	return true, nil
 }
 
-func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
 	usedSet := make(map[string]struct{}, len(usedInstallerIDs))
 	for _, id := range usedInstallerIDs {
 		usedSet[id] = struct{}{}
@@ -113,6 +114,14 @@ func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs [
 			continue
 		}
 		if _, isUsed := usedSet[de.Name()]; isUsed {
+			continue
+		}
+
+		info, err := de.Info()
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "get software installer modtime in filesystem store")
+		}
+		if info.ModTime().After(removeCreatedBefore) {
 			continue
 		}
 		if err := os.Remove(filepath.Join(baseDir, de.Name())); err != nil {

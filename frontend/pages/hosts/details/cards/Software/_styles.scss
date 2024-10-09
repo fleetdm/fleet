@@ -5,11 +5,11 @@
 
   .host-software-table {
     .controls {
-      // vulnerable software dropdown filter
+      // software filter
       .Select {
         .Select-menu-outer {
           width: 364px;
-          max-height: 310px;
+          max-height: min-content;
 
           .Select-menu {
             max-height: none;

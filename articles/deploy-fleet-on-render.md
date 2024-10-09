@@ -1,6 +1,6 @@
 # Deploy Fleet on Render
 
-> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+> **This article was archived on May 16, 2024.** Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for the most up to date deployment method.
 
 ![Deploy Fleet on Render](../website/assets/images/articles/deploy-fleet-on-render-800x450@2x.png)
 
@@ -31,7 +31,9 @@ The Fleet server and user interface are packaged into a Docker image and hosted 
 
 ## Setup Fleet and enroll hosts
 
-The first time you access your Fleet instance you will be prompted with a setup page where you can enter your name, email, and password. Run through those steps to reach the Fleet dashboard. 
+The first time you access your Fleet instance, you will be prompted with a setup page where you can enter your name, email, and password. Run through those steps to reach the Fleet dashboard.
+
+> Set a strong and unique password instead of the default password during the setup process. 
 
 You’ll find the enroll-secret after clicking “Add hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to generate Fleet's agent (fleetd), which makes installing and updating osquery super simple.
 

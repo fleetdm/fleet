@@ -50,8 +50,8 @@ parasails.registerPage('contact', {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
     } else if(!this.primaryBuyingSituation){
-      // Default to contact form for users who have no primaryBuyingSituation set.
-      this.formToDisplay = 'contact';
+      // Otherwise, default to the formToShow value from the page's controller.
+      this.formToDisplay = this.formToShow;
     }
     if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
       // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
@@ -62,8 +62,8 @@ parasails.registerPage('contact', {
       this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
       this.formDataToPrefillForLoggedInUsers.organization = this.me.organization;
-      // Only prefil this information if the user has this value set.
-      if(this.me.primaryBuyingSituation) {
+      // Only prefil this information if the user has this value set to a value that is not VM.
+      if(this.me.primaryBuyingSituation && this.me.primaryBuyingSituation !== 'vm') {
         this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
@@ -86,6 +86,9 @@ parasails.registerPage('contact', {
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
+      if(typeof analytics !== 'undefined'){
+        analytics.track('fleet_website__contact_forms');
+      }
       // Show the success message.
       this.cloudSuccess = true;
 
@@ -97,6 +100,9 @@ parasails.registerPage('contact', {
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
+      }
+      if(typeof analytics !== 'undefined'){
+        analytics.track('fleet_website__contact_forms');
       }
       if(this.formData.numberOfHosts > 700){
         this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);

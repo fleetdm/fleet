@@ -20,6 +20,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     order_direction: "asc",
     per_page: 10,
     vulnerable: true,
+    available_for_install: false,
   },
   router: createMockRouter(),
 };
@@ -71,10 +72,6 @@ describe("SelfService", () => {
           createMockDeviceSoftware({
             name: "test-software",
             status: "installed",
-            last_install: {
-              install_uuid: "test-uuid",
-              installed_at: "2021-08-18T15:11:35Z",
-            },
           }),
         ],
       })
@@ -97,6 +94,7 @@ describe("SelfService", () => {
           order_direction: "asc",
           per_page: 10,
           vulnerable: true,
+          available_for_install: false,
         }}
         router={createMockRouter()}
       />
@@ -114,13 +112,13 @@ describe("SelfService", () => {
     ).toHaveTextContent("Reinstall");
   });
 
-  it("renders 'Retry' action button with 'Failed' status", async () => {
+  it("renders 'Retry' action button with 'failed_install' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
-            status: "failed",
+            status: "failed_install",
           }),
         ],
       })
@@ -168,13 +166,13 @@ describe("SelfService", () => {
     ).toHaveTextContent("Install");
   });
 
-  it("renders no action button with 'Install in progress...' status", async () => {
+  it("renders no action button with 'pending_install' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
-            status: "pending",
+            status: "pending_install",
           }),
         ],
       })
@@ -188,7 +186,7 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("self-service-item__status--test")
-    ).toHaveTextContent("Install in progress...");
+    ).toHaveTextContent("Pending");
 
     expect(
       screen.queryByTestId("self-service-item__item-action-button--test")

@@ -176,6 +176,13 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
+		{
+			Name:                "Fedora Linux",
+			Platform:            "rhel",
+			Query:               "select 1 from os_version where name = 'Fedora Linux';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
 	}
 
 	names := fleet.ReservedLabelNames()
@@ -207,6 +214,12 @@ func WithComputerName(s string) NewHostOption {
 func WithPlatform(s string) NewHostOption {
 	return func(h *fleet.Host) {
 		h.Platform = s
+	}
+}
+
+func WithTeamID(teamID uint) NewHostOption {
+	return func(h *fleet.Host) {
+		h.TeamID = &teamID
 	}
 }
 

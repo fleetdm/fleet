@@ -23,8 +23,7 @@ The default flagfile provided in the "Add new host" dialog also includes this co
 The `carver_block_size` flag should be configured in osquery.
 
 For the (default) MySQL Backend, the configured value must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 5.7](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet)
-is 4MB and for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
+`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
 
 For the S3/Minio backend, this value must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart
@@ -78,7 +77,7 @@ The same is not true if S3 is used as the storage backend. In that scenario, it 
 
 ### Alternative carving backends
 
-#### Minio
+#### MinIO
 
 Configure the following:
 - `FLEET_S3_ENDPOINT_URL=minio_host:port`
@@ -87,6 +86,11 @@ Configure the following:
 - `FLEET_S3_ACCESS_KEY_ID=acces_key_id`
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
 - `FLEET_S3_REGION=minio` or any non-empty string otherwise Fleet will attempt to derive the region.
+
+If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will
+automatically point carves to the local MinIO container and write to the `carves-dev` bucket without needing to set
+additional configuration. Note that this bucket is *not* created automatically when bringing MinIO up; you'll need to
+log in via `http://localhost:9001` with credentials `minio` / `minio123!` to create the bucket.
 
 ### Troubleshooting
 

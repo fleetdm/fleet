@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04-4-cores
     environment: Docker Hub
     permissions:
       contents: write
@@ -44,13 +44,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
-      # Set the Node.js version
-      - name: Set up Node.js ${{ vars.NODE_VERSION }}
+      - name: Set up Node.js
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
-          node-version: ${{ vars.NODE_VERSION }}
+          node-version-file: package.json
 
       - name: Install JS Dependencies
         run: make deps-js

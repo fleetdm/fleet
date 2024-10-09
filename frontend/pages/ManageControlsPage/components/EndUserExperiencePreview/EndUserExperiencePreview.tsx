@@ -3,7 +3,7 @@ import React from "react";
 
 const baseClass = "end-user-experience-preview";
 
-interface IEndUserExperiencePerviewProps {
+interface IEndUserExperiencePreviewProps {
   previewImage: string;
   altText?: string;
   children?: React.ReactNode;
@@ -15,7 +15,7 @@ const EndUserExperiencePerview = ({
   altText = "end user experience preview",
   children,
   className,
-}: IEndUserExperiencePerviewProps) => {
+}: IEndUserExperiencePreviewProps) => {
   const classes = classnames(baseClass, className);
 
   return (

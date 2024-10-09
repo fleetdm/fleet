@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +25,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +51,18 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	testCases := []struct {
@@ -647,6 +661,18 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	// Disable SMTP.
 	newAppConfig := fleet.AppConfig{
 		SMTPSettings: &fleet.SMTPSettings{
@@ -751,6 +777,18 @@ func TestTransparencyURL(t *testing.T) {
 				return nil
 			}
 
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
@@ -798,6 +836,18 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 		*dsAppConfig = *conf
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	ac, err := svc.AppConfigObfuscated(ctx)
@@ -858,9 +908,13 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				AppleBusinessManager:    optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -868,29 +922,33 @@ func TestMDMAppleConfig(t *testing.T) {
 		}, {
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
-			newMDM:        fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: licenseErr,
 		}, {
 			name:          "notFoundNew",
 			licenseTier:   "premium",
-			newMDM:        fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: notFoundErr,
 		}, {
 			name:          "notFoundEdit",
 			licenseTier:   "premium",
-			oldMDM:        fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			newMDM:        fleet.MDM{AppleBMDefaultTeam: "bar"},
+			oldMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			expectedError: notFoundErr,
 		}, {
 			name:        "foundNew",
 			licenseTier: "premium",
 			findTeam:    true,
-			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
-				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				DeprecatedAppleBMDefaultTeam: "foobar",
+				MacOSSetup:                   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSUpdates:                 fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:                   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:                fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram:      optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:               fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -899,13 +957,17 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
-			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
-			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
+			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
-				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				DeprecatedAppleBMDefaultTeam: "foobar",
+				MacOSSetup:                   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSUpdates:                 fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:                   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:                fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram:      optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:               fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -923,10 +985,14 @@ func TestMDMAppleConfig(t *testing.T) {
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
-				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:        fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				AppleBusinessManager:    optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EndUserAuthentication:   fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
+				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -942,15 +1008,19 @@ func TestMDMAppleConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
 					IssuerURI:   "http://issuer.idp.com",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -1005,10 +1075,14 @@ func TestMDMAppleConfig(t *testing.T) {
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
 			expectedMDM: fleet.MDM{
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				AppleBusinessManager:    optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EnableDiskEncryption:    optjson.Bool{Set: true, Valid: true, Value: false},
+				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -1051,6 +1125,12 @@ func TestMDMAppleConfig(t *testing.T) {
 			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 				return job, nil
 			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{{ID: 1}}, nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, token *fleet.ABMToken) error {
+				return nil
+			}
 			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
 				return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
 			}
@@ -1059,6 +1139,15 @@ func TestMDMAppleConfig(t *testing.T) {
 			}
 			depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
 				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
@@ -1137,6 +1226,15 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
 		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	// Not sending smtp_settings, sso_settings or agent_settings will do nothing.
@@ -1267,6 +1365,18 @@ func TestModifyEnableAnalytics(t *testing.T) {
 				return nil
 			}
 
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.initialEnabled, ac.ServerSettings.EnableAnalytics)
@@ -1285,4 +1395,198 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+	scepURL := "https://example.com/mscep/mscep.dll"
+	adminURL := "https://example.com/mscep_admin/"
+	username := "user"
+	password := "password"
+
+	appConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://localhost:8080",
+		},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		if appConfig.Integrations.NDESSCEPProxy.Valid {
+			appConfig.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
+		}
+		return appConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		appConfig = conf
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: 1}}, nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, token *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	jsonPayloadBase := `
+{
+	"integrations": {
+		"ndes_scep_proxy": {
+			"url": "%s",
+			"admin_url": "%s",
+			"username": "%s",
+			"password": "%s"
+		}
+	}
+}
+`
+	jsonPayload := fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	// SCEP proxy not configured for free users
+	_, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	assert.ErrorContains(t, err, ErrMissingLicense.Error())
+	assert.ErrorContains(t, err, "integrations.ndes_scep_proxy")
+
+	origValidateNDESSCEPURL := validateNDESSCEPURL
+	origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
+	t.Cleanup(func() {
+		validateNDESSCEPURL = origValidateNDESSCEPURL
+		validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
+	})
+	validateNDESSCEPURLCalled := false
+	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+		validateNDESSCEPURLCalled = true
+		return nil
+	}
+	validateNDESSCEPAdminURLCalled := false
+	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+		validateNDESSCEPAdminURLCalled = true
+		return nil
+	}
+
+	svc, ctx = newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	checkSCEPProxy := func() {
+		require.NotNil(t, ac.Integrations.NDESSCEPProxy)
+		assert.Equal(t, scepURL, ac.Integrations.NDESSCEPProxy.Value.URL)
+		assert.Equal(t, adminURL, ac.Integrations.NDESSCEPProxy.Value.AdminURL)
+		assert.Equal(t, username, ac.Integrations.NDESSCEPProxy.Value.Username)
+		assert.Equal(t, fleet.MaskedPassword, ac.Integrations.NDESSCEPProxy.Value.Password)
+	}
+	checkSCEPProxy()
+	assert.True(t, validateNDESSCEPURLCalled)
+	assert.True(t, validateNDESSCEPAdminURLCalled)
+
+	// Validation not done if there is no change
+	appConfig = ac
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+	jsonPayload = fmt.Sprintf(jsonPayloadBase, " "+scepURL, adminURL+" ", " "+username+" ", fleet.MaskedPassword)
+	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	require.NoError(t, err, jsonPayload)
+	checkSCEPProxy()
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+
+	// Validation not done if there is no change, part 2
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+	ac, err = svc.ModifyAppConfig(ctx, []byte(`{"integrations":{}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	checkSCEPProxy()
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+
+	// Validation done for SCEP URL. Password is blank, which is not considered a change.
+	scepURL = "https://new.com/mscep/mscep.dll"
+	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
+	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	checkSCEPProxy()
+	assert.True(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+	appConfig = ac
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+
+	// Validation done for SCEP admin URL
+	adminURL = "https://new.com/mscep_admin/"
+	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, fleet.MaskedPassword)
+	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	checkSCEPProxy()
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.True(t, validateNDESSCEPAdminURLCalled)
+
+	// Validation fails
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+		validateNDESSCEPURLCalled = true
+		return errors.New("**invalid** 1")
+	}
+	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+		validateNDESSCEPAdminURLCalled = true
+		return errors.New("**invalid** 2")
+	}
+	scepURL = "https://new2.com/mscep/mscep.dll"
+	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
+	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	assert.ErrorContains(t, err, "**invalid**")
+	assert.True(t, validateNDESSCEPURLCalled)
+	assert.True(t, validateNDESSCEPAdminURLCalled)
+
+	// Reset validation
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+		validateNDESSCEPURLCalled = true
+		return nil
+	}
+	validateNDESSCEPAdminURLCalled = false
+	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+		validateNDESSCEPAdminURLCalled = true
+		return nil
+	}
+
+	// Config cleared with explicit null
+	validateNDESSCEPURLCalled = false
+	validateNDESSCEPAdminURLCalled = false
+	payload := `
+{
+	"integrations": {
+		"ndes_scep_proxy": null
+	}
+}
+`
+	// First, dry run.
+	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{DryRun: true})
+	require.NoError(t, err)
+	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
+	// Also check what was saved.
+	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked, "DB write should not happen in dry run")
+
+	// Second, real run.
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
+	// Also check what was saved.
+	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
 }

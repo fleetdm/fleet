@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -27,8 +28,8 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 // NOTE: the mantra for lifecycle events is:
@@ -226,7 +227,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 
 			t.Run("automatic enrollment", func(t *testing.T) {
 				device := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, "")
-				s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.enableABM(t.Name())
+				s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 					encoder := json.NewEncoder(w)
 					switch r.URL.Path {
@@ -590,10 +592,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
 	// ensure there's a token for automatic enrollments
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-	}))
+	s.enableABM(t.Name())
 	s.runDEPSchedule()
 
 	// add a device that's manually enrolled
@@ -753,7 +752,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 			assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 				fleet.MDMAssetCACert,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -772,7 +771,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 
 	// set the env var, and run the cron
-	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", "<foo></foo>")
+	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte("<foo></foo>")))
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 	checkRenewCertCommand(migratedDevice, "", "<foo></foo>")

@@ -1,0 +1,6 @@
+name: No team
+controls:
+policies:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/toolarge.deb

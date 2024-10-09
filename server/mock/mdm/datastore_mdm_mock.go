@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/jmoiron/sqlx"
 )
 
 var _ fleet.MDMAppleStore = (*MDMAppleStore)(nil)
@@ -54,7 +55,9 @@ type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{
 
 type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, error)
 
-type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
+type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
+
+type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
 
@@ -123,6 +126,9 @@ type MDMAppleStore struct {
 
 	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
 	GetAllMDMConfigAssetsByNameFuncInvoked bool
+
+	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
+	GetABMTokenByOrgNameFuncInvoked bool
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
@@ -273,11 +279,18 @@ func (fs *MDMAppleStore) RetrieveTokenUpdateTally(ctx context.Context, id string
 	return fs.RetrieveTokenUpdateTallyFunc(ctx, id)
 }
 
-func (fs *MDMAppleStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (fs *MDMAppleStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	fs.mu.Lock()
 	fs.GetAllMDMConfigAssetsByNameFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames)
+	return fs.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames, queryerContext)
+}
+
+func (fs *MDMAppleStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+	fs.mu.Lock()
+	fs.GetABMTokenByOrgNameFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.GetABMTokenByOrgNameFunc(ctx, orgName)
 }
 
 func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {

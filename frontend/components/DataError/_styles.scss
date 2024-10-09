@@ -32,4 +32,21 @@
       margin-top: 10px;
     }
   }
+  
+  //  // // // // // // // // // // //
+  // new version
+  &__inner-new {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+    .graphic {
+      margin-bottom: 8px;
+    }
+    color: $core-fleet-black;
+    font-size: $x-small;
+  }
+    &__header {
+      font-weight: $bold;
+    }
 }

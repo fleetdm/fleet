@@ -52,7 +52,7 @@ module.exports = {
     // Note: Leaving title and description as `undefined` in our view means we'll default to the generic title and description set in layout.ejs.
     let pageTitleForMeta;
     if(thisPage.meta.articleTitle) {
-      pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet';
+      pageTitleForMeta = thisPage.meta.articleTitle;
     }//ﬁ
     let pageDescriptionForMeta;
     if(thisPage.meta.description){
@@ -86,6 +86,7 @@ module.exports = {
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
       articleCategorySlug,
       currentSection,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }

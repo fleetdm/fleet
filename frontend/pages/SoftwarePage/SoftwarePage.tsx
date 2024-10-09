@@ -13,14 +13,19 @@ import {
   IZendeskIntegration,
   IZendeskJiraIntegrations,
 } from "interfaces/integration";
-import { ITeamConfig } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { ISoftwareApiParams } from "services/entities/software";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
@@ -29,7 +34,14 @@ import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
-import { getSoftwareFilterFromQueryParams } from "./SoftwareTitles/SoftwareTable/helpers";
+import {
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getSoftwareFilterFromQueryParams,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFiltersParams,
+} from "./SoftwareTitles/SoftwareTable/helpers";
+import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -93,9 +105,11 @@ interface ISoftwarePageProps {
     search: string;
     query: {
       team_id?: string;
-      vulnerable?: string;
       available_for_install?: string;
+      vulnerable?: string;
       exploit?: string;
+      min_cvss_score?: string;
+      max_cvss_score?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -116,7 +130,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamAdmin,
     isTeamMaintainer,
     isPremiumTier,
-    isSandboxMode,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -145,17 +158,27 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // defined redirect behavior if the params are invalid
   const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
+
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
+    null
+  );
 
   const {
     currentTeamId,
-    isAnyTeamSelected,
+    isAllTeamsSelected,
     isRouteOk,
     teamIdForApi,
     userTeams,
@@ -164,7 +187,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   // softwareConfig is either the global config or the team config of the
@@ -232,10 +255,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
 
-  const toggleAddSoftwareModal = useCallback(() => {
-    setShowAddSoftwareModal(!showAddSoftwareModal);
-  }, [showAddSoftwareModal]);
-
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
   }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
@@ -243,6 +262,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const togglePreviewTicketModal = useCallback(() => {
     setShowPreviewTicketModal(!showPreviewTicketModal);
   }, [setShowPreviewTicketModal, showPreviewTicketModal]);
+
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
   // TODO: move into manage automations modal
   const onCreateWebhookSubmit = async (
@@ -267,6 +290,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   };
 
+  const onAddSoftware = useCallback(() => {
+    if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
+      setShowAddSoftwareModal(true);
+    } else {
+      router.push(
+        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
+      );
+    }
+  }, [currentTeamId, router]);
+
   // NOTE: used to reset page number to 0 when modifying filters
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
@@ -281,6 +314,27 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     },
     [handleTeamChange]
   );
+
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+    const newQueryParams: ISoftwareApiParams = {
+      query,
+      teamId: currentTeamId,
+      orderDirection: sortDirection,
+      orderKey: sortHeader,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: location.pathname,
+        routeTemplate: "",
+        queryParams: convertParamsToSnakeCase(newQueryParams),
+      })
+    );
+    toggleSoftwareFiltersModal();
+  };
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -308,7 +362,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             currentTeamId={currentTeamId}
             userTeams={userTeams}
             onTeamChange={onTeamChange}
-            isSandboxMode={isSandboxMode}
           />
         )}
       </>
@@ -317,7 +370,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const renderPageActions = () => {
     const canManageAutomations =
-      isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
+      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -336,7 +389,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </Button>
         )}
         {canAddSoftware && (
-          <Button onClick={toggleAddSoftwareModal} variant="brand">
+          <Button onClick={onAddSoftware} variant="brand">
             <span>Add software</span>
           </Button>
         )}
@@ -347,8 +400,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <p>
-        Manage software and search for installed software, OS and
-        vulnerabilities {isAnyTeamSelected ? "on this team" : "for all hosts"}.
+        Manage software and search for installed software, OS, and
+        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
       </p>
     );
   };
@@ -386,7 +439,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
+          vulnFilters: softwareVulnFilters,
           resetPageIndex,
+          addedSoftwareToken,
+          onAddFiltersClick: toggleSoftwareFiltersModal,
         })}
       </div>
     );
@@ -423,9 +479,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         )}
         {showAddSoftwareModal && (
           <AddSoftwareModal
-            teamId={currentTeamId ?? 0}
-            router={router}
-            onExit={toggleAddSoftwareModal}
+            onExit={() => setShowAddSoftwareModal(false)}
+            isFreeTier={isFreeTier}
+          />
+        )}
+        {showSoftwareFiltersModal && (
+          <SoftwareFiltersModal
+            onExit={toggleSoftwareFiltersModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFilters={softwareVulnFilters}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </div>

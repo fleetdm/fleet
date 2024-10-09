@@ -13,6 +13,7 @@ import {
   BootstrapPackageStatus,
   DiskEncryptionStatus,
 } from "./mdm";
+import { HostPlatform } from "./platform";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -179,8 +180,8 @@ export interface IHostMdmData {
 }
 
 export interface IHostMaintenanceWindow {
-  starts_at: string;
-  timezone: string | null;
+  starts_at: string; // e.g. "2024-06-18T13:27:18−07:00"
+  timezone: string | null; // e.g. "America/Los_Angeles"
 }
 
 export interface IMunkiIssue {
@@ -243,7 +244,7 @@ export interface IDeviceUserResponse {
   org_logo_url: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
-  platform?: string;
+  platform?: HostPlatform;
   global_config: IDeviceGlobalConfig;
   self_service: boolean;
 }
@@ -277,7 +278,7 @@ export interface IHost {
   refetch_critical_queries_until: string | null;
   hostname: string;
   uuid: string;
-  platform: string;
+  platform: HostPlatform;
   osquery_version: string;
   orbit_version: string | null;
   fleet_desktop_version: string | null;

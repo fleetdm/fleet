@@ -1,4 +1,3 @@
-
 # Releasing Fleet
 
 ## Setup
@@ -28,7 +27,7 @@ For example no tickets still in Ready / In Progress should be in the milestone w
 
 ## Minor Release (typically end of sprint)
 
-example
+Example:
 ```
 # Build release candidate and changelogs and QA ticket
 ./tools/release/publish_release.sh -m
@@ -67,7 +66,7 @@ LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:719950989670
 ...
 
 
-## Patch Release (end of week / critical)
+## Patch Release (middle of sprint / critical)
 
 example
 ```

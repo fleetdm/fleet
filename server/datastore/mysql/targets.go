@@ -60,7 +60,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	OR
 	(
 		/* 'All hosts' builtin label was selected. */
-		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = 6 AND label_id IN (? /* queryLabelIDs */))
+		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = (SELECT id from labels WHERE name = 'All Hosts') AND label_id IN (? /* queryLabelIDs */))
 	)
 	OR
 	(

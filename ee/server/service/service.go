@@ -17,18 +17,20 @@ import (
 type Service struct {
 	fleet.Service
 
-	ds                   fleet.Datastore
-	logger               kitlog.Logger
-	config               config.FleetConfig
-	clock                clock.Clock
-	authz                *authz.Authorizer
-	depStorage           storage.AllDEPStorage
-	mdmAppleCommander    fleet.MDMAppleCommandIssuer
-	ssoSessionStore      sso.SessionStore
-	depService           *apple_mdm.DEPService
-	profileMatcher       fleet.ProfileMatcher
-	softwareInstallStore fleet.SoftwareInstallerStore
-	distributedLock      fleet.Lock
+	ds                    fleet.Datastore
+	logger                kitlog.Logger
+	config                config.FleetConfig
+	clock                 clock.Clock
+	authz                 *authz.Authorizer
+	depStorage            storage.AllDEPStorage
+	mdmAppleCommander     fleet.MDMAppleCommandIssuer
+	ssoSessionStore       sso.SessionStore
+	depService            *apple_mdm.DEPService
+	profileMatcher        fleet.ProfileMatcher
+	softwareInstallStore  fleet.SoftwareInstallerStore
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore
+	distributedLock       fleet.Lock
+	keyValueStore         fleet.KeyValueStore
 }
 
 func NewService(
@@ -43,7 +45,9 @@ func NewService(
 	sso sso.SessionStore,
 	profileMatcher fleet.ProfileMatcher,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	distributedLock fleet.Lock,
+	keyValueStore fleet.KeyValueStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -51,19 +55,21 @@ func NewService(
 	}
 
 	eeservice := &Service{
-		Service:              svc,
-		ds:                   ds,
-		logger:               logger,
-		config:               config,
-		clock:                c,
-		authz:                authorizer,
-		depStorage:           depStorage,
-		mdmAppleCommander:    mdmAppleCommander,
-		ssoSessionStore:      sso,
-		depService:           apple_mdm.NewDEPService(ds, depStorage, logger),
-		profileMatcher:       profileMatcher,
-		softwareInstallStore: softwareInstallStore,
-		distributedLock:      distributedLock,
+		Service:               svc,
+		ds:                    ds,
+		logger:                logger,
+		config:                config,
+		clock:                 c,
+		authz:                 authorizer,
+		depStorage:            depStorage,
+		mdmAppleCommander:     mdmAppleCommander,
+		ssoSessionStore:       sso,
+		depService:            apple_mdm.NewDEPService(ds, depStorage, logger),
+		profileMatcher:        profileMatcher,
+		softwareInstallStore:  softwareInstallStore,
+		bootstrapPackageStore: bootstrapPackageStore,
+		distributedLock:       distributedLock,
+		keyValueStore:         keyValueStore,
 	}
 
 	// Override methods that can't be easily overriden via
@@ -79,7 +85,7 @@ func NewService(
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
-		MDMAppleEditedMacOSUpdates:        eeservice.mdmAppleEditedMacOSUpdates,
+		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 	})
 
 	return eeservice, nil

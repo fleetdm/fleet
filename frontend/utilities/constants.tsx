@@ -59,7 +59,14 @@ export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
 
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
-export const SUPPORT_LINK = "https://fleetdm.com/support";
+
+export const FLEET_WEBSITE_URL = "https://fleetdm.com";
+
+export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
+
+export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
+
+export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -203,7 +210,7 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "iPadOS",
 ] as const;
 
-type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
+export type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
 
 export const isPlatformLabelNameFromAPI = (
   s: string
@@ -257,6 +264,16 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   iPadOS: "platform",
 } as const;
 
+// For some builtin labels, display different strings than what API returns
+export const LABEL_DISPLAY_MAP: Partial<
+  Record<PlatformLabelNameFromAPI, string>
+> = {
+  "All Hosts": "All hosts",
+  "All Linux": "Linux",
+  chrome: "ChromeOS",
+  "MS Windows": "Windows",
+};
+
 export const PLATFORM_TYPE_ICONS: Record<
   Extract<
     PlatformLabelNameFromAPI,
@@ -304,6 +321,9 @@ export const HOSTS_SEARCH_BOX_PLACEHOLDER =
 export const HOSTS_SEARCH_BOX_TOOLTIP =
   "Search hosts by name, hostname, UUID, serial number, or private IP address";
 
+export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
+  'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
+
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (
@@ -322,6 +342,27 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
       Hosts ordered via Apple Business Manager <br /> (ABM). These will
       automatically enroll to Fleet <br /> and turn on MDM when they&apos;re
       unboxed.
+    </span>
+  ),
+};
+
+export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
+  Normal: (
+    <span>
+      Current maximum capacity is at least
+      <br />
+      80% of its designed capacity and the
+      <br />
+      cycle count is below 1000.
+    </span>
+  ),
+  "Service recommended": (
+    <span>
+      Current maximum capacity has fallen
+      <br />
+      below 80% of its designed capacity
+      <br />
+      or the cycle count has reached 1000.
     </span>
   ),
 };

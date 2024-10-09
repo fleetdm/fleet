@@ -227,6 +227,14 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilt
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
+
+	// Update the label name in mdm_configuration_profile_labels
+	query = `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`
+	_, err = ds.writer(ctx).ExecContext(ctx, query, label.Name, label.ID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
+	}
+
 	return ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
 }
 
@@ -628,6 +636,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
 		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
 		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
+	}
+
+	if opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() {
+		query += sqlJoinMDMAppleProfilesStatus()
+		query += sqlJoinMDMAppleDeclarationsStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))

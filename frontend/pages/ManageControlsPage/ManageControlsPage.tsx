@@ -70,12 +70,7 @@ const ManageControlsPage = ({
 }: IManageControlsPageProps): JSX.Element => {
   const page = parseInt(location?.query?.page || "", 10) || 0;
 
-  const {
-    isFreeTier,
-    isOnGlobalTeam,
-    isPremiumTier,
-    isSandboxMode,
-  } = useContext(AppContext);
+  const { isFreeTier, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -151,7 +146,6 @@ const ManageControlsPage = ({
                         onChange={handleTeamChange}
                         includeAll={false}
                         includeNoTeams
-                        isSandboxMode={isSandboxMode}
                       />
                     )}
                   {isPremiumTier &&

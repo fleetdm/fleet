@@ -208,7 +208,14 @@ const EditQueryPage = ({
       queryId > 0 &&
       !canEditExistingQuery
     ) {
-      router.push(PATHS.QUERY_DETAILS(queryId));
+      // Reroute to query report page still maintains query params for live query purposes
+      const baseUrl = PATHS.QUERY_DETAILS(queryId);
+      const queryParams = buildQueryStringFromParams({
+        host_id: location.query.host_id,
+        team_id: location.query.team_id,
+      });
+
+      router.push(queryParams ? `${baseUrl}?${queryParams}` : baseUrl);
     }
   }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 

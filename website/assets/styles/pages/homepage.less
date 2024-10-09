@@ -60,7 +60,11 @@
     min-width: 540px;
     text-align: center;
     h1 {
+      max-width: 640px;
       margin-bottom: 16px;
+      &.vm {
+        max-width: unset;
+      }
     }
     p {
       margin-bottom: 32px;
@@ -81,7 +85,7 @@
     padding-right: 0px;
   }
   [purpose='page-section'] {
-    margin-bottom: 180px;
+    margin-bottom: 120px;
     max-width: 960px;
     margin-left: auto;
     margin-right: auto;
@@ -278,8 +282,8 @@
   }
 
   [purpose='homepage-text-block'] {
-    margin-top: 160px;
-    margin-bottom: 120px;
+    margin-top: 80px;
+    margin-bottom: 80px;
     max-width: 642px;
     h2 {
       font-weight: 800;
@@ -292,7 +296,7 @@
     }
   }
   [purpose='platform-block'] {
-    margin-bottom: 64px;
+    margin-bottom: 120px;
     max-width: 1080px;
   }
   [purpose='platform-block'].visible {
@@ -334,10 +338,10 @@
     .selected {
       font-weight: 700;
     }
-    .eo-selected {
+    .it-selected {
       transform: translateX(100%);
     }
-    .vm-selected {
+    .security-selected {
       transform: translateX(200%);
     }
   }
@@ -510,10 +514,6 @@
     }
   }
 
-
-  [purpose='integrations-section'] {
-    margin-top: 180px;
-  }
   [purpose='integration-cards'] {
     margin-top: 40px;
     margin-bottom: 40px;
@@ -639,6 +639,16 @@
     }
   }
 
+  [purpose='bottom-cta'] {
+      h1 {
+        font-size: 48px;
+        max-width: 640px;
+        &.vm {
+          max-width: unset;
+        }
+      }
+    }
+
   [purpose='video-modal'] {
     [purpose='modal-dialog'] {
       width: 100%;
@@ -702,15 +712,7 @@
       padding-left: 60px;
     }
     [purpose='page-section'] {
-      margin-bottom: 160px;
-    }
-    [purpose='integrations-section'] {
-      margin-top: 160px;
-    }
-    [purpose='bottom-cta'] {
-      h1 {
-        font-size: 48px;
-      }
+      margin-bottom: 120px;
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
@@ -995,11 +997,11 @@
         height: 56px;
         width: 100%;
       }
-      .eo-selected {
+      .it-selected {
         width: 100%;
         transform: translateY(56px);
       }
-      .vm-selected {
+      .security-selected {
         width: 100%;
         transform: translateY(113px);
       }

@@ -24,14 +24,12 @@
       grid-auto-flow: column;
     }
 
-    // Note: CSS for labels card spans the whole grid for iOS and iPadOS
-    // because activity card is missing
+    // No agent options card for i(Pad)OS, so extend Labels card vertically
     &__details-panel--ios-grid.react-tabs__tab-panel--selected {
-      // Must be selected to show grid
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr;
       grid-template-areas:
-        "about"
-        "labels";
+        "about about"
+        "activity labels";
       grid-auto-flow: column;
     }
 
@@ -64,11 +62,6 @@
           margin-right: 92px;
           flex-direction: row;
         }
-      }
-      &__block {
-        display: flex;
-        flex-direction: column;
-        margin-right: $pad-xxlarge;
       }
       &__data {
         margin-bottom: $pad-medium;

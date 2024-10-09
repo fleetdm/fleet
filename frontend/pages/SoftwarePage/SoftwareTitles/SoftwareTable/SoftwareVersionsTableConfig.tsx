@@ -64,14 +64,6 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Type",
-      disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={formatSoftwareType(cellProps.row.original)} />
-      ),
-    },
-    {
       Header: "Version",
       disableSortBy: true,
       accessor: "version",
@@ -80,12 +72,25 @@ const generateTableHeaders = (
       ),
     },
     {
+      Header: "Type",
+      disableSortBy: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
       Header: "Vulnerabilities",
       disableSortBy: true,
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnerabilitiesCellProps) => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (
+          ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
+        ) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      },
     },
     {
       Header: (cellProps: ITableHeaderProps) => (

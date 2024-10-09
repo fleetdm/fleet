@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { ITeamSummary } from "./team";
 
 export interface IMdmApple {
   common_name: string;
@@ -13,6 +14,31 @@ export interface IMdmAppleBm {
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
+}
+
+export type ITokenTeam = {
+  team_id: number;
+  name: string;
+};
+
+export interface IMdmAbmToken {
+  id: number;
+  apple_id: string;
+  org_name: string;
+  mdm_server_url: string;
+  renew_date: string;
+  terms_expired: boolean;
+  macos_team: ITokenTeam;
+  ios_team: ITokenTeam;
+  ipados_team: ITokenTeam;
+}
+
+export interface IMdmVppToken {
+  id: number;
+  org_name: string;
+  location: string;
+  renew_date: string;
+  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
@@ -159,4 +185,23 @@ export enum BootstrapPackageStatus {
   INSTALLED = "installed",
   PENDING = "pending",
   FAILED = "failed",
+}
+
+/**
+ * IMdmCommandResult is the shape of an mdm command result object
+ * returned by the Fleet API.
+ */
+export interface IMdmCommandResult {
+  host_uuid: string;
+  command_uuid: string;
+  /** Status is the status of the command. It can be one of Acknowledged, Error, or NotNow for
+	// Apple, or 200, 400, etc for Windows.  */
+  status: string;
+  updated_at: string;
+  request_type: string;
+  hostname: string;
+  /** Payload is a base64-encoded string containing the MDM command request */
+  payload: string;
+  /** Result is a base64-enconded string containing the MDM command response */
+  result: string;
 }

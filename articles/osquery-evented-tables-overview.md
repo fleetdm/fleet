@@ -121,7 +121,7 @@ On macOS, there are two utilities that enable osquery process auditing: [OpenBSM
 To use the `es_process_events` tables, use the flag `--disable_endpointsecurity=false`. See the [EndpointSecurity instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-endpointsecurity) for more information. To use `process_events` and `socket_events` with OpenBSM, see the [OpenBSM instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-openbsm). 
 
 #### Windows
-Currently, osquery does not support process auditing for Windows. To learn more about process auditing on Windows, visit [Microsoft's security auditing overview](https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/security-auditing-overview). Fleet is tracking work to build process auditing for Windows in osquery. [Stay up to date on GitHub](https://github.com/fleetdm/fleet/issues/7732).
+Fleet supports auditing process events on Windows via the `process_etw_events` table. To learn more about process auditing on Windows, visit [Microsoft's security auditing overview](https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/security-auditing-overview). Fleet is tracking work to add file auditing for Windows in osquery. [Stay up to date on GitHub](https://github.com/fleetdm/fleet/issues/20946).
 
 ### YARA scanning
 [YARA](https://virustotal.github.io/yara/) is a malware research and detection tool available on Linux and macOS that allows users to create descriptions of malware families based on patterns of text or binary code. Each potential piece of malware is matched against a YARA rule and triggers if the specified conditions are met. 

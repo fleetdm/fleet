@@ -66,7 +66,7 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 			// enrolled (after the user's manual steps, and osquery reporting the
 			// updated mdm enrollment).
 			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
-			if time.Since(h.lastRun) > h.Frequency {
+			if time.Since(h.lastRun) >= h.Frequency {
 				// we perform this check locally on the client too to avoid showing the
 				// dialog if the client is enrolled to an MDM server.
 				enrollFn := h.checkEnrollmentFn

@@ -46,7 +46,10 @@ const InstallIconWithTooltip = ({
               .
             </>
           ) : (
-            "Software can be installed on Host details page."
+            <>
+              Install manually on <b>Host details</b> page or automatically with
+              policy automations.
+            </>
           )}
         </span>
       </ReactTooltip>
@@ -55,12 +58,14 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
-  name: string;
-  source: string;
+  name?: string;
+  source?: string;
+  /** pass in a `path` that this cell will link to */
   path?: string;
   router?: InjectedRouter;
   hasPackage?: boolean;
   isSelfService?: boolean;
+  iconUrl?: string;
 }
 
 const SoftwareNameCell = ({
@@ -70,6 +75,7 @@ const SoftwareNameCell = ({
   router,
   hasPackage = false,
   isSelfService = false,
+  iconUrl,
 }: ISoftwareNameCellProps) => {
   // NO path or router means it's not clickable. return
   // a non-clickable cell early
@@ -95,7 +101,7 @@ const SoftwareNameCell = ({
       customOnClick={onClickSoftware}
       value={
         <>
-          <SoftwareIcon name={name} source={source} />
+          <SoftwareIcon name={name} source={source} url={iconUrl} />
           <span className="software-name">{name}</span>
           {hasPackage && (
             <InstallIconWithTooltip isSelfService={isSelfService} />

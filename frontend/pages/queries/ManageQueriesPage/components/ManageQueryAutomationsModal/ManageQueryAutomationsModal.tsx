@@ -10,6 +10,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { CONTACT_FLEET_LINK } from "utilities/constants";
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
@@ -171,11 +172,7 @@ const ManageQueryAutomationsModal = ({
           <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
           <p>
             Interested in query automations for your Chromebooks? &nbsp;
-            <CustomLink
-              url="https://fleetdm.com/contact"
-              text="Let us know"
-              newTab
-            />
+            <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
           </p>
         </InfoBanner>
         <Button

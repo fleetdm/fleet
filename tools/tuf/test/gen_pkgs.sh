@@ -82,7 +82,9 @@ if [ -n "$GENERATE_DEB" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         --update-url=$DEB_TUF_URL
+fi
 
+if [ -n "$GENERATE_DEB_ARM64" ]; then
     echo "Generating deb (arm64)..."
     ./build/fleetctl package \
         --type=deb \
@@ -128,7 +130,9 @@ if [ -n "$GENERATE_RPM" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         --update-url=$RPM_TUF_URL
+fi
 
+if [ -n "$GENERATE_RPM_ARM64" ]; then
     echo "Generating rpm (arm64)..."
     ./build/fleetctl package \
         --type=rpm \

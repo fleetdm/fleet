@@ -41,10 +41,6 @@ module.exports = {
 
   exits: {
 
-    invalidEmailDomain: {
-      description: 'This email address is on a denylist of domains and was not delivered.',
-      responseType: 'badRequest'
-    },
     success: {
       description: 'The message was sent successfully.'
     }
@@ -61,22 +57,17 @@ module.exports = {
       );
     }
 
-    let emailDomain = emailAddress.split('@')[1];
-    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
-      throw 'invalidEmailDomain';
-    }
-
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
+      text: `New contact form message: (cc: <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
-    sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: emailAddress,
       firstName: firstName,
       lastName: lastName,
-      leadSource: 'Website - Contact forms',
-      leadDescription: `Sent a contact form message: ${message}`,
+      contactSource: 'Website - Contact forms',
+      description: `Sent a contact form message: ${message}`,
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
         sails.log.warn(`Background task failed: When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);

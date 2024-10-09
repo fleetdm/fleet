@@ -1,6 +1,6 @@
 # Deploy Fleet on Hetzner Cloud
 
-> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+> **This article was archived on May 16, 2024.** Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for the most up to date deployment method.
 
 ![Deploy Fleet on Hetzner Cloud](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-800x450@2x.png)
 
@@ -69,14 +69,14 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
 apt update
 apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-docker pull mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67 # mysql:5.7.38 as of 2022/05/19
+docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1 # mysql:8.0.36 as of 2024/07/04
 
 ######################
 # MySQL (dockerized) #
 ######################
 
-# mysql:5.7.38 as of 2022/05/19
-docker pull mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67
+# mysql:8.0.36 as of 2024/07/04
+docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1
 
 # Create the Fleet MySQL data folder
 mkdir -p /etc/fleet
@@ -102,14 +102,14 @@ Restart=always
 
 ExecStartPre=-/usr/bin/docker exec %n stop
 ExecStartPre=-/usr/bin/docker rm %n
-ExecStartPre=-/usr/bin/docker pull mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67
+ExecStartPre=-/usr/bin/docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1
 
 ExecStart=/usr/bin/docker run --rm \
     --name %n \
     -p 127.0.0.1:3306:3306 \
     -v /etc/fleet/mysql:/var/lib/mysql \
     --env-file /etc/fleet/mysql.env \
-    mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67
+    mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1
 
 ExecStop=/usr/bin/docker stop %n
 
@@ -435,7 +435,7 @@ To run MySQL, we’ll have to do the following:
 We can pull the [official MySQL docker image](https://hub.docker.com/_/mysql) like so:
 
 ```sh
-$ docker pull mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67 # mysql:5.7.38 as of 2022/05/19
+$ docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1 # mysql:8.0.36 as of 2024/07/04
 ```
 
 ### Create & enable a systemd unit for MySQL
@@ -472,14 +472,14 @@ Restart=always
 
 ExecStartPre=-/usr/bin/docker exec %n stop
 ExecStartPre=-/usr/bin/docker rm %n
-ExecStartPre=-/usr/bin/docker pull mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67
+ExecStartPre=-/usr/bin/docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1
 
 ExecStart=/usr/bin/docker run --rm \
     --name %n \
     -p 127.0.0.1:3306:3306 \
     -v /etc/fleet/mysql:/var/lib/mysql \
     --env-file /etc/fleet/mysql.env \
-    mysql@sha256:16e159331007eccc069822f7b731272043ed572a79a196a05ffa2ea127caaf67
+    mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1
 
 ExecStop=/usr/bin/docker stop %n
 

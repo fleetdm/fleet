@@ -1,3 +1,242 @@
+## Fleet 4.57.2 (Oct 03, 2024)
+
+### Bug fixes
+
+* Fixed software uninstaller script for `pkg`s to only remove '.app' directories installed by the package.
+
+## Fleet 4.57.1 (Oct 01, 2024)
+
+### Bug fixes
+
+* Improved performance of SQL queries used to determine MDM profile status for Apple hosts.
+* Ensured request timeouts for software installer edits were just as high as for initial software installer uploads.
+* Fixed an issue with the migration that added support for multiple VPP tokens, which would happen if a token was removed prior to upgrading Fleet.
+* Fixed a "no rows" error when adding a software installer that matched an existing title's name and source but not its bundle ID.
+
+## Fleet 4.57.0 (Sep 23, 2024)
+
+**Endpoint Operations**
+
+- Added support for configuring policy installers via GitOps.
+- Added support for policies in "No team" that run on hosts that belong to "No team".
+- Added reserved team names: "All teams" and "No team".
+- Added support the software status filter for 'No teams' on the hosts page.
+- Enable 'No teams' funcitonality for the policies page and associated workflows.
+- Added reset install counts and cancel pending installs/uninstalls when GitOps installer updates change package contents.
+- Added support for software installer packages, self-service flag, scripts, pre-install query, and self-service availability to be edited in-place rather than deleted and re-added.
+
+**Device Management (MDM)**
+
+- Added feature allowing automatic installation of software on hosts that fail policies.
+- Added feature for end users to enroll BYOD devices into Fleet MDM.
+- Added the ability to use Fleet to uninstall packages from hosts.
+- Added an endpoint for getting an OTA MDM profile for enrolling iOS and iPadOS hosts.
+- Added protocol support for OTA enrollment and automatic team assignment for hosts.
+- Added validation of Setup Assistant profiles on profile upload.
+- Added validation to prevent installing software on a host with a pending installation.
+- Allowed custom SCEP CA certificates with any kind of extendedKeyUsage attributes.
+- Modified `POST /api/latest/fleet/software/batch` endpoint to be asynchronous and added a new endpoint `GET /api/latest/fleet/software/batch/{request_uuid}` to retrieve the result of the batch upload.
+
+**Vulnerability Management**
+
+- Fixed a false negative vulnerability for git.
+- Fixed false positive vulnerabilities for minio.
+- Fixed an issue where virtual box for macOS wasn't matching against the NVD product name.
+- Fixed Ubuntu python package false positive vulnerabilities by removing duplicate entries for ubuntu python packages installed by dpkg and renaming remaining pip installed packages to match OVAL definitions.
+
+**Bug fixes and improvements**
+
+- Updated Go to go1.23.1.
+- Removed validation of APNS certificate from server startup.
+- Removed invalid node keys from server logs.
+- Improved the UX of turning off MDM on an offline host.
+- Improved clarity of GitOps VPP app ID type errors.
+- Improved gitops error message about enabling windows MDM.
+- Improved messaging for VPP token constraint errors.
+- Improved loading state for UI tables when no data is present yet.
+- Improved permissions so that hosts can no longer access installers that aren't directly assigned to them.
+- Improved verification of premium license before uploading VPP tokens.
+- Added "0 items" description on empty software tables for UI consistency.
+- Updated the macos target minimum version tooltip.
+- Fixed logic to properly catch and log APNs errors.
+- Fixed UI overflow issues with OS settings table data.
+- Fixed regression for checking email used to get a signed CSR.
+- Fixed bugs on enrollment profiles when the organization name contains invalid XML characters.
+- Fixed an issue with cron profiles delivery failing if a Windows VM is enrolled twice.
+- Fixed issue where Fleet server could start when an expired ABM certificate was provided as server config.
+- Fixed self-service checkbox appearing when iOS or iPadOS app is selected.
+
+## Fleet 4.56.0 (Sep 7, 2024)
+
+### Endpoint operations
+
+- Added index to `query_results` DB table to speed up finding last query timestamp for a given query and host.
+- Added a link in the UI to the error message when a CSR can't be downloaded due to missing private key.
+- Added a disabled overlay to the Other Workflows modal on the policy page.
+- Improved performance of live queries to accommodate for higher volumes when utilizing zero-trust workflows.
+- Improved `fleetctl` gitops error message when trying to change team name to a team that already exists.
+
+### Device management
+
+- Added server support for multiple VPP tokens.
+- Added new endpoints and updated existing endpoints for managing multiple Apple Business Manager tokens.
+- Added support for S3 to store MDM bootstrap packages (uses the same bucket configuration as for software installers).
+- Added support to UI for self service VPP software.
+- Added backend and gitops support for self service VPP.
+- Added ability for MDM migrations if the host is manually enrolled to a 3rd party MDM.
+- Added an offline screen to the macOS MDM migration flow.
+- Added new ABM page to Fleet UI.
+- Added new VPP page to the fleet UI
+- Added support to track the Apple Business Manager "terms expired" API error per token, as well as a global flag that gets set as soon as one token has its terms expired.
+- Updated the instructions on "My device" for MDM migrations on pre-Sonoma macOS hosts.
+- Updated to allow multiple teams to be assigned to the same VPP Token.
+- Updated process so that deleting installed software or VPP app now makes it available for re-installation.
+- Updated to enforce minimum OS version settings during Apple Automated Device Enrollment (ADE).
+- Updated ABM ingestion so that deleted iOS/iPadOS host will continue to report to Fleet as long as host is in Apple Business Manager (ABM).
+- Updated so that refetching an offline iOS/iPadOS host will not add new MDM commands to the queue if previous refetch has not completed yet.
+- Updated UI so that downloading a software installer package now shows the browser's built-in progress bar.
+- Updated relevant documentation to include references to multiple ABM and VPP tokens.
+- Consolidated Automatic Enrollment and VPP settings under the MDM settings integration page.
+- Cleared apps associated with a VPP token if it's moved off of a team.
+
+### Vulnerability management
+
+- Added ALAS bulletins as vulnerability source for Amazon Linux (instead of OVAL for Amazon Linux 2, and adds support for Amazon Linux 1, 2022, and 2023).
+- Added matching rules for July and August Microsoft 365 security updates (https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates).
+- Added the following filters to `/software/titles` and `/software/versions` API endpoints: `exploit: bool`, `min_cvss_score: float`, `max_cvss_score: float`.
+- Updated software titles/versions tables to allow for filtering by vulnerabilities including severity and known exploit.
+- Updated to use empty CVE description when the NVD CVE feed doesn't include description entries (instead of panicking).
+- Updated matching software that is not installed by Fleet so that it shows up as 'Available for install' on host details page.
+- Updated base images of `fleetdm/fleetctl`, `fleetdm/bomutils` and `fleetdm/wix` to fix critical vulnerabilities found by Trivy.
+- Updated vulnerability scanning to use `macos` SW target for CPEs of homebrew packages.
+- Updated vulnerability scanning to not ignore software with non-ASCII en dash and em dash characters.
+- Updated `GET /api/v1/fleet/vulnerabilities/{cve}` endpoint to add validation of CVE format, and a 204 response. The 204 response indicates that the vulnerability is known to Fleet but not present on any hosts.
+- Updated the UI to add new empty states for searching vulnerabilities: invalid CVE format searched, a known CVE serached but not present on hosts, not a known CVE searched, exploited vulnerability empty state, operating systems empty state, new icons.
+
+### Bug fixes and improvements
+
+- Added support for MySQL 8.4.2 LTS.
+- Updated Go to go1.22.6.
+- Updated Fleet server to now accept arguments via stdin. This is useful for passing secrets that you don't want to expose as env vars, in the command line, or in the config file.
+- Updated text for "Turn on MDM" banners in UI.
+- Updated ABM host tooltip copy on the manage host page to clarify when host vitals will be available to view.
+- Updated copy on auotmatic enrollment modal on my device page.
+- Updated host details activities tooltip and empty state copy to reflect recently added capabilities.
+- Updated Fleet Free so users see a Premium feature message when clicking to add software.
+- Updated usage reporting to report statistics on new AI features, maintenance window, and `fleetd`.
+- Fixed bug where configuration profile was still showing the old label name after the name was updated.
+- Fixed a bug when a cached prepared statement gets deleted in the MySQL server itself without Fleet knowing.
+- Fixed a bug where the wrong API path was used to download a software installer.
+- Fixed the failing_host_count so it is never 0. This count is normally updated once an hour during cleanups_then_aggregation cron job.
+- Fixed CVE-2024-4030 in Vulncheck feed incorrectly targeting non-Windows hosts.
+- Fixed a bug where the "Self-service" filter for the list of software and the list of host's software did not take App Store apps into account.
+- Fixed a bug where the "My device" page in Fleet Desktop did not show the self-service software tab when App Store apps were available as self-install.
+- Fixed a bug where a software installer (a package or a VPP app) that has been installed on a host still shows up as "Available for install" and can still be requested to be installed after the host is transferred to a different team without that installer (or after the installer is deleted).
+- Fixed the "Available for install" filter in the host's software page so that installers that were requested to be installed on the host (regardless of installation status) also show up in the list.
+- Fixed UI popup messages bleeding off viewport in some cases.
+- Fixed an issue with the scheduling of cron jobs at startup if the job has never run, which caused it to be delayed.
+- Fixed UI to display the label names in case-insensitive alphabetical order.
+
+## Fleet 4.55.2 (Sep 05, 2024)
+
+### Bug fixes
+
+- Removed validation of APNS certificate from server startup. This was no longer necessary because we now allow for APNS certificates to be renewed in the UI.
+- Fixed logic to properly catch and log APNs errors.
+
+## Fleet 4.55.1 (Aug 15, 2024)
+
+### Bug fixes
+
+- Added a disabled overlay to the Other Workflows modal on the policy page.
+- Updated text for "Turn on MDM" banners in UI.
+- Fixed a bug when a cached prepared statement got deleted in the MySQL server itself without Fleet knowing.
+- Continued with an empty CVE description when the NVD CVE feed didn't include description entries (instead of panicking).
+- Scheduled maintenance events are now scheduled over calendar events marked "Free" (not busy) in Google Calendar.
+- Fixed a bug where the wrong API path was used to download a software installer.
+- Improved fleetctl gitops error message when trying to change team name to a team that already exists.
+- Updated ABM (Apple Business Manager) host tooltip copy on the manage host page to clarify when host vitals will be available to view.
+- Added index to query_results DB table to speed up finding the last query timestamp for a given query and host.
+- Displayed the label names in case-insensitive alphabetical order in the fleet UI.
+
+## Fleet 4.55.0 (Aug 8, 2024)
+
+**NOTE:** Beginning with v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.36.
+
+### Endpoint Operations
+
+- Added support for generating `fleetd` packages for Linux ARM64.
+- Added new `fleetctl package` --arch flag.
+- Updated `fleetctl package` command to remove the `--version` flag. The version of the package can be controlled by `--orbit-channel` flag.
+- Updated maintenance window descriptions to update regularly to match the failing policy description/resolution.
+- Updated maintenance windows using Google Calendar so that calendar events are now recreated within 30 seconds if deleted or moved to the past.
+  - Fleet server watches for potential changes for up to 1 week after original event time. If event is moved forward more than 1 week, then after 1 week Fleet server will check for event changes once every 30 minutes.
+  - **NOTE:** These near real-time updates may add additional load to the Google Calendar API, so it is recommended to use API usage alerts or other monitoring methods.
+
+### Device Management
+
+- Integrated [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to add enforcement of FileVault during the MacOS Setup Assistant process for hosts that are 
+enrolled into teams (or no team) with disk encryption turned on. Thank you [homebysix](https://github.com/homebysix) and team!
+- Updated `fleetd` to use [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to rotate FileVault keys. Removed or modified internal API endpoints documented in the API for contributors.
+- Added OS updates support to iOS/iPadOS devices.
+- Added iOS and iPadOS device details refetch triggered with the existing `POST /api/latest/fleet/hosts/:id/refetch` endpoint.
+- Added iOS and iPadOS user-installed apps to Fleet.
+- Added iOS and iPadOS apps to be installed using Apple's VPP (Volume Purchase Program) to Fleet.
+- Added support for VPP to GitOps.
+- Added the `POST /mdm/apple/vpp_token`, `DELETE /mdm/apple/vpp_token` and `GET /vpp` endpoints and related functionality.
+- Added new `GET /software/app_store_apps` and `POST /software/app_store_apps` endpoints and associated functionality.
+- Added the associated VPP apps to the `GET /software/titles` and `GET /software/titles/:id` endpoints.
+- Added the associated VPP apps to the `GET /hosts/:id/software` and `GET /device/:token/software` endpoints.
+- Added support to delete a VPP app from a team in `DELETE /software/titles/:software_title_id/available_for_install`.
+- Added `exclude_software` query parameter to "Get host by identifier" API.
+- Added ability to add/remove/disable apps with VPP in the Fleet UI.
+- Added a warning banner to the UI if the uploaded VPP token is about to expire/has expired.
+- Added UI updates for VPP feature on host software and my device pages.
+- Added global activity support for VPP-related activities.
+- Added UI features for managing VPP apps for iPadOS and iOS hosts.
+- Updated profile activities to include iOS and iPadOS.
+- Updated Fleet UI to show OS version compliance on host details page.
+- Added support for "No teams" on all software pages including adding software installers.
+- Added DB migration to support VPP software features.
+- Added DB migration to migrate older team configurations to the new version that includes both installers and App Store apps.
+- Linux lock/unlock scripts now make use of pam_nologin to keep AD users locked out.
+- Installed software list now includes Linux .deb packages that are 'on hold'.
+- Added a special-case to properly name the Notion .exe Windows installer the same as how it will be reported by osquery post-install.
+- Increased threshold to renew Apple SCEP certificates for MDM enrollments to 180 days.
+
+### Vulnerability Management
+
+- Fixed CVEs identified as 'Rejected' in NVD not matching against software.
+- Fixed false negative vulnerabilities with IntelliJ IDEA CE and PyCharm CE installed via Homebrew.
+
+### Bug fixes and improvements
+
+- Dropped support for MySQL 5.7 and raised minimum required to MySQL 8.0.36.
+- Updated software pre-install to use new GitOps format for query.
+- Updated UI tooltips for pending OS settings.
+- Fixed a styling issue in the controls > OS settings > disk encryption table.
+- Fixed a bug in `fleetctl preview` that was causing it to fail if Docker was installed without support for the deprecated `docker-compose` CLI.
+- Fixed an issue where the app-wide warning banners were not showing on the initial page load.
+- Fixed a bug where the hosts page would sometimes allow excess pagination.
+- Fixed a bug where software install results could not be retrieved for deleted hosts in the activity feed.
+- Fixed path that was incorrect for the download software installer package endpoint `GET /software/titles/:software_title_id/package`.
+- Fixed a bug that set `last_enrolled_at` during orbit re-enrollment, which caused osquery enroll failures when `FLEET_OSQUERY_ENROLL_COOLDOWN` is set.
+- Fixed a bug where Fleet google calendar events generated by Fleet <= 4.53.0 were not correctly processed by 4.54.0.
+- Fixed a bug where software install results could not be retrieved for deleted hosts in the activity feed.
+- Fixed a bug where a software installer (a package or a VPP app) that has been installed on a host still shows up as "Available for install" and can still be requested to be installed after the host is transferred to a different team without that installer (or after the installer is deleted).
+
+## Fleet 4.54.1 (Jul 24, 2024)
+
+### Bug fixes
+
+- Fixed a startup bug by performing an early restart of orbit if an agent options setting has changed.
+- Implemented a small refactor of orbit subsystems.
+- Removed the `--version` flag from the `fleetctl package` command. The version of the package can now be controlled by the `--orbit-channel` flag.
+- Fixed a bug that set `last_enrolled_at` during orbit re-enrollment, which caused osquery enroll failures when `FLEET_OSQUERY_ENROLL_COOLDOWN` is set .
+- In `fleetctl package` command, removed the `--version` flag. The version of the package can be controlled by `--orbit-channel` flag.
+- Fixed a bug where Fleet google calendar events generated by Fleet <= 4.53.0 were not correctly processed by 4.54.0.
+- Re-enabled cached logins after windows Unlock.
+
 ## Fleet 4.54.0 (Jul 17, 2024)
 
 ### Endpoint Operations
@@ -83,19 +322,19 @@
 
 ### Bug fixes
 
-* Updated fleetctl get queries/labels/hosts descriptions.
-* Fixed exporting CSVs with fields that contain commas to render properly.
-* Fixed link to fleetd uninstall instructions in "Delete device" modal.
-* Rendered only one banner on the my device page based on priority order.
-* Hidden query delete checkboxes from team observers.
-* Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
-* Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall broke the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
-* Fixed counts for hosts with low disk space in summary page.
-* Fleet UI fixes: Hide CTA on inherited queries/policies from team level users.
-* Updated software updated timestamp tooltip.
-* Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
-* Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
-* Fixed UI capitalizations.
+- Updated fleetctl get queries/labels/hosts descriptions.
+- Fixed exporting CSVs with fields that contain commas to render properly.
+- Fixed link to fleetd uninstall instructions in "Delete device" modal.
+- Rendered only one banner on the my device page based on priority order.
+- Hidden query delete checkboxes from team observers.
+- Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
+- Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall broke the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+- Fixed counts for hosts with low disk space in summary page.
+- Fleet UI fixes: Hide CTA on inherited queries/policies from team level users.
+- Updated software updated timestamp tooltip.
+- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
+- Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
+- Fixed UI capitalizations.
 
 ## Fleet 4.53.0 (Jun 25, 2024)
 

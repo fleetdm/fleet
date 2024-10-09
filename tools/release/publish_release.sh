@@ -626,8 +626,19 @@ fi
 
 start_ver_tag=fleet-$start_version
 
+# Check if there are updates to fleetctl dependencies (only when doing security updates to base images).
+if [[ $(git diff $start_ver_tag ./tools/wix-docker ./tools/bomutils-docker) ]]; then
+	echo "⚠️  Changes in fleetctl dependencies detected, please run the following before continuing the release:"
+	echo "1. git tag fleetctl-docker-deps-$next_ver && git push origin fleetctl-docker-deps-$next_ver"
+	echo "2. Wait for the triggered https://github.com/fleetdm/fleet/actions/workflows/release-fleetctl-docker-deps.yaml build to finish."
+	echo "3. Smoke test the pushed images by manually running the following action: https://github.com/fleetdm/fleet/actions/workflows/test-packaging.yml"
+	exit 1
+fi
+
 if [[ "$minor" == "true" ]]; then
     echo "Minor release from $start_version to $next_ver"
+    # For scheduled minor releases, we want to branch off of main
+    start_ver_tag="main"
 else
     echo "Patch release from $start_version to $next_ver"
 fi
@@ -699,7 +710,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         git checkout $start_ver_tag
         git pull origin $start_ver_tag
     else
-        echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
+        echo "DRYRUN: Would have checked out starting at $start_ver_tag"
     fi
 
     local_exists=$(git branch | $GREP_CMD $target_branch)
@@ -730,7 +741,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n " NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
+            echo -n " - No PRs found, please verify they are not missing in the issue."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"
@@ -849,7 +860,7 @@ if [[ "$failed" == "false" ]]; then
         echo "DRYRUN: Would have switched back to branch $target_branch"
     fi
 
-    if [[ "$minor" == "false" ]]; then
+    if [[ "$dry_run" = "false" && "$minor" == "false" ]]; then
         # Cherry-pick from update-changelog-branch
         ch_commit=$(git log -n 1 --pretty=format:"%H" $update_changelog_branch)
         git cherry-pick $ch_commit

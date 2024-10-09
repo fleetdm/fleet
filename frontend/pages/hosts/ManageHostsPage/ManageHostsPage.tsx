@@ -51,10 +51,10 @@ import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import {
-  isValidSoftwareInstallStatus,
-  SoftwareInstallStatus,
+  isValidSoftwareAggregateStatus,
+  SoftwareAggregateStatus,
 } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -169,9 +169,9 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
-      // remove the software status filter when selecting all teams or no team
+      // remove the software status filter when selecting All teams
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-        !newTeamId || newTeamId < 1,
+        newTeamId === API_ALL_TEAMS_ID,
     },
   });
 
@@ -243,10 +243,12 @@ const ManageHostsPage = ({
     queryParams?.software_title_id !== undefined
       ? parseInt(queryParams.software_title_id, 10)
       : undefined;
-  const softwareStatus = isValidSoftwareInstallStatus(
+  const softwareStatus = isValidSoftwareAggregateStatus(
     queryParams?.[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]
   )
-    ? (queryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] as SoftwareInstallStatus)
+    ? (queryParams[
+        HOSTS_QUERY_PARAMS.SOFTWARE_STATUS
+      ] as SoftwareAggregateStatus)
     : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
@@ -406,8 +408,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
+        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -736,8 +738,8 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleSoftwareInstallStatausChange = (
-    newStatus: SoftwareInstallStatus
+  const handleSoftwareInstallStatusChange = (
+    newStatus: SoftwareAggregateStatus
   ) => {
     handleResetPageIndex();
 
@@ -846,8 +848,8 @@ const ManageHostsPage = ({
         newQueryParams.software_version_id = softwareVersionId;
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
-        if (softwareStatus && teamIdForApi && teamIdForApi > 0) {
-          // software_status is only valid when software_title_id is present and a team is selected
+        if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
+          // software_status is only valid when software_title_id is present and a subset of hosts ('No team' or a team) is selected
           newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
         }
       } else if (mdmId) {
@@ -1197,7 +1199,6 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
-      isSandboxMode={isSandboxMode}
     />
   );
 
@@ -1377,7 +1378,10 @@ const ManageHostsPage = ({
       teamId: teamIdForApi,
     };
 
-    if (queryParams.team_id) {
+    if (
+      queryParams.team_id !== API_ALL_TEAMS_ID &&
+      queryParams.team_id !== ""
+    ) {
       options.teamId = queryParams.team_id;
     }
 
@@ -1426,20 +1430,15 @@ const ManageHostsPage = ({
         ? selectedLabel
         : undefined;
 
-    const statusDropdownClassnames = classNames(
-      `${baseClass}__status_dropdown`,
-      { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
-    );
-
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
           value={status || ""}
-          className={statusDropdownClassnames}
+          className={`${baseClass}__status_dropdown`}
           options={getHostSelectStatuses(isSandboxMode)}
           searchable={false}
           onChange={handleStatusDropdownChange}
-          tableFilterDropdown
+          iconName="filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1552,7 +1551,6 @@ const ManageHostsPage = ({
       softwareId ||
       softwareTitleId ||
       softwareVersionId ||
-      softwareStatus ||
       osName ||
       osVersionId ||
       osVersion ||
@@ -1580,7 +1578,7 @@ const ManageHostsPage = ({
         }
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
-        pageSize={50}
+        pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{
@@ -1724,7 +1722,7 @@ const ManageHostsPage = ({
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onChangeSoftwareInstallStatusFilter={
-              handleSoftwareInstallStatausChange
+              handleSoftwareInstallStatusChange
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}

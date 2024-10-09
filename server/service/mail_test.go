@@ -86,6 +86,18 @@ func TestMailService(t *testing.T) {
 		return invite, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// (1) Modifying the app config `sender_address` field to trigger a test e-mail send.

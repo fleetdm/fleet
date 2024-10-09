@@ -38,8 +38,8 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Blog                                 | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
-| Payroll, bookkeeping, AR/AP          | <sup><sub>_See [🔦 Head of Business Operations](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
-| Legal contracts                      | <sup><sub>_See [🔦 Business Operations team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Payroll, bookkeeping, AR/AP          | <sup><sub>_See [💸 Head of Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
+| Legal contracts                      | <sup><sub>_See [🌐 Digital Experience team](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
 | Customer renewals                    | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Customer deployments                 | <sup><sub>_See [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team)_ </sup></sub>
 | Customer support                     | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
@@ -53,11 +53,26 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product introduction docs            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Product reference docs               | <sup><sub>_See [🦢 Noah Talerman](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | What goes in a release               | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+## Tech stack admins
+
+| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
+|:-----|-----------------:|------:|-------:|------:|------:|------:|----------:|
+| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Owner |✅ Owner | ✅ Owner |
+| CTO | ❌ | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
+| Head of Finance | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin | ✅ Admin | ❌ |
+| Finance Engineer | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin |✅ Admin | ❌ |
+| Head of Digital Experience | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
+| Apprentice | ✅ Super admin| ✅ Owner | ✅ Owner | ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
+| Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin |
+| Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin | ❌ | ✅ Admin | ❌ |
 
 ### Docs
 
@@ -92,7 +107,7 @@ Any change to fleetdm.com follows the same process as [making changes](https://f
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
-The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.
+The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
 
 ## Marketing programs
@@ -133,11 +148,10 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Digital Marketing Manager to make sure this process is followed.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
-1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
-3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
+1. Once a list of badge scans is available, Fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
+2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
 
 
 ### Podcast
@@ -177,7 +191,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
-need a Calendly account, reach out to `#g-business-operations` via Slack.
+need a Calendly account, reach out to `#g-digital-experience` via Slack.
 
 
 ### Internal meeting scheduling
@@ -235,7 +249,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 3. Link the skip-level agenda in the calendar event description before saving.
 
 
-### Zoom
+## Zoom
 
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
@@ -271,12 +285,21 @@ Here are some tips for troubleshooting Gong:
 For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
 
 
+### Sharing a local Zoom recording 
+
+In some instances, you may need to record a call locally (i.e. save the recording on your computer and not in the cloud ☁️). You can use the following steps to upload the call recording:
+1. Log into [Zoom](https://zoom.us/recording) using SSO (Single-Sign-On) and go to "Recordings". 
+2. After the recording is finished processing (which sometimes can take a couple of hours), you will see the hotdog (or "overflow menu") menu appear. Select the call you want to share and use the hotdog menu to download all files.
+3. Rename the mp4 file to match the meeting name and prefix it with the date of the recording (e.g. "YYYY-MM-DD *Name of the calendar event*").
+4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
+
+
 ## Levels of confidentiality
 
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Head of Digital Experience, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -285,8 +308,8 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Apprentice, and BizOps)_
-- **"¶¶¶":** _(CEO, Apprentice to the CEO, and board members)_
+- **"¶¶":** _(Classified - CEO, Head of Digital Experience, and Apprentice)_
+
 
 ## Google Drive
 
@@ -337,7 +360,7 @@ We use these prefixes to organize the Fleet Slack:
 
 ### Create a GitHub issue from a Slack thread
 
-If you need to track content from a Slack channel (ie. #g-sales), you can automatically generate a github issue by selecting the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against a specific board, ensure that you have updated the label during issue creation.
+If you need to track content from a Slack channel (ie. #g-sales), you can automatically generate a github issue by selecting the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the GitHub label that corisponds with the Slack channel. If you need the issue logged against a specific board, ensure that you have updated the label during issue creation.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
 
@@ -445,7 +468,7 @@ Any Fleetie can follow the process below to add a priority label to an issue.
 
 Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
 
-We use the following story points to estimate website tasks:
+We use the following story points to estimate tasks:
 
 | Story point | Time |
 |:---|:--------------|
@@ -456,11 +479,13 @@ We use the following story points to estimate website tasks:
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
 
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
+
 
 ### Making a pull request
 
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
-1. Click the _"Edit page"_ button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub browser).
+1. Click the _"Edit page"_ button (top right of the page) from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub browser).
 2. Make your suggested edits in the GitHub.
 3. Click _"Commit changes...."_
 4. Give your proposed change a title or _["Commit message"](https://about.gitlab.com/topics/version-control/version-control-best-practices/#write-descriptive-commit-messages)_ and optional _"Extended description"_ (good commit messages help page maintainers quickly understand the proposed changes).
@@ -588,7 +613,7 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 #### Non-travel purchases that exceed a Brex cardholder's limit
 
-For non-travel purchases that would require an increase in the Brex cardholder's limit ($2,000 by default), please [make a request](https://fleetdm.com/handbook/business-operations#contact-us) with following information:
+For non-travel purchases that would require an increase in the Brex cardholder's limit ($2,000 by default), please [make a request](https://fleetdm.com/handbook/digital-experience#contact-us) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
@@ -611,7 +636,7 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 
 #### Reimbursements
 
-Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#contact-us).
+Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 <!-- 
 No longer supported.  -mike, CEO, 2023-04-26.
@@ -630,10 +655,10 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - Seat licenses for tools like Salesforce or GitHub are NOT considered "individualized".
 - Individualized expenses should include the team member's name explicitly in the name of the expense.
 - If multiple team members use the same vendor for an individualized expense (for example, "WeWork"), use a separate row for each individualized expense.  (For example: "Coworking, Mungojerry (WeWork)" and "Coworking, Jennyanydots (WeWork)")
-- Individualized expenses are always attributed to the  "🔦 Business operations" department.
+- Individualized expenses are always attributed to the  "💸 Finance" department.
 - These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
 
-For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
+For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) to notify the Finance department.  
 
 
 ### Accounts payable cards
@@ -643,9 +668,9 @@ For recurring business expenses paid by credit card, there are four accounts pay
 | Card title  | Purpose | Card owner |
 | ---------- |----------- | --------- |
 | Business spend | Business tax, insurance, IT, SaaS, other | CEO |
-| Individualized spend | Flowers, swag, and other internal gifting for Fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Head of Business Operations |
+| Individualized spend | Flowers, swag, and other internal gifting for Fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Head of Finance |
 | Infrastructure spend | AWS and other production/cloud infrastructure related to hosting Fleet for customers or load testing customer scale | CTO |
-| Marketing program spend | Ads, events, sponsorship, etc. | Head of Business Operations | 
+| Marketing program spend | Ads, events, sponsorship, etc. | Head of Marketing | 
 
 
 
@@ -666,18 +691,18 @@ For recurring business expenses paid by credit card, there are four accounts pay
 - Do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
 - Be creative.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
-- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) for their help approving and booking additional event space.
+- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) for their help approving and booking additional event space.
 
 
 ### Spending company money while traveling
 
 When attending a conference or traveling for Fleet, keep the following in mind:
 - **No reimbursements:** Use your company Brex card.  Reimbursements are time consuming, so Fleet does not do reimbursements for spending on personal credit cards.
-- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _(There are many good reasons to make exceptions to this allowance, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) to avoid complexities._
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _(There are many good reasons to make exceptions to this allowance, such as dinners with customers.
 - **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 - **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
-- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/business-operations#contact-us) by providing the following information:
+- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/digital-experience#contact-us) by providing the following information:
   - The start and end dates for your trip.
   - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
   - The [price of your hotel or Airbnb](https://fletdm.com/handbook/comopany/communications#lodging) per night
@@ -708,10 +733,10 @@ Before spending any money on an offsite, inviting people, booking travel, or oth
     - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
     - a detailed agenda of how time will be spent
   - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - **Iteration:** The E-group will discuss live, make edits, and may ask you to provide additional information or changes and return the following week for another pass.
+  - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
 
-After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
-  - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
+After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
+  - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
   - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
 
@@ -724,19 +749,19 @@ When attending a conference for Fleet, treat it [like other travel for the compa
 
 ## SOC 2
 
-You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
+You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1mUwmCUdggONULr6OjDO--QtKfDWLcrI4/view?usp=sharing).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
 
 ## Vendor questionnaires 
 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security-policies#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience/vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 ## Getting a contract signed
 
-If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. 
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
@@ -744,7 +769,7 @@ The SLA for contract signature is **2 business days**. Please do not follow up o
 
 _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
 
-> _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password and routes the agreement to the CEO for signature._ 
+> _**Note:** If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature._ 
 
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
 
@@ -755,7 +780,7 @@ Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/
 
 To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
 
-Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#contact-us), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+Complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
 
 Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
 
@@ -767,7 +792,7 @@ If an agreement requires an additional review during the negotiation process, th
 
 When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
 
-> **Note:** Please submit other legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#contact-us).
+> **Note:** Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
 ## Trust
@@ -785,7 +810,7 @@ Here are a few different entry points for a tour of Fleet's security policies an
 3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
 4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
-6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/business-operations/security).
+6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/digital-experience/security).
 
 
 ## Benefits
@@ -839,7 +864,7 @@ When you need to take time off, follow this process:
 
 ### Coworking
 
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#contact-us).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Digital Experience team](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
 ## Compensation
@@ -861,12 +886,12 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of BizOps is responsible for the process to [update compensation](https://fleetdm.com/handbook/business-operations#updating-compensation)
+Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#updating-compensation)
 
 
 ### Relocating
 
-When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#contact-us) by following the directions listed in the relevant issue template ("Moving").
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/digital-experience#contact-us) by following the directions listed in the relevant issue template ("Moving").
 
 
 ## Team member onboarding
@@ -899,7 +924,7 @@ We want to make sure that the new team member will be able to complete every tas
 We believe in taking onboarding and training seriously and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md).
 
 Expectations during onboarding:
-- Onboarding time (all checkboxes checked) is a KPI for the business operations team.  Our goal is 14 days or less.
+- Onboarding time (all checkboxes checked) is a KPI for the Digital Experience team.  Our goal is 14 days or less.
 - The first 3 weekdays (excluding days off) for **every new team member** at Fleet is reserved for completing onboarding tasks from the checkboxes in their onboarding issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility.
 - Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training).
 
@@ -931,6 +956,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - make sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google Drive folder.
+- make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
 
 
 
@@ -991,13 +1017,13 @@ Fleet provides laptops, YubiKey security keys, and software licenses for core te
 
 ### Requesting new equipment
 
-As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
+As soon as an offer is accepted, Digital Experience will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
 If you are in need of additional equipment for any reason, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
-- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Business Operations. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
+- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 
 - **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
@@ -1033,7 +1059,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 ### What would Mister Rogers say?
 
-[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+[*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
 Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
 
@@ -1100,6 +1126,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
 - **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
+- **Fleetctl:** Fleetctl should always be written in lowercase unless used to start a sentence or heading. Fleetctl should always be in plain text and not inside codeblocks text unless used in a command (ex. `fleetctl -help`).
 
 
 #### Device vs endpoint
@@ -1107,20 +1134,49 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
-### Headings
+### Headings and titles
 
-Headings help readers quickly scan content to find what they need and guide readers through your writing. Organize page content using clear headings specific to the topic they describe. 
+Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
 
-While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document.
+#### Static headings
 
-Keep headings brief, organized, and in a logical order:
+Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
+
+#### Task-based headings
+
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
+
+#### Avoid _-ing_ verb forms in headings
+
+Avoid starting a heading with _-ing_ verb form, if possible.
+
+_-ing_ verb forms are more difficult for non-native English readers to understand, translate inconsistently, and increase character counts in limit spaces, such as in docs navigation.
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Configure a log destination” | “Configuring a log destination” |
+
+#### Avoid vague verbs in headings
+
+Were possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
+
+| ✅ Recommended | ❌ Not recommended | 
+| ---------------- | -------------------- |
+| “Log destinations” | “Understand log destinations.” |
+
+
+#### Avoid code in headings
+
+While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document. That aside, it doesn't render well on the website.
+
+#### Heading hierarchy 
+
+Use heading tags to structure your content hierarchically. Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
+
 - H1: Page title
 - H2: Main headings
 - H3: Subheadings
 - H4: Sub-subheadings
-
-Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
-
 
 #### Punctuation in headings
 
@@ -1208,6 +1264,7 @@ Sometimes numerals seem out of place. If an expression typically spells out the 
 - First impression
 - Third-party integration
 - All-in-one platform
+
 Numbers over 3 digits get commas:
 - 999
 - 1,000
@@ -1219,6 +1276,7 @@ Numbers over 3 digits get commas:
 Use numerals and am or pm without a space in between:
 - 7am
 - 7:30pm
+
 Use a hyphen between times to indicate a time period:
 - 7am–10:30pm
 
@@ -1298,6 +1356,33 @@ Markdown is a simple formatting syntax used to write content on the web. In orde
 
 ### Headings
 
+Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
+
+```
+...previous content.
+<!-- Empty space -->
+<!-- Empty space -->
+### New heading
+<!-- Empty space -->
+Related content... 
+```
+
+
+#### Nested headings
+
+Wherever possible, avoid creating nested headings. For example:
+
+```
+## Things
+
+### Thing 1
+
+Hi my name is Thing 1
+```
+
+
+#### Heading levels
+
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 | Markdown | Rendered heading |
 |:--------------------|:-----------------------------|
@@ -1358,8 +1443,6 @@ line two
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
 | <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
 
-Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item, as shown in the example below.
-
 **Markdown:**
 
 ```
@@ -1375,26 +1458,6 @@ Paragraph about item one
 1. Item one
 
 Paragraph about item one
-
-2. Item two
-
-To make sure that ordered lists increment correctly, you can indent the content nested within the list. For example, the same ordered list with indentation:
-
-**Markdown:**
-
-```
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-```
-
-**Rendered output:**
-
-1. Item one
-
-   Paragraph about item one
 
 2. Item two
 
@@ -1456,6 +1519,11 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Category one | Category two | Category three |
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
+
+> When using tables to document API endpoint parameters, we use the following conventions:
+> + Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> + In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
+> + In the **Description** column for required parameters, begin the description with "**Required.**"
 
 
 ### Blockquotes
@@ -1608,7 +1676,7 @@ This glossary provides definitions to commonly used terms within our space.
 | **open source** | Software with intentionally public code for the sake of transparency. |
 | **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
 | **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
-| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **out-of-policy device** | A device that fails any security or vulnerability policy created in Fleet. |
 | **permissions** | Users have different abilities depending on the access level they have. |
 | **platform** | Any software or hardware for hosting an application, data, or service. |
 | **policies** | Yes or no questions you can ask using Fleet about your host devices. |
@@ -1687,9 +1755,6 @@ Please see 📖[handbook/company/communications#purchase-company-issued-equipmen
 ##### Reprovisioning equipment
 ##### Buying other new equipment
 Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for above.
-
-##### Purchasing a company-issued device
-Please see 📖[handbook/business-operations#secure-company-issued-equipment-for-a-team-member](https://fleetdm.com/handbook/business-operations#secure-company-issued-equipment-for-a-team-member).
 
 ##### Company travel
 Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).

@@ -65,7 +65,6 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
       - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
       - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
@@ -83,20 +82,23 @@ controls:
       - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
       - path: ../lib/configuration-profiles/macos-misc.mobileconfig
-      - path: ../lib/configuration-profiles/macos-password.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
-      - path: ../lib/configuration-profiles/passcode-settings-ddm.json
+      - path: ../lib/configuration-profiles/macos-ensure-show-status-bar-is-enabled.mobileconfig
+      - path: ../lib/configuration-profiles/macos-passcode-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: ""
-    minimum_version: ""
+    deadline: "2024-08-23"
+    minimum_version: "14.6.1"
   windows_settings:
-    custom_settings: null
+    custom_settings:
+      - path: ../lib/configuration-profiles/windows-firewall.xml
+      - path: ../lib/configuration-profiles/windows-password.xml
+      - path: ../lib/configuration-profiles/windows-screen-lock.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -115,7 +117,7 @@ policies:
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
+    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
     critical: false
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
@@ -129,12 +131,26 @@ policies:
     platform: darwin
     calendar_events_enabled: false
   - name: macOS - System maintenance complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Drew’s MacBook Pro','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
     critical: false
     description: Determines if the device has completed system maintenance.
     resolution: We will perform system maintenance on your device.
     platform: darwin
     calendar_events_enabled: true
+  - name: macOS - Upgrade Firefox
+    query: SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '130.0.1') >= 0;
+    critical: false
+    description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
+    resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
+    platform: darwin
+    calendar_events_enabled: false
+  - name: macOS - Upgrade Slack
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
+    critical: false
+    description: The host may be running an outdated version of Slack, which could pose security vulnerabilities or compatibility issues.
+    resolution: The host's Slack application will likely be updated to a version that is greater than or equal to '4.40.126'.
+    platform: darwin
+    calendar_events_enabled: false
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-fleetd-information.yml
@@ -142,3 +158,10 @@ queries:
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - path: ../lib/collect-software-permissions-system.queries.yml
   - path: ../lib/collect-software-permissions-user.queries.yml
+  - path: ../lib/collect-crowdstrike-info.queries.yml
+software:
+  app_store_apps:
+      - app_store_id: '803453959' # Slack Desktop
+      - app_store_id: '1333542190' # 1Password 7 Desktop
+      - app_store_id: '1477376905' # GitHub
+      - app_store_id: '1152747299' # Figma

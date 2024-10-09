@@ -1,0 +1,1 @@
+* Fix MSRC feed pulls (for NVD release builds) in environments where GitHub access is authenticated

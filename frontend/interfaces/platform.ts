@@ -1,24 +1,25 @@
-export type DisplayPlatform =
-  | "macOS"
-  | "Windows"
-  | "Linux"
-  | "ChromeOS"
-  | "iOS"
-  | "iPadOS";
+export const APPLE_PLATFORM_DISPLAY_NAMES = {
+  darwin: "macOS",
+  ios: "iOS",
+  ipados: "iPadOS",
+} as const;
 
-export type Platform =
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "chrome"
-  | "ios"
-  | "ipados";
+export type ApplePlatform = keyof typeof APPLE_PLATFORM_DISPLAY_NAMES;
+export type AppleDisplayPlatform = typeof APPLE_PLATFORM_DISPLAY_NAMES[keyof typeof APPLE_PLATFORM_DISPLAY_NAMES];
 
+export const PLATFORM_DISPLAY_NAMES = {
+  windows: "Windows",
+  linux: "Linux",
+  chrome: "ChromeOS",
+  ...APPLE_PLATFORM_DISPLAY_NAMES,
+} as const;
+
+export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
+export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
-
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
@@ -27,6 +28,9 @@ export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
   "linux",
   "chrome",
 ];
+
+// TODO - add "iOS" and "iPadOS" once we support them
+export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 
@@ -82,6 +86,12 @@ export const HOST_LINUX_PLATFORMS = [
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
 
+export type HostPlatform =
+  | typeof HOST_LINUX_PLATFORMS[number]
+  | typeof HOST_APPLE_PLATFORMS[number]
+  | "windows"
+  | "chrome";
+
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
  * different types of host platforms so we need a check that will cover all
@@ -98,3 +108,6 @@ export const isAppleDevice = (platform: string) => {
     platform as typeof HOST_APPLE_PLATFORMS[number]
   );
 };
+
+export const isIPadOrIPhone = (platform: string | HostPlatform) =>
+  ["ios", "ipados"].includes(platform);
