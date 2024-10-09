@@ -458,6 +458,11 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
 	// create a script for team1
 	wantScript1 := &fleet.Script{
 		Name:           "script",

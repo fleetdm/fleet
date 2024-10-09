@@ -238,7 +238,6 @@ WHERE
 }
 
 func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
-	// var res sql.Result
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -253,14 +252,6 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id))
 		return err
 	})
-
-	// // TODO: Do we want to return the script here?
-	// if err != nil {
-	// 	return err
-	// }
-	// id, _ := res.LastInsertId()
-
-	// return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
 
 	return err
 }
