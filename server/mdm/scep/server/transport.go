@@ -138,7 +138,7 @@ func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interf
 	request := SCEPRequestWithIdentifier{
 		SCEPRequest: SCEPRequest{
 			Message:   msg,
-			Operation: r.URL.Query().Get("operation"),
+			Operation: operation,
 		},
 		Identifier: identifier,
 	}

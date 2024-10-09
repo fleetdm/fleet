@@ -2675,9 +2675,22 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	t.Run("bad $FLEET_VAR", func(t *testing.T) {
 		var failedCount int
 		failedCall = false
+		var hostUUIDs []string
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
-			failedCount++
-			require.Len(t, payload, 0)
+			if len(payload) > 0 {
+				failedCount++
+			}
+			for _, p := range payload {
+				assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+				assert.Contains(t, p.Detail, "FLEET_VAR_BOZO")
+				for i, hu := range hostUUIDs {
+					if hu == p.HostUUID {
+						// remove element
+						hostUUIDs = append(hostUUIDs[:i], hostUUIDs[i+1:]...)
+						break
+					}
+				}
+			}
 		}
 		enqueueFailForOp = ""
 
@@ -2696,35 +2709,21 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		})
 
 		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx)
-		hostUUIDs := make([]string, 0, len(profilesToInstall))
+		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
-		}
-
-		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
-			require.NotNil(t, profile)
-			require.NotNil(t, profile.Status)
-			assert.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
-			assert.Contains(t, profile.Detail, "FLEET_VAR_BOZO")
-			for i, hu := range hostUUIDs {
-				if hu == profile.HostUUID {
-					// remove element
-					hostUUIDs = append(hostUUIDs[:i], hostUUIDs[i+1:]...)
-					break
-				}
-			}
-			return nil
 		}
 
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
-		require.Equal(t, 1, failedCount)
+		require.Equal(t, 3, failedCount, "number of profiles with bad content")
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
-		checkAndReset(t, true, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
+		// Check that individual updates were not done (bulk update should be done)
+		checkAndReset(t, false, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	})
 }
 
@@ -2742,7 +2741,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	ds := new(mock.Store)
 
 	// No-op
-	err := preprocessProfileContents(ctx, appCfg, ds, nil, nil)
+	err := preprocessProfileContents(ctx, appCfg, ds, nil, nil, nil)
 	require.NoError(t, err)
 
 	hostUUID := "host-1"
@@ -2753,11 +2752,74 @@ func TestPreprocessProfileContents(t *testing.T) {
 			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID}},
 		}
 	}
+	hostProfilesToInstallMap := make(map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, 1)
+	hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+		ProfileUUID:       "p1",
+		ProfileIdentifier: "com.add.profile",
+		HostUUID:          hostUUID,
+		OperationType:     fleet.MDMOperationTypeInstall,
+		Status:            &fleet.MDMDeliveryPending,
+		CommandUUID:       cmdUUID,
+	}
 	populateTargets()
 	profileContents := map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPProxyURL),
 	}
 
+	var updatedPayload *fleet.MDMAppleBulkUpsertHostProfilePayload
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		require.Len(t, payload, 1)
+		updatedPayload = payload[0]
+		for _, p := range payload {
+			require.NotNil(t, p.Status)
+			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+			assert.Equal(t, cmdUUID, p.CommandUUID)
+			assert.Equal(t, hostUUID, p.HostUUID)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+		}
+		return nil
+	}
+	// Can't use NDES SCEP proxy with free tier
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
+	require.NoError(t, err)
+	require.NotNil(t, updatedPayload)
+	assert.Contains(t, updatedPayload.Detail, "Premium license")
+	assert.Empty(t, targets)
+
+	// Can't use NDES SCEP proxy without it being configured
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	appCfg.Integrations.NDESSCEPProxy.Valid = false
+	updatedPayload = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
+	require.NoError(t, err)
+	require.NotNil(t, updatedPayload)
+	assert.Contains(t, updatedPayload.Detail, "not configured")
+	assert.Empty(t, targets)
+
+	// Unknown variable
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_BOZO"),
+	}
+	appCfg.Integrations.NDESSCEPProxy.Valid = true
+	updatedPayload = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
+	require.NoError(t, err)
+	require.NotNil(t, updatedPayload)
+	assert.Contains(t, updatedPayload.Detail, "FLEET_VAR_BOZO")
+	assert.Empty(t, targets)
+
+	ndesPassword := "test-password"
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context,
+		assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetNDESPassword: {Value: []byte(ndesPassword)},
+		}, nil
+	}
+
+	ds.BulkUpsertMDMAppleHostProfilesFunc = nil
 	var updatedProfile *fleet.HostMDMAppleProfile
 	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 		updatedProfile = profile
@@ -2767,46 +2829,6 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Equal(t, hostUUID, updatedProfile.HostUUID)
 		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedProfile.OperationType)
 		return nil
-	}
-
-	// Can't use NDES SCEP proxy with free tier
-	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
-	require.NoError(t, err)
-	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "Premium license")
-	assert.Empty(t, targets)
-
-	// Can't use NDES SCEP proxy without it being configured
-	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	appCfg.Integrations.NDESSCEPProxy.Valid = false
-	updatedProfile = nil
-	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
-	require.NoError(t, err)
-	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "not configured")
-	assert.Empty(t, targets)
-
-	// Unknown variable
-	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_BOZO"),
-	}
-	appCfg.Integrations.NDESSCEPProxy.Valid = true
-	updatedProfile = nil
-	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
-	require.NoError(t, err)
-	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_BOZO")
-	assert.Empty(t, targets)
-
-	ndesPassword := "test-password"
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context,
-		assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-			fleet.MDMAssetNDESPassword: {Value: []byte(ndesPassword)},
-		}, nil
 	}
 
 	// Could not get NDES SCEP challenge
@@ -2819,7 +2841,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
@@ -2833,7 +2855,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
@@ -2847,7 +2869,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
@@ -2863,7 +2885,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -2882,7 +2904,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	expectedURL := "https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, "p1"))
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -2903,7 +2925,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarHostEndUserEmailIDP)
@@ -2917,7 +2939,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -2954,7 +2976,16 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedProfile.OperationType)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents)
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		for _, p := range payload {
+			require.NotNil(t, p.Status)
+			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+			assert.Equal(t, cmdUUID, p.CommandUUID)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+		}
+		return nil
+	}
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 3)

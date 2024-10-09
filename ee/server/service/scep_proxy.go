@@ -52,8 +52,7 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
 	}
 	res, err := client.GetCACaps(ctx)
 	if err != nil {
-		return res, ctxerr.Wrap(ctx, err,
-			fmt.Sprintf("Could not GetCACaps from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL))
+		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL)
 	}
 	return res, nil
 }
@@ -75,8 +74,7 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string) ([]b
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
-		return res, num, ctxerr.Wrap(ctx, err,
-			fmt.Sprintf("Could not GetCACert from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL))
+		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL)
 	}
 	return res, num, nil
 }
@@ -117,8 +115,8 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 	res, err := client.PKIOperation(ctx, data)
 	if err != nil {
-		return res, ctxerr.Wrap(ctx, err,
-			fmt.Sprintf("Could not do PKIOperation on SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL))
+		return res, ctxerr.Wrapf(ctx, err,
+			"Could not do PKIOperation on SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL)
 	}
 	return res, nil
 }
