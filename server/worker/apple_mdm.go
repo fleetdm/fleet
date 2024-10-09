@@ -153,32 +153,6 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
-	//var manualRelease bool
-	//if args.TeamID == nil {
-	//	ac, err := a.Datastore.AppConfig(ctx)
-	//	if err != nil {
-	//		return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
-	//	}
-	//	manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	//} else {
-	//	tm, err := a.Datastore.Team(ctx, *args.TeamID)
-	//	if err != nil {
-	//		return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
-	//	}
-	//	manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	//}
-
-	//if !manualRelease {
-	//	// send all command uuids for the commands sent here during post-DEP
-	//	// enrollment and enqueue a job to look for the status of those commands to
-	//	// be final and same for MDM profiles of that host; it means the DEP
-	//	// enrollment process is done and the device can be released.
-	//	if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, DeprecatedAppleMDMPostDEPReleaseDeviceTask,
-	//		args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
-	//		return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
-	//	}
-	//}
-
 	return nil
 }
 
