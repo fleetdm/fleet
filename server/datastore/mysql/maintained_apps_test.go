@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -98,6 +99,13 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
 	require.NoError(t, err)
 
+	updated1 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	updated1Ptr := &updated1
+	updated2 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	updated2Ptr := &updated2
+	updated3 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	updated3Ptr := &updated3
+
 	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
 		Token:            "maintained1",
@@ -108,7 +116,9 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "fleet.maintained1",
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
+		UpdatedAt:        updated1Ptr,
 	})
+
 	require.NoError(t, err)
 	maintained2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained2",
@@ -120,6 +130,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "fleet.maintained2",
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
+		UpdatedAt:        updated2Ptr,
 	})
 	require.NoError(t, err)
 	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -132,27 +143,31 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "fleet.maintained3",
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
+		UpdatedAt:        updated3Ptr,
 	})
 	require.NoError(t, err)
 
 	expectedApps := []fleet.MaintainedApp{
 		{
-			ID:       maintained1.ID,
-			Name:     maintained1.Name,
-			Version:  maintained1.Version,
-			Platform: maintained1.Platform,
+			ID:        maintained1.ID,
+			Name:      maintained1.Name,
+			Version:   maintained1.Version,
+			Platform:  maintained1.Platform,
+			UpdatedAt: maintained1.UpdatedAt,
 		},
 		{
-			ID:       maintained2.ID,
-			Name:     maintained2.Name,
-			Version:  maintained2.Version,
-			Platform: maintained2.Platform,
+			ID:        maintained2.ID,
+			Name:      maintained2.Name,
+			Version:   maintained2.Version,
+			Platform:  maintained2.Platform,
+			UpdatedAt: maintained2.UpdatedAt,
 		},
 		{
-			ID:       maintained3.ID,
-			Name:     maintained3.Name,
-			Version:  maintained3.Version,
-			Platform: maintained3.Platform,
+			ID:        maintained3.ID,
+			Name:      maintained3.Name,
+			Version:   maintained3.Version,
+			Platform:  maintained3.Platform,
+			UpdatedAt: maintained3.UpdatedAt,
 		},
 	}
 
@@ -174,6 +189,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, count, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
+	require.Equal(t, count, 3)
 	require.Equal(t, expectedApps[1:2], apps)
 	require.True(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
@@ -252,6 +268,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, count, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
+	require.Equal(t, count, 2)
 	require.Equal(t, expectedApps[1:], apps)
 
 	//

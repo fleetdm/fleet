@@ -103,7 +103,8 @@ SELECT
 	fla.id,
 	fla.name,
 	fla.version,
-	fla.platform
+	fla.platform,
+	fla.updated_at
 FROM
 	fleet_library_apps fla
 WHERE NOT EXISTS (
@@ -129,7 +130,8 @@ WHERE NOT EXISTS (
 	)
 )`
 
-	// build the count statement before adding the pagination constraints to `getTitlesStmt`
+	// build the count statement before adding the pagination constraints to the
+	// default stmt.
 	dbReader := ds.reader(ctx)
 	getAppsCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
 
@@ -151,7 +153,7 @@ WHERE NOT EXISTS (
 	// perform a second query to grab the counts
 	var counts int
 	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}

@@ -119,7 +119,7 @@ export interface ISoftwareFleetMaintainedAppsQueryParams {
 export interface ISoftwareFleetMaintainedAppsResponse {
   fleet_maintained_apps: IFleetMaintainedApp[];
   count: number;
-  counts_updated_at: string | null;
+  apps_updated_at: string | null;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
