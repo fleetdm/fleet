@@ -994,7 +994,7 @@ policies:
 software:
 controls:
   scripts:
-    - path: ./policies/top.policies2.yml
+    - path: ./policies/policies2.yml
 
 `
 	path, basePath := createTempFile(t, "", config)
