@@ -1078,6 +1078,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 type getOrbitSetupExperienceStatusRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
+	ForceRelease bool   `json:"force_release"`
 }
 
 // interface implementation required by the OrbitClient
@@ -1098,14 +1099,14 @@ func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
 
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)
-	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
 	if err != nil {
 		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
 	}
 	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

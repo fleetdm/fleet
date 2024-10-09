@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*fleet.SetupExperienceStatusPayload, error) {
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
@@ -84,9 +84,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	// TODO(mna): how to unblock the caller after 15m waiting for profiles?
-	// TODO(mna): once all software/script are in final state, release device if it's not manually released.
-
+	// get status of software installs and script execution
 	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
@@ -108,8 +106,14 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	if /* forceRelease || */ isDeviceReadyForRelease(payload) {
-		level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", host.UUID)
+	if forceRelease || isDeviceReadyForRelease(payload) {
+		// TODO(mna): check if manual release was configured, if so do nothing
+
+		if forceRelease {
+			level.Warn(svc.logger).Log("msg", "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
+		} else {
+			level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
+		}
 		if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
@@ -119,4 +123,50 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 }
 
 func isDeviceReadyForRelease(payload *fleet.SetupExperienceStatusPayload) bool {
+	// default to "do release" and return false as soon as we find a reason not
+	// to.
+
+	if payload.BootstrapPackage != nil {
+		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed &&
+			payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
+			// bootstrap package is still pending, not ready for release
+			return false
+		}
+	}
+
+	if payload.AccountConfiguration != nil {
+		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
+			payload.AccountConfiguration.Status != fleet.MDMAppleStatusError &&
+			payload.AccountConfiguration.Status != fleet.MDMAppleStatusCommandFormatError {
+			// account configuration command is still pending, not ready for release
+			return false
+		}
+	}
+
+	for _, prof := range payload.ConfigurationProfiles {
+		if prof.Status != fleet.MDMDeliveryFailed &&
+			prof.Status != fleet.MDMDeliveryVerifying &&
+			prof.Status != fleet.MDMDeliveryVerified {
+			// profile is still pending, not ready for release
+			return false
+		}
+	}
+
+	for _, sw := range payload.Software {
+		if sw.Status != fleet.SetupExperienceStatusFailure &&
+			sw.Status != fleet.SetupExperienceStatusSuccess {
+			// software is still pending, not ready for release
+			return false
+		}
+	}
+
+	if payload.Script != nil {
+		if payload.Script.Status != fleet.SetupExperienceStatusFailure &&
+			payload.Script.Status != fleet.SetupExperienceStatusSuccess {
+			// script is still pending, not ready for release
+			return false
+		}
+	}
+
+	return true
 }
