@@ -498,9 +498,8 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
-			files := resolveApplyRelativePaths(baseDir, scripts)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
+			for i, f := range scripts {
 				b, err := os.ReadFile(f)
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -575,9 +574,8 @@ func (c *Client) ApplyGroup(
 		tmScripts := extractTmSpecsScripts(specs.Teams)
 		tmScriptsPayloads := make(map[string][]fleet.ScriptPayload, len(tmScripts))
 		for k, paths := range tmScripts {
-			files := resolveApplyRelativePaths(baseDir, paths)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(paths))
+			for i, f := range paths {
 				b, err := os.ReadFile(f)
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)

@@ -1,0 +1,1 @@
+* GitOps script and software installer relative paths are now always relative to the file they're in. This change breaks existing YAML files that had to account for previous inconsistent behavior (e.g. script paths declared in no-team.yml being relative to default.yaml one directory up).

@@ -262,7 +262,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 
 					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[7].Name)
 					assert.NotNil(t, gitops.Policies[7].RunScript)
-					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[7].RunScript.Path)
+					// . or .. depending on whether with paths or without
+					assert.Contains(t, gitops.Policies[7].RunScript.Path, "./lib/collect-fleetd-logs.sh")
 				}
 			},
 		)
@@ -989,17 +990,17 @@ policies:
 	config = getTeamConfig([]string{"policies"})
 	config += `
 policies:
-  - path: ./script-policy.yml
+  - path: ./policies/script-policy.yml
 software:
 controls:
   scripts:
-    - path: ./top.policies2.yml
+    - path: ./policies/policies2.yml
 
 `
 	path, basePath := createTempFile(t, "", config)
 	err = file.Copy(
-		filepath.Join("testdata", "script-policy.yml"),
-		filepath.Join(basePath, "script-policy.yml"),
+		filepath.Join("testdata", "policies", "script-policy.yml"),
+		filepath.Join(basePath, "policies", "script-policy.yml"),
 		0o755,
 	)
 	require.NoError(t, err)
