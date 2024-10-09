@@ -5,6 +5,7 @@ import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 import EndUserAuthentication from "./cards/EndUserAuthentication/EndUserAuthentication";
 import BootstrapPackage from "./cards/BootstrapPackage";
 import SetupAssistant from "./cards/SetupAssistant";
+import InstallSoftware from "./cards/InstallSoftware";
 
 interface ISetupExperienceCardProps {
   currentTeamId?: number;
@@ -15,22 +16,28 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<
   ISetupExperienceCardProps | any
 >[] = [
   {
-    title: "End user authentication",
+    title: "1. End user authentication",
     urlSection: "end-user-auth",
     path: PATHS.CONTROLS_END_USER_AUTHENTICATION,
     Card: EndUserAuthentication,
   },
   {
-    title: "Bootstrap package",
+    title: "2. Setup assistant",
+    urlSection: "setup-assistant",
+    path: PATHS.CONTROLS_SETUP_ASSITANT,
+    Card: SetupAssistant,
+  },
+  {
+    title: "3. Bootstrap package",
     urlSection: "bootstrap-package",
     path: PATHS.CONTROLS_BOOTSTRAP_PACKAGE,
     Card: BootstrapPackage,
   },
   {
-    title: "Setup assistant",
-    urlSection: "setup-assistant",
-    path: PATHS.CONTROLS_SETUP_ASSITANT,
-    Card: SetupAssistant,
+    title: "4. Install software",
+    urlSection: "install-software",
+    path: PATHS.CONTROLS_INSTALL_SOFTWARE,
+    Card: InstallSoftware,
   },
 ];
 
