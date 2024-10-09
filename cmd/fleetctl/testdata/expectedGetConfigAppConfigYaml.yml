@@ -16,6 +16,7 @@ spec:
   integrations:
     google_calendar: null
     jira: null
+    ndes_scep_proxy: null
     zendesk: null
   mdm:
     apple_bm_terms_expired: false

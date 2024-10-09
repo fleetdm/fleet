@@ -706,7 +706,7 @@ func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
 	var assets []fleet.MDMConfigAsset
 	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
-	})
+	}, nil)
 	if err != nil {
 		var nfe fleet.NotFoundError
 		require.ErrorAs(t, err, &nfe)
@@ -715,7 +715,7 @@ func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
 
 	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
-	})
+	}, nil)
 	if err != nil {
 		var nfe fleet.NotFoundError
 		require.ErrorAs(t, err, &nfe)
@@ -723,7 +723,7 @@ func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
 	}
 
 	if len(assets) != 0 {
-		err = ds.InsertMDMConfigAssets(context.Background(), assets)
+		err = ds.InsertMDMConfigAssets(context.Background(), assets, ds.writer(context.Background()))
 		require.NoError(t, err)
 	}
 }
@@ -733,7 +733,7 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	certPEM := assets[fleet.MDMAssetABMCert].Value
@@ -791,7 +791,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 		{Name: fleet.MDMAssetCAKey, Value: keyPEM},
 	}
 
-	err = ds.InsertMDMConfigAssets(context.Background(), assets)
+	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
 	require.NoError(t, err)
 
 	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
