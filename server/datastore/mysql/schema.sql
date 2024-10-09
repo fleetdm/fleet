@@ -1640,9 +1640,9 @@ CREATE TABLE `setup_experience_scripts` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `script_content_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_setup_experience_scripts_global_or_team_id_name` (`global_or_team_id`,`name`),
-  UNIQUE KEY `idx_setup_experience_scripts_team_name` (`team_id`,`name`),
+  UNIQUE KEY `idx_setup_experience_scripts_global_or_team_id` (`global_or_team_id`),
   KEY `idx_script_content_id` (`script_content_id`),
+  KEY `fk_setup_experience_scripts_ibfk_1` (`team_id`),
   CONSTRAINT `fk_setup_experience_scripts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_setup_experience_scripts_ibfk_2` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
