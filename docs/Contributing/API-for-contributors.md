@@ -1835,7 +1835,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": { 
+      "software": {
         "packages": [
           {
             "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
@@ -1849,7 +1849,7 @@ If the `name` is not already associated with an existing team, this API route cr
             "app_store_id": "12464567",
           }
         ]
-      }  
+      }
     }
   ]
 }
@@ -3220,10 +3220,14 @@ Notifies the server about an agent error, resulting in two outcomes:
       "name": "mac-bootstrap-package.pkg",
       "status": "acknowledged"
   },
+  "account_configuration": {
+      "command_uuid": "ee42f575-c0e9-4901-91ee-041f5daedced",
+      "status": "acknowledged"
+  },
   "script": {
-    "execution_id": "02e4abba-7d96-4f5b-8c18-ffc5de71bd45",
-    "name": "setup-macos.sh",
-    "status": "pending"
+      "execution_id": "02e4abba-7d96-4f5b-8c18-ffc5de71bd45",
+      "name": "setup-macos.sh",
+      "status": "pending"
   },
   "software": [
     {
