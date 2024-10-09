@@ -21,9 +21,9 @@ const AddInstallSoftware = ({
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
   const hasNoSoftware = softwareTitles.length === 0;
-  const hasSelectedSoftware = softwareTitles.some(
+  const installDuringSetupCount = softwareTitles.filter(
     (software) => software.install_during_setup
-  );
+  ).length;
 
   let addedText = <></>;
   let buttonText = "";
@@ -43,18 +43,12 @@ const AddInstallSoftware = ({
       </>
     );
     buttonText = "Add software";
-  } else if (!hasSelectedSoftware) {
+  } else if (installDuringSetupCount === 0) {
     addedText = <>No software added.</>;
     buttonText = "Add software";
   } else {
     addedText = (
-      <>
-        {
-          softwareTitles.filter((software) => software.install_during_setup)
-            .length
-        }{" "}
-        software will be installed during setup.
-      </>
+      <>{installDuringSetupCount} software will be installed during setup.</>
     );
     buttonText = "Show selected software";
   }

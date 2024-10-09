@@ -28,6 +28,7 @@ const generateTableConfig = (
   const headerConfigs: ISelectSoftwareTableConfig[] = [
     {
       id: "selection",
+      disableSortBy: true,
       Header: (cellProps: ITableHeaderProps) => {
         const {
           checked,

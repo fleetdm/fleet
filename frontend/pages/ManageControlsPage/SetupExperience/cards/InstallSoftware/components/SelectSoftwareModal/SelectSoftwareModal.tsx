@@ -10,6 +10,15 @@ import SelectSoftwareTable from "../SelectSoftwareTable";
 
 const baseClass = "select-software-modal";
 
+const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
+  return softwareTitles.reduce<number[]>((acc, software) => {
+    if (software.install_during_setup) {
+      acc.push(software.id);
+    }
+    return acc;
+  }, []);
+};
+
 interface ISelectSoftwareModalProps {
   softwareTitles: ISoftwareTitle[];
   onExit: () => void;
@@ -24,15 +33,8 @@ const SelectSoftwareModal = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(
-    () => {
-      return softwareTitles.reduce<number[]>((acc, software) => {
-        if (software.install_during_setup) {
-          acc.push(software.id);
-        }
-        return acc;
-      }, []);
-    }
+  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(() =>
+    initializeSelectedSoftwareIds(softwareTitles)
   );
 
   const onSaveSelectedSoftware = () => {
