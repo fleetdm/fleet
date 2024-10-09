@@ -1098,6 +1098,8 @@ type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
+type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
@@ -2721,6 +2723,9 @@ type DataStore struct {
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
+
+	EnqueueSetupExperienceItemsFunc        EnqueueSetupExperienceItemsFunc
+	EnqueueSetupExperienceItemsFuncInvoked bool
 
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
@@ -6505,6 +6510,13 @@ func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, ho
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.EnqueueSetupExperienceItemsFuncInvoked = true
+	s.mu.Unlock()
+	return s.EnqueueSetupExperienceItemsFunc(ctx, hostUUID, teamID)
 }
 
 func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
