@@ -1404,7 +1404,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
@@ -1512,7 +1512,7 @@ func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAp
 func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetAPNSCert,
-	})
+	}, nil)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
 	}
@@ -3226,7 +3226,7 @@ func ReconcileAppleProfiles(
 
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting Apple SCEP")
 	}
@@ -3608,7 +3608,7 @@ func preprocessProfileContents(
 				case FleetVarNDESSCEPChallenge:
 					if ndesConfig == nil {
 						// Retrieve the NDES admin password. This is done once per run.
-						configAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword})
+						configAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword}, nil)
 						if err != nil {
 							return ctxerr.Wrap(ctx, err, "getting NDES password")
 						}
@@ -3820,7 +3820,7 @@ func RenewSCEPCertificates(
 
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
-	})
+	}, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading SCEP challenge from the database")
 	}
@@ -4189,7 +4189,7 @@ func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPK
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-	})
+	}, nil)
 	if err != nil {
 		// allow not found errors as it means that we're generating the
 		// keypair for the first time
@@ -4209,7 +4209,7 @@ func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPK
 		err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 			{Name: fleet.MDMAssetABMCert, Value: publicKeyPEM},
 			{Name: fleet.MDMAssetABMKey, Value: privateKeyPEM},
-		})
+		}, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "saving ABM keypair in database")
 		}
@@ -4606,7 +4606,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}

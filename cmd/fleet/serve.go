@@ -501,7 +501,7 @@ the way that the Fleet server works.
 			}
 
 			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
-				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names, nil)
 				if err != nil {
 					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
 						return false, nil
@@ -576,7 +576,7 @@ the way that the Fleet server works.
 						}
 					}
 
-					if err := ds.InsertMDMConfigAssets(context.Background(), args); err != nil {
+					if err := ds.InsertMDMConfigAssets(context.Background(), args, nil); err != nil {
 						if mysql.IsDuplicate(err) {
 							// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
 							level.Debug(logger).Log("msg", "unexpected duplicate key error inserting MDM APNs and SCEP assets")
@@ -611,7 +611,7 @@ the way that the Fleet server works.
 				}
 
 				if len(toInsert) > 0 {
-					err := ds.InsertMDMConfigAssets(context.Background(), toInsert)
+					err := ds.InsertMDMConfigAssets(context.Background(), toInsert, nil)
 					switch {
 					case err != nil && mysql.IsDuplicate(err):
 						// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
@@ -1082,7 +1082,7 @@ the way that the Fleet server works.
 
 					err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 						{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(scepChallenge)},
-					})
+					}, nil)
 					if err != nil {
 						// duplicate key errors mean that we already
 						// have a value for those keys in the

@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
@@ -1340,12 +1341,15 @@ type Datastore interface {
 	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*AppleOSUpdateSettings, error)
 
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
-	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
+	// tx is optional and can be used to pass an existing transaction.
+	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
 	// GetAllMDMConfigAssetsByName returns the requested config assets.
 	//
-	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
-	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult` error.
+	// The queryerContext is optional and can be used to pass a transaction.
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
 
 	// GetAllMDMConfigAssetsHashes behaves like
 	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
@@ -1363,7 +1367,8 @@ type Datastore interface {
 	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
 	// single transaction. Useful for "renew" flows where users are updating the assets with newly
 	// generated ones.
-	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
+	// tx parameter is optional and can be used to pass an existing transaction.
+	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
 	// GetABMTokenByOrgName retrieves the Apple Business Manager token identified by
 	// its unique name (the organization name).
@@ -1747,7 +1752,8 @@ type MDMAppleStore interface {
 }
 
 type MDMAssetRetriever interface {
-	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
 	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
 }
 

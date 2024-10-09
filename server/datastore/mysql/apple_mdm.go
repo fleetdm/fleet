@@ -4754,17 +4754,21 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 	return decrypted, nil
 }
 
-func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
+	insertFunc := func(tx sqlx.ExtContext) error {
 		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert mdm config assets")
 		}
-
 		return nil
-	})
+	}
+	if tx != nil {
+		return insertFunc(tx)
+	}
+	return ds.withRetryTxx(ctx, insertFunc)
 }
 
-func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
+	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	if len(assetNames) == 0 {
 		return nil, nil
 	}
@@ -4785,7 +4789,10 @@ WHERE
 	}
 
 	var res []fleet.MDMConfigAsset
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+	if queryerContext == nil {
+		queryerContext = ds.reader(ctx)
+	}
+	if err := sqlx.SelectContext(ctx, queryerContext, &res, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
@@ -4915,8 +4922,8 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
+	replaceFunc := func(tx sqlx.ExtContext) error {
 		var names []fleet.MDMAssetName
 		for _, a := range assets {
 			names = append(names, a.Name)
@@ -4929,9 +4936,12 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert mdm config assets insert")
 		}
-
 		return nil
-	})
+	}
+	if tx != nil {
+		return replaceFunc(tx)
+	}
+	return ds.withRetryTxx(ctx, replaceFunc)
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched

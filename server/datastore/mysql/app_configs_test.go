@@ -576,7 +576,7 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 	checkProxyConfig()
 
 	checkPassword := func() {
-		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword})
+		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword}, nil)
 		require.NoError(t, err)
 		require.Len(t, assets, 1)
 		assert.Equal(t, password, string(assets[fleet.MDMAssetNDESPassword].Value))

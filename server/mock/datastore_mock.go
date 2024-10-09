@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/jmoiron/sqlx"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -876,9 +877,9 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 
 type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
 
-type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
+type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
-type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
+type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
 type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
 
@@ -886,7 +887,7 @@ type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []flee
 
 type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMAssetName) error
 
-type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
+type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
@@ -5710,18 +5711,18 @@ func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context
 	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
 }
 
-func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
 	s.mu.Lock()
 	s.InsertMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertMDMConfigAssetsFunc(ctx, assets)
+	return s.InsertMDMConfigAssetsFunc(ctx, assets, tx)
 }
 
-func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	s.mu.Lock()
 	s.GetAllMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames)
+	return s.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames, queryerContext)
 }
 
 func (s *DataStore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
@@ -5745,11 +5746,11 @@ func (s *DataStore) HardDeleteMDMConfigAsset(ctx context.Context, assetName flee
 	return s.HardDeleteMDMConfigAssetFunc(ctx, assetName)
 }
 
-func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
 	s.mu.Lock()
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReplaceMDMConfigAssetsFunc(ctx, assets)
+	return s.ReplaceMDMConfigAssetsFunc(ctx, assets, tx)
 }
 
 func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
