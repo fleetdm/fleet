@@ -1,0 +1,1 @@
+* Fix path resolution for software installers and scripts to be relative to the file the paths are in
