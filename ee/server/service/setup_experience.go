@@ -33,7 +33,7 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	return script, content, nil
 }
 
-func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
+func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
 	// TODO: confirm auth entity
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -78,7 +78,7 @@ func (svc Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, n
 	return nil
 }
 
-func (svc Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
 	// TODO: confirm auth entity
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
