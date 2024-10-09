@@ -297,7 +297,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.scepChallenge = "scepcha/><llenge"
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
-	})
+	}, nil)
 	require.NoError(s.T(), err)
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.server = server
@@ -1034,7 +1034,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 func setupExpectedCAProfile(t *testing.T, ds *mysql.Datastore) []byte {
 	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
@@ -1350,7 +1350,8 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	// Delete APNS cert, should soft delete all certs and keys created in this test
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
 
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert}, nil)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, assets)
@@ -1912,7 +1913,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	// add an encryption key for the host
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
@@ -5556,7 +5557,7 @@ func (s *integrationMDMTestSuite) downloadAndVerifyOTAEnrollmentProfile(path str
 
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -5583,7 +5584,7 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 
 		assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 			fleet.MDMAssetCACert,
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -9631,7 +9632,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) {
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 2)
 	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
@@ -9672,7 +9673,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that we created the right assets
-	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey}, nil)
 	require.NoError(t, err)
 	require.Len(t, originalAssets, 3)
 
@@ -9685,7 +9687,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that the assets stayed the same in the subsequent call
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey}, nil)
 	require.NoError(t, err)
 	require.Equal(t, originalAssets, assets)
 
@@ -9718,7 +9721,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", certPEM, http.StatusAccepted, "", nil)
 
-	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert}, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 4)
 }

@@ -2309,7 +2309,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
 		return false, nil
 	}
-	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		certPEM, err := os.ReadFile("./testdata/server.pem")
 		require.NoError(t, err)
 		keyPEM, err := os.ReadFile("./testdata/server.key")
@@ -2816,7 +2817,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	ndesPassword := "test-password"
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context,
-		assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetNDESPassword: {Value: []byte(ndesPassword)},
 		}, nil
@@ -3505,7 +3506,8 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 
 	_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
 	require.NoError(t, err)
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert:   {Value: pemCert},
 			fleet.MDMAssetCAKey:    {Value: pemKey},
@@ -3513,7 +3515,8 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 			fleet.MDMAssetAPNSCert: {Value: apnsCert},
 		}, nil
 	}
-	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert:   {Value: pemCert},
 			fleet.MDMAssetCAKey:    {Value: pemKey},

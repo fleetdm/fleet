@@ -831,7 +831,8 @@ func TestGetAllMDMConfigAssetsByName(t *testing.T) {
 	mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked = false
 
 	// passes errors fetching assets from downstream
-	mockedDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	mockedDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return nil, errors.New("error fetching assets")
 	}
 
