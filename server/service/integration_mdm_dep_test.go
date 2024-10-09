@@ -269,10 +269,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, device.SerialNumber)
+	enrolledHost := listHostsRes.Hosts[0].Host
 
 	t.Cleanup(func() {
 		// delete the enrolled host
-		err := s.ds.DeleteHost(ctx, listHostsRes.Hosts[0].ID)
+		err := s.ds.DeleteHost(ctx, enrolledHost.ID)
 		require.NoError(t, err)
 	})
 
@@ -350,6 +351,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	require.True(t, profileFleetCASeen)
 	require.True(t, profileFileVaultSeen)
 
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
+	enrolledHost.OrbitNodeKey = &orbitKey
+
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
 		// because it needs to be released manually
@@ -357,12 +363,14 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	} else {
-		// there should be a Release Device pending job in the near future, expect
-		// it and schedule it to run now.
-		s.expectAndScheduleReleaseDeviceJob(t)
+		// there shouldn't be a Release Device pending job anymore
+		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, pending, 0)
 
-		// run the worker to process the DEP release
-		s.runWorker()
+		// call the /status endpoint to automatically release the host
+		var statusResp getOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 
 		// make the device process the commands, it should receive the
 		// DeviceConfigured one.
@@ -390,24 +398,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.Equal(t, 1, deviceConfiguredCount)
 		require.Equal(t, 0, otherCount)
 	}
-}
-
-func (s *integrationMDMTestSuite) expectAndScheduleReleaseDeviceJob(t *testing.T) {
-	ctx := context.Background()
-
-	// get the worker's pending job from the future, there should be a DEP
-	// release device task
-	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
-	require.NoError(t, err)
-	require.Len(t, pending, 1)
-	releaseJob := pending[0]
-	require.Equal(t, 0, releaseJob.Retries)
-	require.Contains(t, string(*releaseJob.Args), worker.DeprecatedAppleMDMPostDEPReleaseDeviceTask)
-
-	// update the job so that it can run immediately
-	releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
-	_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
-	require.NoError(t, err)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
