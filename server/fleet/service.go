@@ -1126,7 +1126,7 @@ type Service interface {
 	SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
-	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*SetupExperienceStatusPayload, error)
+	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
 	// SetSetupExperienceScript sets the setup experience script for the given team.
