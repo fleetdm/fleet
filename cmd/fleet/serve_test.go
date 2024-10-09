@@ -694,6 +694,15 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		}
 		return &ac, nil
 	}
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
 	failingPolicies := make(chan struct{})
@@ -757,6 +766,14 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		value: 5 * time.Hour,
 	}
 	configLoaded := make(chan struct{}, 1)
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		select {
