@@ -214,3 +214,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 
 	return fleet.ErrMissingLicense
 }
+
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) error {
+	return nil
+}
