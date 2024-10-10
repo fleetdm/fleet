@@ -661,9 +661,9 @@ target_milestone="${next_ver:1}"
 # 79
 target_milestone_number=$(gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number")
 # patch-fleet-v4.48.0
-target_branch="patch-fleet-$next_ver"
+target_branch="rc-patch-fleet-$next_ver"
 if [[ "$minor" == "true" ]]; then
-    target_branch="minor-fleet-$next_ver"
+    target_branch="rc-minor-fleet-$next_ver"
 fi
 
 # fleet-v4.48.0
