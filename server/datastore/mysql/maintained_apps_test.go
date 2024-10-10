@@ -109,6 +109,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
 	})
+
 	require.NoError(t, err)
 	maintained2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained2",
@@ -156,22 +157,38 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		},
 	}
 
+	// We use this assertion for UpdatedAt because we only concerned with
+	// its presence, not its value. We will set it to nil after asserting
+	// to make the expected vs actual comparison easier.
+	assertUpdatedAt := func(apps []fleet.MaintainedApp) {
+		for i, app := range apps {
+			require.NotNil(t, app.UpdatedAt)
+			apps[i].UpdatedAt = nil
+		}
+	}
+
 	// Testing pagination
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 	require.False(t, meta.HasNextResults)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[:1], apps)
 	require.True(t, meta.HasNextResults)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:2], apps)
 	require.True(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
@@ -179,6 +196,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{PerPage: 1, Page: 2, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[2:3], apps)
 	require.False(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
@@ -201,6 +220,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on a different team
@@ -218,6 +239,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on the right team with the wrong platform
@@ -235,6 +258,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
+	require.Equal(t, int(meta.TotalResults), 3)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct team and platform
@@ -246,6 +271,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
+	require.Equal(t, int(meta.TotalResults), 2)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:], apps)
 
 	//
@@ -270,6 +297,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
+	require.Equal(t, int(meta.TotalResults), 2)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:], apps)
 
 	// right vpp app, wrong team
@@ -289,6 +318,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
+	require.Equal(t, int(meta.TotalResults), 2)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:], apps)
 
 	// right vpp app, right team
@@ -298,6 +329,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
+	require.Equal(t, int(meta.TotalResults), 1)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[2:], apps)
 
 	// right app, right team, wrong platform
@@ -318,6 +351,8 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
+	require.Equal(t, int(meta.TotalResults), 1)
+	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[2:], apps)
 }
 

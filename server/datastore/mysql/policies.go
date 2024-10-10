@@ -26,8 +26,10 @@ const policyCols = `
 	p.calendar_events_enabled, p.software_installer_id, p.script_id
 `
 
-var errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
-var errScriptIDOnGlobalPolicy = errors.New("run script id can only be set on team or \"no team\" policies")
+var (
+	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
+	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on team or \"no team\" policies")
+)
 
 var policySearchColumns = []string{"p.name"}
 
@@ -123,7 +125,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	var policy fleet.PolicyLite
 	err := sqlx.GetContext(
 		ctx, ds.reader(ctx), &policy,
-		`SELECT id, description, resolution FROM policies WHERE id=?`, id,
+		`SELECT id, name, description, resolution FROM policies WHERE id=?`, id,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -177,8 +179,10 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
-var errMismatchedScriptTeam = &fleet.BadRequestError{Message: "script is associated with a different team"}
+var (
+	errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
+	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
+)
 
 func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
 	if softwareInstallerID != nil {
@@ -382,10 +386,12 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	if err != nil {
 		return err
 	}
-	if len(results) > 0 {
-		if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
-			return err
-		}
+
+	// ds.UpdateHostIssuesFailingPolicies should be executed even if len(results) == 0
+	// because this means the host is configured to run no policies and we would like
+	// to cleanup the counts (if any).
+	if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
+		return err
 	}
 
 	if deferredSaveHost {

@@ -169,6 +169,7 @@ func TestHosts(t *testing.T) {
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
 		{"UpdateHostIssues", testUpdateHostIssues},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
+		{"GetHostEmails", testGetHostEmails},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6754,7 +6755,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		UserID:          user1.ID,
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -9653,4 +9654,43 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	// round to match MySQL setting to round to nearest second (as of 6/27/2024)
 	require.Equal(t, startTime.Round(time.Second), mW.StartsAt)
 	require.Equal(t, timeZone, *mW.TimeZone)
+}
+
+func testGetHostEmails(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            uuid.NewString(),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	emails, err := ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	assert.Empty(t, emails)
+
+	err = ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "foo@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+		{
+			HostID: host.ID,
+			Email:  "bar@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	emails, err = ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"foo@example.com", "bar@example.com"}, emails)
+
 }

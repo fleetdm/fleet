@@ -326,6 +326,7 @@ type TestServerOpts struct {
 	SoftwareInstallStore  fleet.SoftwareInstallerStore
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	KeyValueStore         fleet.KeyValueStore
+	EnableSCEPProxy       bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -376,6 +377,14 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					ds:     ds,
 					logger: logger,
 				},
+			)
+			require.NoError(t, err)
+		}
+		if opts[0].EnableSCEPProxy {
+			err := RegisterSCEPProxy(
+				rootMux,
+				ds,
+				logger,
 			)
 			require.NoError(t, err)
 		}

@@ -831,7 +831,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		}
 	}
 
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false, nil)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
@@ -1286,7 +1286,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
-	g.SetLimit(3)
+	g.SetLimit(3) // TODO: consider lowering this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 	// critical to avoid data race, the slice is pre-allocated and each
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
@@ -1473,7 +1473,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true)
+		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true, nil)
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 

@@ -166,3 +166,57 @@ func TestIngestValidations(t *testing.T) {
 		})
 	}
 }
+
+func TestExtensionForBundleIdentifier(t *testing.T) {
+	testCases := []struct {
+		name       string
+		identifier string
+		expected   string
+		expectErr  bool
+	}{
+		{
+			name:       "Valid identifier with zip format",
+			identifier: "com.1password.1password",
+			expected:   "zip",
+			expectErr:  false,
+		},
+		{
+			name:       "Valid identifier with dmg format",
+			identifier: "com.adobe.Reader",
+			expected:   "dmg",
+			expectErr:  false,
+		},
+		{
+			name:       "Valid identifier with pkg format",
+			identifier: "com.box.desktop",
+			expected:   "pkg",
+			expectErr:  false,
+		},
+		{
+			name:       "Non-existent identifier",
+			identifier: "com.nonexistent.app",
+			expected:   "",
+			expectErr:  false,
+		},
+		{
+			name:       "Empty identifier",
+			identifier: "",
+			expected:   "",
+			expectErr:  false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			extension, err := ExtensionForBundleIdentifier(tc.identifier)
+
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expected, extension)
+		})
+	}
+}
