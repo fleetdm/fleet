@@ -109,6 +109,11 @@ func gitopsCommand() *cli.Command {
 			if totalFilenames > 1 {
 				firstFileMustBeGlobal = ptr.Bool(true)
 			}
+
+			// we keep track of team software installers and scripts for correct policy application
+			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsScripts := make(map[string][]fleet.ScriptResponse)
+
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
 			for _, flFilename := range flFilenames.Value() {
@@ -207,7 +212,7 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig)
+				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsScripts)
 				if err != nil {
 					return err
 				}

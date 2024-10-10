@@ -1016,7 +1016,7 @@ controls:
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err,
-		"policy script not found on team",
+		"was not defined in controls for TeamName",
 	)
 }
 
