@@ -111,9 +111,54 @@ For Fleet's US contractors, running payroll is a manual process:
 3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
 4. Sync hours and run contractor payroll.
 
+
+### Update Finance department KPIs
+
+Use the following steps to update the [💸Finance department KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BS:BS) by 5pm US central time every Friday.
+
+**Runway**: 
+- Add sum of Brex cash account + SVB accounts. All Finance teammates should have personalized logins for each bank to view amounts.
+- Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
+
+**Days to invoice customer**: 
+- Check the [invoice sent and payment received report]((https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders)) in Salesforce.
+- Sort by close date, then check invoice dates for any recently closed deals and enter them in the finance spreadsheet and create new rows at the top of the 'time-to-invoice' tab in the spreadsheet for each new entry.  If a company has not been invoiced yet (invoice date is blank) do not enter yet, but verify if an invoice is scheduled to be sent using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report. If it doesn't appear here, create an issue on the finance board to investigate. 
+- Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
+
+**Overdue delinquent invoices**: 
+- Using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report, check the invoice date of any entries without a payment received date against the payment terms.
+  - If the elapsed time exceeds the payment terms the invoice is overdue. If so, click on the link in the "Billing cycle name," and in the billing cycle object, update the billing status to "Overdue."
+  - Enter the number of invoices overdue in the KPI spreadsheet, and leave a comment on that cell with the names of the companies of overdue customers, if any.  
+  - If any new customers are overdue, notify the CRO by posting a Slack message in the #g-sales channel and @ mention him.
+
+**Commission payroll**: 
+- Make sure commission payroll was run on time by logging into [Gusto](https://www.gusto.com) and [Plane](https://plane.com/) to check for off-cycle payrolls in line with expected commission calculated in the [Commission calculator spreadsheet](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing).
+- Log the date the commission was paid out in the "Commission payroll" column of the KPI spreadsheet.
+
+**Monthly accounting**: 
+- This will be the date that the monthly accounting issue for the prior month closes. If it has not yet closed, enter N/A.
+
+**Days to pay**:
+- Login to [Bill](https://www.bill.com).
+  - Under the "bills" tab on the menu bar on the left side, select "all bills".
+  - Sort by "created date."
+  - Compare the week's entries to the ["Time to pay"](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1704186727) tab in the finance metrics spreadsheet.  Insert new rows at the top for any bills that are not accounted for and enter the vendor name and the # of days between the invoice date and the created date in bill.com.  
+  - Adjust the formula in column E as necessary to calculate the last 30 day average time to pay and enter the result in the KPI spreadsheet. 
+  - If we have any invoices that have not yet been paid that are overdue, make an entry in the overdue vendor payments section and leave a comment in the cell identifying the vendor's name. 
+
+**Non-personnel monthly burn**: 
+- Copy the amount from the [numbers spreadsheet](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=1308221870&range=B3) and input in the cell for this week.
+
+**SaaS metrics**: 
+- For "CAC", "CAC payback", "LTV" and "LTV:CAC" columns, drag the existing formula to this week's row.
+> Note: the formula relies on inputs in other fields, so if those fields haven't received input yet, it will look odd. If formulas are still broken after inputs in the other columns are added, [create an issue on the Finance board](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) noting which columns are affected. Once created, @ mention Head of Finance in the issue to bring awareness.
+  
+- For "Average customer age", pull the age in days from the [Salesforce "Account age" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000012jwX2AQ/view), then convert to months by dividing the age in days by 30.417. Put the calculated number into the cell. This metric changes gradually up each week when no new deals close and no customer churns. Because we calculate the age of the customer based on the average lifetime deal length, expected behavior is that it will decrease when a new deal closes, but not drastically (as even a 1-year deal will still add 12 months to the average age).
+
+
 ### Create an invoice
 To create a new invoice for a Fleet customer, follow these steps:
-1. Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
+1. Go to the [invoice folder in Google Drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
 2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
     - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
 3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
@@ -281,10 +326,6 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
 ### Process a request to cancel a vendor
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
-
-
-### Update weekly KPIs
-- Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for finance](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 
 
 ## Rituals
