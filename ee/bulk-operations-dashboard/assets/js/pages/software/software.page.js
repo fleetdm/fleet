@@ -25,6 +25,7 @@ parasails.registerPage('software', {
     newSoftware: undefined,
     showAdvancedOptions: false,
     newSoftwareFilename: undefined,
+
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
