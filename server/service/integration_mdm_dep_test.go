@@ -792,7 +792,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.NoError(t, err)
 
 	// send a TokenUpdate command, it shouldn't re-send the post-enrollment commands
-	err = mdmDevice.TokenUpdate()
+	err = mdmDevice.TokenUpdate(false)
 	require.NoError(t, err)
 	checkPostEnrollmentCommands(mdmDevice, false)
 
