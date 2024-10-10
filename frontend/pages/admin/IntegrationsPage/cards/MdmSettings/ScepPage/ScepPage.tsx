@@ -50,7 +50,7 @@ interface IScepCertificateContentProps {
   showDataError: boolean;
 }
 
-const ScepCertificateContent = ({
+export const ScepCertificateContent = ({
   router,
   onFormSubmit,
   formData,
@@ -225,7 +225,7 @@ interface INdesFormData {
   scepUrl: string;
   adminUrl: string;
   username: string;
-  password: null;
+  password: string | null;
 }
 
 interface INdesFormErrors {
@@ -300,15 +300,12 @@ const ScepPage = ({ router }: IScepPageProps) => {
       formData.username !== "" &&
       formData.password !== "";
 
-    const isPasswordNull = formData.password === null;
-
     if (!allFieldsEmpty && !allFieldsPresent) {
       setIsSavingDisabled(true);
     } else setIsSavingDisabled(false);
   }, [formData]);
 
   const onInputChange = ({ name, value }: IFormField) => {
-    console.log("setFormData");
     setFormData({ ...formData, [name]: value });
   };
 
