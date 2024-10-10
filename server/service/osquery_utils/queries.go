@@ -166,6 +166,9 @@ var hostDetailQueries = map[string]DetailQuery{
 				// Populate `host.OSVersion` for non-Windows hosts.
 				// Note Windows-specific registry query is required to populate `host.OSVersion` for
 				// Windows that is handled in `os_version_windows` detail query below.
+				if rows[0]["name"] == "macOS" && rows[0]["extra"] == "" {
+					rows[0]["extra"] = "(a)"
+				}
 				host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
 					rows[0]["name"],
 					rows[0]["version"],
@@ -1248,6 +1251,9 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 	platform := rows[0]["platform"]
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
+	if name == "macOS" && extra == "" {
+		extra = "(a)"
+	}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
