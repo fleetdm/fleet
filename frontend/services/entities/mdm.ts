@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import {
-  createMockMdmProfile,
-  createMockSetupExperienceScript,
-} from "__mocks__/mdmMock";
+import { createMockSetupExperienceScript } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
@@ -352,9 +349,10 @@ const mdmService = {
   ): Promise<IGetSetupExperienceScriptResponse> => {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
-      team_id: teamId,
-    })}`;
+    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    if (teamId) {
+      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
 
     return new Promise((resolve, reject) => {
       resolve(createMockSetupExperienceScript());
@@ -366,10 +364,10 @@ const mdmService = {
   downloadSetupExperienceScript: (teamId: number) => {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
-      team_id: teamId,
-      alt: "media",
-    })}`;
+    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    if (teamId) {
+      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
 
     return sendRequest("GET", path);
   },
@@ -379,7 +377,10 @@ const mdmService = {
 
     const formData = new FormData();
     formData.append("script", file);
-    formData.append("team_id", teamId.toString());
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
 
     return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
   },
