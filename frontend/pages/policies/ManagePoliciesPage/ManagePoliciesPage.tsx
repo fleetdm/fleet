@@ -115,7 +115,6 @@ const ManagePolicyPage = ({
     currentTeamId,
     currentTeamName,
     currentTeamSummary,
-    isAnyTeamSelected,
     isAllTeamsSelected,
     isTeamAdmin,
     isTeamMaintainer,

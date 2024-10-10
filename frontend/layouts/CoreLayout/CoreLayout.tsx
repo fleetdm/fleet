@@ -1,6 +1,5 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import { Params } from "react-router/lib/Router";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
@@ -24,15 +23,9 @@ interface ICoreLayoutProps {
     hash?: string;
     query: QueryParams;
   };
-  params: Params;
 }
 
-const CoreLayout = ({
-  children,
-  router,
-  location,
-  params: routeParams,
-}: ICoreLayoutProps) => {
+const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   const { config, currentUser } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -51,12 +44,16 @@ const CoreLayout = ({
     }
   }, [notification]);
 
+  useEffect(() => {
+    hideFlash();
+  }, [hideFlash, location.pathname]);
+
   const onLogoutUser = async () => {
     const { LOGOUT } = paths;
     router.push(LOGOUT);
   };
 
-  const onNavItemClick = (path: string) => {
+  const onUserMenuItemClick = (path: string) => {
     return (evt: React.MouseEvent<HTMLButtonElement>) => {
       evt.preventDefault();
 
@@ -97,7 +94,7 @@ const CoreLayout = ({
           currentUser={currentUser}
           location={location}
           onLogoutUser={onLogoutUser}
-          onNavItemClick={onNavItemClick}
+          onUserMenuItemClick={onUserMenuItemClick}
         />
       </nav>
       <div className="core-wrapper">
