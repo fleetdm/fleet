@@ -8238,7 +8238,10 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	// In testing, this can cause the test to hang until the next scheduled run. It isn't a very
 	// noticeable issue here since the intervals for these schedules are short.
 	ch := make(chan bool)
-	s.onIntegrationsScheduleDone = func() { close(ch) }
+	var once sync.Once
+	s.onIntegrationsScheduleDone = func() {
+		once.Do(func() { close(ch) })
+	}
 	_, err := s.integrationsSchedule.Trigger()
 	require.NoError(s.T(), err)
 	<-ch

@@ -241,6 +241,14 @@ func TestAutomationsSchedule(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
@@ -620,6 +628,18 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	ds.SyncHostsSoftwareTitlesFunc = func(ctx context.Context, updatedAt time.Time) error {
+		return nil
+	}
+
+	ds.UpdateHostIssuesVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
 	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
@@ -675,6 +695,15 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		}
 		return &ac, nil
 	}
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
 	failingPolicies := make(chan struct{})
@@ -738,6 +767,14 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		value: 5 * time.Hour,
 	}
 	configLoaded := make(chan struct{}, 1)
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		select {

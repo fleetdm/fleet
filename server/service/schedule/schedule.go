@@ -7,6 +7,7 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -469,8 +470,10 @@ func (s *Schedule) runAllJobs() {
 // runJob executes the job function with panic recovery.
 func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+		if os.Getenv("TEST_CRON_NO_RECOVER") != "1" { // for detecting panics in tests
+			if r := recover(); r != nil {
+				err = fmt.Errorf("%v", r)
+			}
 		}
 	}()
 
