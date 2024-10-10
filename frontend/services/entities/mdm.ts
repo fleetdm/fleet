@@ -8,6 +8,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import { update } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -342,6 +343,24 @@ const mdmService = {
     const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
     const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
     return sendRequest("GET", url);
+  },
+
+  updateSetupExperienceSoftware: (
+    teamId: number,
+    softwareTitlesIds: number[]
+  ) => {
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        team_id: teamId,
+      }
+    )}`;
+
+    return sendRequest("PUT", path, {
+      team_id: teamId,
+      software_title_ids: softwareTitlesIds,
+    });
   },
 
   getSetupExperienceScript: (

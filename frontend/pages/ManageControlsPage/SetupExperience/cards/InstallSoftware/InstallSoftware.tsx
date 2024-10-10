@@ -49,8 +49,9 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     }
   );
 
-  const onSave = () => {
-    console.log("save");
+  const onSave = async () => {
+    setShowSelectSoftwareModal(false);
+    refetchSoftwareTitles();
   };
 
   const renderContent = () => {
@@ -84,6 +85,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       <>{renderContent()}</>
       {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
+          currentTeamId={currentTeamId}
           softwareTitles={softwareTitles}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}
