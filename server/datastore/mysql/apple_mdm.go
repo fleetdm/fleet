@@ -455,20 +455,21 @@ WHERE
 	return profiles, nil
 }
 
-func (ds *Datastore) GetHostMDMAppleProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error) {
+func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
+	profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
 	stmt := `
 	SELECT
-		profile_uuid,
-		profile_name AS name,
-		profile_identifier AS identifier,
-		status,
-		COALESCE(operation_type, '') AS operation_type,
-		COALESCE(detail, '') AS detail
+		hmap.host_uuid,
+		hmap.profile_uuid,
+		hmap.status,
+		hmmc.challenge_retrieved_at
 	FROM
-		host_mdm_apple_profiles
+		host_mdm_apple_profiles hmap
+	LEFT JOIN host_mdm_managed_certificates hmmc
+		ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid
 	WHERE
-		host_uuid = ? AND profile_uuid = ?`
-	var profile fleet.HostMDMAppleProfile
+		hmap.host_uuid = ? AND hmap.profile_uuid = ?`
+	var profile fleet.HostMDMCertificateProfile
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -5467,4 +5468,45 @@ LIMIT 1`
 	}
 
 	return &settings, nil
+}
+
+func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+	    INSERT INTO host_mdm_managed_certificates (
+              host_uuid,
+              profile_uuid,
+              challenge_retrieved_at
+            )
+            VALUES %s
+            ON DUPLICATE KEY UPDATE
+              challenge_retrieved_at = VALUES(challenge_retrieved_at)`,
+			strings.TrimSuffix(valuePart, ","),
+		)
+
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
+		valuePart := "(?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt}
+		return valuePart, args
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
+		return err
+	}
+
+	return nil
 }
