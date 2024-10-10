@@ -1983,18 +1983,14 @@ func (a *agent) batteries() []map[string]string {
 	count := rand.Intn(3) // return between 0 and 2 batteries
 	result := make([]map[string]string, count)
 	for i := range result {
-		health := "Good"
-		cycleCount := rand.Intn(2000)
-		switch {
-		case cycleCount > 1500:
-			health = "Poor"
-		case cycleCount > 1000:
-			health = "Fair"
-		}
+		max_capacity := 700 + rand.Intn(300) // between 700 and 1000 to ensure most batteries are healthy
+		cycleCount := rand.Intn(1200)
+
 		result[i] = map[string]string{
-			"serial_number": fmt.Sprintf("%04d", i),
-			"cycle_count":   strconv.Itoa(cycleCount),
-			"health":        health,
+			"serial_number":     fmt.Sprintf("%04d", i),
+			"cycle_count":       strconv.Itoa(cycleCount),
+			"max_capacity":      strconv.Itoa(max_capacity),
+			"designed_capacity": "1000",
 		}
 	}
 	return result
