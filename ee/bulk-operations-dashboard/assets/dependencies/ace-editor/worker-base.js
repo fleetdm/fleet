@@ -216,7 +216,7 @@ window.onmessage = function(e) {
 };
 })(this);
 
-define("ace/lib/oop",[], function(require, exports, module){"use strict";
+ace.define("ace/lib/oop",[], function(require, exports, module){"use strict";
 exports.inherits = function (ctor, superCtor) {
     ctor.super_ = superCtor;
     ctor.prototype = Object.create(superCtor.prototype, {
@@ -240,7 +240,7 @@ exports.implement = function (proto, mixin) {
 
 });
 
-define("ace/apply_delta",[], function(require, exports, module){"use strict";
+ace.define("ace/apply_delta",[], function(require, exports, module){"use strict";
 function throwDeltaError(delta, errorText) {
     console.log("Invalid Delta:", delta);
     throw "Invalid Delta: " + errorText;
@@ -299,7 +299,7 @@ exports.applyDelta = function (docLines, delta, doNotValidate) {
 
 });
 
-define("ace/lib/event_emitter",[], function(require, exports, module){"use strict";
+ace.define("ace/lib/event_emitter",[], function(require, exports, module){"use strict";
 var EventEmitter = {};
 var stopPropagation = function () { this.propagationStopped = true; };
 var preventDefault = function () { this.defaultPrevented = true; };
@@ -412,7 +412,7 @@ exports.EventEmitter = EventEmitter;
 
 });
 
-define("ace/range",[], function(require, exports, module){"use strict";
+ace.define("ace/range",[], function(require, exports, module){"use strict";
 var Range = /** @class */ (function () {
     function Range(startRow, startColumn, endRow, endColumn) {
         this.start = {
@@ -639,7 +639,7 @@ exports.Range = Range;
 
 });
 
-define("ace/anchor",[], function(require, exports, module){"use strict";
+ace.define("ace/anchor",[], function(require, exports, module){"use strict";
 var oop = require("./lib/oop");
 var EventEmitter = require("./lib/event_emitter").EventEmitter;
 var Anchor = /** @class */ (function () {
@@ -749,7 +749,7 @@ exports.Anchor = Anchor;
 
 });
 
-define("ace/document",[], function(require, exports, module){"use strict";
+ace.define("ace/document",[], function(require, exports, module){"use strict";
 var oop = require("./lib/oop");
 var applyDelta = require("./apply_delta").applyDelta;
 var EventEmitter = require("./lib/event_emitter").EventEmitter;
@@ -1086,7 +1086,7 @@ exports.Document = Document;
 
 });
 
-define("ace/lib/deep_copy",[], function(require, exports, module){exports.deepCopy = function deepCopy(obj) {
+ace.define("ace/lib/deep_copy",[], function(require, exports, module){exports.deepCopy = function deepCopy(obj) {
     if (typeof obj !== "object" || !obj)
         return obj;
     var copy;
@@ -1107,7 +1107,7 @@ define("ace/lib/deep_copy",[], function(require, exports, module){exports.deepCo
 
 });
 
-define("ace/lib/lang",[], function(require, exports, module){"use strict";
+ace.define("ace/lib/lang",[], function(require, exports, module){"use strict";
 exports.last = function (a) {
     return a[a.length - 1];
 };
@@ -1257,7 +1257,7 @@ exports.skipEmptyMatch = function (line, last, supportsUnicodeFlag) {
 
 });
 
-define("ace/worker/mirror",[], function(require, exports, module) {
+ace.define("ace/worker/mirror",[], function(require, exports, module) {
 "use strict";
 
 var Document = require("../document").Document;
