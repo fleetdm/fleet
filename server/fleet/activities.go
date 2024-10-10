@@ -108,6 +108,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
+
+	ActivityTypeDisabledActivitiesWebhook{},
+	ActivityTypeEditedActivitiesWebhook{},
 }
 
 type ActivityDetails interface {
@@ -1849,5 +1852,32 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}`
+}
+
+type ActivityTypeDisabledActivitiesWebhook struct {
+}
+
+func (a ActivityTypeDisabledActivitiesWebhook) ActivityName() string {
+	return "disabled_activities_webhook"
+}
+
+func (a ActivityTypeDisabledActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns off the activities webhook.`,
+		`This activity does not contain any detail fields.`, ""
+}
+
+type ActivityTypeEditedActivitiesWebhook struct {
+	DestionationURL string `json:"destination_url"`
+}
+
+func (a ActivityTypeEditedActivitiesWebhook) ActivityName() string {
+	return "edited_activities_webhook"
+}
+
+func (a ActivityTypeEditedActivitiesWebhook) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user modify the activities webhook.`, `This activity contains the following fields:
+- destionation_url: the current destionation URL.`, `{
+  "destionation_url": "https://notify.fleet.example.com"
 }`
 }
