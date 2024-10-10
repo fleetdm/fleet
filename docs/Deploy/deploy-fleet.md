@@ -1,6 +1,9 @@
 # Deploy Fleet
 
-Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
+Just need to kick the tires? Create an account to [Try Fleet locally](https://fleetdm.com/try-fleet) on your device. You can deploy FleetDM on your own servers or virtual machines, which involves manually setting up the necessary components, such as the FleetDM server, database, and any dependencies. This approach, although more lengthy than a Cloud deployment, gives you full control over the environment and configuration.
+A technical installation guide sponsored by Internews for a self-contained single server deployment of FleetDM on Ubuntu, with a few Elastic Stack components, can be found [here](https://fleetdm.com/guides/deploy-fleet-on-ubuntu-with-elastic).
+
+On the other hand, use our easy steps below to deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale.
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-md-row flex-column">
     <a href="#render">
@@ -138,7 +141,10 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     terraform apply
     ```
 
-12. That’s it! You should now be able to log in to Fleet and [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+12. That’s it! Next, you can skip ahead and already log in to Fleet to [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts), or you can continue with our other Deployment documents for other options that might fit your environment:
+- [Single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso)
+- [Upgrading Fleet](https://fleetdm.com/docs/deploy/upgrading-fleet)
+- [Reference architectures](https://fleetdm.com/docs/deploy/reference-architectures)
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
