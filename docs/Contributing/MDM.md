@@ -65,7 +65,7 @@ This logic runs in two main places:
     - Enqueues the necessary commands
     - Sends push notifications to the hosts
 
-    (Note: Despite its name, this cron job handles both Apple and Windows MDM.)
+    (Note: Despite its name, this cron job handles both Apple and Windows MDM. [Issue link](https://github.com/fleetdm/fleet/issues/22824))
 
 2. **`ds.BulkSetPendingMDMHostProfiles`:** This method is called to mark profiles and declarations as "pending." It's a lighter process than the cron job, only updating database records to reflect pending profiles in the UI, providing immediate feedback to users.
 
