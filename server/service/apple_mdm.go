@@ -44,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -3598,6 +3599,8 @@ func preprocessProfileContents(
 		if addedTargets == nil {
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
+		// We store the timestamp when the challenge was retrieved to know if it has expired.
+		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
 		for _, hostUUID := range target.hostUUIDs {
 			newProfUUID := uuid.NewString()
 			hostContents := contentsStr
@@ -3649,6 +3652,12 @@ func preprocessProfileContents(
 						failed = true
 						break
 					}
+					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:             hostUUID,
+						ProfileUUID:          newProfUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
@@ -3694,6 +3703,10 @@ func preprocessProfileContents(
 				}
 				profileContents[newProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
+		}
+		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating managed certificates")
 		}
 		// Remove the parent target, since we will use host-specific targets
 		delete(targets, profUUID)
