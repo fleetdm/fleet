@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -433,6 +434,10 @@ WHERE host_uuid = ?
 	var inSetupExperience bool
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &inSetupExperience, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
 		return false, ctxerr.Wrap(ctx, err, "getting host in setup experience")
 	}
 
