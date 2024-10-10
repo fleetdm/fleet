@@ -4,9 +4,9 @@ import Card from "components/Card";
 
 import InstallSoftwarePreviewImg from "../../../../../../../../assets/images/install-software-preview.png";
 
-const baseClass = "run-script-preview";
+const baseClass = "setup-experience-script-preview";
 
-const RunScriptPreview = () => {
+const SetupExperienceScriptPreview = () => {
   return (
     <Card color="gray" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
@@ -28,4 +28,4 @@ const RunScriptPreview = () => {
   );
 };
 
-export default RunScriptPreview;
+export default SetupExperienceScriptPreview;

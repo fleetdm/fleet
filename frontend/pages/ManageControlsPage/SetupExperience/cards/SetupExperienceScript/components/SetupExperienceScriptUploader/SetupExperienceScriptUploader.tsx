@@ -7,19 +7,19 @@ import { NotificationContext } from "context/notification";
 import FileUploader from "components/FileUploader";
 import { getErrorReason } from "interfaces/errors";
 
-const baseClass = "run-script-uploader";
+const baseClass = "setup-experience-script-uploader";
 
-interface IRunScriptUploaderProps {
+interface ISetupExperienceScriptUploaderProps {
   currentTeamId: number;
   onUpload: () => void;
   className?: string;
 }
 
-const RunScriptUploader = ({
+const SetupExperienceScriptUploader = ({
   currentTeamId,
   onUpload,
   className,
-}: IRunScriptUploaderProps) => {
+}: ISetupExperienceScriptUploaderProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [showLoading, setShowLoading] = useState(false);
 
@@ -60,4 +60,4 @@ const RunScriptUploader = ({
   );
 };
 
-export default RunScriptUploader;
+export default SetupExperienceScriptUploader;

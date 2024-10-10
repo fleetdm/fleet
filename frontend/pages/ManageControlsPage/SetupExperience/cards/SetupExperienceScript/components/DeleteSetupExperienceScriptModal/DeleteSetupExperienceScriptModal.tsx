@@ -2,17 +2,17 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import React from "react";
 
-const baseClass = "delete-run-script-modal";
+const baseClass = "delete-setup-experience-script-modal";
 
-interface IDeleteRunScriptModalProps {
+interface IDeleteSetupExperienceScriptModalProps {
   onExit: () => void;
   onDeleted: () => void;
 }
 
-const DeleteRunScriptModal = ({
+const DeleteSetupExperienceScriptModal = ({
   onExit,
   onDeleted,
-}: IDeleteRunScriptModalProps) => {
+}: IDeleteSetupExperienceScriptModalProps) => {
   const onDelete = () => {
     onDeleted();
   };
@@ -34,4 +34,4 @@ const DeleteRunScriptModal = ({
   );
 };
 
-export default DeleteRunScriptModal;
+export default DeleteSetupExperienceScriptModal;

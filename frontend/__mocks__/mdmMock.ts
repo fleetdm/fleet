@@ -83,7 +83,7 @@ export const createMockHostMdmData = (
 
 const DEFAULT_SETUP_EXPIERENCE_SCRIPT: IGetSetupExperienceScriptResponse = {
   id: 1,
-  team_id: 0,
+  team_id: null,
   name: "Test Script",
   created_at: "2021-01-01T00:00:00Z",
   updated_at: "2021-01-01T00:00:00Z",

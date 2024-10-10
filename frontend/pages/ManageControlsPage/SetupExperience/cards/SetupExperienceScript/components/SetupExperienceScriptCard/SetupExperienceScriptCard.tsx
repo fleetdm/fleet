@@ -13,20 +13,25 @@ import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
-const baseClass = "run-script-card";
+const baseClass = "setup-experience-script-card";
 
-interface IRunScriptCardProps {
+interface ISetupExperienceScriptCardProps {
   script: IGetSetupExperienceScriptResponse;
   onDelete: () => void;
 }
 
-const RunScriptCard = ({ script, onDelete }: IRunScriptCardProps) => {
+const SetupExperienceScriptCard = ({
+  script,
+  onDelete,
+}: ISetupExperienceScriptCardProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const onDownload = async () => {
     try {
-      await mdmAPI.downloadSetupExperienceScript(script.team_id);
+      const teamId = script.team_id ?? API_NO_TEAM_ID;
+      await mdmAPI.downloadSetupExperienceScript(teamId);
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
@@ -73,4 +78,4 @@ const RunScriptCard = ({ script, onDelete }: IRunScriptCardProps) => {
   );
 };
 
-export default RunScriptCard;
+export default SetupExperienceScriptCard;

@@ -10,18 +10,20 @@ import Spinner from "components/Spinner";
 
 import CustomLink from "components/CustomLink";
 
-import RunScriptPreview from "./components/RunScriptPreview";
-import RunScriptUploader from "./components/RunScriptUploader";
-import RunScriptCard from "./components/RunScriptCard";
-import DeleteRunScriptModal from "./components/DeleteRunScriptModal";
+import SetupExperiencePreview from "./components/SetupExperienceScriptPreview";
+import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
+import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
+import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
 
-const baseClass = "run-script";
+const baseClass = "setup-experience-script";
 
-interface IRunScriptProps {
+interface ISetupExperienceScriptProps {
   currentTeamId: number;
 }
 
-const RunScript = ({ currentTeamId }: IRunScriptProps) => {
+const SetupExperienceScript = ({
+  currentTeamId,
+}: ISetupExperienceScriptProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const {
@@ -68,18 +70,18 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
             text="Learn how"
           />
           {!scriptUploaded || !script ? (
-            <RunScriptUploader
+            <SetupExperienceScriptUploader
               currentTeamId={currentTeamId}
               onUpload={onUpload}
             />
           ) : (
-            <RunScriptCard
+            <SetupExperienceScriptCard
               script={script}
               onDelete={() => setShowDeleteScriptModal(true)}
             />
           )}
         </div>
-        <RunScriptPreview />
+        <SetupExperiencePreview />
       </div>
     );
   };
@@ -89,7 +91,7 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
       <SectionHeader title="Run script" />
       <>{renderContent()}</>
       {showDeleteScriptModal && (
-        <DeleteRunScriptModal
+        <DeleteSetupExperienceScriptModal
           onDeleted={onDelete}
           onExit={() => setShowDeleteScriptModal(false)}
         />
@@ -98,4 +100,4 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
   );
 };
 
-export default RunScript;
+export default SetupExperienceScript;

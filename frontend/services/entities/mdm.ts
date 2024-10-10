@@ -87,7 +87,7 @@ export interface IGetMdmCommandResultsResponse {
 
 export interface IGetSetupExperienceScriptResponse {
   id: number;
-  team_id: number;
+  team_id: number | null; // The API return null for no team in this case.
   name: string;
   created_at: string;
   updated_at: string;
