@@ -22,10 +22,8 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var (
-	_              scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
-	challengeRegex                                  = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
-)
+var _ scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
+var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
 
 const (
 	fullPasswordCache             = "The password cache is full."

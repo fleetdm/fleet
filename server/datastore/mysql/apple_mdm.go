@@ -479,6 +479,17 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 	return &profile, nil
 }
 
+func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+	DELETE hmmc FROM host_mdm_managed_certificates hmmc
+		LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
+		WHERE hmap.host_uuid IS NULL`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
+	}
+	return nil
+}
+
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	payload fleet.MDMAppleEnrollmentProfilePayload,

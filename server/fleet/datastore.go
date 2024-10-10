@@ -1064,10 +1064,6 @@ type Datastore interface {
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
-	// GetHostMDMAppleProfile returns the MDM profile information for the specified host UUID and profile UUID.
-	// nil is returned if the profile is not found.
-	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*HostMDMCertificateProfile, error)
-
 	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
@@ -1762,6 +1758,13 @@ type Datastore interface {
 
 	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
 	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMBulkUpsertManagedCertificatePayload) error
+
+	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
+	// nil is returned if the profile is not found.
+	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*HostMDMCertificateProfile, error)
+
+	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
+	CleanUpMDMManagedCertificates(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
