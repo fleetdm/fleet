@@ -4,6 +4,8 @@ evented: false
 notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
 platforms:
   - darwin
+  - linux
+  - windows
 columns:
   - name: path
     description: The path to the host's Firefox preferences.
@@ -29,4 +31,4 @@ columns:
     description: The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js'` will print "*" in the query column.
     type: text
     required: false
-  
+
