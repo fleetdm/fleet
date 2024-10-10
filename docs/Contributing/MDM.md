@@ -23,6 +23,10 @@
 
 - CSPs: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
 
+- Marcos' Knowledge transfer videos
+    - https://drive.google.com/file/d/1d4rcK2bsLGVocbh2s88vW2FNzOQxP1B_
+    - https://drive.google.com/file/d/1V5Jl7azXnZZRnkjwDaEvF1pe24nVZHSH
+
 ### Development
 
 - `./Testing-and-local-development.md` has many sections about setting up MDM and debugging specific features
@@ -109,6 +113,8 @@ Apple MDM is more strict, and we have built two different flows:
 
 1. The "regular" flow is what most customers will use, involve `fleetd` guiding the user through the migration to perform manual steps. The user documentation for this flow is https://fleetdm.com/guides/mdm-migration
 2. The "seamless" flow allows customers with access to their MDM database and ownership of the domain used as the `ServerURL` in the enrollment profile to migrate the devices without user action. The user documentation for this flow is https://fleetdm.com/guides/seamless-mdm-migration
+    1. The proxy for the seamless flow lives in `./tools/mdm/migration/mdmproxy/`
+    2. The tool to extract data from MicroMDM lives in `./tools/mdm/migration/micromdm/touchless/`
 
 ### Disk encryption
 
@@ -142,8 +148,4 @@ When disk encryption is enabled, the server sends a notification to orbit, who c
 
 After the disk is encrypted, orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`)
 
-### ABM/ADE
-
-- ABM integration and custom behaviors
-- Automatic enrollment additions
 
