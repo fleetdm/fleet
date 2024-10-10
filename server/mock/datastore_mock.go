@@ -1103,6 +1103,10 @@ type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint,
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
+type SetHostInMacOSSetupAssistantFunc func(ctx context.Context, hostUUID string, inSetupAssistant bool) error
+
+type GetHostInMacOSSetupAssistantFunc func(ctx context.Context, hostUUID string) (bool, error)
+
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, teamID uint) (bool, error)
@@ -2742,6 +2746,12 @@ type DataStore struct {
 
 	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
 	ListSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	SetHostInMacOSSetupAssistantFunc        SetHostInMacOSSetupAssistantFunc
+	SetHostInMacOSSetupAssistantFuncInvoked bool
+
+	GetHostInMacOSSetupAssistantFunc        GetHostInMacOSSetupAssistantFunc
+	GetHostInMacOSSetupAssistantFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -6555,6 +6565,20 @@ func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamI
 	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) SetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string, inSetupAssistant bool) error {
+	s.mu.Lock()
+	s.SetHostInMacOSSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostInMacOSSetupAssistantFunc(ctx, hostUUID, inSetupAssistant)
+}
+
+func (s *DataStore) GetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.GetHostInMacOSSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostInMacOSSetupAssistantFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
