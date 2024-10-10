@@ -1285,7 +1285,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
-	g.SetLimit(3) // TODO: consider lowering this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
+	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 	// critical to avoid data race, the slice is pre-allocated and each
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
