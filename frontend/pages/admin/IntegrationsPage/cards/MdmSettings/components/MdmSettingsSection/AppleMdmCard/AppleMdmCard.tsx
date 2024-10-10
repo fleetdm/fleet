@@ -6,43 +6,48 @@ import Card from "components/Card";
 import DataError from "components/DataError";
 import { AxiosError } from "axios";
 import { IMdmApple } from "interfaces/mdm";
+import SectionCard from "../../SectionCard";
 
 const baseClass = "apple-mdm-card";
 
-interface ITurnOnAppleMdmProps {
+interface ITurnOnAppleMdmCardProps {
   onClickTurnOn: () => void;
 }
 
-const TurnOnAppleMdm = ({ onClickTurnOn }: ITurnOnAppleMdmProps) => {
+const TurnOnAppleMdmCard = ({ onClickTurnOn }: ITurnOnAppleMdmCardProps) => {
   return (
-    <div className={`${baseClass}__turn-on-apple-mdm`}>
-      <div>
-        <h3>Turn on Apple (macOS, iOS, iPadOS) MDM</h3>
-        <p>Enforce settings, OS updates, disk encryption, and more.</p>
-      </div>
-      <Button variant="brand" onClick={onClickTurnOn}>
-        Turn on
-      </Button>
-    </div>
+    <SectionCard
+      header="Turn on Apple (macOS, iOS, iPadOS) MDM"
+      cta={
+        <Button variant="brand" onClick={onClickTurnOn}>
+          Turn on
+        </Button>
+      }
+    >
+      Enforce settings, OS updates, disk encryption, and more.
+    </SectionCard>
   );
 };
 
-interface ITurnOffAppleMdmProps {
+interface ITurnOffAppleMdmCardProps {
   onClickDetails: () => void;
 }
 
-const SeeDetailsAppleMdm = ({ onClickDetails }: ITurnOffAppleMdmProps) => {
+const SeeDetailsAppleMdmCard = ({
+  onClickDetails,
+}: ITurnOffAppleMdmCardProps) => {
   return (
-    <div className={`${baseClass}__turn-off-mac-os`}>
-      <div>
-        <Icon name="success" />
-        <p>Apple (macOS, iOS, iPadOS) MDM turned on.</p>
-      </div>
-      <Button onClick={onClickDetails} variant="text-icon">
-        <Icon name="pencil" />
-        Edit
-      </Button>
-    </div>
+    <SectionCard
+      iconName="success"
+      cta={
+        <Button onClick={onClickDetails} variant="text-icon">
+          <Icon name="pencil" />
+          Edit
+        </Button>
+      }
+    >
+      Apple (macOS, iOS, iPadOS) MDM turned on.
+    </SectionCard>
   );
 };
 
@@ -74,14 +79,10 @@ const AppleMdmCard = ({
     return <DataError />;
   }
 
-  return (
-    <Card className={baseClass} color="gray">
-      {appleAPNSInfo !== undefined ? (
-        <SeeDetailsAppleMdm onClickDetails={viewDetails} />
-      ) : (
-        <TurnOnAppleMdm onClickTurnOn={turnOnAppleMdm} />
-      )}
-    </Card>
+  return appleAPNSInfo !== undefined ? (
+    <SeeDetailsAppleMdmCard onClickDetails={viewDetails} />
+  ) : (
+    <TurnOnAppleMdmCard onClickTurnOn={turnOnAppleMdm} />
   );
 };
 
