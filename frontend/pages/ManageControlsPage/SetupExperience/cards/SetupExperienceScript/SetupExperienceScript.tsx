@@ -96,6 +96,7 @@ const SetupExperienceScript = ({
       <>{renderContent()}</>
       {showDeleteScriptModal && (
         <DeleteSetupExperienceScriptModal
+          currentTeamId={currentTeamId}
           onDeleted={onDelete}
           onExit={() => setShowDeleteScriptModal(false)}
         />

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { createMockSetupExperienceScript } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
@@ -8,7 +6,6 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import { update } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -398,6 +395,16 @@ const mdmService = {
     }
 
     return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
+  },
+
+  deleteSetupExperienceScript: (teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
+      team_id: teamId,
+    })}`;
+
+    return sendRequest("DELETE", path);
   },
 };
 
