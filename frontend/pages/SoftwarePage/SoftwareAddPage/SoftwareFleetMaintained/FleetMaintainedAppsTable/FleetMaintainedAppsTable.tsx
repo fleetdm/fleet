@@ -24,7 +24,7 @@ const EmptyFleetAppsTable = () => (
     header={"No items match the current search criteria"}
     info={
       <>
-        Can&apos; find app?{" "}
+        Can&apos;t find app?{" "}
         <CustomLink
           newTab
           url="https://github.com/fleetdm/fleet/issues/new/choose"
