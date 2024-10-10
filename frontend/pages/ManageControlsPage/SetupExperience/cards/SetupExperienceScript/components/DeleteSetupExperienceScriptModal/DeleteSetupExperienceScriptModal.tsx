@@ -1,19 +1,38 @@
+import React, { useContext } from "react";
+
+import mdmAPI from "services/entities/mdm";
+import { NotificationContext } from "context/notification";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import React from "react";
 
 const baseClass = "delete-setup-experience-script-modal";
 
 interface IDeleteSetupExperienceScriptModalProps {
+  currentTeamId: number;
   onExit: () => void;
   onDeleted: () => void;
 }
 
 const DeleteSetupExperienceScriptModal = ({
+  currentTeamId,
   onExit,
   onDeleted,
 }: IDeleteSetupExperienceScriptModalProps) => {
-  const onDelete = () => {
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onDelete = async () => {
+    try {
+      await mdmAPI.deleteSetupExperienceScript(currentTeamId);
+      renderFlash("success", "Setup script successfully deleted!");
+    } catch (error) {
+      renderFlash(
+        "error",
+        "Couldn't delete the setup script. Please try again."
+      );
+      console.error(error);
+    }
+
     onDeleted();
   };
 
