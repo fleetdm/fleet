@@ -526,8 +526,6 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_uuid": UUID of the host.
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
@@ -537,12 +535,27 @@ This activity contains the following fields:
 
 ```json
 {
-  "host_id": 234,
-  "host_uuid": "3901984D-86A4-4DCD-A40F-A1D6DA3A5778",
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple"
+}
+```
+
+## fleet_enrolled
+
+Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C",
 }
 ```
 
