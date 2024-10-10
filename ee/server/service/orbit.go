@@ -126,8 +126,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
 
-		if err := svc.ds.SetHostInMacOSSetupAssistant(ctx, host.UUID, false); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "failed to set host as exiting setup assistant")
+		if err := svc.ds.SetHostInMacOSSetupExperience(ctx, host.UUID, false); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to set host as exiting setup experience")
 		}
 	}
 

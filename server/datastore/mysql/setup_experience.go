@@ -407,34 +407,34 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (ds *Datastore) SetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string, inSetupAssistant bool) error {
+func (ds *Datastore) SetHostInMacOSSetupExperience(ctx context.Context, hostUUID string, inSetupExperience bool) error {
 	const stmt = `
-INSERT INTO hosts_in_setup_assistant (host_uuid, in_setup_assistant)
+INSERT INTO hosts_in_setup_experience (host_uuid, in_setup_experience)
 VALUES (?, ?)
-ON DUPLICATE KEY UPDATE 
-	in_setup_assistant = VALUES(in_setup_assistant)
+ON DUPLICATE KEY UPDATE
+	in_setup_experience = VALUES(in_setup_experience)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, inSetupAssistant)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, inSetupExperience)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting host in setup assistant state")
+		return ctxerr.Wrap(ctx, err, "setting host in setup experience state")
 	}
 
 	return nil
 }
 
-func (ds *Datastore) GetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string) (bool, error) {
+func (ds *Datastore) GetHostInMacOSSetupExperience(ctx context.Context, hostUUID string) (bool, error) {
 	const stmt = `
 SELECT
-	in_setup_assistant
-FROM hosts_in_setup_assistant
+	in_setup_experience
+FROM hosts_in_setup_experience
 WHERE host_uuid = ?
 	`
-	var inSetupAssistant bool
+	var inSetupExperience bool
 
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &inSetupAssistant, stmt, hostUUID); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "")
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &inSetupExperience, stmt, hostUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "getting host in setup experience")
 	}
 
-	return inSetupAssistant, nil
+	return inSetupExperience, nil
 }

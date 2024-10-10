@@ -2729,7 +2729,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 
 		// Mark the host as being in Setup Assistant
-		if err := svc.ds.SetHostInMacOSSetupAssistant(r.Context, r.ID, true); err != nil {
+		if err := svc.ds.SetHostInMacOSSetupExperience(r.Context, r.ID, true); err != nil {
 			ctxerr.Wrap(r.Context, err, "setting host in setup experience state")
 		}
 	}

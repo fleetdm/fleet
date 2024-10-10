@@ -1747,8 +1747,12 @@ type Datastore interface {
 	SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 
-	SetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string, inSetupAssistant bool) error
-	GetHostInMacOSSetupAssistant(ctx context.Context, hostUUID string) (bool, error)
+	// SetHostInMacOSSetupExperience sets a boolean indicating whether or not the given host is
+	// in the setup experience flow (which runs during macOS Setup Assistant).
+	SetHostInMacOSSetupExperience(ctx context.Context, hostUUID string, inSetupExperience bool) error
+	// GetHostInMacOSSetupExperience returns a boolean indicating whether or not the given host is
+	// in the setup experience flow (which runs during macOS Setup Assistant).
+	GetHostInMacOSSetupExperience(ctx context.Context, hostUUID string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
