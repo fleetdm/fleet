@@ -1159,9 +1159,6 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
-- "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
-- "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
-
 
 #### Example
 
@@ -1173,9 +1170,7 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "status": "pending",
-  "policy_id": 1337,
-  "policy_name": "Ensure 1Password is installed and up to date"
+  "status": "pending"
 }
 ```
 
