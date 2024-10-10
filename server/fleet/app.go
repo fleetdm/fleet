@@ -139,6 +139,12 @@ type MDMAppleVolumePurchasingProgramInfo struct {
 
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
+	// ServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM
+	// requests from fleetd requests on customer networks.  ServerURL DNS should resolve to the
+	// same IP as the Fleet Server URL.
+	// If not set, the server will use Fleet server URL (recommended).
+	ServerURL string `json:"server_url"`
+
 	// Deprecated: use AppleBussinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
@@ -204,6 +210,13 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+func (c *AppConfig) MDMUrl() string {
+	if c.MDM.ServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.ServerURL
 }
 
 // AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform

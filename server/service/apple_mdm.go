@@ -3521,7 +3521,6 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 ) error {
-
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
 	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
 
@@ -4673,12 +4672,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading app config")
 	}
-	fleetURL := appCfg.ServerSettings.ServerURL
+
+	mdmURL := appCfg.MDMUrl()
 
 	// if the root signer was issued by Apple's CA, it means we're in the
 	// first phase and we should return a SCEP payload.
 	if err := apple_mdm.VerifyFromAppleIphoneDeviceCA(rootSigner); err == nil {
-		scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+		scepURL, err := apple_mdm.ResolveAppleSCEPURL(mdmURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "resolve Apple SCEP url")
 		}
@@ -4710,7 +4710,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
-		appCfg.ServerSettings.ServerURL,
+		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 	)
