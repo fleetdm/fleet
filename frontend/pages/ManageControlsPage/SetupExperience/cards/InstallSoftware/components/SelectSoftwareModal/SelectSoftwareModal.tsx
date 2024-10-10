@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 
 import { ISoftwareTitle } from "interfaces/software";
 import { NotificationContext } from "context/notification";
+import mdmAPI from "services/entities/mdm";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -20,12 +21,14 @@ const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
 };
 
 interface ISelectSoftwareModalProps {
+  currentTeamId: number;
   softwareTitles: ISoftwareTitle[];
   onExit: () => void;
   onSave: () => void;
 }
 
 const SelectSoftwareModal = ({
+  currentTeamId,
   softwareTitles,
   onExit,
   onSave,
@@ -37,9 +40,19 @@ const SelectSoftwareModal = ({
     initializeSelectedSoftwareIds(softwareTitles)
   );
 
-  const onSaveSelectedSoftware = () => {
-    console.log(selectedSoftwareIds);
-    onExit();
+  const onSaveSelectedSoftware = async () => {
+    setIsSaving(true);
+    try {
+      await mdmAPI.updateSetupExperienceSoftware(
+        currentTeamId,
+        selectedSoftwareIds
+      );
+    } catch (e) {
+      console.log("error");
+      renderFlash("error", "Couldn't save software. Please try again.");
+    }
+    setIsSaving(false);
+    onSave();
   };
 
   const onChangeSoftwareSelect = (select: boolean, id: number) => {
