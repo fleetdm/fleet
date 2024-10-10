@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { createMockMdmProfile } from "__mocks__/mdmMock";
+import { createMockSetupExperienceScript } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
@@ -80,6 +80,14 @@ export interface IMDMAppleEnrollmentProfileParams {
 
 export interface IGetMdmCommandResultsResponse {
   results: IMdmCommandResult[];
+}
+
+export interface IGetSetupExperienceScriptResponse {
+  id: number;
+  team_id: number | null; // The API return null for no team in this case.
+  name: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const mdmService = {
@@ -276,6 +284,7 @@ const mdmService = {
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
   },
+
   getSetupEnrollmentProfile: (teamId?: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
     if (!teamId || teamId === API_NO_TEAM_ID) {
@@ -287,6 +296,7 @@ const mdmService = {
     )}`;
     return sendRequest("GET", path);
   },
+
   uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
 
@@ -313,6 +323,7 @@ const mdmService = {
       });
     });
   },
+
   deleteSetupEnrollmentProfile: (teamId: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
     if (teamId === API_NO_TEAM_ID) {
@@ -324,12 +335,54 @@ const mdmService = {
     )}`;
     return sendRequest("DELETE", path);
   },
+
   getCommandResults: (
     command_uuid: string
   ): Promise<IGetMdmCommandResultsResponse> => {
     const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
     const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
     return sendRequest("GET", url);
+  },
+
+  getSetupExperienceScript: (
+    teamId: number
+  ): Promise<IGetSetupExperienceScriptResponse> => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    if (teamId) {
+      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return new Promise((resolve, reject) => {
+      resolve(createMockSetupExperienceScript());
+    });
+
+    // return sendRequest("GET", path);
+  },
+
+  downloadSetupExperienceScript: (teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    if (teamId) {
+      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
+
+  uploadSetupExperienceScript: (file: File, teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    const formData = new FormData();
+    formData.append("script", file);
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
   },
 };
 

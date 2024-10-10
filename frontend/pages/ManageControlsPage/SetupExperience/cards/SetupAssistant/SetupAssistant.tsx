@@ -17,7 +17,7 @@ import CustomLink from "components/CustomLink";
 
 import SetupAssistantPreview from "./components/SetupAssistantPreview";
 import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
-import SetuAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
+import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
 import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
 import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
 
@@ -112,7 +112,7 @@ const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
                 onUpload={onUpload}
               />
             ) : (
-              <SetuAssistantProfileCard
+              <SetupAssistantProfileCard
                 profile={enrollmentProfileData}
                 onDelete={() => setShowDeleteProfileModal(true)}
               />
