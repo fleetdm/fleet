@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -35,6 +36,7 @@ func TestAppConfig(t *testing.T) {
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
+		{"NDESSCEPProxyPassword", testNDESSCEPProxyPassword},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -531,5 +533,78 @@ func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {
 			},
 		)
 	}
+
+}
+
+func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	defer TruncateTables(t, ds)
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	adminURL := "https://localhost:8080/mscep_admin/"
+	username := "admin"
+	url := "https://localhost:8080/mscep/mscep.dll"
+	password := "password"
+
+	ac.Integrations.NDESSCEPProxy = optjson.Any[fleet.NDESSCEPProxyIntegration]{
+		Valid: true,
+		Set:   true,
+		Value: fleet.NDESSCEPProxyIntegration{
+			AdminURL: adminURL,
+			Username: username,
+			Password: password,
+			URL:      url,
+		},
+	}
+
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	checkProxyConfig := func() {
+		result, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, result.Integrations.NDESSCEPProxy)
+		assert.Equal(t, url, result.Integrations.NDESSCEPProxy.Value.URL)
+		assert.Equal(t, adminURL, result.Integrations.NDESSCEPProxy.Value.AdminURL)
+		assert.Equal(t, username, result.Integrations.NDESSCEPProxy.Value.Username)
+		assert.Equal(t, fleet.MaskedPassword, result.Integrations.NDESSCEPProxy.Value.Password)
+	}
+
+	checkProxyConfig()
+
+	checkPassword := func() {
+		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword}, nil)
+		require.NoError(t, err)
+		require.Len(t, assets, 1)
+		assert.Equal(t, password, string(assets[fleet.MDMAssetNDESPassword].Value))
+	}
+	checkPassword()
+
+	// Set password to masked password -- should not update
+	ac.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	checkProxyConfig()
+	checkPassword()
+
+	// Set password to empty -- password should not update
+	url = "https://newurl.com"
+	ac.Integrations.NDESSCEPProxy.Value.Password = ""
+	ac.Integrations.NDESSCEPProxy.Value.URL = url
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	checkProxyConfig()
+	checkPassword()
+
+	// Set password to a new value
+	password = "newpassword"
+	ac.Integrations.NDESSCEPProxy.Value.Password = password
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	checkProxyConfig()
+	checkPassword()
 
 }

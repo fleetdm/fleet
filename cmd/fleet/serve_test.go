@@ -30,6 +30,7 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -239,6 +240,14 @@ func TestAutomationsSchedule(t *testing.T) {
 		atomic.AddInt32(&endpointCalled, 1)
 	}))
 	defer ts.Close()
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -619,6 +628,18 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	ds.SyncHostsSoftwareTitlesFunc = func(ctx context.Context, updatedAt time.Time) error {
+		return nil
+	}
+
+	ds.UpdateHostIssuesVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
 	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
@@ -674,6 +695,15 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		}
 		return &ac, nil
 	}
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
 	failingPolicies := make(chan struct{})
@@ -737,6 +767,14 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		value: 5 * time.Hour,
 	}
 	configLoaded := make(chan struct{}, 1)
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		select {
@@ -1077,7 +1115,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		fleet.MDMAssetCACert: {Value: testCertPEM},
 		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
 	}
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

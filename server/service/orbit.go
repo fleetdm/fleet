@@ -1034,31 +1034,19 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")
 		}
 
-		// Self-Service packages will have a nil author for the activity.
+		// Self-Service installs, and installs made by automations, will have a nil author for the activity.
 		var user *fleet.User
-		if !hsi.SelfService {
-			if hsi.UserID != nil {
-				user, err = svc.ds.UserByID(ctx, *hsi.UserID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "get host software installation user")
-				}
-			} else {
-				// hsi.UserID can be nil if the user was deleted and/or if the installation was
-				// triggered by Fleet (policy automation). Thus we set the author of the installation
-				// to be the user that uploaded the package (by design).
-				var userID uint
-				if hsi.SoftwareInstallerUserID != nil {
-					userID = *hsi.SoftwareInstallerUserID
-				}
-				// If there's no name or email then this may be a package uploaded
-				// before we added authorship to uploaded packages.
-				if hsi.SoftwareInstallerUserName != "" && hsi.SoftwareInstallerUserEmail != "" {
-					user = &fleet.User{
-						ID:    userID,
-						Name:  hsi.SoftwareInstallerUserName,
-						Email: hsi.SoftwareInstallerUserEmail,
-					}
-				}
+		if !hsi.SelfService && hsi.UserID != nil {
+			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host software installation user")
+			}
+		}
+
+		var policyName *string
+		if hsi.PolicyID != nil {
+			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil && policy != nil {
+				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 		}
 
@@ -1073,6 +1061,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				InstallUUID:     result.InstallUUID,
 				Status:          string(status),
 				SelfService:     hsi.SelfService,
+				PolicyID:        hsi.PolicyID,
+				PolicyName:      policyName,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
@@ -1087,9 +1077,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 type getOrbitSetupExperienceStatusRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
+	ForceRelease bool   `json:"force_release"`
 }
 
-// interface implementation required by the OrbitClient
 func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
@@ -1107,36 +1097,17 @@ func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
 
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)
-	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
 	if err != nil {
 		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
 	}
 	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string) (*fleet.SetupExperienceStatusPayload, error) {
-	// this is not a user-authenticated endpoint
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
-	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading host by orbit node key")
-	}
 
-	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
-	}
-
-	payload := &fleet.SetupExperienceStatusPayload{Software: make([]*fleet.SetupExperienceStatusResult, 0)}
-	for _, r := range res {
-		if r.IsForScript() {
-			payload.Script = r
-		}
-
-		if r.IsForSoftware() {
-			payload.Software = append(payload.Software, r)
-		}
-	}
-
-	return payload, nil
+	return nil, fleet.ErrMissingLicense
 }

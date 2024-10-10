@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
@@ -33,6 +34,29 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 	r.Methods("POST").Handler(kithttp.NewServer(
 		e.PostEndpoint,
 		decodeSCEPRequest,
+		encodeSCEPResponse,
+		opts...,
+	))
+
+	return r
+}
+
+func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.Logger) http.Handler {
+	opts := []kithttp.ServerOption{
+		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+	}
+
+	r := mux.NewRouter()
+	r.Path(rootPath + "{identifier}").Methods("GET").Handler(kithttp.NewServer(
+		e.GetEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
+	r.Path(rootPath + "{identifier}").Methods("POST").Handler(kithttp.NewServer(
+		e.PostEndpoint,
+		decodeSCEPRequestWithIdentifier,
 		encodeSCEPResponse,
 		opts...,
 	))
@@ -93,6 +117,30 @@ func decodeSCEPRequest(ctx context.Context, r *http.Request) (interface{}, error
 	request := SCEPRequest{
 		Message:   msg,
 		Operation: r.URL.Query().Get("operation"),
+	}
+
+	return request, nil
+}
+
+func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interface{}, error) {
+	msg, err := message(r)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Body.Close()
+
+	operation := r.URL.Query().Get("operation")
+	identifier := mux.Vars(r)["identifier"]
+	if len(operation) == 0 {
+		return nil, &BadRequestError{Message: "missing operation"}
+	}
+
+	request := SCEPRequestWithIdentifier{
+		SCEPRequest: SCEPRequest{
+			Message:   msg,
+			Operation: operation,
+		},
+		Identifier: identifier,
 	}
 
 	return request, nil

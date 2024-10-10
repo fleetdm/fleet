@@ -323,7 +323,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false, nil)
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)

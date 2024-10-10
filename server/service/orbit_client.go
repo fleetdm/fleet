@@ -412,8 +412,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	return resp.GetFilePath(), nil
 }
 
-type NullFileResponse struct {
-}
+type NullFileResponse struct{}
 
 func (f *NullFileResponse) Handle(resp *http.Response) error {
 	_, _, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
