@@ -21,14 +21,14 @@ Fleet allows its users to upload trusted software installation files to be insta
 Current supported software deployment formats:
 - macOS: .pkg
 - Windows: .msi, .exe
-- Linux: .deb
+- Linux: .deb, .rpm
 
 Coming soon:
 - VPP for iOS and iPadOS
 
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
-```
+```sql
 SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
@@ -54,6 +54,56 @@ Upon failure of the selected policy, the selected software installation will be 
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
+
+## Templates for policy queries
+
+Following are some templates for the policy SQL queries for each package type.
+
+### macOS (pkg)
+
+```sql
+SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+```
+
+### Windows (msi and exe)
+
+```sql
+SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<VERSION>') >= 0;
+```
+
+### Ubuntu (deb)
+
+```sql
+SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+```
+
+If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+```sql
+SELECT 1 WHERE EXISTS (
+   -- This will mark the policies as successful on RHEL hosts.
+   -- This is only required if RHEL-based and Debian based system share a team.
+   SELECT 1 FROM os_version WHERE platform = 'rhel'
+) OR EXISTS (
+   SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
+);
+```
+
+### RHEL-based (rpm)
+
+```sql
+SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+```
+
+If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+```sql
+SELECT 1 WHERE EXISTS (
+   -- This will mark the policies as successfull on non-RHEL hosts.
+   -- This is only required if RHEL-based and Debian based system share a team.
+   SELECT 1 FROM os_version WHERE platform != 'rhel'
+) OR EXISTS (
+   SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0
+);
+```
 
 ## Using the REST API for self-service software packages
 

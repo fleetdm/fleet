@@ -15,6 +15,7 @@
 | `.pkg` | Low        | High     | -                                           |
 | `.exe` | Low        | High     | -                                           |
 | `.deb` | Low        | High     | -                                           |
+| `.rpm` | Low        | High     | -                                           |
 
 More details:
 

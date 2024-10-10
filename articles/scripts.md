@@ -37,7 +37,7 @@ Fleet UI:
 
 Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution as well as the output in the target host's activity feed.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script)
+Fleet API: See our [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#run-script)
 
 fleetctl CLI:
 
@@ -45,9 +45,13 @@ fleetctl CLI:
 fleetctl run-script --script-path=/path/to/script --host=hostname
 ```
 
+## Automate a script
+
+You can tell Fleet to run a script on a host when that host fails a policy. Learn more in our [script policy automations guide](https://fleetdm.com/guides/policy-automation-run-script).
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-06-04">
+<meta name="publishedOn" value="2024-10-07">
 <meta name="articleTitle" value="Scripts">
 <meta name="description" value="Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet.">
