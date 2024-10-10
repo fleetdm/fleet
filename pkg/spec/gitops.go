@@ -596,7 +596,10 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 		}
 	}
 	if !scriptOnTeamFound {
-		return fmt.Errorf("policy script not found on team: %v vs. %v", foundScriptPaths, scriptPath)
+		if *teamName == noTeam {
+			return fmt.Errorf("policy script %s was not defined in controls in no-team.yml", scriptPath)
+		}
+		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)
 	}
 
 	scriptName := filepath.Base(policy.RunScript.Path)
