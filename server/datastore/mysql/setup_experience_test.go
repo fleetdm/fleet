@@ -28,6 +28,7 @@ func TestSetupExperience(t *testing.T) {
 		{"SetSetupExperienceTitles", testSetSetupExperienceTitles},
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
 		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
+		{"TestHostInSetupExperience", testHostInSetupExperience},
 	}
 
 	for _, c := range cases {
@@ -848,4 +849,21 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	// script contents are deleted by CleanupUnusedScriptContents not by DeleteSetupExperienceScript
 	// so the content id should be the same as the old
 	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
+}
+
+func testHostInSetupExperience(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	err := ds.SetHostInMacOSSetupExperience(ctx, "abc", true)
+	require.NoError(t, err)
+
+	inSetupExperience, err := ds.GetHostInMacOSSetupExperience(ctx, "abc")
+	require.NoError(t, err)
+	require.True(t, inSetupExperience)
+
+	err = ds.SetHostInMacOSSetupExperience(ctx, "abc", false)
+	require.NoError(t, err)
+
+	inSetupExperience, err = ds.GetHostInMacOSSetupExperience(ctx, "abc")
+	require.NoError(t, err)
+	require.False(t, inSetupExperience)
 }

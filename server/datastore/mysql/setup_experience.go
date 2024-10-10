@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -405,4 +406,40 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 	// for setup experience scripts.
 
 	return nil
+}
+
+func (ds *Datastore) SetHostInMacOSSetupExperience(ctx context.Context, hostUUID string, inSetupExperience bool) error {
+	const stmt = `
+INSERT INTO hosts_in_setup_experience (host_uuid, in_setup_experience)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE
+	in_setup_experience = VALUES(in_setup_experience)
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, inSetupExperience)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting host in setup experience state")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostInMacOSSetupExperience(ctx context.Context, hostUUID string) (bool, error) {
+	const stmt = `
+SELECT
+	in_setup_experience
+FROM hosts_in_setup_experience
+WHERE host_uuid = ?
+	`
+	var inSetupExperience bool
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &inSetupExperience, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "getting host in setup experience")
+	}
+
+	return inSetupExperience, nil
 }
