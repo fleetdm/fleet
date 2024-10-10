@@ -224,7 +224,7 @@ The `controls` section allows you to configure scripts and device management (MD
 
 Controls for hosts that are in "No team" can be defined in `default.yml` or in `teams/no-team.yml` (but not in both files).
 
-- `scripts` is a list of paths to macOS, Windows, or Linux scripts. Scripts used in No Team policy automations must be defined in `teams/no-team.yml`.
+- `scripts` is a list of paths to macOS, Windows, or Linux scripts. Scripts used in policy automations for "No team" must be defined in `teams/no-team.yml`.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
 
