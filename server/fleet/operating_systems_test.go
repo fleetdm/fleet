@@ -36,6 +36,7 @@ func TestOperatingSystemRequiresNudge(t *testing.T) {
 		{platform: "darwin", version: "12.0.9", requiresNudge: true},
 		{platform: "darwin", version: "11", requiresNudge: true},
 		{platform: "darwin", version: "13.3.1 (a)", requiresNudge: true},
+		{platform: "darwin", version: "13.4.1 (c)", requiresNudge: true},
 		{platform: "darwin", version: "14.0"},
 		{platform: "darwin", version: "14.3.2"},
 		{platform: "darwin", version: "15.0.1"},
