@@ -373,11 +373,7 @@ const mdmService = {
       path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
-    return new Promise((resolve, reject) => {
-      resolve(createMockSetupExperienceScript());
-    });
-
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
   downloadSetupExperienceScript: (teamId: number) => {
