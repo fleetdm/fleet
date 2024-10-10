@@ -1708,7 +1708,8 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	scepKey := tokenpki.PEMRSAPrivateKey(key)
 
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert:   {Value: scepCert},
 			fleet.MDMAssetCAKey:    {Value: scepKey},
@@ -1754,7 +1755,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb or .rpm."},
-		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MiB"},
+		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
@@ -1809,7 +1810,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .deb or .rpm."},
-		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 500 MiB"},
+		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
@@ -2006,7 +2007,7 @@ func startSoftwareInstallerServer(t *testing.T) {
 				case strings.Contains(r.URL.Path, "toolarge"):
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					var sz int
-					for sz < 500*1024*1024 {
+					for sz < 3000*1024*1024 {
 						n, _ := w.Write(b)
 						sz += n
 					}
