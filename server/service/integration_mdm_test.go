@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -55,6 +56,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -63,10 +67,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/smallstep/pkcs7"
+	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -197,7 +203,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 
-	config := TestServerOpts{
+	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
@@ -283,16 +289,17 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				}
 			},
 		},
-		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		APNSTopic:       "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		EnableSCEPProxy: true,
 	}
 
 	// ensure all our tests support challenges with invalid XML characters
 	s.scepChallenge = "scepcha/><llenge"
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
-	})
+	}, nil)
 	require.NoError(s.T(), err)
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -1027,7 +1034,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 func setupExpectedCAProfile(t *testing.T, ds *mysql.Datastore) []byte {
 	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
@@ -1343,7 +1350,8 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	// Delete APNS cert, should soft delete all certs and keys created in this test
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
 
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert}, nil)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, assets)
@@ -1905,7 +1913,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	// add an encryption key for the host
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
@@ -5549,7 +5557,7 @@ func (s *integrationMDMTestSuite) downloadAndVerifyOTAEnrollmentProfile(path str
 
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -5576,7 +5584,7 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 
 		assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 			fleet.MDMAssetCACert,
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -8230,7 +8238,10 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	// In testing, this can cause the test to hang until the next scheduled run. It isn't a very
 	// noticeable issue here since the intervals for these schedules are short.
 	ch := make(chan bool)
-	s.onIntegrationsScheduleDone = func() { close(ch) }
+	var once sync.Once
+	s.onIntegrationsScheduleDone = func() {
+		once.Do(func() { close(ch) })
+	}
 	_, err := s.integrationsSchedule.Trigger()
 	require.NoError(s.T(), err)
 	<-ch
@@ -9624,7 +9635,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) {
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 2)
 	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
@@ -9665,7 +9676,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that we created the right assets
-	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey}, nil)
 	require.NoError(t, err)
 	require.Len(t, originalAssets, 3)
 
@@ -9678,7 +9690,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that the assets stayed the same in the subsequent call
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey}, nil)
 	require.NoError(t, err)
 	require.Equal(t, originalAssets, assets)
 
@@ -9711,7 +9724,8 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/apns_certificate", "certificate", "certificate.pem", certPEM, http.StatusAccepted, "", nil)
 
-	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert}, nil)
 	require.NoError(t, err)
 	require.Len(t, assets, 4)
 }
@@ -11422,6 +11436,167 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
+}
+
+func (s *integrationMDMTestSuite) TestSCEPProxy() {
+	t := s.T()
+	ctx := context.Background()
+
+	data, err := os.ReadFile("./testdata/PKCSReq.der")
+	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(data)
+
+	// NDES not configured
+	res := s.DoRawNoAuth("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest)
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "missing operation")
+	// Provide SCEP operation (GetCACaps)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetCACerts)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (PKIOperation)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
+		"message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetNextCACert)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "not implemented")
+
+	// Add an MDM profile
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}
+	// add global profile
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	profiles, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	profileUUID := profiles[0].ProfileUUID
+	identifier := url.PathEscape(host.UUID + "," + profileUUID)
+
+	// Configure a bad SCEP URL
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConf.Integrations.NDESSCEPProxy.Valid = true
+	appConf.Integrations.NDESSCEPProxy.Value.URL = "https://httpstat.us/410"
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation", "GetCACaps")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "Could not GetCACaps from SCEP server")
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation", "GetCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "Could not GetCACert from SCEP server")
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "Could not do PKIOperation on SCEP server")
+
+	// Spin up an "external" SCEP server, which Fleet server will proxy
+	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {
+		var server *httptest.Server
+		teardown := func() {
+			if server != nil {
+				server.Close()
+			}
+			os.Remove("./testdata/externalCA/serial")
+			os.Remove("./testdata/externalCA/index.txt")
+		}
+		t.Cleanup(teardown)
+
+		var err error
+		var certDepot depot.Depot // cert storage
+		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
+		if err != nil {
+			t.Fatal(err)
+		}
+		certDepot = &noopCertDepot{certDepot}
+		crt, key, err := certDepot.CA([]byte{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var svc scepserver.Service // scep service
+		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
+		if err != nil {
+			t.Fatal(err)
+		}
+		logger := kitlog.NewNopLogger()
+		e := scepserver.MakeServerEndpoints(svc)
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+		r := mux.NewRouter()
+		r.Handle("/scep", scepHandler)
+		server = httptest.NewServer(r)
+		return server
+	}
+	scepServer := newSCEPServer(t)
+
+	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	// GetCACaps
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+
+	// GetCACert
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACert")
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	certs, err := x509.ParseCertificates(body)
+	require.NoError(t, err)
+	assert.Len(t, certs, 1)
+
+	// PKIOperation
+	// Invalid identifier format
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"%2Cbozo", nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "invalid identifier")
+	// Unknown host/profile
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile", nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "unknown identifier")
+	// "Good" request. Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
+	// and this request is sufficient for testing our proxy functionality.
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	pkiMessage, err := scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+}
+
+type noopCertDepot struct{ depot.Depot }
+
+func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {
+	return nil
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperience() {

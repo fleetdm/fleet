@@ -3708,6 +3708,20 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	)
 }
 
+func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
+	stmt := `
+	SELECT email
+	FROM host_emails he
+	JOIN hosts h ON h.id = he.host_id
+	WHERE h.uuid = ? AND he.source = ?
+	`
+	var emails []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &emails, stmt, hostUUID, source); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host emails")
+	}
+	return emails, nil
+}
+
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
