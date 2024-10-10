@@ -29,7 +29,7 @@ sequenceDiagram
     mac->>server: POST /mdm/apple/mdm<br/>MessageType: Authenticate<br/>Push notification token
     server->>mac: 200 OK
 
-    mac->>server: POST /mdm/apple/mdm<br/>MessageType: Bootstrap Token
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: Bootstrap Token<br/>Used to help grant Secure Tokens<br/>and erase the device
     server->>mac: 200 OK
 
     mac->>server: POST /mdm/apple/mdm<br/>MessageType: TokenUpdate
