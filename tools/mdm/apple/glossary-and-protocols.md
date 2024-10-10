@@ -35,7 +35,7 @@ sequenceDiagram
     mac->>server: POST /mdm/apple/mdm<br/>MessageType: TokenUpdate
     server->>mac: 200 OK
 
-    loop MDM
+    loop MDM mTLS
         server->>apns: MDM Push Notification
         apns->>mac: Push Notification
         mac->>server: PUT /mdm/apple/mdm<br/>Status: Idle
