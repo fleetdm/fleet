@@ -7160,7 +7160,7 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
 	assert.Nil(t, profile.ChallengeRetrievedAt)
 
-	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC()
+	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
 	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
 		{
 			HostUUID:             host.UUID,

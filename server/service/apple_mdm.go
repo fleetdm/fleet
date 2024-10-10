@@ -3602,7 +3602,7 @@ func preprocessProfileContents(
 		// We store the timestamp when the challenge was retrieved to know if it has expired.
 		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
 		for _, hostUUID := range target.hostUUIDs {
-			newProfUUID := uuid.NewString()
+			tempProfUUID := uuid.NewString()
 			hostContents := contentsStr
 
 			failed := false
@@ -3654,7 +3654,7 @@ func preprocessProfileContents(
 					}
 					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:             hostUUID,
-						ProfileUUID:          newProfUUID,
+						ProfileUUID:          profUUID,
 						ChallengeRetrievedAt: ptr.Time(time.Now()),
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
@@ -3696,12 +3696,12 @@ func preprocessProfileContents(
 				}
 			}
 			if !failed {
-				addedTargets[newProfUUID] = &cmdTarget{
+				addedTargets[tempProfUUID] = &cmdTarget{
 					cmdUUID:   target.cmdUUID,
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
-				profileContents[newProfUUID] = mobileconfig.Mobileconfig(hostContents)
+				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
 		}
 		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
