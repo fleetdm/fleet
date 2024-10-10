@@ -74,10 +74,8 @@ define HELP_TEXT
 	make generate-go  - Generate and bundle required go code
 	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
+	make generate-doc - Generate updated API documentation for activities, osquery flags
 
-	make migration - create a database migration file (supply name=TheNameOfYourMigration)
-
-	make generate-doc     - Generate updated API documentation for activities, osquery flags
 	make dump-test-schema - update schema.sql from current migrations
 	make generate-mock    - update mock data store
 

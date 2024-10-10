@@ -831,7 +831,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		}
 	}
 
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false, nil)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
@@ -1473,7 +1473,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true, nil)
+		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true)
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 

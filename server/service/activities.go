@@ -101,10 +101,6 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			if ranScriptActivity.PolicyID != nil {
 				userName = &automationActivityAuthor
 			}
-		} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
-			if softwareInstallActivity.PolicyID != nil {
-				userName = &automationActivityAuthor
-			}
 		}
 
 		go func() {
