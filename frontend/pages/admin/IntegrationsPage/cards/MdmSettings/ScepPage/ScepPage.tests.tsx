@@ -21,7 +21,7 @@ describe("Scep Page", () => {
         config={createMockConfig()}
         isLoading={false}
         isSaving={false}
-        isSavingDisabled={false}
+        saveButtonDisabled={false}
         showDataError={false}
         isPremiumTier={false} // test
       />
@@ -43,7 +43,7 @@ describe("Scep Page", () => {
         })}
         isLoading={false}
         isSaving={false}
-        isSavingDisabled={false}
+        saveButtonDisabled={false}
         showDataError={false}
         isPremiumTier
       />
@@ -61,7 +61,7 @@ describe("Scep Page", () => {
         config={createMockConfig()}
         isLoading // test
         isSaving={false}
-        isSavingDisabled={false}
+        saveButtonDisabled={false}
         showDataError={false}
         isPremiumTier
       />
@@ -79,7 +79,7 @@ describe("Scep Page", () => {
         config={createMockConfig()}
         isLoading={false}
         isSaving={false}
-        isSavingDisabled={false}
+        saveButtonDisabled={false}
         showDataError // test
         isPremiumTier
       />
@@ -97,7 +97,7 @@ describe("Scep Page", () => {
         config={createMockConfig()}
         isLoading={false}
         isSaving={false}
-        isSavingDisabled={false}
+        saveButtonDisabled={false}
         showDataError={false}
         isPremiumTier
       />
@@ -125,7 +125,7 @@ describe("Scep Page", () => {
         config={createMockConfig()}
         isLoading={false}
         isSaving={false}
-        isSavingDisabled={false}
+        saveButtonDisabled={false}
         showDataError={false}
         isPremiumTier
       />

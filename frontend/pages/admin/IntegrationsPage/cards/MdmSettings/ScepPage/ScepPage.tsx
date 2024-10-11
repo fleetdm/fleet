@@ -4,7 +4,6 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { IScepInfo } from "services/entities/mdm_apple";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
@@ -46,7 +45,7 @@ interface IScepCertificateContentProps {
   isPremiumTier: boolean;
   isLoading: boolean;
   isSaving: boolean;
-  isSavingDisabled: boolean;
+  saveButtonDisabled: boolean;
   showDataError: boolean;
 }
 
@@ -60,7 +59,7 @@ export const ScepCertificateContent = ({
   isPremiumTier,
   isLoading,
   isSaving,
-  isSavingDisabled,
+  saveButtonDisabled,
   showDataError,
 }: IScepCertificateContentProps) => {
   if (!isPremiumTier) {
@@ -89,12 +88,6 @@ export const ScepCertificateContent = ({
       </div>
     );
   }
-
-  const allEmptyValues =
-    !formData.scepUrl &&
-    !formData.adminUrl &&
-    !formData.username &&
-    !formData.password;
 
   return (
     <>
@@ -130,9 +123,9 @@ export const ScepCertificateContent = ({
                     </>
                   }
                   value={formData.scepUrl}
-                  parseTarget
                   onChange={onInputChange}
-                  error={!!formErrors.scepUrl && formErrors.scepUrl}
+                  parseTarget
+                  error={formErrors.scepUrl}
                   placeholder="https://example.com/certsrv/mscep/mscep.dll"
                 />
                 <InputField
@@ -146,9 +139,9 @@ export const ScepCertificateContent = ({
                     </>
                   }
                   value={formData.adminUrl}
-                  parseTarget
                   onChange={onInputChange}
-                  error={!!formErrors.adminUrl && formErrors.adminUrl}
+                  parseTarget
+                  error={formErrors.adminUrl}
                   placeholder="https://example.com/certsrv/mscep_admin/"
                 />
                 <InputField
@@ -163,8 +156,8 @@ export const ScepCertificateContent = ({
                     </>
                   }
                   value={formData.username}
-                  parseTarget
                   onChange={onInputChange}
+                  parseTarget
                   placeholder="username@example.microsoft.com"
                 />
                 <InputField
@@ -179,8 +172,9 @@ export const ScepCertificateContent = ({
                     </>
                   }
                   value={formData.password || ""}
-                  parseTarget
+                  type="password"
                   onChange={onInputChange}
+                  parseTarget
                   placeholder="••••••••"
                   blockAutoComplete
                 />
@@ -189,7 +183,7 @@ export const ScepCertificateContent = ({
                   variant="brand"
                   className="button-wrap"
                   isLoading={isSaving}
-                  disabled={isSavingDisabled}
+                  disabled={saveButtonDisabled}
                 >
                   Save
                 </Button>
@@ -239,74 +233,49 @@ export interface IFormField {
 }
 
 const ScepPage = ({ router }: IScepPageProps) => {
-  const { config, isPremiumTier, setConfig } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
 
   const { renderFlash } = useContext(NotificationContext);
-
-  const isMdmEnabled = !!config?.mdm.enabled_and_configured;
-
-  const ndesInfoReturnedFromApi: IScepInfo = {
-    url: "",
-    admin_url: "",
-    username: "",
-    password: null,
-  };
-
-  const {
-    url: scepUrl,
-    admin_url: adminUrl,
-    username,
-    password,
-  } = ndesInfoReturnedFromApi;
 
   const [formData, setFormData] = useState<INdesFormData>({
     scepUrl: "",
     adminUrl: "",
     username: "",
-    password: null,
+    password: "",
   });
+
+  console.log("formData", formData);
   const [formErrors, setFormErrors] = useState<INdesFormErrors>({});
-  const [isSavingDisabled, setIsSavingDisabled] = useState(true);
+  const [saveButtonDisabled, setSaveButtonDisabled] = useState(true);
   const [isUpdatingNdesScepProxy, setIsUpdatingNdesScepProxy] = useState(false);
 
   const {
+    data: appConfig,
     isLoading: isLoadingAppConfig,
     refetch: refetchConfig,
     isError: isErrorAppConfig,
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
-      if (data.integrations.ndes_scep_proxy) {
-        setFormData({
-          scepUrl: data.integrations.ndes_scep_proxy.url || "",
-          adminUrl: data.integrations.ndes_scep_proxy.admin_url || "",
-          username: data.integrations.ndes_scep_proxy.username || "",
-          password: null,
-        });
-      }
+      setConfig(data);
     },
   });
 
   useEffect(() => {
-    const allFieldsEmpty =
-      formData.scepUrl === "" &&
-      formData.adminUrl === "" &&
-      formData.username === "" &&
-      (formData.password === "" || formData.password === null);
+    const areAllFieldsEmpty = Object.values(formData).every(
+      (val) => val === "" || val === null
+    );
+    const areAllFieldsComplete = Object.values(formData).every(
+      (val) => val !== "" && val !== null
+    );
 
-    const allFieldsPresent =
-      formData.scepUrl !== "" &&
-      formData.adminUrl !== "" &&
-      formData.username !== "" &&
-      formData.password !== "";
-
-    if (!allFieldsEmpty && !allFieldsPresent) {
-      setIsSavingDisabled(true);
-    } else setIsSavingDisabled(false);
+    setSaveButtonDisabled(!areAllFieldsEmpty && !areAllFieldsComplete);
   }, [formData]);
 
   const onInputChange = ({ name, value }: IFormField) => {
-    setFormData({ ...formData, [name]: value });
+    setFormErrors((prev) => ({ ...prev, [name]: null }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    console.log("onInputChange formData", formData);
   };
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -336,21 +305,18 @@ const ScepPage = ({ router }: IScepPageProps) => {
     const isRemovingNdesScepProxy =
       formData.scepUrl === "" &&
       formData.adminUrl === "" &&
-      username === "" &&
-      password === "";
+      formData.username === "" &&
+      (formData.password === "" || formData.password === null);
 
     // Format for API
     const formDataToSubmit = isRemovingNdesScepProxy
       ? null // Send null if no fields are set
-      : [
-          {
-            url: formData.scepUrl,
-            admin_url: formData.adminUrl,
-            username: formData.username,
-            password: formData.password || null,
-          },
-        ];
-
+      : {
+          url: formData.scepUrl,
+          admin_url: formData.adminUrl,
+          username: formData.username,
+          password: formData.password || null,
+        };
     // Update integrations.ndes_scep_proxy only
     const destination = {
       ndes_scep_proxy: formDataToSubmit,
@@ -393,11 +359,11 @@ const ScepPage = ({ router }: IScepPageProps) => {
             formData={formData}
             formErrors={formErrors}
             onInputChange={onInputChange}
-            config={config}
+            config={appConfig || null}
             isPremiumTier={isPremiumTier || false}
             isLoading={isLoadingAppConfig}
             isSaving={isUpdatingNdesScepProxy}
-            isSavingDisabled={isSavingDisabled}
+            saveButtonDisabled={saveButtonDisabled}
             showDataError={isErrorAppConfig}
           />
         </div>
