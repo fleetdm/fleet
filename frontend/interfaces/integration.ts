@@ -21,7 +21,7 @@ export interface IScepIntegration {
   url: string;
   admin_url: string;
   username: string;
-  password: string | null;
+  password: string;
 }
 
 export interface IIntegration {
