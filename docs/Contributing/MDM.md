@@ -154,4 +154,44 @@ When disk encryption is enabled, the server sends a notification to orbit, who c
 
 After the disk is encrypted, orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`)
 
+### Load testing
+
+osquery-perf supports MDM load testing for Windows and Apple devices. Under the hood it uses the `mdmtest` package to simulate MDM clients.
+
+Documentation about setting up load testing for MDM can be found in ./infrastructure/loadtesting/terraform/readme.md
+
+### ADE
+
+For a high-level overview of how ADE works please check the [glossary](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md
+)
+
+Below is a summary of Fleet-specific behaviors for ADE.
+
+### Sync
+
+Sincronization of devices from all ABM tokens uploaded to Fleet happen in the `dep_syncer` cron job, which runs every 30 seconds.
+
+We keep a record of all devices ingested via the ADE sync in the `host_dep_assignments` table. Entries in this table are soft-deleted.
+
+On every run, we pull the list of added/modified/deleted devices and:
+
+1. If the host was added/modified, we:
+    1. Create/match a row in the `hosts` table for the new host. This allows IT admin to move the host between teams before it turns on MDM or has `fleetd` installed.
+    1. Assign the corresponding JSON profile to each host using ABM's APIs.
+2. If the host was deleted, we soft delete the `host_dep_assignments` entry 
+
+#### Special case: host in ABM is deleted in Fleet
+
+If an IT admin deletes a host in the UI/API, and we have a non-deleted entry in `host_dep_assignments` for the host, we immediately create a new host entry as if the device was just ingested from the ABM sync.
+
+### IdP integration
+
+If the IT admin configured an MDM IdP integration, we change the `configuration_web_url` value in the JSON profile to be `{server_url}/mdm/sso`, this page initiates the SSO flow in the setup assistant webview.
+
+Key points about he IdP flow:
+
+1. The SSO flow ends with a callback to the Fleet server which contains information about the user that just logged in. We store this information in the `mdm_idp_accounts` table. Because at this point we don't know from which host UUID the request is coming in, we generate a random UUID as the key to look up this information.
+2. The Fleet server responds with an enrollment profile, that contains a special `ServerURL` with a query parameter `enrollment_reference`, this parameter has the random UUID generated in step 1.
+3. During MDM enrollment, we grab the `enrollment_reference` parameter, if present, and we try to match it to a host. This allows us to link end user IdP accounts used during enrollment with a host.
+4. Before releasing the device from awaiting configuration, we send an `AccountConfiguration` command to the host, to pre-set the macOS local account user name to the value we got stored in `mdm_idp_accounts`
 
