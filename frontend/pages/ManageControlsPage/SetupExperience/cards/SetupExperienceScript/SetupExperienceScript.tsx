@@ -35,6 +35,7 @@ const SetupExperienceScript = ({
     isLoading,
     isError,
     refetch: refetchScript,
+    remove: removeScriptFromCache,
   } = useQuery<IGetSetupExperienceScriptResponse, AxiosError>(
     ["setup-experience-script", currentTeamId],
     () => mdmAPI.getSetupExperienceScript(currentTeamId),
@@ -46,6 +47,7 @@ const SetupExperienceScript = ({
   };
 
   const onDelete = () => {
+    removeScriptFromCache();
     setShowDeleteScriptModal(false);
     refetchScript();
   };
