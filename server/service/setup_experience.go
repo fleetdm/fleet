@@ -223,7 +223,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	}
 
 	var installersPending, appsPending, scriptsPending int
-	var installersIncomplete, appsIncomplete, scriptsIncomplete int
+	var installersRunning, appsRunning, scriptsRunning int
 
 	for _, status := range statuses {
 		var colsSet uint
@@ -248,21 +248,21 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			case fleet.SetupExperienceStatusPending:
 				installersPending++
 			case fleet.SetupExperienceStatusRunning:
-				installersIncomplete++
+				installersRunning++
 			}
 		case status.VPPAppTeamID != nil:
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
 				appsPending++
 			case fleet.SetupExperienceStatusRunning:
-				appsIncomplete++
+				appsRunning++
 			}
 		case status.SetupExperienceScriptID != nil:
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
 				scriptsPending++
 			case fleet.SetupExperienceStatusRunning:
-				scriptsIncomplete++
+				scriptsRunning++
 			}
 		}
 	}
@@ -270,10 +270,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	switch {
 	case installersPending > 0:
 		// enqueue installers
-	case installersIncomplete == 0 && appsPending > 0:
+	case installersRunning == 0 && appsPending > 0:
 		// enqueue vpp apps
-	case installersIncomplete == 0 && appsIncomplete == 0 && scriptsPending > 0:
+	case installersRunning == 0 && appsRunning == 0 && scriptsPending > 0:
 		// enqueue scripts
+	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
+		// finished
 	}
 
 	return nil
