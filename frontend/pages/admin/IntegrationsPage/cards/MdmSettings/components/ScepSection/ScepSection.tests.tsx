@@ -2,19 +2,12 @@ import React from "react";
 import { screen } from "@testing-library/react";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
-import {
-  defaultVppInfoHandler,
-  errorNoVppInfoHandler,
-} from "test/handlers/apple_mdm";
 import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
 
 import ScepSection from "./ScepSection";
 
 describe("Scep Section", () => {
   it("renders mdm is off message when apple mdm is not turned on ", async () => {
-    mockServer.use(defaultVppInfoHandler);
-
     const render = createCustomRenderer({
       context: {
         app: {
@@ -23,7 +16,6 @@ describe("Scep Section", () => {
           }),
         },
       },
-      withBackendMock: true,
     });
 
     render(
@@ -36,8 +28,6 @@ describe("Scep Section", () => {
   });
 
   it("renders add scep when scep is disabled", async () => {
-    mockServer.use(errorNoVppInfoHandler);
-
     const render = createCustomRenderer({
       context: {
         app: {
@@ -46,7 +36,6 @@ describe("Scep Section", () => {
           }),
         },
       },
-      withBackendMock: true,
     });
 
     render(
@@ -59,8 +48,6 @@ describe("Scep Section", () => {
   });
 
   it("renders edit scep when scep is enabled", async () => {
-    mockServer.use(defaultVppInfoHandler);
-
     const render = createCustomRenderer({
       context: {
         app: {
@@ -69,7 +56,6 @@ describe("Scep Section", () => {
           }),
         },
       },
-      withBackendMock: true,
     });
     render(<ScepSection router={createMockRouter()} isScepOn isPremiumTier />);
     expect(
@@ -78,8 +64,6 @@ describe("Scep Section", () => {
   });
 
   it("render the premium message when not in premium tier", async () => {
-    mockServer.use(defaultVppInfoHandler);
-
     const render = createCustomRenderer({
       context: {
         app: {
@@ -88,7 +72,6 @@ describe("Scep Section", () => {
           }),
         },
       },
-      withBackendMock: true,
     });
     render(
       <ScepSection

@@ -18,12 +18,6 @@ export interface IEulaMetadataResponse {
   created_at: string;
 }
 
-export interface IScepMetadataResponse {
-  name: string;
-  token: string;
-  created_at: string;
-}
-
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
 
 export interface IDiskEncryptionStatusAggregate {
