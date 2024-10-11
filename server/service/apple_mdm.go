@@ -44,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -3598,8 +3599,10 @@ func preprocessProfileContents(
 		if addedTargets == nil {
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
+		// We store the timestamp when the challenge was retrieved to know if it has expired.
+		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
 		for _, hostUUID := range target.hostUUIDs {
-			newProfUUID := uuid.NewString()
+			tempProfUUID := uuid.NewString()
 			hostContents := contentsStr
 
 			failed := false
@@ -3649,12 +3652,18 @@ func preprocessProfileContents(
 						failed = true
 						break
 					}
+					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:             hostUUID,
+						ProfileUUID:          profUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
-						url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
+						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case FleetVarHostEndUserEmailIDP:
 					// Insert the end user email IDP into the profile contents
@@ -3687,13 +3696,17 @@ func preprocessProfileContents(
 				}
 			}
 			if !failed {
-				addedTargets[newProfUUID] = &cmdTarget{
+				addedTargets[tempProfUUID] = &cmdTarget{
 					cmdUUID:   target.cmdUUID,
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
-				profileContents[newProfUUID] = mobileconfig.Mobileconfig(hostContents)
+				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
+		}
+		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating managed certificates")
 		}
 		// Remove the parent target, since we will use host-specific targets
 		delete(targets, profUUID)
