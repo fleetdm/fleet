@@ -52,7 +52,7 @@ For possible options, see the parameters for the [Add policy API endpoint](https
 
 ##### Inline
   
-`default.yml` or `teams/team-name.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
@@ -95,7 +95,9 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+
+> Policies that run automation to install software or run script, must be defined in `tems/no-team.yml` to run on hosts that belong to no team.
 
 ```yaml
 policies:
