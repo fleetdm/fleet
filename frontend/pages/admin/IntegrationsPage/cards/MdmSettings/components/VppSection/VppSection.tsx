@@ -1,18 +1,11 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionCard from "../SectionCard";

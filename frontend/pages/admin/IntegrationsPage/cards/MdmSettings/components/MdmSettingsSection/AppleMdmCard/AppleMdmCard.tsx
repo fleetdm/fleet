@@ -2,7 +2,6 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import Card from "components/Card";
 import DataError from "components/DataError";
 import { AxiosError } from "axios";
 import { IMdmApple } from "interfaces/mdm";
@@ -17,6 +16,7 @@ interface ITurnOnAppleMdmCardProps {
 const TurnOnAppleMdmCard = ({ onClickTurnOn }: ITurnOnAppleMdmCardProps) => {
   return (
     <SectionCard
+      className={baseClass}
       header="Turn on Apple (macOS, iOS, iPadOS) MDM"
       cta={
         <Button variant="brand" onClick={onClickTurnOn}>

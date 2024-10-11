@@ -23,7 +23,7 @@ interface IScepCardProps {
 
 export const SCEP_SERVER_TIP_CONTENT = (
   <>
-    Fleet currently supports Microsoft's Network Device
+    Fleet currently supports Microsoft&apos;s Network Device
     <br />
     Enrollment Service (NDES) as a SCEP server.
   </>

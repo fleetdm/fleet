@@ -1,7 +1,7 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { createMockRouter } from "test/test-utils";
 
 import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
 

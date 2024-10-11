@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 
 import { AppContext } from "context/app";
 
-import Card from "components/Card/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SectionCard from "../../SectionCard";
@@ -18,6 +17,7 @@ const TurnOnWindowsMdmCard = ({
 }: ITurnOnWindowsMdmCardProps) => {
   return (
     <SectionCard
+      className={baseClass}
       header="Turn on Windows MDM"
       cta={
         <Button variant="brand" onClick={onClickTurnOn}>
