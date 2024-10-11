@@ -19,7 +19,8 @@ The Finance department is directly responsible for accounts receivable including
 
 
 ### Run payroll
-Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
+Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy. 
+
  - Salaried fleeties are automated in Gusto and Plane.
  - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
 
@@ -30,6 +31,35 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Performance bonus            | "Bonus" payroll              | Head of Finance     
 | Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Finance
 | [US contractor payroll](https://fleetdm.com/handbook/finance#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Finance
+
+To complete payroll for a salaried US employee, use the following steps:
+1. Log into your admin [Gusto](https://app.gusto.com/login) account.
+2. Navigate to Pay > Run payroll > Run payroll.
+3. Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+4. Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+5. Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Gusto and the equity plan. 
+6. Once the above is verified correct, ensure payment is via direct deposit and select "Review summary".
+7. Ensure the payroll date is the last business day of the month, and hit submit.
+
+To complete payroll for a salaried international employee, use the following steps:
+1. Log into your admin [Plane](https://id.plane.com/login) account. 
+   - While Fleet considers all Fleeties employees, Plane differentiates between employees (that Fleet employs directly) and International contractors (that Fleet employs via a contracted company).
+2. Verify the number of employees in each country by checking the "Stats" tab in the [Fleeties doc](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?gid=1874060596#gid=1874060596). If the numbers seem incorrect, cross-reference with the main Fleeties tab to ensure all employees are accounted for in Plane.
+3. Verify that all teammates have a planned (or already processed) payroll.
+   - To check payroll for those Plane considers "employees", go to Payroll > History.
+      - Verify that any employees getting paid more frequently than monthly have had their payments processed throughout the month (Canada only currently).
+      - Navigate to the Digital Experince board, and search for "welcoming" issues or "offboarding" issues.
+      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
+      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+   - To check payroll for those Plane considers "contractors", go to "Payments" > "Pay contractors".
+      - Navigate to the "scheduled" tab in the top right of screen to look at what is currently scheduled to be paid.
+      - Ensure all teammates have a pending payment (except those that invoice for payment).
+      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues
+      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
+      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+      - If all payments are scheduled or processing and are correct, no action needed. This payroll will process successfully without intervention.
 
 ### Reconcile monthly recurring expenses
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
