@@ -37,7 +37,6 @@ module.exports = {
 
 
   fn: async function ({newSoftware, teams}) {
-    let util = require('util');
     let uploadedSoftware;
     if(!teams) {
       uploadedSoftware = await sails.uploadOne(newSoftware);

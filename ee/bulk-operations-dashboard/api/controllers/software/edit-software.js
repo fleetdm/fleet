@@ -69,7 +69,7 @@ module.exports = {
       let softwareName;
       let softwareMime;
       if(software.teams && !newSoftware) {
-        console.log('Editing deployed software!');
+        // console.log('Editing deployed software!');
         // This software is deployed.
         // get software from Fleet instance and upload to s3.
         let teamIdToGetInstallerFrom = software.teams[0].fleetApid;
@@ -86,7 +86,7 @@ module.exports = {
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
         // If a new copy of the installer was uploaded, we'll
-        console.log('replacing software package!');
+        // console.log('replacing software package!');
         let uploadedSoftware = await sails.uploadOne(newSoftware);
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
@@ -98,16 +98,10 @@ module.exports = {
           throw {wrongInstallerExtension: `Couldn't edit ${software.name}. The selected package should be a ${existingSoftwareExtension} file`};
         }
       } else {
-        console.log('Editing undeployed software!');
+        // console.log('Editing undeployed software!');
         softwareFd = software.uploadFd;
         softwareName = software.name;
         softwareMime = software.uploadMime;
-      }
-      let adapterForUploadedFile = {};
-      if(!software.id) {
-        // If this software is not stored in the s3 bucket, we'll use the skipper-disk adapter to store a temporary copy in the app's local filesystem.
-        // Note: This file will be deleted after it is copied to its final home (either the S3 bucket we're storing )
-        adapterForUploadedFile = {};
       }
       // Now apply the edits.
       if(newTeamIds.length !== 0) {
@@ -117,7 +111,7 @@ module.exports = {
         let unchangedTeamIds = _.difference(currentSoftwareTeamIds, removedTeams);
         // for(let team of addedTeams) {
         await sails.helpers.flow.simultaneouslyForEach(addedTeams, async (team)=>{
-          console.log(`transfering ${software.name} to fleet instance for team id ${team}`);
+          // console.log(`transfering ${software.name} to fleet instance for team id ${team}`);
           // Send an api request to send the file to the Fleet server for each added team.
           await sails.cp(softwareFd, {},
             {
@@ -180,7 +174,7 @@ module.exports = {
         if(newSoftware) {
           // If a new installer package was provided, send patch requests to update the installer package on teams that it is already deployed to.
           await sails.helpers.flow.simultaneouslyForEach(unchangedTeamIds, async (teamApid)=>{
-            console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
+            // console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
             await sails.helpers.http.sendHttpRequest.with({
               method: 'DELETE',
               baseUrl: sails.config.custom.fleetBaseUrl,
@@ -189,7 +183,7 @@ module.exports = {
                 Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
               }
             });
-            console.log(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
+            // console.log(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
             // console.time(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
             await sails.cp(softwareFd, {},
             {
@@ -266,7 +260,7 @@ module.exports = {
         // If this is a deployed software that is being unassigned, save information about the uploaded file in our s3 bucket.
         if(newSoftware) {
           // remove the old copy.
-          console.log('Removing old package for ',softwareName);
+          // console.log('Removing old package for ',softwareName);
           await UndeployedSoftware.create({
             uploadFd: softwareFd,
             uploadMime: softwareMime,
@@ -299,7 +293,7 @@ module.exports = {
         }
 
       } else {
-        console.log('updating existing db record!');
+        // console.log('updating existing db record!');
         await UndeployedSoftware.updateOne({id: software.id}).set({
           name: softwareName,
           uploadMime: softwareMime,

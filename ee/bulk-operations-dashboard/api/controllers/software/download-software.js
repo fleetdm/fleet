@@ -59,7 +59,7 @@ module.exports = {
       let filename = packageInformation.software_title.software_package.name;
       // [?]: https://fleetdm.com/docs/rest-api/rest-api#download-package
       // GET /api/v1/fleet/software/titles/:software_title_id/package?team_id=${teamId}
-      let downloading = await sails.helpers.http.getStream.with({
+      downloading = await sails.helpers.http.getStream.with({
         url: `${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${fleetApid}/package?alt=media&team_id=${teamApid}`,
         headers: {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
