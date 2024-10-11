@@ -130,11 +130,6 @@ WHERE NOT EXISTS (
 	)
 )`
 
-	// build the count statement before adding the pagination constraints to the
-	// default stmt.
-	dbReader := ds.reader(ctx)
-	getAppsCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
-
 	args := []any{teamID, teamID}
 
 	if match := opt.MatchQuery; match != "" {
@@ -143,17 +138,21 @@ WHERE NOT EXISTS (
 		args = append(args, match)
 	}
 
+	// perform a second query to grab the counts. Build the count statement before
+	// adding the pagination constraints to the stmt but after including the
+	// MatchQuery option sql.
+	dbReader := ds.reader(ctx)
+	getAppsCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
+	var counts int
+	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
+	}
+
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
-	}
-
-	// perform a second query to grab the counts
-	var counts int
-	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(counts)}
