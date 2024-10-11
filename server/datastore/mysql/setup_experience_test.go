@@ -855,14 +855,14 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	err := ds.SetHostAwaitingConfiguration(ctx, "abc", true)
 	require.NoError(t, err)
 
-	inSetupExperience, err := ds.GetHostInMacOSSetupExperience(ctx, "abc")
+	inSetupExperience, err := ds.GetHostAwaitingConfiguration(ctx, "abc")
 	require.NoError(t, err)
 	require.True(t, inSetupExperience)
 
 	err = ds.SetHostAwaitingConfiguration(ctx, "abc", false)
 	require.NoError(t, err)
 
-	inSetupExperience, err = ds.GetHostInMacOSSetupExperience(ctx, "abc")
+	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "abc")
 	require.NoError(t, err)
 	require.False(t, inSetupExperience)
 }

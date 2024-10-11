@@ -49,7 +49,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			}, nil
 		}
 
-		ds.GetHostInMacOSSetupExperienceFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
 
@@ -124,7 +124,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			}, nil
 		}
 
-		ds.GetHostInMacOSSetupExperienceFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
 
@@ -204,7 +204,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			return isHostConnectedToFleet, nil
 		}
 
-		ds.GetHostInMacOSSetupExperienceFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
 
@@ -297,7 +297,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			return os, nil
 		}
 
-		ds.GetHostInMacOSSetupExperienceFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
 
