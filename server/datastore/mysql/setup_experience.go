@@ -311,6 +311,43 @@ WHERE host_uuid = ?
 	return results, nil
 }
 
+func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+	const stmt = `
+UPDATE setup_experience_status_results
+SET
+	host_uuid = ?
+	name = ?
+	status = ?
+	software_installer_id = ?
+	host_software_installs_id = ?
+	vpp_app_team_id = ?
+	nano_command_uuid = ?
+	setup_experience_script_id = ?
+	script_execution_id = ?
+	error = ?
+WHERE id = ?
+`
+	if _, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		status.HostUUID,
+		status.Name,
+		status.Status,
+		status.SoftwareInstallerID,
+		status.HostSoftwareInstallsExecutionID,
+		status.VPPAppTeamID,
+		status.NanoCommandUUID,
+		status.SetupExperienceScriptID,
+		status.ScriptExecutionID,
+		status.Error,
+		status.ID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating setup experience status result")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
 	query := `
 SELECT

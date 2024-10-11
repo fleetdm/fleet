@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error {
@@ -123,7 +124,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
 
-	var installersPending, appsPending, scriptsPending int
+	var installersPending, appsPending, scriptsPending []*fleet.SetupExperienceStatusResult
 	var installersRunning, appsRunning, scriptsRunning int
 
 	for _, status := range statuses {
@@ -147,33 +148,54 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 		case status.SoftwareInstallerID != nil:
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
-				installersPending++
+				installersPending = append(installersPending, status)
 			case fleet.SetupExperienceStatusRunning:
 				installersRunning++
 			}
 		case status.VPPAppTeamID != nil:
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
-				appsPending++
+				appsPending = append(appsPending, status)
 			case fleet.SetupExperienceStatusRunning:
 				appsRunning++
 			}
 		case status.SetupExperienceScriptID != nil:
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
-				scriptsPending++
+				scriptsPending = append(scriptsPending, status)
 			case fleet.SetupExperienceStatusRunning:
 				scriptsRunning++
 			}
 		}
 	}
 
+	// This step is called internally, not by an observer
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, []string{hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching host details using UUID")
+	}
+
+	if len(hosts) == 0 {
+		return ctxerr.Errorf(ctx, "could not find host id for host UUID %s", hostUUID)
+	}
+
 	switch {
-	case installersPending > 0:
+	case len(installersPending) > 0:
 		// enqueue installers
-	case installersRunning == 0 && appsPending > 0:
+		for _, installer := range installersPending {
+			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, hosts[0].ID, installer.ID, false, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "queueing setup experience install request")
+			}
+			installer.HostSoftwareInstallsExecutionID = &installUUID
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, installer); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
+			}
+		}
+	case installersRunning == 0 && len(appsPending) > 0:
 		// enqueue vpp apps
-	case installersRunning == 0 && appsRunning == 0 && scriptsPending > 0:
+	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
 	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
 		// finished
