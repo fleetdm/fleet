@@ -268,15 +268,13 @@ parasails.registerPage('start', {
           break;
         case 'how-many-hosts':
           if(this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed' || this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed') {
-            if(this.formData['how-many-hosts'].numberOfHosts === '1-100' ||
-              this.formData['how-many-hosts'].numberOfHosts === '100-700') {
+            if(['1-100','100-700','100-300'].includes(this.formData['how-many-hosts'].numberOfHosts)) {
               nextStepInForm = 'will-you-be-self-hosting';
             } else {
               nextStepInForm = 'lets-talk-to-your-team';
             }
           } else {
-            if(this.formData['how-many-hosts'].numberOfHosts === '1-100' ||
-              this.formData['how-many-hosts'].numberOfHosts === '100-700') {
+            if(['1-100','100-700','100-300'].includes(this.formData['how-many-hosts'].numberOfHosts)) {
               nextStepInForm = 'managed-cloud-for-growing-deployments';
             } else {
               nextStepInForm = 'lets-talk-to-your-team';
