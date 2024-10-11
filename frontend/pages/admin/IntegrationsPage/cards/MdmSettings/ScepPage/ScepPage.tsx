@@ -38,7 +38,7 @@ const DEFAULT_ERROR =
 interface IScepCertificateContentProps {
   router: InjectedRouter;
   onFormSubmit: (evt: React.MouseEvent<HTMLFormElement>) => Promise<void>;
-  formData: INdesFormData; // TODO
+  formData: INdesFormData;
   formErrors: INdesFormErrors;
   onInputChange: ({ name, value }: IFormField) => void;
   config: IConfig | null;
