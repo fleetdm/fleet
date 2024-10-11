@@ -267,5 +267,14 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 		}
 	}
 
+	switch {
+	case installersPending > 0:
+		// enqueue installers
+	case installersIncomplete == 0 && appsPending > 0:
+		// enqueue vpp apps
+	case installersIncomplete == 0 && appsIncomplete == 0 && scriptsPending > 0:
+		// enqueue scripts
+	}
+
 	return nil
 }
