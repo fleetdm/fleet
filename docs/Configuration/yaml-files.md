@@ -40,9 +40,13 @@ team_settings: # Only teams/team-name.yml
 
 ### policies
 
-Policies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
-Policies defined in `default.yml` run on **all** hosts.
+Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.  
+
+Policies defined in `default.yml` run on **all** hosts.  
+
 Policies defined in `teams/no-team.yml` run on hosts that belong to "No team".
+
+> Policies that run automations to install software or run scripts must be defined in `teams/no-team.yml` to run on hosts that belong to "No team".
 
 #### Options
 
@@ -52,7 +56,7 @@ For possible options, see the parameters for the [Add policy API endpoint](https
 
 ##### Inline
   
-`default.yml` or `teams/team-name.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
@@ -95,7 +99,7 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
