@@ -984,28 +984,21 @@ At the end of their first two weeks of onboarding at Fleet, every new team membe
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
 
-## Performance feedback
+## Feedback
 
-At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner.
-
-Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
+- Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
+- Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
+- Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
+- Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
 
 When _giving_ feedback:
-
-1. Aim to assist
-  - Feedback must be given with positive intent.
-  - Feedback must be framed around how it can help the individual or the company.
-2. Actionable
-  - Feedback must be actionable and focus on what the recipient can do differently.
+1. **Aim to assist**: Feedback must be given with positive intent. Feedback must be framed around how it can help the individual or the company.
+2. **Actionable**: Feedback must be actionable and focus on what the recipient can do differently.
 
 When _receiving_ feedback:
-
-3. Appreciate
-  - It is natural to feel defensive when hearing criticism.
-  - Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
-4. Accept or discard
-  - Listen and consider all feedback, then decide to accept or discard.
-  - The decision to react to the feedback is entirely up to the recipient.
+3. **Appreciate**: It is natural to feel defensive when hearing criticism. Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
+4. **Accept or discard**: Listen and consider all feedback, then decide to accept or discard. The decision to react to the feedback is entirely up to the recipient.
 
 > When delivering feedback, you can also use the [other person's personality type](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0&range=AA1) as [a guide](https://drive.google.com/file/d/1iWHYJzc6WKdR95GBFAvjumouh0ej2DQM/view).  For example, when delivering feedback to a ["type 1" personality](https://www.enneagraminstitute.com/type-1/), it helps to focus on minimizing the extent to which the person spirals into self-blame.  In contrast, when delivering feedback to a ["type 7" personality](https://www.enneagraminstitute.com/type-7/), it is better to focus on being sensitive to the person's tendency to avoid negative emotions and reframe things positively.
 
