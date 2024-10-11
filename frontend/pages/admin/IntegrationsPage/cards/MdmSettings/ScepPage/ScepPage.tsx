@@ -31,7 +31,7 @@ const BAD_SCEP_URL_ERROR = "Invalid SCEP URL. Please correct and try again.";
 const BAD_CREDENTIALS_ERROR =
   "Invalid admin URL or credentials. Please correct and try again.";
 const CACHE_ERROR =
-  "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
+  "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again. By default, NDES caches 5 passwords and they expire 60 minutes after they are created.";
 const DEFAULT_ERROR =
   "Something went wrong updating your SCEP server. Please try again.";
 
@@ -102,14 +102,14 @@ export const ScepCertificateContent = ({
         <ol className={`${baseClass}__steps`}>
           <li>
             {/* TODO: confirm URL */}
-            <>
+            <div>
               Connect to your Network Device Enrollment Service (
               <CustomLink
                 url="https://www.fleetdm.com/learn-more-about/ndes"
                 text="NDES"
               />
               ) admin account:
-            </>
+            </div>
             <Card>
               <form onSubmit={onFormSubmit} autoComplete="off">
                 <InputField
@@ -233,18 +233,17 @@ export interface IFormField {
 }
 
 const ScepPage = ({ router }: IScepPageProps) => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<INdesFormData>({
-    scepUrl: "",
-    adminUrl: "",
-    username: "",
-    password: "",
+    scepUrl: config?.integrations.ndes_scep_proxy?.url || "",
+    adminUrl: config?.integrations.ndes_scep_proxy?.admin_url || "",
+    username: config?.integrations.ndes_scep_proxy?.username || "",
+    password: config?.integrations.ndes_scep_proxy?.password || "",
   });
 
-  console.log("formData", formData);
   const [formErrors, setFormErrors] = useState<INdesFormErrors>({});
   const [saveButtonDisabled, setSaveButtonDisabled] = useState(true);
   const [isUpdatingNdesScepProxy, setIsUpdatingNdesScepProxy] = useState(false);
@@ -275,7 +274,6 @@ const ScepPage = ({ router }: IScepPageProps) => {
   const onInputChange = ({ name, value }: IFormField) => {
     setFormErrors((prev) => ({ ...prev, [name]: null }));
     setFormData((prev) => ({ ...prev, [name]: value }));
-    console.log("onInputChange formData", formData);
   };
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -296,21 +294,20 @@ const ScepPage = ({ router }: IScepPageProps) => {
 
     setFormErrors(newFormErrors);
 
-    if (!scepUrlValid && !adminUrlValid) {
+    const areAllFieldsEmpty = Object.values(formData).every(
+      (val) => val === "" || val === null
+    );
+    const isRemovingNdesScepProxy = areAllFieldsEmpty;
+
+    if (!isRemovingNdesScepProxy && (!scepUrlValid || !adminUrlValid)) {
       return;
     }
 
     setIsUpdatingNdesScepProxy(true);
 
-    const isRemovingNdesScepProxy =
-      formData.scepUrl === "" &&
-      formData.adminUrl === "" &&
-      formData.username === "" &&
-      (formData.password === "" || formData.password === null);
-
     // Format for API
     const formDataToSubmit = isRemovingNdesScepProxy
-      ? null // Send null if no fields are set
+      ? null
       : {
           url: formData.scepUrl,
           admin_url: formData.adminUrl,
@@ -324,15 +321,22 @@ const ScepPage = ({ router }: IScepPageProps) => {
 
     try {
       await configAPI.update({ integrations: destination });
-      renderFlash("success", "Successfully added your SCEP server.");
+      renderFlash(
+        "success",
+        `Successfully ${
+          isRemovingNdesScepProxy ? "removed" : "added"
+        } your SCEP server.`
+      );
       refetchConfig();
     } catch (error) {
       console.error(error);
-      if (getErrorReason(error).includes("TODO")) {
+      if (getErrorReason(error).includes("invalid SCEP URL")) {
         renderFlash("error", BAD_SCEP_URL_ERROR);
-      } else if (getErrorReason(error).includes("TODO")) {
+      } else if (
+        getErrorReason(error).includes("invalid admin URL or credentials")
+      ) {
         renderFlash("error", BAD_CREDENTIALS_ERROR);
-      } else if (getErrorReason(error).includes("TODO")) {
+      } else if (getErrorReason(error).includes("the password cache is full")) {
         renderFlash("error", CACHE_ERROR);
       } else renderFlash("error", DEFAULT_ERROR);
     } finally {

@@ -21,8 +21,13 @@ interface IScepCardProps {
   router: InjectedRouter;
 }
 
-export const SCEP_SERVER_TIP_CONTENT =
-  "Fleet currently supports Microsoft's Network Device Enrollment Service (NDES) as a SCEP server.";
+export const SCEP_SERVER_TIP_CONTENT = (
+  <>
+    Fleet currently supports Microsoft's Network Device
+    <br />
+    Enrollment Service (NDES) as a SCEP server.
+  </>
+);
 
 const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
   const navigateToScepSetup = () => {
