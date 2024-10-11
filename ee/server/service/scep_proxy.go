@@ -92,7 +92,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 
 	// Validate the identifier and challenge password expiration.
-	parsedID, err := url.QueryUnescape(identifier)
+	parsedID, err := url.PathUnescape(identifier)
 	if err != nil {
 		// Should never happen since the identifier comes in as a path variable
 		return nil, ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
