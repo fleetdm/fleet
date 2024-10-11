@@ -2722,16 +2722,18 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	if m.AwaitingConfiguration {
+
+		// Mark the host as being in setup experience
+		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, true); err != nil {
+			return ctxerr.Wrap(r.Context, err, "setting host in setup experience state")
+		}
+
 		// Enqueue setup experience items
 		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
 
-		// Mark the host as being in Setup Assistant
-		if err := svc.ds.SetHostInMacOSSetupExperience(r.Context, r.ID, true); err != nil {
-			return ctxerr.Wrap(r.Context, err, "setting host in setup experience state")
-		}
 	}
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
@@ -3505,7 +3507,6 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 ) error {
-
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
 	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
 

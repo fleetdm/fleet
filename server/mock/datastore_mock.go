@@ -1103,9 +1103,9 @@ type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint,
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
-type SetHostInMacOSSetupExperienceFunc func(ctx context.Context, hostUUID string, inSetupExperience bool) error
+type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string, inSetupExperience bool) error
 
-type GetHostInMacOSSetupExperienceFunc func(ctx context.Context, hostUUID string) (bool, error)
+type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
@@ -2747,11 +2747,11 @@ type DataStore struct {
 	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
 	ListSetupExperienceSoftwareTitlesFuncInvoked bool
 
-	SetHostInMacOSSetupExperienceFunc        SetHostInMacOSSetupExperienceFunc
-	SetHostInMacOSSetupExperienceFuncInvoked bool
+	SetHostAwaitingConfigurationFunc        SetHostAwaitingConfigurationFunc
+	SetHostAwaitingConfigurationFuncInvoked bool
 
-	GetHostInMacOSSetupExperienceFunc        GetHostInMacOSSetupExperienceFunc
-	GetHostInMacOSSetupExperienceFuncInvoked bool
+	GetHostAwaitingConfigurationFunc        GetHostAwaitingConfigurationFunc
+	GetHostAwaitingConfigurationFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -6567,18 +6567,18 @@ func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamI
 	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
 }
 
-func (s *DataStore) SetHostInMacOSSetupExperience(ctx context.Context, hostUUID string, inSetupExperience bool) error {
+func (s *DataStore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error {
 	s.mu.Lock()
-	s.SetHostInMacOSSetupExperienceFuncInvoked = true
+	s.SetHostAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostInMacOSSetupExperienceFunc(ctx, hostUUID, inSetupExperience)
+	return s.SetHostAwaitingConfigurationFunc(ctx, hostUUID, inSetupExperience)
 }
 
-func (s *DataStore) GetHostInMacOSSetupExperience(ctx context.Context, hostUUID string) (bool, error) {
+func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
 	s.mu.Lock()
-	s.GetHostInMacOSSetupExperienceFuncInvoked = true
+	s.GetHostAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostInMacOSSetupExperienceFunc(ctx, hostUUID)
+	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {

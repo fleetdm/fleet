@@ -291,7 +291,6 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			t.Errorf("team %d shouldn't have any any entries", team)
 		}
 	}
-
 }
 
 type setupExperienceInsertTestRows struct {
@@ -853,14 +852,14 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 
 func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	err := ds.SetHostInMacOSSetupExperience(ctx, "abc", true)
+	err := ds.SetHostAwaitingConfiguration(ctx, "abc", true)
 	require.NoError(t, err)
 
 	inSetupExperience, err := ds.GetHostInMacOSSetupExperience(ctx, "abc")
 	require.NoError(t, err)
 	require.True(t, inSetupExperience)
 
-	err = ds.SetHostInMacOSSetupExperience(ctx, "abc", false)
+	err = ds.SetHostAwaitingConfiguration(ctx, "abc", false)
 	require.NoError(t, err)
 
 	inSetupExperience, err = ds.GetHostInMacOSSetupExperience(ctx, "abc")

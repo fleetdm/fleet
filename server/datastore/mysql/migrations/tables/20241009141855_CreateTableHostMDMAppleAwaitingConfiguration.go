@@ -11,12 +11,12 @@ func init() {
 
 func Up_20241009141855(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE hosts_in_setup_experience (
+CREATE TABLE host_mdm_apple_awaiting_configuration (
 	host_uuid           VARCHAR(255) NOT NULL PRIMARY KEY,
-	in_setup_experience TINYINT(1) NOT NULL DEFAULT FALSE
+	awaiting_configuration TINYINT(1) NOT NULL DEFAULT FALSE
 )`)
 	if err != nil {
-		return fmt.Errorf("creating hosts_in_setup_experience table: %w", err)
+		return fmt.Errorf("creating host_mdm_apple_awaiting_configuration  table: %w", err)
 	}
 
 	return nil

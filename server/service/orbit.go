@@ -213,7 +213,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.NeedsMDMMigration = true
 		}
 
-		inSetupAssistant, err := svc.ds.GetHostInMacOSSetupExperience(ctx, host.UUID)
+		inSetupAssistant, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
 		if err != nil {
 			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
 		}

@@ -408,38 +408,38 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (ds *Datastore) SetHostInMacOSSetupExperience(ctx context.Context, hostUUID string, inSetupExperience bool) error {
+func (ds *Datastore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, awaitingConfiguration bool) error {
 	const stmt = `
-INSERT INTO hosts_in_setup_experience (host_uuid, in_setup_experience)
+INSERT INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration)
 VALUES (?, ?)
 ON DUPLICATE KEY UPDATE
-	in_setup_experience = VALUES(in_setup_experience)
+	awaiting_configuration = VALUES(awaiting_configuration)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, inSetupExperience)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, awaitingConfiguration)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting host in setup experience state")
+		return ctxerr.Wrap(ctx, err, "setting host awaiting configuration")
 	}
 
 	return nil
 }
 
-func (ds *Datastore) GetHostInMacOSSetupExperience(ctx context.Context, hostUUID string) (bool, error) {
+func (ds *Datastore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
 	const stmt = `
 SELECT
-	in_setup_experience
-FROM hosts_in_setup_experience
+	awaiting_configuration
+FROM host_mdm_apple_awaiting_configuration 
 WHERE host_uuid = ?
 	`
-	var inSetupExperience bool
+	var awaitingConfiguration bool
 
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &inSetupExperience, stmt, hostUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfiguration, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
 
-		return false, ctxerr.Wrap(ctx, err, "getting host in setup experience")
+		return false, ctxerr.Wrap(ctx, err, "getting host awaiting configuration")
 	}
 
-	return inSetupExperience, nil
+	return awaitingConfiguration, nil
 }

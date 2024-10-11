@@ -391,6 +391,14 @@ CREATE TABLE `host_mdm_actions` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_mdm_apple_awaiting_configuration` (
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `awaiting_configuration` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_mdm_apple_bootstrap_packages` (
   `host_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -704,14 +712,6 @@ CREATE TABLE `hosts` (
   KEY `idx_hosts_uuid` (`uuid`),
   CONSTRAINT `hosts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `hosts_in_setup_experience` (
-  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `in_setup_experience` tinyint(1) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`host_uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
