@@ -31,12 +31,14 @@ module.exports = {
 
     uploadMime: {
       type: 'string',
+      defaultsTo: '',
       description: 'The mime type of the uploaded software installer'
     },
 
     uploadFd: {
       type: 'string',
-      description: 'The name of the installer file.'
+      defaultsTo: '',
+      description: 'The file descriptor of the installer file.'
     },
 
     preInstallQuery: {
