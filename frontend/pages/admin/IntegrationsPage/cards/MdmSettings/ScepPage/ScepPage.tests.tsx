@@ -73,7 +73,7 @@ describe("Scep Page", () => {
       <ScepCertificateContent
         router={createMockRouter()}
         onFormSubmit={jest.fn()}
-        formData={{ scepUrl: "", adminUrl: "", username: "", password: null }}
+        formData={{ scepUrl: "", adminUrl: "", username: "", password: "" }}
         formErrors={{}}
         onInputChange={jest.fn()}
         config={createMockConfig()}

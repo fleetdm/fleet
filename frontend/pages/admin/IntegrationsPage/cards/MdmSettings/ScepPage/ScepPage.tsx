@@ -219,7 +219,7 @@ interface INdesFormData {
   scepUrl: string;
   adminUrl: string;
   username: string;
-  password: string | null;
+  password: string;
 }
 
 interface INdesFormErrors {
@@ -262,10 +262,10 @@ const ScepPage = ({ router }: IScepPageProps) => {
 
   useEffect(() => {
     const areAllFieldsEmpty = Object.values(formData).every(
-      (val) => val === "" || val === null
+      (val) => val === ""
     );
     const areAllFieldsComplete = Object.values(formData).every(
-      (val) => val !== "" && val !== null
+      (val) => val !== ""
     );
 
     setSaveButtonDisabled(!areAllFieldsEmpty && !areAllFieldsComplete);
@@ -295,7 +295,7 @@ const ScepPage = ({ router }: IScepPageProps) => {
     setFormErrors(newFormErrors);
 
     const areAllFieldsEmpty = Object.values(formData).every(
-      (val) => val === "" || val === null
+      (val) => val === ""
     );
     const isRemovingNdesScepProxy = areAllFieldsEmpty;
 
@@ -312,7 +312,7 @@ const ScepPage = ({ router }: IScepPageProps) => {
           url: formData.scepUrl,
           admin_url: formData.adminUrl,
           username: formData.username,
-          password: formData.password || null,
+          password: formData.password,
         };
     // Update integrations.ndes_scep_proxy only
     const destination = {
