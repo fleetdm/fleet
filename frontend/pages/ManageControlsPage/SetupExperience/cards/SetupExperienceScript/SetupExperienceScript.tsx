@@ -96,9 +96,10 @@ const SetupExperienceScript = ({
     <div className={baseClass}>
       <SectionHeader title="Run script" />
       <>{renderContent()}</>
-      {showDeleteScriptModal && (
+      {showDeleteScriptModal && script && (
         <DeleteSetupExperienceScriptModal
           currentTeamId={currentTeamId}
+          scriptName={script.name}
           onDeleted={onDelete}
           onExit={() => setShowDeleteScriptModal(false)}
         />

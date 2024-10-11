@@ -10,12 +10,14 @@ const baseClass = "delete-setup-experience-script-modal";
 
 interface IDeleteSetupExperienceScriptModalProps {
   currentTeamId: number;
+  scriptName: string;
   onExit: () => void;
   onDeleted: () => void;
 }
 
 const DeleteSetupExperienceScriptModal = ({
   currentTeamId,
+  scriptName,
   onExit,
   onDeleted,
 }: IDeleteSetupExperienceScriptModalProps) => {
@@ -39,7 +41,11 @@ const DeleteSetupExperienceScriptModal = ({
   return (
     <Modal className={baseClass} title="Delete setup script" onExit={onExit}>
       <>
-        <p>Delete the setup script to upload a new one.</p>
+        <p>
+          The script <b>{scriptName}</b> will run on hosts during the setup
+          experience. After the script runs it&apos;s output and exit code will
+          appear on the hosts details page.
+        </p>
         <div className="modal-cta-wrap">
           <Button type="button" onClick={onDelete} variant="alert">
             Delete
