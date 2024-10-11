@@ -116,3 +116,68 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 
 	return nil
 }
+
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) error {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
+	}
+
+	var installersPending, appsPending, scriptsPending int
+	var installersRunning, appsRunning, scriptsRunning int
+
+	for _, status := range statuses {
+		var colsSet uint
+		if status.SoftwareInstallerID != nil {
+			colsSet++
+		}
+		if status.VPPAppTeamID != nil {
+			colsSet++
+		}
+		if status.SetupExperienceScriptID != nil {
+			colsSet++
+		}
+		if colsSet > 1 {
+			return ctxerr.Errorf(ctx, "invalid setup experience status row, multiple underlying value columns set: %d", status.ID)
+		}
+		if colsSet == 0 {
+			return ctxerr.Errorf(ctx, "invalid setup experience status row, no underlying value colunm set: %d", status.ID)
+		}
+		switch {
+		case status.SoftwareInstallerID != nil:
+			switch status.Status {
+			case fleet.SetupExperienceStatusPending:
+				installersPending++
+			case fleet.SetupExperienceStatusRunning:
+				installersRunning++
+			}
+		case status.VPPAppTeamID != nil:
+			switch status.Status {
+			case fleet.SetupExperienceStatusPending:
+				appsPending++
+			case fleet.SetupExperienceStatusRunning:
+				appsRunning++
+			}
+		case status.SetupExperienceScriptID != nil:
+			switch status.Status {
+			case fleet.SetupExperienceStatusPending:
+				scriptsPending++
+			case fleet.SetupExperienceStatusRunning:
+				scriptsRunning++
+			}
+		}
+	}
+
+	switch {
+	case installersPending > 0:
+		// enqueue installers
+	case installersRunning == 0 && appsPending > 0:
+		// enqueue vpp apps
+	case installersRunning == 0 && appsRunning == 0 && scriptsPending > 0:
+		// enqueue scripts
+	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
+		// finished
+	}
+
+	return nil
+}
