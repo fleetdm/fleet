@@ -32,7 +32,7 @@ const AutomaticEnrollmentSection = ({
   };
 
   return (
-    <SettingsSection title="Automatic Enrollment" className={baseClass}>
+    <SettingsSection title="Automatic enrollment" className={baseClass}>
       {!isPremiumTier ? (
         <PremiumFeatureMessage alignment="left" />
       ) : (
