@@ -139,10 +139,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     terraform apply
     ```
 
-12. That’s it! Next, you can skip ahead and already log in to Fleet to [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts), or you can continue with our other Deployment documents for other options that might fit your environment:
-- [Single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso)
-- [Upgrading Fleet](https://fleetdm.com/docs/deploy/upgrading-fleet)
-- [Reference architectures](https://fleetdm.com/docs/deploy/reference-architectures)
+12. That’s it! You should now be able to log in to Fleet and [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
