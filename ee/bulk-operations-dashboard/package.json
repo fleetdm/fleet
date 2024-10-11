@@ -16,7 +16,6 @@
     "sails-hook-sockets": "^3.0.0",
     "sails-hook-uploads": "^0.4.3",
     "sails-postgresql": "^5.0.1",
-    "skipper-disk": "^0.5.12",
     "skipper-s3": "^0.6.0"
   },
   "devDependencies": {
