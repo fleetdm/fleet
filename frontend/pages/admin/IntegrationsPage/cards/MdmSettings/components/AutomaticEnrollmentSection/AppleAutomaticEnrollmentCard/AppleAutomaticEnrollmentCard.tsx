@@ -16,7 +16,7 @@ const AppleAutomaticEnrollmentCard = ({
   viewDetails,
   configured,
 }: IAppleAutomaticEnrollmentCardProps) => {
-  const appleMdmDiabledCard = (
+  const appleMdmDisabledCard = (
     <SectionCard header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.">
       To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first
       turn on Apple MDM.
@@ -57,7 +57,7 @@ const AppleAutomaticEnrollmentCard = ({
   );
 
   if (!isAppleMdmOn) {
-    return appleMdmDiabledCard;
+    return appleMdmDisabledCard;
   }
 
   return configured ? isAbmConfiguredCard : isAbmNotConfiguredCard;

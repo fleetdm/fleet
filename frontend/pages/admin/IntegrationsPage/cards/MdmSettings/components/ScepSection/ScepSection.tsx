@@ -34,7 +34,7 @@ const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
     router.push(PATHS.ADMIN_INTEGRATIONS_SCEP);
   };
 
-  const appleMdmDiabledCard = (
+  const appleMdmDisabledCard = (
     <SectionCard
       className={baseClass}
       header="Simple Certificate Enrollment Protocol (SCEP)"
@@ -79,18 +79,18 @@ const ScepCard = ({ isAppleMdmOn, isScepOn, router }: IScepCardProps) => {
         </Button>
       }
     >
-      <p>
+      <div>
         To help your end users connect to Wi-Fi, you can add your{" "}
         <TooltipWrapper tipContent={SCEP_SERVER_TIP_CONTENT}>
           SCEP server
         </TooltipWrapper>
         .
-      </p>
+      </div>
     </SectionCard>
   );
 
   if (!isAppleMdmOn) {
-    return appleMdmDiabledCard;
+    return appleMdmDisabledCard;
   }
 
   return isScepOn ? isScepOnCard : isScepOffCard;
