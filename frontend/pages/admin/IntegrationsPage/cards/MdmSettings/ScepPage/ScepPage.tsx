@@ -294,10 +294,10 @@ const ScepPage = ({ router }: IScepPageProps) => {
 
     setFormErrors(newFormErrors);
 
-    const areAllFieldsEmpty = Object.values(formData).every(
+    // Remove when all fields set to empty
+    const isRemovingNdesScepProxy = Object.values(formData).every(
       (val) => val === ""
     );
-    const isRemovingNdesScepProxy = areAllFieldsEmpty;
 
     if (!isRemovingNdesScepProxy && (!scepUrlValid || !adminUrlValid)) {
       return;
