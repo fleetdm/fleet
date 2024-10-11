@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { createMockSetupExperienceScript } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
@@ -344,6 +342,24 @@ const mdmService = {
     return sendRequest("GET", url);
   },
 
+  updateSetupExperienceSoftware: (
+    teamId: number,
+    softwareTitlesIds: number[]
+  ) => {
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        team_id: teamId,
+      }
+    )}`;
+
+    return sendRequest("PUT", path, {
+      team_id: teamId,
+      software_title_ids: softwareTitlesIds,
+    });
+  },
+
   getSetupExperienceScript: (
     teamId: number
   ): Promise<IGetSetupExperienceScriptResponse> => {
@@ -354,11 +370,7 @@ const mdmService = {
       path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
-    return new Promise((resolve, reject) => {
-      resolve(createMockSetupExperienceScript());
-    });
-
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
   downloadSetupExperienceScript: (teamId: number) => {
@@ -383,6 +395,16 @@ const mdmService = {
     }
 
     return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
+  },
+
+  deleteSetupExperienceScript: (teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
+      team_id: teamId,
+    })}`;
+
+    return sendRequest("DELETE", path);
   },
 };
 

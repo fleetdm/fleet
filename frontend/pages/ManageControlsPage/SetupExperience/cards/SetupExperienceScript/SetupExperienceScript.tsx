@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import mdmAPI from "services/entities/mdm";
+import mdmAPI, {
+  IGetSetupExperienceScriptResponse,
+} from "services/entities/mdm";
 
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
@@ -28,13 +31,15 @@ const SetupExperienceScript = ({
 
   const {
     data: script,
+    error: scriptError,
     isLoading,
     isError,
     refetch: refetchScript,
-  } = useQuery(
+    remove: removeScriptFromCache,
+  } = useQuery<IGetSetupExperienceScriptResponse, AxiosError>(
     ["setup-experience-script", currentTeamId],
     () => mdmAPI.getSetupExperienceScript(currentTeamId),
-    { ...DEFAULT_USE_QUERY_OPTIONS }
+    { ...DEFAULT_USE_QUERY_OPTIONS, retry: false }
   );
 
   const onUpload = () => {
@@ -42,6 +47,7 @@ const SetupExperienceScript = ({
   };
 
   const onDelete = () => {
+    removeScriptFromCache();
     setShowDeleteScriptModal(false);
     refetchScript();
   };
@@ -53,7 +59,7 @@ const SetupExperienceScript = ({
       <Spinner />;
     }
 
-    if (isError) {
+    if (isError && scriptError.status !== 404) {
       return <DataError />;
     }
 
@@ -90,8 +96,10 @@ const SetupExperienceScript = ({
     <div className={baseClass}>
       <SectionHeader title="Run script" />
       <>{renderContent()}</>
-      {showDeleteScriptModal && (
+      {showDeleteScriptModal && script && (
         <DeleteSetupExperienceScriptModal
+          currentTeamId={currentTeamId}
+          scriptName={script.name}
           onDeleted={onDelete}
           onExit={() => setShowDeleteScriptModal(false)}
         />
