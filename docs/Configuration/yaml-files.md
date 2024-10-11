@@ -40,9 +40,13 @@ team_settings: # Only teams/team-name.yml
 
 ### policies
 
-Policies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
-Policies defined in `default.yml` run on **all** hosts.
+Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.  
+
+Policies defined in `default.yml` run on **all** hosts.  
+
 Policies defined in `teams/no-team.yml` run on hosts that belong to "No team".
+
+> Policies that run automation to install software or run script, must be defined in `tems/no-team.yml` to run on hosts that belong to no team.
 
 #### Options
 
@@ -96,8 +100,6 @@ policies:
 ```
 
 `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
-
-> Policies that run automation to install software or run script, must be defined in `tems/no-team.yml` to run on hosts that belong to no team.
 
 ```yaml
 policies:
