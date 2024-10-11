@@ -885,7 +885,7 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, hostID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
@@ -946,7 +946,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, mdmHost.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1081,7 +1081,7 @@ func createHostFromMDMDB(
 	if err := upsertMDMAppleHostMDMInfoDB(
 		ctx,
 		tx,
-		appCfg.ServerSettings,
+		appCfg,
 		fromADE,
 		unmanagedHostIDs...,
 	); err != nil {
@@ -1237,12 +1237,12 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	return nil
 }
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverSettings fleet.ServerSettings, fromSync bool, hostIDs ...uint) error {
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, fromSync bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	serverURL, err := apple_mdm.ResolveAppleMDMURL(serverSettings.ServerURL)
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.MDMUrl())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
@@ -1542,7 +1542,7 @@ INSERT INTO hosts (
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac.ServerSettings, true, host.ID); err != nil {
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, true, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -4780,7 +4780,8 @@ func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.M
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
-	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	queryerContext sqlx.QueryerContext,
+) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	if len(assetNames) == 0 {
 		return nil, nil
 	}
@@ -5076,7 +5077,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}
@@ -5127,7 +5128,7 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}
@@ -5252,7 +5253,7 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}

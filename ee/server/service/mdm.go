@@ -33,6 +33,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Deprecated: use the new GetABMTokens API endpoint.
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -663,10 +664,9 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
 	}
 
-	serverURL := appConfig.ServerSettings.ServerURL
 	authSettings := sso.Settings{
 		Metadata:                    metadata,
-		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+		AssertionConsumerServiceURL: appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
 	}
@@ -727,8 +727,8 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		*metadata,
 		auth,
 		settings.EntityID,
-		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
+		appConfig.MDMUrl(),
+		appConfig.MDMUrl()+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
