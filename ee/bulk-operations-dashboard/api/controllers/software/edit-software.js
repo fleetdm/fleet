@@ -47,7 +47,7 @@ module.exports = {
       statusCode: 400,
     },
     softwareUploadFailed: {
-      description: 'The software already exists on the Fleet server.'
+      description: 'The software upload failed'
     }
   },
 
@@ -140,23 +140,18 @@ module.exports = {
                         contentType: 'application/octet-stream'
                       });
                       (async ()=>{
-                        try {
-                          await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
-                            headers: {
-                              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-                              ...form.getHeaders()
-                            },
-                          });
-                        } catch(error){
-                          throw new Error('Failed to upload file:'+ require('util').inspect(error, {depth: null}));
-                        }
+                        await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                          headers: {
+                            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+                            ...form.getHeaders()
+                          },
+                        });
                       })()
                       .then(()=>{
                         // console.log('ok supposedly a file is finished uploading');
                         doneWithThisFile();
                       })
                       .catch((err)=>{
-                        console.log(err);
                         doneWithThisFile(err);
                       });
                     };//ƒ
@@ -165,8 +160,10 @@ module.exports = {
                 };
               },
             })
-          .intercept((unusedErr)=>{
-            return 'softwareUploadFailed';
+          .intercept((error)=>{
+            // Note: with this current behavior, all errors from this upload are currently swallowed and a softwareUploadFailed response is returned.
+            // FUTURE: Test to make sure that uploading duplicate software to a team results in a 409 response.
+            return {'softwareUploadFailed': error};
           });
           // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${team}`);
         });
@@ -212,16 +209,12 @@ module.exports = {
                         contentType: 'application/octet-stream'
                       });
                       (async ()=>{
-                        try {
-                          await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
-                            headers: {
-                              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-                              ...form.getHeaders()
-                            },
-                          });
-                        } catch(error){
-                          throw new Error('Failed to upload file:'+ require('util').inspect(error, {depth: null}));
-                        }
+                        await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                          headers: {
+                            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+                            ...form.getHeaders()
+                          },
+                        });
                       })()
                     .then(()=>{
                       // console.log('ok supposedly a file is finished uploading');
@@ -235,6 +228,11 @@ module.exports = {
                   }
                 };
               },
+            })
+            .intercept((error)=>{
+              // Note: with this current behavior, all errors from this upload are currently swallowed and a softwareUploadFailed response is returned.
+              // FUTURE: Test to make sure that uploading duplicate software to a team results in a 409 response.
+              return {'softwareUploadFailed': error};
             });
             // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
           });// After every team the software is currently deployed to.

@@ -76,16 +76,12 @@ module.exports = {
                     contentType: 'application/octet-stream'
                   });
                   (async ()=>{
-                    try {
-                      await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
-                        headers: {
-                          Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-                          ...form.getHeaders()
-                        },
-                      });
-                    } catch(error){
-                      throw error;
-                    }
+                    await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                      headers: {
+                        Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+                        ...form.getHeaders()
+                      },
+                    });
                   })()
                   .then(()=>{
                     // console.log('ok supposedly a file is finished uploading');
@@ -100,8 +96,8 @@ module.exports = {
             };
           }
         })
-        .intercept({response: {status: 409}}, ()=>{
-          return 'softwareAlreadyExistsOnThisTeam';
+        .intercept({response: {status: 409}}, (error)=>{
+          return {'softwareAlreadyExistsOnThisTeam': error};
         });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
