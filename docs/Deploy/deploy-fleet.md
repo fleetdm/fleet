@@ -1,9 +1,6 @@
 # Deploy Fleet
 
-Just need to kick the tires? Create an account to [Try Fleet locally](https://fleetdm.com/try-fleet) on your device. You can deploy FleetDM on your own servers or virtual machines, which involves manually setting up the necessary components, such as the FleetDM server, database, and any dependencies. This approach, although more lengthy than a Cloud deployment, gives you full control over the environment and configuration.
-A technical installation guide sponsored by Internews for a self-contained single server deployment of FleetDM on Ubuntu, with a few Elastic Stack components, can be found [here](https://fleetdm.com/guides/deploy-fleet-on-ubuntu-with-elastic).
-
-On the other hand, use our easy steps below to deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale.
+Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-md-row flex-column">
     <a href="#render">
