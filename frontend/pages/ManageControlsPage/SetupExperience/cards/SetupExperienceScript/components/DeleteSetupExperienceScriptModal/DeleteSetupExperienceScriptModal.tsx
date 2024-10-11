@@ -42,9 +42,7 @@ const DeleteSetupExperienceScriptModal = ({
     <Modal className={baseClass} title="Delete setup script" onExit={onExit}>
       <>
         <p>
-          The script <b>{scriptName}</b> will run on hosts during the setup
-          experience. After the script runs it&apos;s output and exit code will
-          appear on the hosts details page.
+          The script <b>{scriptName}</b> will still run on pending hosts.
         </p>
         <div className="modal-cta-wrap">
           <Button type="button" onClick={onDelete} variant="alert">
