@@ -17,6 +17,7 @@ Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Ter
     </a>
 </div>
 
+Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
 <h2 class="d-none markdown-heading">Render</h2>
 <h2 id="render">Deploy to Render in 5 minutes</h2>
