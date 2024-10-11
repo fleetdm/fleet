@@ -1698,6 +1698,9 @@ This glossary provides definitions to commonly used terms within our space.
 
 The following stubs are included only to make links backward compatible.
 
+##### Performance feedback
+Please see 📖[handbook/company/communications#feedback](https://fleetdm.com/handbook/company/communications#feedback).
+
 ##### Website
 Please see 📖[handbook/company/communications#fleetdm-com](https://fleetdm.com/handbook/company/communications#fleetdm-com).
 
