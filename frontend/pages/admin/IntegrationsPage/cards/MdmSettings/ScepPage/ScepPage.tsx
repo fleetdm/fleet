@@ -330,13 +330,12 @@ const ScepPage = ({ router }: IScepPageProps) => {
       refetchConfig();
     } catch (error) {
       console.error(error);
-      if (getErrorReason(error).includes("invalid SCEP URL")) {
+      const reason = getErrorReason(error);
+      if (reason.includes("invalid SCEP URL")) {
         renderFlash("error", BAD_SCEP_URL_ERROR);
-      } else if (
-        getErrorReason(error).includes("invalid admin URL or credentials")
-      ) {
+      } else if (reason.includes("invalid admin URL or credentials")) {
         renderFlash("error", BAD_CREDENTIALS_ERROR);
-      } else if (getErrorReason(error).includes("the password cache is full")) {
+      } else if (reason.includes("the password cache is full")) {
         renderFlash("error", CACHE_ERROR);
       } else renderFlash("error", DEFAULT_ERROR);
     } finally {
