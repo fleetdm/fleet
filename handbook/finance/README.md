@@ -30,7 +30,7 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Sign-on bonus                | "Bonus" payroll              | Head of Finance
 | Performance bonus            | "Bonus" payroll              | Head of Finance     
 | Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Finance
-| [US contractor payroll](https://fleetdm.com/handbook/finance#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Finance
+| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Head of Finance
 
 To complete payroll for a salaried US employee, use the following steps:
 1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
@@ -147,14 +147,6 @@ States checked:
 3. Login to Gusto and navigate to "Taxes and compliance", then "Tax documents".
 4. Login to each State portal (using the details saved in 1Password) and verify that the portal has received the automated submission from Gusto.
 5. Check off states that are correct, and use comments to explain any quirks or remediation that's needed.
-
-
-### Run US contractor payroll
-For Fleet's US contractors, running payroll is a manual process:
-1. Add the amount to be paid to the "Gross" line.
-2. Review hours _("Time tools > Time tracking")_
-3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
-4. Sync hours and run contractor payroll.
 
 
 ### Update Finance department KPIs
