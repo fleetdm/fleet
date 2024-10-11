@@ -3,12 +3,12 @@
 ## Knowledge transfer videos
 
 - Roberto's MDM knowledge transfer videos
-    - https://drive.google.com/drive/u/0/folders/1xvR89NNJWEc2dG0Se9m0goTz0Pjh1-RN
+    - [Google Drive](https://drive.google.com/drive/u/0/folders/1xvR89NNJWEc2dG0Se9m0goTz0Pjh1-RN)
     - Also on Loom -- search for `MDM knowledge dump`
 
 - Marcos's Windows knowledge transfer videos
-    - https://drive.google.com/file/d/1d4rcK2bsLGVocbh2s88vW2FNzOQxP1B_
-    - https://drive.google.com/file/d/1V5Jl7azXnZZRnkjwDaEvF1pe24nVZHSH
+    - [Session1](https://drive.google.com/file/d/1d4rcK2bsLGVocbh2s88vW2FNzOQxP1B_)
+    - [Session2](https://drive.google.com/file/d/1V5Jl7azXnZZRnkjwDaEvF1pe24nVZHSH)
 
 ## Protocol
 
