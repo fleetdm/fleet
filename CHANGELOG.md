@@ -2,7 +2,7 @@
 
 ### Bug fixes
 
-* Fixed Orbit configuration endpoint returning 500 for Macs running Rapid Security Response macOS releases that are enrolled in OS major version enforcement,
+* Fixed Orbit configuration endpoint returning 500 for Macs running Rapid Security Response macOS releases that are enrolled in OS major version enforcement.
 
 ## Fleet 4.57.2 (Oct 02, 2024)
 
