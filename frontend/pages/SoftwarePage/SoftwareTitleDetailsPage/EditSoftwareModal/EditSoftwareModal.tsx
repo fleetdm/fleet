@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
+import { isAxiosError } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -8,7 +9,6 @@ import { NotificationContext } from "context/notification";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
-  UPLOAD_TIMEOUT,
 } from "services/entities/software";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -76,8 +76,6 @@ const EditSoftwareModal = ({
   ]);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Next line with e.returnValue is included for legacy support
@@ -88,9 +86,6 @@ const EditSoftwareModal = ({
     // set up event listener to prevent user from leaving page while uploading
     if (isUpdatingSoftware) {
       addEventListener("beforeunload", beforeUnloadHandler);
-      timeout = setTimeout(() => {
-        removeEventListener("beforeunload", beforeUnloadHandler);
-      }, UPLOAD_TIMEOUT);
     } else {
       removeEventListener("beforeunload", beforeUnloadHandler);
     }
@@ -98,7 +93,6 @@ const EditSoftwareModal = ({
     // clean up event listener and timeout on component unmount
     return () => {
       removeEventListener("beforeunload", beforeUnloadHandler);
-      clearTimeout(timeout);
     };
   }, [isUpdatingSoftware]);
 
@@ -126,9 +120,11 @@ const EditSoftwareModal = ({
         data: formData,
         softwareId,
         teamId,
-        timeout: UPLOAD_TIMEOUT,
         onUploadProgress: (progressEvent) => {
-          setUploadProgress(progressEvent.progress || 0);
+          const progress = progressEvent.progress || 0;
+          // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
+          // progress bar at 97% until the server response is received
+          setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
       });
 
@@ -144,8 +140,16 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
+      const isTimeout =
+        isAxiosError(e) &&
+        (e.response?.status === 504 || e.response?.status === 408);
       const reason = getErrorReason(e);
-      if (reason.includes("Fleet couldn't read the version from")) {
+      if (isTimeout) {
+        renderFlash(
+          "error",
+          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+        );
+      } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
           "error",
           <>

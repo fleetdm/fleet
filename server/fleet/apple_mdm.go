@@ -279,6 +279,15 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	}
 }
 
+// HostMDMCertificateProfile represents the status of an MDM certificate profile (SCEP payload) along with the
+// associated certificate metadata.
+type HostMDMCertificateProfile struct {
+	HostUUID             string             `db:"host_uuid"`
+	ProfileUUID          string             `db:"profile_uuid"`
+	Status               *MDMDeliveryStatus `db:"status"`
+	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+}
+
 type HostMDMProfileDetail string
 
 const (
@@ -940,4 +949,10 @@ func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAp
 type MDMAppleSoftwareUpdateAsset struct {
 	ProductVersion string `json:"ProductVersion"`
 	Build          string `json:"Build"`
+}
+
+type MDMBulkUpsertManagedCertificatePayload struct {
+	ProfileUUID          string
+	HostUUID             string
+	ChallengeRetrievedAt *time.Time
 }

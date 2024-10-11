@@ -250,56 +250,6 @@ PUSH_TO_REMOTE=1 \
 ./tools/tuf/releaser.sh
 ```
 
-#### Rotating root key
-
-Steps to perform and verify a rotation of a (soon to be or expired) root key.
-> Make sure to replace "foobar" with your username on all commands.
-
-0. Pull remote repository to a local folder:
-```sh
-AWS_PROFILE=tuf \
-TUF_DIRECTORY=/Users/foobar/tuf.fleetctl.com \
-ACTION=pull-from-remote \
-./tools/tuf/releaser.sh
-```
-
-1. Run a local server to serve the repository.
-```sh
-go run ./tools/file-server 8081 "/Users/foobar/tuf.fleetctl.com/repository" &
-```
-
-2. Run `ngrok` or similar to expose the server to a public URL.
-
-3. Once you have the public URL, attempt to create a package and install on your devices:
-```sh
-fleetctl package --type={pkg|deb|rpm|msi} \
-    --enable-scripts --fleet-desktop \
-    --fleet-url=... \
-    --enroll-secret=... 
-    --update-url=https://your-ngrok-subdomain.ngrok.app
-```
-
-4. The following will rotate the root key and exit (no push):
-```sh
-AWS_PROFILE=tuf \
-TUF_DIRECTORY=/Users/foobar/tuf.fleetctl.com \
-ACTION=rotate-root-key \
-KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-TUF/keys \
-ROOT_PASSPHRASE_1PASSWORD_PATH="Private/TUF ROOT/password" \
-./tools/tuf/releaser.sh
-```
-
-5. Make sure the local repository is in a valid state (by running step (3) again).
-Another way to do this is by changing the TUF URL on your already running agents from https://tuf.fleetctl.com to the URL generated in step (2).
-
-5. Push new root key to production:
-```sh
-AWS_PROFILE=tuf \
-TUF_DIRECTORY=/Users/foobar/tuf.fleetctl.com \
-ACTION=push-to-remote \
-./tools/tuf/releaser.sh
-```
-
 ## Testing and improving the script
 
 - You can specify `GIT_REPOSITORY_DIRECTORY` to set a separate path for the Fleet repository (it uses the current by default).

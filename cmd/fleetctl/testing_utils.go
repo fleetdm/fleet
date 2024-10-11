@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -136,7 +137,8 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 			fleet.MDMAssetCAKey:              "scepkey",
 		}, nil
 	}
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 			fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},

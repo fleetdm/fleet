@@ -1779,6 +1779,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
+		policyID := failingPolicyWithInstaller.ID
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
@@ -1812,13 +1813,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
-		// (in SaveHostSoftwareInstallResult)
-		// the author will be set to the user that uploaded the software (we want this
-		// by design).
+		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			false, // Set Self-service as false because this is triggered by Fleet.
+			&policyID,
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
@@ -1931,6 +1931,8 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	}
 
 	for _, failingPolicyWithScript := range failingPoliciesWithScript {
+		policyID := failingPolicyWithScript.ID
+
 		scriptMetadata, err := svc.ds.Script(ctx, failingPolicyWithScript.ScriptID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get script metadata by id")
@@ -1938,7 +1940,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		logger := log.With(svc.logger,
 			"host_id", hostID,
 			"host_platform", hostPlatform,
-			"policy_id", failingPolicyWithScript.ID,
+			"policy_id", policyID,
 			"script_id", failingPolicyWithScript.ScriptID,
 			"script_name", scriptMetadata.Name,
 		)
@@ -1989,6 +1991,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			ScriptContentID: scriptMetadata.ScriptContentID,
 			ScriptID:        &scriptMetadata.ID,
 			TeamID:          policyTeamID,
+			PolicyID:        &policyID,
 			// no user ID as scripts are executed by Fleet
 		}
 

@@ -24,8 +24,12 @@ const EmptyFleetAppsTable = () => (
     header={"No items match the current search criteria"}
     info={
       <>
-        Can&apos; find app?{" "}
-        <CustomLink newTab url="" text="File and issue on GitHub" />
+        Can&apos;t find app?{" "}
+        <CustomLink
+          newTab
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="File an issue on GitHub"
+        />
       </>
     }
   />
@@ -135,9 +139,9 @@ const FleetMaintainedAppsTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {data?.counts_updated_at && (
+        {data?.apps_updated_at && (
           <LastUpdatedText
-            lastUpdatedAt={data.counts_updated_at}
+            lastUpdatedAt={data.apps_updated_at}
             customTooltipText={
               <>
                 The last time Fleet-maintained <br />

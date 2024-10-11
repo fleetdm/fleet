@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1281,7 +1282,8 @@ func TestHostEncryptionKey(t *testing.T) {
 				return nil
 			}
 
-			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 					fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1333,7 +1335,8 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
 		}
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1393,7 +1396,8 @@ func TestHostEncryptionKey(t *testing.T) {
 				) error {
 					return nil
 				}
-				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+					_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},

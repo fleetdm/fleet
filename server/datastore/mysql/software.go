@@ -683,7 +683,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
-				titleChecksums := make([]string, totalTitlesToProcess)
+				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
 					titleChecksums = append(titleChecksums, checksum)
