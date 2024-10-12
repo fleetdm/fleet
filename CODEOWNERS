@@ -109,6 +109,12 @@ go.mod @fleetdm/go
 ##############################################################################################
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
+
+##############################################################################################
+# 🌐 Fleet website
+##############################################################################################
+/website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
+
 ##############################################################################################
 # 🌐 GitHub workflows
 ##############################################################################################
