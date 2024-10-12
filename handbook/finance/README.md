@@ -19,7 +19,8 @@ The Finance department is directly responsible for accounts receivable including
 
 
 ### Run payroll
-Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
+Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy. 
+
  - Salaried fleeties are automated in Gusto and Plane.
  - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
 
@@ -29,7 +30,51 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Sign-on bonus                | "Bonus" payroll              | Head of Finance
 | Performance bonus            | "Bonus" payroll              | Head of Finance     
 | Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Finance
-| [US contractor payroll](https://fleetdm.com/handbook/finance#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Finance
+| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Head of Finance
+
+To complete payroll for a salaried US employee, use the following steps:
+1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
+2. Navigate to Pay > Run payroll > Run payroll.
+3. Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+4. Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+5. Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Gusto and the equity plan. 
+6. Once the above is verified correct, ensure payment is via direct deposit and select "Review summary".
+7. Ensure the payroll date is the last business day of the month, and hit submit.
+
+To complete payroll for a salaried international employee, use the following steps:
+1. Log in to your admin [Plane](https://id.plane.com/login) account. 
+   - While Fleet considers all Fleeties employees, Plane differentiates between employees (that Fleet employs directly) and International contractors (that Fleet employs via a contracted company).
+2. Verify the number of employees in each country by checking the "Stats" tab in the [Fleeties doc](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?gid=1874060596#gid=1874060596). If the numbers seem incorrect, cross-reference with the main Fleeties tab to ensure all employees are accounted for in Plane.
+3. Verify that all teammates have a planned (or already processed) payroll.
+   - To check payroll for those Plane considers "employees", go to Payroll > History.
+      - Verify that any employees getting paid more frequently than monthly have had their payments processed throughout the month (Canada only currently).
+      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
+      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+   - To check payroll for those Plane considers "contractors", go to "Payments" > "Pay contractors".
+      - Navigate to the "scheduled" tab in the top right of screen to look at what is currently scheduled to be paid.
+      - Ensure all teammates have a pending payment (except those that invoice for payment).
+      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues
+      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
+      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+      - If all payments are scheduled or processing and are correct, no action needed. This payroll will process successfully without intervention.
+    
+To complete payroll for a US contractor, use the following steps:
+1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
+2. Navigate to Time & Attendance > Time tracking > Review & Sync. 
+3. Click "Sync hours to payments" and confirm that the dates reflect the period from the 27th of the previous month to the 26th of the current month.
+4. Cross-check total hours for contractors in Gusto to the total hours in the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) to ensure they're correct. Since the KPI spreadsheet tracks hours weekly, ensure any discrepancies are validated.
+5. Once all entries have been validated, click Sync and lock timesheets > Continue.
+6. Validate payment amounts are correct, then submit payments.
+
+To complete payroll for an international contractor, use the following steps:
+1. Contractors in Plane will submit invoices for payment at the end of the month.
+2. When the contractor submits the invoice for payment, log in to [Plane](https://id.plane.com/login) and validate that the amount of hours is in line with time worked, by having their manager review.
+3. If their manager verifies that the hours are as expected, process the invoice.
+   - Note: Approving the invoice for payment does not automatically schedule the payment. You will then need to navigate to "Pay contractors" and schedule the payment.
+
 
 ### Reconcile monthly recurring expenses
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
@@ -102,14 +147,6 @@ States checked:
 3. Login to Gusto and navigate to "Taxes and compliance", then "Tax documents".
 4. Login to each State portal (using the details saved in 1Password) and verify that the portal has received the automated submission from Gusto.
 5. Check off states that are correct, and use comments to explain any quirks or remediation that's needed.
-
-
-### Run US contractor payroll
-For Fleet's US contractors, running payroll is a manual process:
-1. Add the amount to be paid to the "Gross" line.
-2. Review hours _("Time tools > Time tracking")_
-3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
-4. Sync hours and run contractor payroll.
 
 
 ### Update Finance department KPIs
