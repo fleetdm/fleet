@@ -111,7 +111,7 @@ const SoftwareAddPage = ({
             path={backUrl}
             className={`${baseClass}__back-to-software`}
           />
-          <h1>Add Software</h1>
+          <h1>Add software</h1>
           <TabsWrapper>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}
