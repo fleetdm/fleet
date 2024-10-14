@@ -1101,6 +1101,10 @@ type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint,
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
+type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string, inSetupExperience bool) error
+
+type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
+
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, teamID uint) (bool, error)
@@ -2743,6 +2747,12 @@ type DataStore struct {
 
 	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
 	ListSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	SetHostAwaitingConfigurationFunc        SetHostAwaitingConfigurationFunc
+	SetHostAwaitingConfigurationFuncInvoked bool
+
+	GetHostAwaitingConfigurationFunc        GetHostAwaitingConfigurationFunc
+	GetHostAwaitingConfigurationFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -6558,6 +6568,20 @@ func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamI
 	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error {
+	s.mu.Lock()
+	s.SetHostAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostAwaitingConfigurationFunc(ctx, hostUUID, inSetupExperience)
+}
+
+func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.GetHostAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
