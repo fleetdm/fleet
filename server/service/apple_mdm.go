@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -69,6 +71,7 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
+	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP}
 )
 
 type hostProfileUUID struct {
@@ -397,6 +400,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	} else {
 		cp.LabelsIncludeAll = labelMap
 	}
+	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
+	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
@@ -438,6 +445,17 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
+func validateConfigProfileFleetVariables(contents string) error {
+	fleetVars := findFleetVariables(contents)
+	for k := range fleetVars {
+		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles",
+				k)}
+		}
+	}
+	return nil
+}
+
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -477,6 +495,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := validateDeclarationFleetVariables(string(data)); err != nil {
 		return nil, err
 	}
 
@@ -526,6 +548,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	}
 
 	return decl, nil
+}
+
+func validateDeclarationFleetVariables(contents string) error {
+	if len(findFleetVariables(contents)) > 0 {
+		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in DDM profiles"}
+	}
+	return nil
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -3610,8 +3639,10 @@ func preprocessProfileContents(
 		if addedTargets == nil {
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
+		// We store the timestamp when the challenge was retrieved to know if it has expired.
+		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
 		for _, hostUUID := range target.hostUUIDs {
-			newProfUUID := uuid.NewString()
+			tempProfUUID := uuid.NewString()
 			hostContents := contentsStr
 
 			failed := false
@@ -3661,12 +3692,18 @@ func preprocessProfileContents(
 						failed = true
 						break
 					}
+					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:             hostUUID,
+						ProfileUUID:          profUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
-						url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
+						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case FleetVarHostEndUserEmailIDP:
 					// Insert the end user email IDP into the profile contents
@@ -3699,13 +3736,17 @@ func preprocessProfileContents(
 				}
 			}
 			if !failed {
-				addedTargets[newProfUUID] = &cmdTarget{
+				addedTargets[tempProfUUID] = &cmdTarget{
 					cmdUUID:   target.cmdUUID,
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
-				profileContents[newProfUUID] = mobileconfig.Mobileconfig(hostContents)
+				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
+		}
+		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating managed certificates")
 		}
 		// Remove the parent target, since we will use host-specific targets
 		delete(targets, profUUID)

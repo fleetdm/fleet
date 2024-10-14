@@ -11475,20 +11475,45 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 
 	// Add an MDM profile
 	globalProfiles := [][]byte{
-		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N1", "Good1"),
+		mobileconfigForTest("N2", "Bad1"),
 	}
 	// add global profile
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
-	profiles, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Len(t, profiles, 1)
-	profileUUID := profiles[0].ProfileUUID
+	require.GreaterOrEqual(t, len(profiles), 2)
+	var profileUUID string
+	var badProfile fleet.HostMDMAppleProfile
+	for _, profile := range profiles {
+		switch profile.Identifier {
+		case "Good1":
+			profileUUID = profile.ProfileUUID
+		case "Bad1":
+			profile.Status = &fleet.MDMDeliveryFailed
+			badProfile = profile
+		}
+	}
+	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileUUID:       badProfile.ProfileUUID,
+		ProfileIdentifier: badProfile.Identifier,
+		ProfileName:       badProfile.Name,
+		HostUUID:          host.UUID,
+		CommandUUID:       badProfile.CommandUUID,
+		OperationType:     badProfile.OperationType,
+		Status:            badProfile.Status,
+		Detail:            badProfile.Detail,
+		Checksum:          []byte("checksum"),
+	}})
+	require.NoError(t, err)
 	identifier := url.PathEscape(host.UUID + "," + profileUUID)
+	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID)
 
 	// Configure a bad SCEP URL
 	appConf, err := s.ds.AppConfig(context.Background())
@@ -11576,13 +11601,27 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "invalid identifier")
+	// Non-Apple config profile (missing leading 'a')
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CwbozoProfile", nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "invalid profile UUID")
 	// Unknown host/profile
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CbozoProfile", nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozoHost%2CabozoProfile", nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "unknown identifier")
-	// "Good" request. Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
+	// Profile which is not pending
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+badIdentifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "profile status")
+
+	// "Good" request without one-time challenge.
+	// Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
 	// and this request is sufficient for testing our proxy functionality.
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
 		"PKIOperation", "message", message)
@@ -11591,6 +11630,50 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	pkiMessage, err := scep.ParsePKIMessage(body, scep.WithCACerts(certs))
 	require.NoError(t, err)
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+
+	// Expired challenge
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		{
+			HostUUID:             host.UUID,
+			ProfileUUID:          profileUUID,
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+		},
+	})
+	require.NoError(t, err)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "challenge password")
+
+	// Non-expired challenge
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		{
+			HostUUID:             host.UUID,
+			ProfileUUID:          profileUUID,
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+		},
+	})
+	require.NoError(t, err)
+
+	// Profile status is not yet "pending" (should be null) until profile sync
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+badIdentifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "profile status")
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// Good request with non-expired challenge
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+
 }
 
 type noopCertDepot struct{ depot.Depot }

@@ -1178,7 +1178,7 @@ the way that the Fleet server works.
 					if err := rc.SetWriteDeadline(zeroTime); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
-					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
+					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})

@@ -5,6 +5,22 @@ The backend software patterns that we follow in Fleet.
 > NOTE: There are always exceptions to the rules, but we try to follow these patterns as much as possible unless a specific use case calls
 > for something else. These should be discussed within the team and documented before merging.
 
+Table of Contents
+- [API Inputs](#api-inputs)
+- [MySQL](#mysql)
+
+## API Inputs
+
+### Input preprocessing and validation
+
+Validate API inputs and return a 4XX status code if invalid. If you did not do authorization checking before failing validation, skip the authorization check with `svc.authz.SkipAuthorization(ctx)`.
+
+Inputs corresponding to sortable or indexed DB fields should be preprocessed (trim spaces, normalize Unicode, etc.). Use utility method `fleet.Preprocess(input string) string`. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899).
+
+### JSON unmarshaling
+
+`PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshaling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
+
 ## MySQL
 
 Use high precision for all time fields. Precise timestamps make sure that we can accurately track when records were created and updated,

@@ -731,8 +731,6 @@ type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context
 
 type GetHostMDMAppleProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
-type GetHostMDMAppleProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error)
-
 type CleanupDiskEncryptionKeysOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
@@ -1122,6 +1120,12 @@ type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint,
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
+
+type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error
+
+type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error)
+
+type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2189,9 +2193,6 @@ type DataStore struct {
 	GetHostMDMAppleProfilesFunc        GetHostMDMAppleProfilesFunc
 	GetHostMDMAppleProfilesFuncInvoked bool
 
-	GetHostMDMAppleProfileFunc        GetHostMDMAppleProfileFunc
-	GetHostMDMAppleProfileFuncInvoked bool
-
 	CleanupDiskEncryptionKeysOnTeamChangeFunc        CleanupDiskEncryptionKeysOnTeamChangeFunc
 	CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked bool
 
@@ -2776,6 +2777,15 @@ type DataStore struct {
 
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
+
+	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
+	BulkUpsertMDMManagedCertificatesFuncInvoked bool
+
+	GetHostMDMCertificateProfileFunc        GetHostMDMCertificateProfileFunc
+	GetHostMDMCertificateProfileFuncInvoked bool
+
+	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
+	CleanUpMDMManagedCertificatesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5265,13 +5275,6 @@ func (s *DataStore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string
 	return s.GetHostMDMAppleProfilesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetHostMDMAppleProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error) {
-	s.mu.Lock()
-	s.GetHostMDMAppleProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostMDMAppleProfileFunc(ctx, hostUUID, profileUUID)
-}
-
 func (s *DataStore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
 	s.mu.Lock()
 	s.CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked = true
@@ -6635,4 +6638,25 @@ func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.Maintain
 	s.UpsertMaintainedAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertMaintainedAppFunc(ctx, app)
+}
+
+func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMManagedCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMManagedCertificatesFunc(ctx, payload)
+}
+
+func (s *DataStore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
+	s.mu.Lock()
+	s.GetHostMDMCertificateProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMCertificateProfileFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanUpMDMManagedCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanUpMDMManagedCertificatesFunc(ctx)
 }
