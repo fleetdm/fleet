@@ -45,13 +45,24 @@ const Checkbox = (props: ICheckboxProps) => {
     helpText,
   } = props;
 
-  const handleChange = () => {
-    if (parseTarget) {
+  const handleChange = (
+    event?:
+      | React.ChangeEvent<HTMLInputElement>
+      | React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (parseTarget && event) {
       // Returns both name and value
       return onChange({ name, value: !value });
     }
 
     return onChange(!value);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleChange();
+    }
   };
 
   const checkBoxClass = classnames(
@@ -89,6 +100,7 @@ const Checkbox = (props: ICheckboxProps) => {
             name={name}
             onChange={handleChange}
             onBlur={onBlur}
+            onKeyDown={handleKeyDown}
             type="checkbox"
           />
           <span className={checkBoxTickClass} />

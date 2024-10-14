@@ -32,6 +32,13 @@ const Slider = (props: ISliderProps): JSX.Element => {
     return onChange();
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onChange();
+    }
+  };
+
   const formFieldProps = pick(props, [
     "helpText",
     "label",
@@ -46,6 +53,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
         <button
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}
+          onKeyDown={handleKeyDown}
         >
           <div className={sliderDotClass} />
         </button>
