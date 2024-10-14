@@ -45,7 +45,6 @@ interface IScepCertificateContentProps {
   isPremiumTier: boolean;
   isLoading: boolean;
   isSaving: boolean;
-  saveButtonDisabled: boolean;
   showDataError: boolean;
 }
 
@@ -59,7 +58,6 @@ export const ScepCertificateContent = ({
   isPremiumTier,
   isLoading,
   isSaving,
-  saveButtonDisabled,
   showDataError,
 }: IScepCertificateContentProps) => {
   if (!isPremiumTier) {
@@ -88,6 +86,12 @@ export const ScepCertificateContent = ({
       </div>
     );
   }
+
+  const disableSave =
+    // all fields aren't empty
+    !Object.values(formData).every((val) => val === "") &&
+    // all fields aren't complete
+    !Object.values(formData).every((val) => val !== "");
 
   return (
     <>
@@ -183,7 +187,7 @@ export const ScepCertificateContent = ({
                   variant="brand"
                   className="button-wrap"
                   isLoading={isSaving}
-                  disabled={saveButtonDisabled}
+                  disabled={disableSave}
                 >
                   Save
                 </Button>
@@ -245,7 +249,6 @@ const ScepPage = ({ router }: IScepPageProps) => {
   });
 
   const [formErrors, setFormErrors] = useState<INdesFormErrors>({});
-  const [saveButtonDisabled, setSaveButtonDisabled] = useState(true);
   const [isUpdatingNdesScepProxy, setIsUpdatingNdesScepProxy] = useState(false);
 
   const {
@@ -259,17 +262,6 @@ const ScepPage = ({ router }: IScepPageProps) => {
       setConfig(data);
     },
   });
-
-  useEffect(() => {
-    const areAllFieldsEmpty = Object.values(formData).every(
-      (val) => val === ""
-    );
-    const areAllFieldsComplete = Object.values(formData).every(
-      (val) => val !== ""
-    );
-
-    setSaveButtonDisabled(!areAllFieldsEmpty && !areAllFieldsComplete);
-  }, [formData]);
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormErrors((prev) => ({ ...prev, [name]: null }));
@@ -366,7 +358,6 @@ const ScepPage = ({ router }: IScepPageProps) => {
             isPremiumTier={isPremiumTier || false}
             isLoading={isLoadingAppConfig}
             isSaving={isUpdatingNdesScepProxy}
-            saveButtonDisabled={saveButtonDisabled}
             showDataError={isErrorAppConfig}
           />
         </div>
