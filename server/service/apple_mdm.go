@@ -2872,7 +2872,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-
 		// this might be a setup experience VPP install, so we'll try to update the setup experience status
 		seStatus := (fleet.SetupExperienceVPPInstallResult{CommandStatus: cmdResult.Status}).SetupExperienceStatus()
 		if seStatus.IsValid() && seStatus.IsTerminalStatus() {
