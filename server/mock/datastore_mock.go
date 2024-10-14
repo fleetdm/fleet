@@ -1113,6 +1113,12 @@ type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
+type MaybeUpdateSetupExperienceScriptStatusFunc func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
+type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
+type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
@@ -2757,6 +2763,15 @@ type DataStore struct {
 
 	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
 	DeleteSetupExperienceScriptFuncInvoked bool
+
+	MaybeUpdateSetupExperienceScriptStatusFunc        MaybeUpdateSetupExperienceScriptStatusFunc
+	MaybeUpdateSetupExperienceScriptStatusFuncInvoked bool
+
+	MaybeUpdateSetupExperienceSoftwareInstallStatusFunc        MaybeUpdateSetupExperienceSoftwareInstallStatusFunc
+	MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked bool
+
+	MaybeUpdateSetupExperienceVPPStatusFunc        MaybeUpdateSetupExperienceVPPStatusFunc
+	MaybeUpdateSetupExperienceVPPStatusFuncInvoked bool
 
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
@@ -6590,6 +6605,27 @@ func (s *DataStore) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	s.DeleteSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceScriptStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceScriptStatusFunc(ctx, hostUUID, executionID, status)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc(ctx, hostUUID, executionID, status)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
 func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

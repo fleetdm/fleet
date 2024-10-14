@@ -2876,6 +2876,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// this might be a setup experience VPP install, so we'll try to update the setup experience status
 		seStatus := (fleet.SetupExperienceVPPInstallResult{CommandStatus: cmdResult.Status}).SetupExperienceStatus()
 		if seStatus.IsValid() && seStatus.IsTerminalStatus() {
+			// NOTE: changes to this flow should also implemented in
+			// maybeUpdateSetupExperienceStatus in sevice/setup_experience.
 			updated, err := svc.ds.MaybeUpdateSetupExperienceVPPStatus(r.Context, cmdResult.UDID, cmdResult.CommandUUID, seStatus)
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
