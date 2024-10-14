@@ -39,6 +39,7 @@ const HostStatusWebhookPreviewModal = ({
     <Modal
       title="Host status webhook"
       onExit={toggleModal}
+      onEnter={toggleModal}
       className={baseClass}
     >
       <>
