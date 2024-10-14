@@ -2722,13 +2722,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	if m.AwaitingConfiguration {
-
-		// Mark the host as being in setup experience
-		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, true); err != nil {
-			return ctxerr.Wrap(r.Context, err, "setting host in setup experience state")
-		}
-
-		// Enqueue setup experience items
+		// Enqueue setup experience items and mark the host as being in setup experience
 		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
@@ -2897,6 +2891,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
+		}
+	case "DeviceConfigured":
+		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 		}
 	}
 

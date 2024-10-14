@@ -109,6 +109,10 @@ WHERE global_or_team_id = ?`
 		}
 		totalInsertions += uint(inserts)
 
+		if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+		}
+
 		return nil
 	}); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "enqueue setup experience")
@@ -409,6 +413,12 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 }
 
 func (ds *Datastore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, awaitingConfiguration bool) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return setHostAwaitingConfiguration(ctx, tx, hostUUID, awaitingConfiguration)
+	})
+}
+
+func setHostAwaitingConfiguration(ctx context.Context, tx sqlx.ExtContext, hostUUID string, awaitingConfiguration bool) error {
 	const stmt = `
 INSERT INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration)
 VALUES (?, ?)
@@ -416,7 +426,7 @@ ON DUPLICATE KEY UPDATE
 	awaiting_configuration = VALUES(awaiting_configuration)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, awaitingConfiguration)
+	_, err := tx.ExecContext(ctx, stmt, hostUUID, awaitingConfiguration)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting host awaiting configuration")
 	}

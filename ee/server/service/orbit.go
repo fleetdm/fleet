@@ -122,13 +122,12 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		} else {
 			level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
 		}
+
+		// Host will be marked as no longer "awaiting configuration" in the command handler
 		if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
 
-		if err := svc.ds.SetHostAwaitingConfiguration(ctx, host.UUID, false); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "failed to set host as exiting setup experience")
-		}
 	}
 
 	return payload, nil
