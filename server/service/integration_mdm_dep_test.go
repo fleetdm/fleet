@@ -1514,9 +1514,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// TODO(mna): here we should call the /start endpoint to trigger processing
-	// the software install and script execution, but that endpoint is not ready
-	// yet.
+	// TODO(mna): here we should call the "state machine" to trigger creation of
+	// the software install and script execution requests, but that is not
+	// implemented yet.
 
 	// TODO(mna): when callback of software/script results are implemented, this will
 	// automatically update the /status responses, and once everything has run it will
