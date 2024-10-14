@@ -65,7 +65,6 @@ const OSSettings = ({
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
-  console.log("loading aggregate", isLoadingAggregateProfileStatus);
 
   return (
     <div className={baseClass}>
