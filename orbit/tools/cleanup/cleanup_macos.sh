@@ -16,6 +16,20 @@ function remove_fleet {
     launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
 
     pkill fleet-desktop || true
+
+    # Check MDM status on a macOS device
+    mdm_status=$(profiles status -type enrollment)
+
+    # Check for MDM enrollment status and cleanup enrollment profile
+    if echo "$mdm_status" | grep -q "MDM enrollment: Yes"; then
+        echo "This Mac is MDM enrolled. Removing enrollment profile."
+        profiles remove -identifier com.fleetdm.fleet.mdm.apple
+    elif echo "$mdm_status" | grep -q "MDM enrollment: No"; then
+        echo "This Mac is not MDM enrolled."
+    else
+        echo "MDM status is unknown."
+    fi
+
 }
 
 if [ "$1" = "remove" ]; then
