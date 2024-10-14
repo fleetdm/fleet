@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8596,14 +8595,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		SelfService:   false,
 		TeamID:        &team1.ID,
 	}
-	s.uploadSoftwareInstaller(payloadRubyTm1, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
 
 	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "emacs.deb",
 		SelfService:   true,
 	}
-	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadEmacs, http.StatusOK, "")
 
 	payloadVim := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
@@ -8611,7 +8610,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		SelfService:   true,
 		TeamID:        ptr.Uint(0),
 	}
-	s.uploadSoftwareInstaller(payloadVim, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -8631,7 +8630,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		Filename:      "ruby_arm64.deb",
 		TeamID:        &team2.ID,
 	}
-	s.uploadSoftwareInstaller(payloadRubyTm2, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadRubyTm2, http.StatusOK, "")
 
 	// We should only see the one we uploaded to team 1
 	resp = listSoftwareTitlesResponse{}
@@ -10056,7 +10055,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		Filename:      "ruby.deb",
 		Version:       "1:2.5.1",
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 
 	// update it to be self-service
@@ -10198,7 +10197,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		Filename:      "dummy_installer.pkg",
 		Version:       "0.0.2", // The version can be anything -- we match on title
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	// Get software available for install
 	getHostSw = getHostSoftwareResponse{}
@@ -10320,7 +10319,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Platform:  "linux",
 		}
 
-		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": false}`, 0)
@@ -10329,7 +10328,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		_, titleID := checkSoftwareInstaller(t, payload)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
 
 		// orbit-downloading fails with invalid orbit node key
 		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
@@ -10368,7 +10367,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Platform:    "linux",
 			SelfService: true,
 		}
-		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
 		installerID, titleID := checkSoftwareInstaller(t, payload)
@@ -10377,7 +10376,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -10483,7 +10482,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Platform:    "linux",
 			SelfService: true,
 		}
-		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
 		installerID, titleID := checkSoftwareInstaller(t, payload)
@@ -10492,7 +10491,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
@@ -10578,7 +10577,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 			Platform:  "linux",
 		}
-		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		logger := kitlog.NewLogfmtLogger(os.Stderr)
 
@@ -11574,7 +11573,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Title:             "ruby",
 		TeamID:            teamID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
 
 	// Get title with software installer
@@ -11591,7 +11590,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Title:    "DummyApp.app",
 		TeamID:   teamID,
 	}
-	s.uploadSoftwareInstaller(payloadDummy, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	pkgTitleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", pkgTitleID), nil, http.StatusOK, &respTitle, "team_id",
 		fmt.Sprintf("%d", *teamID))
@@ -11941,7 +11940,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 		Title:             "ruby",
 		SelfService:       false,
 	}
-	s.uploadSoftwareInstaller(payloadNoSS, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadNoSS, http.StatusOK, "")
 	titleIDNoSS := getSoftwareTitleID(t, s.ds, payloadNoSS.Title, "deb_packages")
 
 	payloadSS := &fleet.UploadSoftwareInstallerPayload{
@@ -11952,7 +11951,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 		Title:             "emacs",
 		SelfService:       true,
 	}
-	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payloadSS, http.StatusOK, "")
 	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
 
 	// cannot self-install if software installer does not allow it
@@ -12022,7 +12021,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		Filename:          "ruby.deb",
 		Title:             "ruby",
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
 	payload2 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install script 2",
@@ -12031,7 +12030,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		Filename:          "vim.deb",
 		Title:             "vim",
 	}
-	s.uploadSoftwareInstaller(payload2, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
 	titleID2 := getSoftwareTitleID(t, s.ds, payload2.Title, "deb_packages")
 	payload3 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install script 3",
@@ -12040,7 +12039,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		Filename:          "emacs.deb",
 		Title:             "emacs",
 	}
-	s.uploadSoftwareInstaller(payload3, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload3, http.StatusOK, "")
 	titleID3 := getSoftwareTitleID(t, s.ds, payload3.Title, "deb_packages")
 
 	latestInstallUUID := func() string {
@@ -12276,64 +12275,6 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 }
 
-func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(
-	payload *fleet.UploadSoftwareInstallerPayload,
-	expectedStatus int,
-	expectedError string,
-) {
-	t := s.T()
-	t.Helper()
-	openFile := func(name string) *os.File {
-		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
-		require.NoError(t, err)
-		return f
-	}
-
-	f := openFile(payload.Filename)
-	defer f.Close()
-
-	payload.InstallerFile = f
-
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-
-	// add the software field
-	fw, err := w.CreateFormFile("software", payload.Filename)
-	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
-	require.NoError(t, err)
-	require.NotZero(t, n)
-
-	// add the team_id field
-	if payload.TeamID != nil {
-		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
-	}
-	// add the remaining fields
-	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
-	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
-	require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
-	require.NoError(t, w.WriteField("uninstall_script", payload.UninstallScript))
-	if payload.SelfService {
-		require.NoError(t, w.WriteField("self_service", "true"))
-	}
-
-	w.Close()
-
-	headers := map[string]string{
-		"Content-Type":  w.FormDataContentType(),
-		"Accept":        "application/json",
-		"Authorization": fmt.Sprintf("Bearer %s", s.token),
-	}
-
-	r := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
-	defer r.Body.Close()
-
-	if expectedError != "" {
-		errMsg := extractServerErrorText(r.Body)
-		require.Contains(t, errMsg, expectedError)
-	}
-}
-
 func getSoftwareTitleID(t *testing.T, ds *mysql.Datastore, title, source string) uint {
 	var id uint
 	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -12559,7 +12500,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	resp := listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -12663,7 +12604,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 		Filename:      "no_version.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusBadRequest, "Couldn't add. Fleet couldn't read the version from no_version.pkg.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet couldn't read the version from no_version.pkg.")
 }
 
 // 1. host reports software
@@ -12731,7 +12672,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -12795,7 +12736,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	resp := listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -13704,7 +13645,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team1.ID,
 	}
-	s.uploadSoftwareInstaller(pkgPayload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
 	// Get software title ID of the uploaded installer.
 	resp := listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -13767,7 +13708,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		s.token = adminToken
 	})
 	s.token = adminTeam1Session.Key
-	s.uploadSoftwareInstaller(rubyPayload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, rubyPayload, http.StatusOK, "")
 	s.token = adminToken
 	err = s.ds.DeleteUser(ctx, adminTeam1.ID)
 	require.NoError(t, err)
@@ -13812,7 +13753,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		// author (the admin that uploaded the installer).
 		SelfService: true,
 	}
-	s.uploadSoftwareInstaller(fleetOsqueryPayload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, fleetOsqueryPayload, http.StatusOK, "")
 	// Get software title ID of the uploaded installer.
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -14829,7 +14770,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 		Filename:      "dummy_installer.pkg",
 		Version:       "0.0.2",
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
@@ -14847,7 +14788,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 		Filename:          "ruby.rpm",
 		Title:             "ruby",
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "rpm_packages")
 
 	latestInstallUUID := func() string {
