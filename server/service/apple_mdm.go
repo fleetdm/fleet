@@ -2911,6 +2911,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				// TODO: call next step of setup experience?
+				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
 			}
 		}
 

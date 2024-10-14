@@ -223,7 +223,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 // If the skipPending parameter is true, the datastore will only be updated if the given result
 // status is not pending.
 func (svc *Service) maybeUpdateSetupExperienceStatus(ctx context.Context, result interface{}, requireTerminalStatus bool) (bool, error) {
-	switch v := any(result).(type) {
+	switch v := result.(type) {
 	case fleet.SetupExperienceScriptResult:
 		status := v.SetupExperienceStatus()
 		if !status.IsValid() {

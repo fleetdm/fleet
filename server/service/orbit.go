@@ -701,6 +701,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
 		}
 	}
 
@@ -1051,6 +1052,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "update setup experience status")
 	} else if updated {
 		// TODO: call next step of setup experience?
+		level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
 	}
 
 	if status := result.Status(); status != fleet.SoftwareInstallPending {
